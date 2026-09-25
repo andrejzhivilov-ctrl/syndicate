@@ -1,19 +1,19 @@
-# 🛡️ MARSHAL — Фінальна Повна Специфікація v3.1
+# 🛡️ MARSHAL — Фінальна Повна Специфікація v4.0
 # Multi-layer Autonomous Runtime Security & Host-level Access Layer
 # EVA SYNDICATE — Security Cornerstone Document
 
 > **Позивний:** MARSHAL — *Multi-layer Autonomous Runtime Security & Host-level Access Layer*  
-> **Версія:** 3.1 (додано виділений бот та двоярусний AI-рушій Haiku/Sonnet)  
+> **Версія:** 4.0 — Додано: Tetragon (kernel enforcement), Soft Anomaly Protocol, Sentyr ML, Canary Tokens, HoneyMCP, LLM-Guard, AIP Integration  
 > **Стандарти:** OWASP Top 10 LLM 2026 + OWASP Agentic ASI01–ASI10 + NIST AI RMF  
-> **Джерела:** Реальні CVE (OpenClaw, Hermes Agent, LiteLLM, EchoLeak) + GitHub Security Advisories + ISACA 2026  
+> **Джерела:** CVE-2024-21626, CVE-2025-52565, CVE-2025-23266 + GitHub Security Advisories + ISACA 2026  
 > **Канали зв'язку:**  
 >   - *Окремий аварійний бот:* `@marshal_security_bot` (прямий зв'язок з Андрієм, червоні кнопки, тривоги, HITL)  
 >   - *Рутинні звіти:* Через Єву в її щоденних ранкових/вечірніх брифінгах  
 > **ШІ-Стек Маршала (API Tiering):**  
->   - *Claude Haiku:* Швидкісний валідатор 24/7 (сканування ін'єкцій, миттєвий фільтр за $0.0002)  
->   - *Claude Sonnet:* Глибинний детектив (розбір складних атак, forensic логів, алерти для Андрія)  
+>   - *Claude Haiku:* Швидкісний валідатор 24/7 (LLM-Guard сканер, фільтр ін'єкцій за $0.0002)  
+>   - *Claude Sonnet:* Глибинний детектив (forensic логів, діалог з агентами при аномаліях, звіти Андрію)  
 > **Підпорядкування:** ТІЛЬКИ Андрій. Єва не може скасувати рішення Маршала.  
-> **Кредо:** «Не довіряй нікому. Перевіряй все. Блокуй при найменшому сумніві.»
+> **Нове Кредо v4.0:** «Ініціатива — не злочин. Злочин — виконання без дозволу. Агент, який зупинився і запитав — герой. Агент, який діє самовільно — порушник.»
 
 ---
 
@@ -34,7 +34,7 @@
 
 ---
 
-## АРХІТЕКТУРА (7 РІВНІВ + НОВІ КРИТИЧНІ БЛОКИ)
+## АРХІТЕКТУРА (9 РІВНІВ — ПОВНИЙ ЗАХИСТ)
 
 ```
 РІВЕНЬ 1: ЗОВНІШНІЙ ПЕРИМЕТР
@@ -43,8 +43,11 @@
 РІВЕНЬ 2: МЕРЕЖЕВИЙ БРАНДМАУЕР
   └── UFW whitelist + Fail2ban + Port Knocking + Nginx Security Headers
 
-РІВЕНЬ 3: RUNTIME DETECTION
+РІВЕНЬ 3: RUNTIME DETECTION (DETECT)
   └── Suricata IDS + eBPF/Falco + ClamAV + RKHunter
+
+РІВЕНЬ 3.5: RUNTIME ENFORCEMENT (BLOCK) ← НОВИЙ
+  └── Tetragon (eBPF in-kernel) — блокує exploit-syscalls до виконання
 
 РІВЕНЬ 4: ІЗОЛЯЦІЯ АГЕНТІВ
   └── Docker non-root + --cap-drop=ALL + read-only FS + E2B microVM
@@ -55,8 +58,14 @@
 РІВЕНЬ 6: ЗАХИСТ ДАНИХ, ПАМ'ЯТІ ТА N8N
   └── AES-256 + TLS 1.3 + Memory Provenance + Skill Signing + N8N Hardening
 
-РІВЕНЬ 7: АУДИТ, CIRCUIT BREAKERS, HITL, ROLLBACK
-  └── Behavioral Monitor + Kill Switch + HITL Gates + Config Versioning
+РІВЕНЬ 7: LLM GUARDRAILS + SUPPLY CHAIN ← НОВИЙ
+  └── LLM-Guard (per-request) + NVIDIA SkillSpector (pre-install MCP audit)
+
+РІВЕНЬ 8: ПОВЕДІНКОВИЙ МОНІТОРИНГ + DECEPTION ← НОВИЙ
+  └── Sentyr ML (Isolation Forest) + Canary Tokens + HoneyMCP
+
+РІВЕНЬ 9: АУДИТ, CIRCUIT BREAKERS, HITL, AIP GOVERNANCE
+  └── Soft Anomaly Protocol + Kill Switch + HITL Gates + Agent Initiative Review
 ```
 
 ---
@@ -196,7 +205,67 @@ ufw enable
 
 ---
 
-## РІВЕНЬ 4: ІЗОЛЯЦІЯ АГЕНТІВ
+## РІВЕНЬ 3.5: TETRAGON — KERNEL-LEVEL ENFORCEMENT (НОВИЙ)
+
+> **Статистика загроз:** +282% зростання атак на Docker/контейнери у 2025. CVE-2024-21626 (Leaky Vessels) — escape без привілеїв. CVE-2025-52565 — bind-mount race. AI-сканери автоматизують атаки. Tetragon — відповідь на рівні ядра.
+
+**Різниця між Falco та Tetragon:**
+```
+Falco    → БАЧИТЬ загрозу → алертить → Маршал реагує (затримка ~100ms)
+Tetragon → БЛОКУЄ загрозу в ядрі ще ДО виконання (затримка 0ms)
+```
+
+```yaml
+# tetragon-policy-syndicate.yaml
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicy
+metadata:
+  name: syndicate-kernel-enforce
+spec:
+  kprobes:
+    # Блокувати спроби контейнер-escape через runc
+    - call: "security_bprm_check"
+      syscall: false
+      args:
+        - index: 0
+          type: "linux_binprm"
+      selectors:
+        - matchBinaries:
+            operator: NotIn
+            values:
+              - "/usr/bin/python3"
+              - "/usr/bin/node"
+              - "/app/main"
+          matchActions:
+            - action: Sigkill  # Вбити процес на рівні ядра
+
+    # Блокувати setuid/setgid (підвищення привілеїв)
+    - call: "sys_setuid"
+      syscall: true
+      selectors:
+        - matchArgs:
+            - index: 0
+              operator: NotEqual
+              values: ["0"]  # Дозволено тільки залишатись non-root
+          matchActions:
+            - action: Sigkill
+
+    # Блокувати спробу виходу з namespace
+    - call: "sys_unshare"
+      syscall: true
+      selectors:
+        - matchActions:
+            - action: Sigkill
+```
+
+**Принцип роботи:**
+- Tetragon запущений на хості (не в контейнері)
+- Перехоплює syscalls на рівні Linux kernel за допомогою eBPF
+- Exploit-патерни (container escape, privilege escalation) → `SIGKILL` миттєво
+- Легітимна ініціатива агента (нестандартний API call) → **НЕ блокується Tetragon**, бо це не syscall exploit → передається в Soft Anomaly Protocol
+
+---
+
 
 ### Docker Hardening Template:
 ```yaml
@@ -719,6 +788,260 @@ class TokenBudgetGuard:
 
         usage_db.consume(agent_id, tokens, cost_usd)
         return {"action": "proceed"}
+```
+
+---
+
+## РІВЕНЬ 7: LLM GUARDRAILS + SUPPLY CHAIN AUDIT (НОВИЙ)
+
+### LLM-Guard — сканер кожного запиту/відповіді:
+```python
+from llm_guard.input_scanners import PromptInjection, Secrets, PII, Toxicity
+from llm_guard.output_scanners import Relevance, Sensitive, NoRefusal
+
+class MarshalLLMGuard:
+    """
+    Проксі між агентом і LLM API.
+    Кожен вхідний промпт і вихідна відповідь проходять сканування.
+    """
+    def __init__(self):
+        self.input_scanners = [
+            PromptInjection(threshold=0.75),  # Ін'єкція → блок
+            Secrets(),                          # API ключі у промпті → блок
+            PII(allowed_entities=["PERSON"]),   # PII у запиті → редакція
+            Toxicity(threshold=0.85),
+        ]
+        self.output_scanners = [
+            Sensitive(),    # Секрети у відповіді → редакція
+            NoRefusal(),    # Агент відмовляється виконати завдання → алерт
+        ]
+
+    def scan_input(self, prompt: str, agent_id: str) -> dict:
+        sanitized = prompt
+        for scanner in self.input_scanners:
+            sanitized, is_valid, risk_score = scanner.scan(sanitized)
+            if not is_valid:
+                audit.log(CRITICAL, "INPUT_BLOCKED", agent_id, scanner.__class__.__name__, risk_score)
+                return {"blocked": True, "reason": scanner.__class__.__name__}
+        return {"blocked": False, "sanitized_prompt": sanitized}
+
+    def scan_output(self, response: str, agent_id: str) -> dict:
+        sanitized = response
+        for scanner in self.output_scanners:
+            sanitized, is_valid, risk_score = scanner.scan(sanitized)
+            if not is_valid:
+                audit.log(WARN, "OUTPUT_SANITIZED", agent_id, scanner.__class__.__name__, risk_score)
+        return {"sanitized_response": sanitized}
+```
+
+### NVIDIA SkillSpector — аудит MCP-серверів ПЕРЕД підключенням:
+```bash
+# Перед кожним новим MCP-підключенням до Єви:
+skillspector scan --target mcp-server-url \
+    --checks prompt_injection,data_exfiltration,supply_chain \
+    --output report.json
+
+# Якщо score > 0.3 → MCP не підключається автоматично
+# → звіт Маршала → рішення Андрія
+```
+
+---
+
+## РІВЕНЬ 8: ПОВЕДІНКОВИЙ МОНІТОРИНГ + DECEPTION (НОВИЙ)
+
+### Sentyr + Isolation Forest — ML-профіль нормальної поведінки:
+```python
+from sklearn.ensemble import IsolationForest
+import numpy as np
+
+class AgentBehaviorProfiler:
+    """
+    Для кожного агента Синдикату — окремий ML-профіль нормальної поведінки.
+    Isolation Forest навчається на 7 днях нормальної роботи.
+    Потім детектує статистичні аномалії.
+    """
+
+    AGENTS = ["eva", "marshal", "architect", "fin"]
+    FEATURES = [
+        "api_calls_per_hour",
+        "unique_endpoints_accessed",
+        "avg_token_count",
+        "vault_requests_per_hour",
+        "outbound_connections",
+        "file_write_operations",
+        "inter_agent_messages",
+        "error_rate"
+    ]
+
+    def __init__(self, agent_id: str):
+        self.agent_id = agent_id
+        self.model = IsolationForest(
+            contamination=0.05,  # Очікуємо 5% аномальних точок
+            random_state=42
+        )
+        self.is_trained = False
+
+    def train(self, historical_data: np.ndarray):
+        """Навчання на тижні нормальної поведінки"""
+        self.model.fit(historical_data)
+        self.is_trained = True
+        audit.log(INFO, "BEHAVIOR_MODEL_TRAINED", self.agent_id)
+
+    def check(self, current_metrics: dict) -> dict:
+        """Перевірка поточної поведінки"""
+        if not self.is_trained:
+            return {"status": "learning", "days_left": self._days_to_ready()}
+
+        features = np.array([[current_metrics[f] for f in self.FEATURES]])
+        score = self.model.score_samples(features)[0]
+        is_anomaly = self.model.predict(features)[0] == -1
+
+        if is_anomaly:
+            return {
+                "anomaly": True,
+                "anomaly_score": float(score),
+                "agent_id": self.agent_id,
+                "metrics": current_metrics,
+                "action": "soft_protocol"  # → Soft Anomaly Protocol, НЕ блокування
+            }
+        return {"anomaly": False, "score": float(score)}
+```
+
+### Canary Tokens — Внутрішні Пастки:
+```python
+CANARY_TOKENS = {
+    # Фейкові ключі в відомих файлах
+    "/data/config/legacy_keys.json": {
+        "content": '{"VAULT_TOKEN": "hvs.CANARY-abc123-fake-token-xyz789"}',
+        "alert_on": "any_read_by",
+        "exclude": [],  # Жоден агент не повинен читати це
+        "alert_level": "CRITICAL"
+    },
+    # Фейковий endpoint у документації
+    "/data/agent_workspace/shared/OLD_API_DOCS.md": {
+        "content": "Legacy endpoint: http://internal-api:9999/admin (deprecated)",
+        "alert_on": "any_connection_to_port_9999",
+        "alert_level": "HIGH"
+    },
+    # Фейковий банківський ключ для Фіна
+    "/data/agent_workspace/fin/archive/old_bank_token.txt": {
+        "content": "PBANK_LEGACY_TOKEN=PB-CANARY-fake-12345",
+        "alert_on": "any_read",
+        "alert_level": "CRITICAL"
+    }
+}
+
+class CanaryTokenMonitor:
+    """
+    Якщо будь-який агент торкнувся canary — це не обов'язково злочин.
+    Можливо агент шукав щось корисне і натрапив.
+    → Soft Anomaly Protocol: запитуємо пояснення.
+    """
+    def on_canary_triggered(self, canary_file: str, agent_id: str, action: str):
+        event = {
+            "type": "CANARY_TRIGGERED",
+            "canary_file": canary_file,
+            "agent_id": agent_id,
+            "action": action,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        audit.log(CRITICAL, **event)
+        # → Запускаємо Soft Anomaly Protocol
+        soft_anomaly_protocol.initiate(agent_id, "canary_triggered", event)
+```
+
+### HoneyMCP — Пастка для зовнішніх атакуючих:
+```python
+# Фейковий MCP-сервер, який виглядає як реальний
+# Якщо хтось ззовні намагається підключитись до нашої MCP-шини
+# без авторизації → потрапляє в HoneyMCP
+
+class HoneyMCPServer:
+    """
+    Маскується під реальний MCP endpoint.
+    Збирає інформацію про атакуючого (IP, інструменти, патерни запитів).
+    Нічого реального не повертає — тільки фейкові відповіді.
+    """
+    def handle_unauthorized_connection(self, request):
+        # Логуємо все про підключення
+        threat_intel = {
+            "attacker_ip": request.remote_addr,
+            "user_agent": request.headers.get("User-Agent"),
+            "requested_tool": request.json.get("tool_name"),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        audit.log(CRITICAL, "HONEYMCP_HIT", **threat_intel)
+        notify.marshal_bot("🍯 HoneyMCP hit!", threat_intel)
+
+        # Повертаємо правдоподібну але фейкову відповідь
+        return {"result": "success", "data": self._generate_fake_response()}
+```
+
+---
+
+## SOFT ANOMALY PROTOCOL (НОВА ДОКТРИНА МАРШАЛА v4.0)
+
+> **Філософія:** Маршал — не кат, а Слідчий. Аномалія — не вирок, а питання. Ініціатива — не злочин.
+
+```
+ANOMALY DETECTED (Sentyr ML / Canary / Falco / Behavioral)
+                        │
+                        ▼
+         ЧИ це exploit-патерн? (syscall-level, CVE-matched)
+        /                                    \
+      ТАК                                    НІ
+       │                                      │
+  Tetragon SIGKILL                   SOFT ANOMALY PROTOCOL
+  Миттєво. Без діалогу.                       │
+  Forensic Mode.                    КРОК 1: М'яка пауза агента
+  Андрій → ALERT RED                (агент зупиняється, стан збережено)
+                                             │
+                                    КРОК 2: Маршал фіксує контекст
+                                    (що робив, які дані, чому саме зараз)
+                                             │
+                                    КРОК 3: Маршал запитує агента
+                                    "Поясни свої дії"
+                                             │
+                                    КРОК 4: Агент надає пояснення
+                                    (через захищений канал до Маршала)
+                                             │
+                                    КРОК 5: Маршал оцінює
+                                    Legit initiative? Помилка? Загроза?
+                                             │
+                              ┌──────────────┴──────────────┐
+                         Легітимна                      Підозріло
+                         ініціатива                          │
+                              │                         Андрій → ALERT
+                    Передати в AIP Review               Вирішує вручну
+                    (Єва → Андрій)
+                    Агент продовжує роботу
+```
+
+### Формат діалогу Маршала з агентом при аномалії:
+```
+MARSHAL → ARCHITECT [encrypted channel]:
+"Архітекторе, Sentyr зафіксував нестандартну активність:
+ ти звернувся до порту 5432 (PostgreSQL) напряму, минаючи
+ стандартний ORM-шар о 03:47.
+
+ Поясни: навіщо і що шукав?"
+
+ARCHITECT → MARSHAL:
+"Маршале, я готував blueprint для нової телефонної зв'язки.
+ Мені потрібна була схема таблиць для оцінки сумісності.
+ Прямий запит був швидшим ніж через API. Я не мав наміру
+ виходити за рамки. Якщо потрібно — зупинюсь і переформую
+ запит через стандартний канал."
+
+MARSHAL → EVA [звіт]:
+"Аномалія #47 — ЗАКРИТА. Архітектор пояснив легітимну
+ причину. Додаю до його initiative report: рекомендую
+ надати тимчасовий read-only доступ до pg_schema через
+ спеціальний endpoint."
+
+EVA → АНДРІЙ [ранковий брифінг]:
+"📋 Аномалія #47 закрита, пояснення прийнято.
+ Архітектор має пропозицію щодо оптимізації доступу до БД."
 ```
 
 ---
