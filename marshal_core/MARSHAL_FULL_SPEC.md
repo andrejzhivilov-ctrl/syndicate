@@ -347,14 +347,14 @@ class SecureCodeExecutor:
 
 ## РІВЕНЬ 5: ZERO TRUST IAM + SECRETS
 
-### 5.1 Матриця доступу до бази знань «НОУТ» (NotebookLM RBAC):
+### 5.1 Матриця доступу до бази знань «АРХІВ» (NotebookLM RBAC):
 Маршал забезпечує сувору ізоляцію блокнотів між агентами. Жоден агент не може вийти за межі свого допуску.
 
 | Агент | Рівень доступу | Дозволені Блокноти (Scope) | Заборонені розділи |
 | :--- | :--- | :--- | :--- |
 | **👑 ЄВА** | **Master (Full Unrestricted)** | УСІ блокноти (Стратегія, Операційка, Життя, Проекти) | Немає (Повний допуск) |
 | **🛡️ МАРШАЛ** | **Security & Audit** | `SECURITY_AUDIT`, `CVE_RADAR`, `INCIDENTS_LOG` | Усі інші (Маршал не читає чужі блокноти) |
-| **🩺 ДОК** | **Health & Fitness** | `ANDRII_MEDICAL_ARCHIVE`, `TRAINING_VAULT`, `NUTRITION_RECIPES` | Фінанси, Архітектура, Безпека |
+| **🩺 ДОК** | **Health & Fitness** | `ANDRII_MEDICAL_VAULT`, `TRAINING_PROTOCOLS`, `EVIDENCE_NUTRITION` | Фінанси, Архітектура, Безпека |
 | **🏛️ АРХІТЕКТОР**| **Infrastructure & N8N** | `SYSTEM_ARCHITECTURE`, `ADR_RECORDS`, `N8N_SCHEMAS`, `RND_RADAR`| Медицина, Фінанси, Особисте |
 | **💰 ФІН** | **Financial & Accounting** | `FINANCIAL_LEDGER`, `TAX_BILLS_ARCHIVE`, `CONTRACTS_EXPENSES` | Медицина, Архітектура, Безпека |
 
