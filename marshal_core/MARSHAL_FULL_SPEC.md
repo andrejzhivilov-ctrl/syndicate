@@ -347,7 +347,36 @@ class SecureCodeExecutor:
 
 ## РІВЕНЬ 5: ZERO TRUST IAM + SECRETS
 
-### HashiCorp Vault — організація секретів:
+### 5.1 Матриця доступу до бази знань «НОУТ» (NotebookLM RBAC):
+Маршал забезпечує сувору ізоляцію блокнотів між агентами. Жоден агент не може вийти за межі свого допуску.
+
+| Агент | Рівень доступу | Дозволені Блокноти (Scope) | Заборонені розділи |
+| :--- | :--- | :--- | :--- |
+| **👑 ЄВА** | **Master (Full Unrestricted)** | УСІ блокноти (Стратегія, Операційка, Життя, Проекти) | Немає (Повний допуск) |
+| **🛡️ МАРШАЛ** | **Security & Audit** | `SECURITY_AUDIT`, `CVE_RADAR`, `INCIDENTS_LOG` | Усі інші (Маршал не читає чужі блокноти) |
+| **🩺 ДОК** | **Health & Fitness** | `ANDRII_MEDICAL_ARCHIVE`, `TRAINING_VAULT`, `NUTRITION_RECIPES` | Фінанси, Архітектура, Безпека |
+| **🏛️ АРХІТЕКТОР**| **Infrastructure & N8N** | `SYSTEM_ARCHITECTURE`, `ADR_RECORDS`, `N8N_SCHEMAS`, `RND_RADAR`| Медицина, Фінанси, Особисте |
+| **💰 ФІН** | **Financial & Accounting** | `FINANCIAL_LEDGER`, `TAX_BILLS_ARCHIVE`, `CONTRACTS_EXPENSES` | Медицина, Архітектура, Безпека |
+
+### 5.2 Захист суверенних файлів Андрія: `[ANDRII_IMMUTABLE]`
+```python
+class SovereignFileIntegrityGuard:
+    """
+    Захищає файли Андрія від будь-яких модифікацій ШІ.
+    """
+    IMMUTABLE_PREFIX = "[ANDRII_IMMUTABLE]"
+
+    def authorize_file_operation(self, agent_id: str, file_name: str, operation: str) -> bool:
+        if self.IMMUTABLE_PREFIX in file_name or file_metadata.get("is_andrii_immutable"):
+            if operation in ["DELETE", "UPDATE", "OVERWRITE", "TRUNCATE"]:
+                audit.log(CRITICAL, "ILLEGAL_MUTATION_ATTEMPT", agent_id, file_name, operation)
+                notify.marshal_bot(f"🚨 Агент {agent_id} намагався змінити недоторканний файл Андрія: {file_name}")
+                raise PermissionError(f"File {file_name} is strictly IMMUTABLE. Only READ is permitted.")
+            return True  # Операція READ дозволена
+        return True
+```
+
+### 5.3 HashiCorp Vault — організація секретів:
 ```
 secrets/
 ├── llm/                    # LLM провайдери
