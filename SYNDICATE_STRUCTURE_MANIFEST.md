@@ -113,10 +113,11 @@
 - **Довгостроковий портфель:** Interactive Brokers (IBKR) — акції США, ETF (VOO, QQQM), DCF оцінка фундаменталу, Margin of Safety > 15%, щомісячний DCA.
 - **Крипторинок 24/7:** Аналіз ставок фінансування (Funding), відкритого інтересу (OI), ліквідаційних теплових карт та припливу стейблкоїнів через DefiLlama.
 - **Жорсткий HITL:** Нуль самовільних угод. Пропозиція з Confluence > 95% ➔ Telegram-кнопка ➔ фізичний клік Андрія.
+- **Власний сектор в АРХІВІ (NotebookLM RBAC):** 4 суверенні квантові блокноти по 500 джерел (`SAM_QUANT_LIBRARY`, `TRADING_JOURNAL_REFLECTIONS`, `MACRO_COT_RESEARCH`, `PORTFOLIO_VALUATION_VAULT`) під захистом `[ANDRII_IMMUTABLE]`.
 - **Двоканальна звітність:**
   - Особистий бот `@sam_quant_bot`: 08:00 Game Plan, 21:00 PnL підсумок, неділя 18:00 звіт CFTC COT, 1-ше число місяця — аудит портфеля та DCA-план.
   - Канал з Євою: передача коротких дайджестів у загальний добовий звіт Синдикату.
-- **24/7 Zero-Waste токени:** 90% обчислень у чистому Python ($0 токенів), LLM-синтез через безкоштовні квоти Groq Cloud (Llama-3.3-70B) та Google AI Studio (Gemini Flash).
+- **24/7 Zero-Waste токени:** 90% обчислень у чистому Python (`smartmoneyconcepts`, `Riskfolio-Lib`, `cot-reports`) за $0 токенів, швидкий синтез через Groq Cloud (Llama-3.3-70B) та Google AI Studio (Gemini Flash).
 
 ---
 
