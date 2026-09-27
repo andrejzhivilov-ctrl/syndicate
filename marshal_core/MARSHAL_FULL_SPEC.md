@@ -123,9 +123,15 @@ ufw --force reset
 ufw default deny incoming
 ufw default deny outgoing
 
-# Вихідний трафік — тільки через проксі Маршала
+# Вихідний трафік — мінімально необхідний whitelist
 ufw allow out 443/tcp comment "HTTPS via Marshal proxy only"
+ufw allow out 80/tcp comment "HTTP (Let's Encrypt ACME challenge)"
 ufw allow out 53/udp comment "DNS"
+ufw allow out 53/tcp comment "DNS over TCP"
+# ⚠️ КРИТИЧНО: NTP обов'язковий!
+# Без синхронізації часу сервер дрейфує. При дрейфі >30 сек
+# JWT токени з TTL=15хв починають відхилятися → вся A2A авторизація падає тихо.
+ufw allow out 123/udp comment "NTP (chrony) — критично для JWT TTL"
 
 # Вхідний — тільки через Cloudflare (їх IP-діапазони)
 # Cloudflare IP Ranges: 103.21.244.0/22, 103.22.200.0/22 ...
@@ -529,23 +535,39 @@ FORBIDDEN_IN_N8N_EXPORT = [
 ```python
 MEMORY_SEGMENTS = {
     "TIER_1_TRUSTED": {
-        # Джерело: прямі повідомлення Андрія
+        # Джерело: ТІЛЬКИ прямі підтверджені слова Андрія
         "trust_score": 1.0,
         "encryption": "AES-256-GCM",
         "access": ["eva_only"],
         "backup": True,
-        "retention": "forever"
+        "retention": "forever",
+        "can_be_overwritten_by": ["andrii_direct_only"]
     },
     "TIER_2_AGENT": {
-        # Джерело: висновки агентів
+        # Джерело: верифіковані висновки агентів з цитатами першоджерел
         "trust_score": 0.8,
         "encryption": "AES-256-GCM",
         "access": ["eva", "authorized_agents"],
         "backup": True,
         "retention": "1_year"
     },
+    "TIER_2_DREAMING": {
+        # Джерело: факти з автономного Dreaming Loop (03:00)
+        # ⚠️ ВЕКТОР РИЗИКУ: Haiku може галюцинувати під час консолідації.
+        # Захист: факти з dreaming НЕ можуть замінити TIER_1 факти.
+        # Якщо dreaming-факт суперечить TIER_1 → відкидається + alert Маршалу.
+        "trust_score": 0.6,
+        "encryption": "AES-256-GCM",
+        "access": ["eva_read", "marshal_audit"],
+        "backup": False,
+        "retention": "30_days",       # Автовидалення якщо Андрій не підтвердив
+        "auto_promote_to_tier1": False,  # ЗАБОРОНЕНО
+        "conflict_check_vs_tier1": True, # ОБОВ'ЯЗКОВИЙ перед записом
+        "on_conflict": "discard_and_alert_marshal",
+        "promote_condition": "andrii_explicit_confirmation_only"
+    },
     "TIER_3_EXTERNAL": {
-        # Джерело: інтернет, email, API
+        # Джерело: інтернет, email, API, неверифіковані зовнішні дані
         "trust_score": 0.3,
         "encryption": "AES-256-GCM",
         "access": ["read_with_warning"],
