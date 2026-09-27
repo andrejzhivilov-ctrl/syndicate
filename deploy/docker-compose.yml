@@ -447,16 +447,13 @@ services:
       POSTGRES_HOST: postgres
       REDIS_HOST: redis
       N8N_BASE: http://n8n:5678
-      # Architect керує контейнерами через Docker TCP (не socket!)
-      DOCKER_HOST: tcp://docker-proxy:2376
-      DOCKER_TLS_VERIFY: "1"
-      DOCKER_CERT_PATH: /certs/client
+      # Architect керує контейнерами через внутрішній ізольований Docker Proxy (не socket!)
+      DOCKER_HOST: tcp://docker-proxy:2375
       TZ: Europe/Kyiv
       LOG_LEVEL: INFO
     volumes:
       - architect-workspace:/data/workspace:rw
       - ./architect_core:/app/persona:ro
-      - ./certs/architect-client:/certs/client:ro   # TLS client certs для Docker API
     networks:
       - syndicate-internal
     depends_on:
@@ -732,6 +729,8 @@ services:
       POST: "0"                  # Тільки GET (читання)
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    expose:
+      - "2375"
     networks:
       - syndicate-internal
     deploy:
