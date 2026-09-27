@@ -269,8 +269,10 @@ services:
   # Локальний STT. CPU-only з int8 квантизацією: 2-3× realtime
   # Fallback при черзі >3хв → Groq API (автоматично в Eva)
   whisper:
-    image: ghcr.io/syndicate/whisper-service:1.0.0
-    # Альтернативний публічний image: onerahmet/openai-whisper-asr-webservice:latest
+    build:
+      context: ..
+      dockerfile: deploy/docker/whisper.Dockerfile
+    image: syndicate/whisper:1.0.0
     container_name: syndicate-whisper
     <<: *agent-security
     read_only: false
@@ -301,11 +303,18 @@ services:
           cpus: "2.0"            # Throttle: Whisper не повинен перекрити агентів
 
 # ═══════════════════════════════════════════════════════════
-# ГРУПА B: АГЕНТИ (всі 5)
+# ГРУПА B: АГЕНТИ (всі 6)
 # ═══════════════════════════════════════════════════════════
 
   # ── 7. EVA (Головний агент — CEO, Orchestrator) ──────────
   eva:
+    build:
+      context: ..
+      dockerfile: deploy/docker/agent.Dockerfile
+      args:
+        AGENT_UID: "1001"
+        AGENT_GID: "1001"
+        AGENT_NAME: "eva"
     image: syndicate/eva:1.0.0
     container_name: syndicate-eva
     <<: *agent-security
@@ -323,6 +332,9 @@ services:
       REDIS_HOST: redis
       N8N_BASE: http://n8n:5678
       WHISPER_URL: http://whisper:9000
+      PLAYWRIGHT_SERVER_URL: "ws://browser-use:3000/"
+      BROWSER_USE_ENDPOINT: "http://browser-use:3000"
+      GOOGLE_WORKSPACE_MCP_ENABLED: "true"
       TELEGRAM_ANDRII_CHAT_ID: ${TELEGRAM_ANDRII_CHAT_ID}
       TZ: Europe/Kyiv
       LOG_LEVEL: INFO
@@ -357,6 +369,13 @@ services:
 
   # ── 8. MARSHAL (Безпека — Security Director) ─────────────
   marshal:
+    build:
+      context: ..
+      dockerfile: deploy/docker/agent.Dockerfile
+      args:
+        AGENT_UID: "1003"
+        AGENT_GID: "1003"
+        AGENT_NAME: "marshal"
     image: syndicate/marshal:1.0.0
     container_name: syndicate-marshal
     <<: *agent-security
@@ -405,6 +424,13 @@ services:
 
   # ── 9. ARCHITECT (Інфраструктура — CTO) ──────────────────
   architect:
+    build:
+      context: ..
+      dockerfile: deploy/docker/agent.Dockerfile
+      args:
+        AGENT_UID: "1004"
+        AGENT_GID: "1004"
+        AGENT_NAME: "architect"
     image: syndicate/architect:1.0.0
     container_name: syndicate-architect
     <<: *agent-security
@@ -454,6 +480,13 @@ services:
 
   # ── 10. FIN (Фінанси — CFO) ───────────────────────────────
   fin:
+    build:
+      context: ..
+      dockerfile: deploy/docker/agent.Dockerfile
+      args:
+        AGENT_UID: "1005"
+        AGENT_GID: "1005"
+        AGENT_NAME: "fin"
     image: syndicate/fin:1.0.0
     container_name: syndicate-fin
     <<: *agent-security
@@ -501,6 +534,13 @@ services:
 
   # ── 11. DOC (Медик / Тренер / Нутриціолог) ───────────────
   doc:
+    build:
+      context: ..
+      dockerfile: deploy/docker/agent.Dockerfile
+      args:
+        AGENT_UID: "1006"
+        AGENT_GID: "1006"
+        AGENT_NAME: "doc"
     image: syndicate/doc:1.0.0
     container_name: syndicate-doc
     <<: *agent-security
@@ -548,6 +588,13 @@ services:
 
   # ── 12. SAM (Квант-трейдер та Керуючий Активами — CIO) ─────
   sam:
+    build:
+      context: ..
+      dockerfile: deploy/docker/agent.Dockerfile
+      args:
+        AGENT_UID: "1009"
+        AGENT_GID: "1009"
+        AGENT_NAME: "sam"
     image: syndicate/sam:1.0.0
     container_name: syndicate-sam
     <<: *agent-security
@@ -665,9 +712,7 @@ services:
     container_name: syndicate-docker-proxy
     <<: *agent-security
     read_only: false
-    user: "0:0"                  # Потребує root для доступу до socket
-    cap_add:
-      - NET_ADMIN
+    user: "1000:999"             # Non-root user + docker socket group
     environment:
       # Дозволяємо тільки безпечні операції
       CONTAINERS: "1"            # /containers/*
@@ -694,6 +739,47 @@ services:
         limits:
           memory: 64M
           cpus: "0.1"
+
+  # ── 16. Falco (Runtime Security & Syscall Detection) ─────
+  falco:
+    image: falcosecurity/falco-no-driver:0.38.2
+    container_name: syndicate-falco
+    restart: unless-stopped
+    privileged: true
+    volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock:ro
+      - /proc:/host/proc:ro
+      - /boot:/host/boot:ro
+      - /lib/modules:/host/lib/modules:ro
+      - /usr:/host/usr:ro
+      - /etc:/host/etc:ro
+    environment:
+      FALCO_BPF_PROBE: ""
+    networks:
+      - syndicate-security
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+
+  # ── 17. Suricata (Network Intrusion Detection System) ───
+  suricata:
+    image: jasonish/suricata:7.0.6
+    container_name: syndicate-suricata
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_NICE
+    network_mode: host
+    volumes:
+      - /data/suricata/logs:/var/log/suricata
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
 
 # ═══════════════════════════════════════════════════════════
 # SECRETS
