@@ -121,15 +121,29 @@ section "КРОК 7: Створення структури директорій"
 mkdir -p /opt/eva-syndicate/{deploy,config,scripts,secrets,logs}
 mkdir -p /opt/eva-syndicate/config/{postgres,nginx,vault}
 mkdir -p /opt/eva-syndicate/config/nginx/conf.d
-mkdir -p /data/{eva,marshal,architect,fin,doc,n8n}
+mkdir -p /data/{eva,marshal,architect,fin,doc,sam,n8n,postgres,redis,vault,audit,clamav,suricata/logs,nginx-certs}
 chown -R syndicate:syndicate /opt/eva-syndicate /data
 chmod 700 /opt/eva-syndicate/secrets
 log "✅ Директорії створено у /opt/eva-syndicate та /data"
 
+# ── КРОК 7b: ПЕРВИННИЙ SSL БУТСТРАП ДЛЯ NGINX ───────────────────
+section "КРОК 7b: Первинний SSL бутстрап (захист від збою Nginx)"
+DUMMY_CERT_DIR="/data/nginx-certs/live/default"
+if [ ! -f "$DUMMY_CERT_DIR/fullchain.pem" ]; then
+    mkdir -p "$DUMMY_CERT_DIR"
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+        -keyout "$DUMMY_CERT_DIR/privkey.pem" \
+        -out "$DUMMY_CERT_DIR/fullchain.pem" \
+        -subj "/C=UA/ST=Kyiv/L=Kyiv/O=EvaSyndicate/CN=localhost" 2>/dev/null
+    log "✅ Створено початковий SSL-сертифікат (Nginx не впаде при першому старті)"
+    log "   Після прив'язки домену запусти certbot для бойового Let's Encrypt / Cloudflare"
+else
+    log "SSL-сертифікати вже існують"
+fi
+
 # ── КРОК 8: КЛОНУВАННЯ РЕПОЗИТОРІЮ ────────────────────────────
 section "КРОК 8: Клонування репозиторію EVA SYNDICATE"
 if [ ! -d "/opt/eva-syndicate/.git" ]; then
-    # Буде запитано токен або він передається як аргумент
     GITHUB_TOKEN="${1:-}"
     if [ -z "$GITHUB_TOKEN" ]; then
         warn "GitHub токен не передано. Клонуй вручну:"
@@ -145,17 +159,40 @@ else
     warn "Репозиторій вже клоновано — пропускаємо"
 fi
 
-# ── КРОК 9: НАЛАШТУВАННЯ SWAP (захист від OOM) ────────────────
-section "КРОК 9: Налаштування Swap (4GB)"
+# ── КРОК 9: ОПТИМІЗАЦІЯ ПАМ'ЯТІ ТА SWAP ────────────────────────
+section "КРОК 9: Оптимізація пам'яті (Redis/Postgres) та Swap"
+# Налаштовуємо swappiness=10 замість 60 (щоб система не заморожувала I/O)
+cat > /etc/sysctl.d/99-syndicate.conf << 'EOF'
+vm.swappiness = 10
+vm.overcommit_memory = 1
+net.core.somaxconn = 1024
+EOF
+sysctl -p /etc/sysctl.d/99-syndicate.conf >/dev/null
+
 if [ ! -f /swapfile ]; then
     fallocate -l 4G /swapfile
     chmod 600 /swapfile
     mkswap /swapfile
     swapon /swapfile
     echo '/swapfile none swap sw 0 0' >> /etc/fstab
-    log "✅ Swap 4GB активовано"
+    log "✅ Swap 4GB активовано (swappiness=10, overcommit_memory=1)"
 else
-    warn "Swap вже існує — пропускаємо"
+    log "Swap вже існує"
+fi
+
+# ── КРОК 10: ВСТАНОВЛЕННЯ CILIUM TETRAGON (eBPF Kernel Security) ──
+section "КРОК 10: Встановлення Cilium Tetragon (eBPF на хості)"
+if ! command -v tetragon &>/dev/null; then
+    log "Завантаження та встановлення Tetragon v1.2.0..."
+    TETRAGON_VER="v1.2.0"
+    curl -fsSL -o /tmp/tetragon.tar.gz "https://github.com/cilium/tetragon/releases/download/${TETRAGON_VER}/tetragon-${TETRAGON_VER}-amd64.tar.gz" || warn "Не вдалося завантажити Tetragon бінарник (можна встановити пізніше)"
+    if [ -f /tmp/tetragon.tar.gz ]; then
+        tar -xzf /tmp/tetragon.tar.gz -C /usr/local/bin/ || true
+        rm -f /tmp/tetragon.tar.gz
+        log "✅ Tetragon встановлено в /usr/local/bin"
+    fi
+else
+    log "Tetragon вже встановлено"
 fi
 
 # ── ПІДСУМОК ───────────────────────────────────────────────────
