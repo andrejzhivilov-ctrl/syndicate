@@ -121,8 +121,15 @@ path "secrets/data/llm/*" { capabilities = ["read"] }
 path "secrets/data/integrations/perplexity*" { capabilities = ["read"] }
 POLICY
 
+# Політика СЕМА — трейдинг, біржі, LLM
+vault policy write sam-policy - <<'POLICY'
+path "secrets/data/llm/*" { capabilities = ["read"] }
+path "secrets/data/trading/*" { capabilities = ["read"] }
+path "secrets/data/communication/telegram_sam_bot" { capabilities = ["read"] }
+POLICY
+
 # ── APPROLE ДЛЯ КОЖНОГО АГЕНТА ────────────────────────────────
-for AGENT in eva marshal architect fin doc; do
+for AGENT in eva marshal architect fin doc sam; do
     POLICY_NAME="${AGENT}-policy"
     log "Створення AppRole для ${AGENT}..."
     vault write "auth/approle/role/${AGENT}" \
@@ -152,6 +159,9 @@ read -p "Anthropic API Key (sk-ant-...): " ANTHROPIC_KEY
 read -p "Gemini API Key (AIzaSy...): " GEMINI_KEY
 [[ -n "$GEMINI_KEY" ]] && vault kv put secrets/llm/gemini_api_key value="$GEMINI_KEY"
 
+read -p "Groq API Key (gsk_...): " GROQ_KEY
+[[ -n "$GROQ_KEY" ]] && vault kv put secrets/llm/groq_api_key value="$GROQ_KEY"
+
 read -p "Perplexity API Key (pplx-...): " PERPLEXITY_KEY
 [[ -n "$PERPLEXITY_KEY" ]] && vault kv put secrets/llm/perplexity_api_key value="$PERPLEXITY_KEY"
 
@@ -160,6 +170,9 @@ read -p "Telegram EVA Bot Token: " TG_EVA
 
 read -p "Telegram Marshal Bot Token: " TG_MARSHAL
 [[ -n "$TG_MARSHAL" ]] && vault kv put secrets/communication/telegram_marshal_bot value="$TG_MARSHAL"
+
+read -p "Telegram Sam Bot Token: " TG_SAM
+[[ -n "$TG_SAM" ]] && vault kv put secrets/communication/telegram_sam_bot value="$TG_SAM"
 
 read -p "Nova Poshta API Key: " NP_KEY
 [[ -n "$NP_KEY" ]] && vault kv put secrets/integrations/nova_poshta value="$NP_KEY"
