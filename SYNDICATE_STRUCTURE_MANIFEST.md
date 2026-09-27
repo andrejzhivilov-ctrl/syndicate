@@ -16,9 +16,13 @@
 * **Мережа:** Порт 800 Mbit/s, безлімітний трафік, захищений контур
 * **Базова система:** Чиста **Ubuntu 24.04 LTS** + Docker Engine (ізоляція кожного агента в окремому non-root контейнері)
 * **Сховище та бази даних:**
-  - **PostgreSQL + pgvector:** Довгострокова семантична пам'ять.
+  - **PostgreSQL + pgvector:** Довгострокова семантична пам'ять агентів. Self-hosted на Contabo VPS.
   - **Redis:** Сесійна оперативна пам'ять (24 години), черги задач.
-  - **Supabase:** База даних Синдикату та сховище медіа.
+  - **Supabase (опціонально, Phase 2):** Supabase = managed PostgreSQL + Storage + Auth у хмарі.
+    **Важливо:** В Phase 1 Supabase НЕ використовується — вся БД на самохостованому Postgres (Contabo VPS).
+    В Phase 2 Supabase може бути підключено для: медіасховища (аудіо Єви, фото чеків), зручного перегляду
+    через Supabase Studio, та синхронізації з Google Drive. Агенти пишуть дані лише в ONE source of truth
+    (self-hosted Postgres). Supabase = тільки дзеркало для зручності, не дублювання.
   - **HashiCorp Vault:** Центральний сейф для API-ключів, паролів і сесій.
   - **АРХІВ (NotebookLM / Gemini Notebook):** Єдина суверенна база знань з RBAC-розмежуванням та захистом файлів `[ANDRII_IMMUTABLE]`.
 
