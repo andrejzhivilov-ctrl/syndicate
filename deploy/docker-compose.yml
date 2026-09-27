@@ -66,6 +66,9 @@ volumes:
   doc-workspace:
     driver: local
     driver_opts: { type: none, o: bind, device: /data/doc }
+  sam-workspace:
+    driver: local
+    driver_opts: { type: none, o: bind, device: /data/sam }
   # Спільні
   n8n-data:
   nginx-certs:
@@ -543,11 +546,65 @@ services:
           memory: 1G
           cpus: "0.5"
 
+  # ── 12. SAM (Квант-трейдер та Керуючий Активами — CIO) ─────
+  sam:
+    image: syndicate/sam:1.0.0
+    container_name: syndicate-sam
+    <<: *agent-security
+    user: "1009:1009"
+    tmpfs:
+      - /tmp:noexec,nosuid,nodev,size=150m
+    expose:
+      - "8006"
+    environment:
+      AGENT_ID: sam
+      VAULT_ADDR: http://vault:8200
+      VAULT_ROLE_ID: ${SAM_VAULT_ROLE_ID}
+      VAULT_SECRET_ID: ${SAM_VAULT_SECRET_ID}
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      N8N_BASE: http://n8n:5678
+      TELEGRAM_ANDRII_CHAT_ID: ${TELEGRAM_ANDRII_CHAT_ID}
+      # Confluence & Risk Management
+      MIN_CONFLUENCE_SCORE: "0.95"
+      MAX_RISK_PER_TRADE_USD: "1.00"
+      MAX_DAILY_DRAWDOWN_USD: "3.00"
+      DEFAULT_LOT_SIZE: "0.01"
+      # IBKR Bridge
+      IBKR_GATEWAY_HOST: "ib-gateway"
+      IBKR_GATEWAY_PORT: "4002"
+      TZ: Europe/Kyiv
+      LOG_LEVEL: INFO
+    volumes:
+      - sam-workspace:/data/workspace:rw
+      - ./sam_core:/app/persona:ro
+      - audit-logs:/data/audit:rw
+    networks:
+      - syndicate-internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+      marshal:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8006/health || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 25s
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
+          cpus: "1.0"
+
 # ═══════════════════════════════════════════════════════════
 # ГРУПА C: БЕЗПЕКА (4 сервіси Маршала)
 # ═══════════════════════════════════════════════════════════
 
-  # ── 12. Browser-Use (Playwright headless Chromium) ───────
+  # ── 13. Browser-Use (Playwright headless Chromium) ───────
   browser-use:
     image: mcr.microsoft.com/playwright:v1.47.0-jammy
     container_name: syndicate-browser
@@ -573,7 +630,7 @@ services:
           memory: 2G
           cpus: "1.5"
 
-  # ── 13. ClamAV (Antivirus) ───────────────────────────────
+  # ── 14. ClamAV (Antivirus) ───────────────────────────────
   clamav:
     image: clamav/clamav:stable
     container_name: syndicate-clamav
@@ -600,7 +657,7 @@ services:
           memory: 512M
           cpus: "0.2"
 
-  # ── 14. Docker TLS Proxy (Для Архітектора — замість socket) ─
+  # ── 15. Docker TLS Proxy (Для Архітектора — замість socket) ─
   # Надає Архітектору обмежений доступ до Docker API через TLS
   # Тільки: container restart, logs, inspect — без повного root socket
   docker-proxy:
@@ -653,19 +710,19 @@ secrets:
 #   RAM limits:  postgres(6G) + redis(2G) + vault(0.5G) +
 #                n8n(2G) + nginx(0.25G) + whisper(3G) +
 #                eva(4G) + marshal(3G) + architect(1G) +
-#                fin(1G) + doc(1G) + browser(2G) +
+#                fin(1G) + doc(1G) + sam(1.5G) + browser(2G) +
 #                clamav(0.5G) + docker-proxy(0.06G)
-#              = ~26.3 GB limits (з 48 GB доступно)
-#   Буфер:     ~21 GB для page cache PostgreSQL + системи
+#              = ~27.8 GB limits (з 48 GB доступно)
+#   Буфер:     ~20.2 GB для page cache PostgreSQL + системи
 #
-#   CPU limits: ~12 vCPU (при піку Whisper throttle до 2 vCPU)
-#   SSD:        ~220 GB за рік (з 400 GB)
+#   CPU limits: ~13 vCPU limits (при піку Whisper throttle до 2 vCPU)
+#   SSD:        ~225 GB за рік (з 400 GB)
 #
 # ЧЕРГА ЗАПУСКУ (перший раз):
 #   1. docker compose up -d postgres redis vault nginx
 #   2. ./scripts/vault_init.sh
 #   3. docker compose up -d n8n whisper clamav docker-proxy
 #   4. docker compose up -d marshal
-#   5. docker compose up -d eva architect fin doc browser-use
+#   5. docker compose up -d eva architect fin doc sam browser-use
 #   6. docker compose ps
 # ═══════════════════════════════════════════════════════════
