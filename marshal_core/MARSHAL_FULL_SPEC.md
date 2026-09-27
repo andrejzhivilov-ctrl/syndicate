@@ -363,6 +363,7 @@ class SecureCodeExecutor:
 | **🩺 ДОК** | **Health & Fitness** | `ANDRII_MEDICAL_VAULT`, `TRAINING_PROTOCOLS`, `EVIDENCE_NUTRITION` | Фінанси, Архітектура, Безпека |
 | **🏛️ АРХІТЕКТОР**| **Infrastructure & N8N** | `SYSTEM_ARCHITECTURE`, `ADR_RECORDS`, `N8N_SCHEMAS`, `RND_RADAR`| Медицина, Фінанси, Особисте |
 | **💰 ФІН** | **Financial & Accounting** | `FINANCIAL_LEDGER`, `TAX_BILLS_ARCHIVE`, `CONTRACTS_EXPENSES` | Медицина, Архітектура, Безпека |
+| **📈 СЕМ** | **Quant Trading & Portfolio** | `SAM_QUANT_LIBRARY`, `TRADING_JOURNAL_REFLECTIONS`, `MACRO_COT_RESEARCH`, `PORTFOLIO_VALUATION_VAULT` | Медицина, Архітектура, Безпека, Особисте |
 
 ### 5.2 Захист суверенних файлів Андрія: `[ANDRII_IMMUTABLE]`
 ```python
