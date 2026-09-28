@@ -383,6 +383,13 @@ class SovereignFileIntegrityGuard:
         return True
 ```
 
+### 5.2.1 🛡️ Щотижневий автономний моніторинг загроз та CVE-радар (Щосереди 04:00)
+* **Джерела моніторингу:**
+  - Офіційні бази вразливостей: NIST NVD, CVE Details, GitHub Security Advisories (для Ubuntu 24.04, Docker, Vault, Python 3.11, PostgreSQL, Redis, Nginx).
+  - Авторитетні джерела безпеки: OWASP Top 10 for LLMs, репозиторій правил Falco Security, політики Cilium Tetragon eBPF, Cloudflare Zero Trust.
+* **Збереження в АРХІВ:** Свіжі бюлетені та сигнатури завантажуються в блокнот `CVE_RADAR` з міткою `[AUTONOMOUS_RND_WEEKLY]`.
+* **Захист:** Суворе збереження `[ANDRII_IMMUTABLE]`. Пропозиції нових правил або патчів оформлюються через AIP Тип B.
+
 ### 5.3 HashiCorp Vault — організація секретів:
 ```
 secrets/
