@@ -1,149 +1,279 @@
-#!/usr/bin/env python3
 """
-EVA SYNDICATE — Universal Agent Runtime Runner
-Handles:
-1. Vault AppRole authentication (dynamic zero-leak secrets in memory)
-2. Telegram Bot initialization for Andrii
-3. FastAPI /health and /webhook endpoints
-4. Intelligent fallback (e.g. Whisper -> Groq API for Eva)
-5. Non-root, graceful shutdown handling
+EVA SYNDICATE — Agent Runner
+FastAPI application serving as the main entry point for the EVA orchestrator agent.
 """
 
-import os
-import sys
-import logging
+from __future__ import annotations
+
 import asyncio
-from typing import Dict, Any, Optional
-import httpx
-from fastapi import FastAPI, Response, status
+import logging
+import os
+import signal
+import time
+from contextlib import asynccontextmanager
+from typing import Any, Dict, Optional
+
+import structlog
 import uvicorn
-import hvac
+from fastapi import FastAPI, HTTPException, Request, Response, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 
-logging.basicConfig(
-    level=os.getenv("LOG_LEVEL", "INFO"),
-    format="[%(asctime)s] [%(levelname)s] [%(name)s]: %(message)s"
+from src.vault_client import VaultClient
+from src.memory import MemoryManager
+from src.orchestrator import EvaOrchestrator
+from src.agents.sentinel import SentinelAgent
+
+# ─── Logging ────────────────────────────────────────────────────────────────
+
+structlog.configure(
+    processors=[
+        structlog.contextvars.merge_contextvars,
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.add_logger_name,
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.JSONRenderer(),
+    ],
+    wrapper_class=structlog.make_filtering_bound_logger(
+        getattr(logging, os.getenv("LOG_LEVEL", "INFO"))
+    ),
+    logger_factory=structlog.PrintLoggerFactory(),
 )
-logger = logging.getLogger("agent_runner")
 
-AGENT_ID = os.getenv("AGENT_ID", "unnamed_agent")
-VAULT_ADDR = os.getenv("VAULT_ADDR", "http://vault:8200")
-VAULT_ROLE_ID = os.getenv("VAULT_ROLE_ID")
-VAULT_SECRET_ID = os.getenv("VAULT_SECRET_ID")
-WHISPER_URL = os.getenv("WHISPER_URL", "http://whisper:9000")
-PLAYWRIGHT_SERVER_URL = os.getenv("PLAYWRIGHT_SERVER_URL")
-GOOGLE_WORKSPACE_MCP_URL = os.getenv("GOOGLE_WORKSPACE_MCP_URL")
+logger = structlog.get_logger(__name__)
 
-app = FastAPI(title=f"Syndicate Agent - {AGENT_ID}")
-vault_client: Optional[hvac.Client] = None
-secrets_cache: Dict[str, Any] = {}
+# ─── Application State ───────────────────────────────────────────────────────
 
-class VaultSecretManager:
-    @staticmethod
-    def authenticate() -> hvac.Client:
-        if not VAULT_ROLE_ID or not VAULT_SECRET_ID:
-            logger.warning("VAULT_ROLE_ID or VAULT_SECRET_ID not set! Running in standalone/fallback mode.")
-            return None
-        
-        client = hvac.Client(url=VAULT_ADDR)
-        try:
-            auth_res = client.auth.approle.login(
-                role_id=VAULT_ROLE_ID,
-                secret_id=VAULT_SECRET_ID
-            )
-            client.token = auth_res['auth']['client_token']
-            logger.info(f"Successfully authenticated to Vault as AppRole: {AGENT_ID}")
-            return client
-        except Exception as e:
-            logger.error(f"Failed to authenticate to Vault: {e}")
-            return None
+class AppState:
+    vault_client: Optional[VaultClient] = None
+    memory_manager: Optional[MemoryManager] = None
+    orchestrator: Optional[EvaOrchestrator] = None
+    sentinel: Optional[SentinelAgent] = None
+    start_time: float = time.time()
+    ready: bool = False
 
-    @staticmethod
-    def get_secret(client: Optional[hvac.Client], path: str, key: str = "value") -> Optional[str]:
-        if not client:
-            return os.getenv(key.upper())
-        try:
-            read_res = client.secrets.kv.v2.read_secret_version(path=path)
-            data = read_res['data']['data']
-            return data.get(key)
-        except Exception as e:
-            logger.warning(f"Could not read secret '{path}': {e}")
-            return os.getenv(key.upper())
+app_state = AppState()
 
-@app.get("/health")
+
+# ─── Lifespan ───────────────────────────────────────────────────────────────
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application startup and shutdown lifecycle."""
+    logger.info("EVA SYNDICATE agent starting up...")
+
+    try:
+        # 1. Initialize Vault client
+        app_state.vault_client = VaultClient(
+            vault_addr=os.environ["VAULT_ADDR"],
+            role_id=os.environ["VAULT_ROLE_ID"],
+            secret_id=os.environ["VAULT_SECRET_ID"],
+        )
+        await app_state.vault_client.authenticate()
+        logger.info("Vault authentication successful")
+
+        # 2. Retrieve database credentials from Vault
+        db_secrets = await app_state.vault_client.get_secret("eva/database/data/postgres")
+
+        # 3. Initialize Memory Manager
+        postgres_dsn = (
+            f"postgresql+asyncpg://{db_secrets['user']}:{db_secrets['password']}"
+            f"@{os.getenv('POSTGRES_HOST', 'postgres')}:{os.getenv('POSTGRES_PORT', '5432')}"
+            f"/{os.getenv('POSTGRES_DB', 'eva_syndicate')}"
+        )
+        redis_password = await app_state.vault_client.get_secret("eva/config/data/redis")
+        redis_url = f"redis://:{redis_password.get('password', '')}@redis:6379/0"
+
+        app_state.memory_manager = MemoryManager(
+            postgres_dsn=postgres_dsn,
+            redis_url=redis_url,
+        )
+        await app_state.memory_manager.initialize()
+        logger.info("Memory manager initialized")
+
+        # 4. Initialize Sentinel
+        app_state.sentinel = SentinelAgent(
+            vault_client=app_state.vault_client,
+        )
+
+        # 5. Initialize Orchestrator
+        llm_secrets = await app_state.vault_client.get_secret("eva/api-keys/data/llm")
+        app_state.orchestrator = EvaOrchestrator(
+            memory_manager=app_state.memory_manager,
+            sentinel=app_state.sentinel,
+            llm_config=llm_secrets,
+        )
+        await app_state.orchestrator.initialize()
+        logger.info("EVA orchestrator initialized")
+
+        # 6. Start token renewal background task
+        asyncio.create_task(app_state.vault_client.start_token_renewal())
+
+        app_state.ready = True
+        logger.info("EVA SYNDICATE agent ready", uptime=0)
+
+        yield  # Application runs here
+
+    except Exception as exc:
+        logger.error("Fatal startup error", error=str(exc), exc_info=True)
+        raise
+    finally:
+        logger.info("EVA SYNDICATE agent shutting down...")
+        app_state.ready = False
+        if app_state.memory_manager:
+            await app_state.memory_manager.close()
+        if app_state.vault_client:
+            await app_state.vault_client.revoke_token()
+            await app_state.vault_client.aclose()
+        logger.info("Shutdown complete.")
+
+
+# ─── FastAPI App ─────────────────────────────────────────────────────────────
+
+app = FastAPI(
+    title="EVA SYNDICATE Agent",
+    description="Autonomous multi-agent orchestration system",
+    version="1.0.0",
+    docs_url=None,  # Disable Swagger UI in production
+    redoc_url=None,
+    openapi_url=None,
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[],  # No CORS — internal service
+    allow_methods=["POST", "GET"],
+    allow_headers=["*"],
+)
+
+
+# ─── Request/Response Models ─────────────────────────────────────────────────
+
+class ExecuteRequest(BaseModel):
+    task_type: str = Field(..., description="Type of task to execute")
+    payload: Dict[str, Any] = Field(default_factory=dict)
+    session_id: Optional[str] = None
+    priority: int = Field(default=5, ge=1, le=10)
+
+
+class ExecuteResponse(BaseModel):
+    task_id: str
+    status: str
+    result: Optional[Dict[str, Any]] = None
+    message: Optional[str] = None
+
+
+class HealthResponse(BaseModel):
+    status: str
+    uptime: float
+    vault_connected: bool
+    memory_ready: bool
+    orchestrator_ready: bool
+
+
+# ─── Dependency: Require Ready State ─────────────────────────────────────────
+
+async def require_ready():
+    if not app_state.ready:
+        raise HTTPException(status_code=503, detail="Agent not ready")
+    return app_state
+
+
+# ─── Endpoints ───────────────────────────────────────────────────────────────
+
+@app.get("/health", response_model=HealthResponse)
 async def health_check():
-    """Healthcheck endpoint for Docker & Nginx"""
+    """Liveness/readiness probe."""
+    return HealthResponse(
+        status="healthy" if app_state.ready else "starting",
+        uptime=round(time.time() - app_state.start_time, 2),
+        vault_connected=app_state.vault_client is not None and app_state.vault_client.is_authenticated,
+        memory_ready=app_state.memory_manager is not None and app_state.memory_manager.is_ready,
+        orchestrator_ready=app_state.orchestrator is not None,
+    )
+
+
+@app.get("/status")
+async def status(state: AppState = Depends(require_ready)):
+    """Detailed system status."""
     return {
-        "status": "healthy",
-        "agent": AGENT_ID,
-        "vault_connected": vault_client.is_authenticated() if vault_client else False,
-        "playwright_enabled": bool(PLAYWRIGHT_SERVER_URL),
-        "mcp_enabled": bool(GOOGLE_WORKSPACE_MCP_URL)
+        "version": "1.0.0",
+        "agent": "eva-orchestrator",
+        "uptime": round(time.time() - state.start_time, 2),
+        "ready": state.ready,
     }
 
-async def transcribe_audio_with_fallback(audio_bytes: bytes, filename: str = "voice.ogg") -> str:
-    """
-    Intelligent STT with Zero-Crash Fallback:
-    1. Try local faster-whisper container (int8 on CPU)
-    2. If timeout (>4s) or failure: fallback immediately to Groq Whisper API ($0.111/hr)
-    """
-    # 1. Local Whisper attempt
-    try:
-        async with httpx.AsyncClient(timeout=4.0) as client:
-            files = {"audio_file": (filename, audio_bytes, "audio/ogg")}
-            res = await client.post(f"{WHISPER_URL}/asr?task=transcribe&language=uk&output=json", files=files)
-            if res.status_code == 200:
-                return res.json().get("text", "").strip()
-            logger.warning(f"Local whisper returned status {res.status_code}. Initiating Groq fallback...")
-    except Exception as e:
-        logger.warning(f"Local whisper error ({e}). Switching to Groq API fallback...")
 
-    # 2. Groq Cloud Whisper API Fallback
-    groq_api_key = secrets_cache.get("groq_api_key") or os.getenv("GROQ_API_KEY")
-    if not groq_api_key:
-        logger.error("No GROQ_API_KEY available for STT fallback!")
-        return "Помилка розпізнавання: локальний Whisper зайнятий, а ключ Groq не налаштовано."
+@app.post("/execute", response_model=ExecuteResponse)
+async def execute_task(
+    request: ExecuteRequest,
+    state: AppState = Depends(require_ready),
+):
+    """Execute an agent task via the orchestrator."""
+    logger.info("Task received", task_type=request.task_type, priority=request.priority)
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            headers = {"Authorization": f"Bearer {groq_api_key}"}
-            files = {"file": (filename, audio_bytes, "audio/ogg")}
-            data = {"model": "whisper-large-v3", "language": "uk"}
-            res = await client.post(
-                "https://api.groq.com/openai/v1/audio/transcriptions",
-                headers=headers,
-                files=files,
-                data=data
-            )
-            if res.status_code == 200:
-                logger.info("Successfully transcribed audio via Groq Whisper fallback.")
-                return res.json().get("text", "").strip()
-            logger.error(f"Groq fallback failed with code {res.status_code}: {res.text}")
-    except Exception as e:
-        logger.error(f"Groq fallback request failed: {e}")
+        # Sentinel validation
+        validation = await state.sentinel.validate_task(request.model_dump())
+        if not validation.allowed:
+            logger.warning("Task blocked by Sentinel", reason=validation.reason)
+            raise HTTPException(status_code=403, detail=f"Task blocked: {validation.reason}")
 
-    return "Не вдалося розпізнати аудіоповідомлення."
+        # Execute via orchestrator
+        result = await state.orchestrator.execute(
+            task_type=request.task_type,
+            payload=request.payload,
+            session_id=request.session_id,
+        )
 
-def load_agent_secrets():
-    global vault_client, secrets_cache
-    vault_client = VaultSecretManager.authenticate()
-    
-    # Load common LLM keys
-    secrets_cache["anthropic_api_key"] = VaultSecretManager.get_secret(vault_client, "llm/anthropic_api_key")
-    secrets_cache["gemini_api_key"] = VaultSecretManager.get_secret(vault_client, "llm/gemini_api_key")
-    secrets_cache["groq_api_key"] = VaultSecretManager.get_secret(vault_client, "llm/groq_api_key")
-    
-    # Load Telegram Bot token for this agent
-    bot_secret_path = f"communication/telegram_{AGENT_ID}_bot"
-    secrets_cache["telegram_bot_token"] = VaultSecretManager.get_secret(vault_client, bot_secret_path)
-    
-    logger.info(f"Loaded credentials for agent '{AGENT_ID}'. Telegram token available: {bool(secrets_cache['telegram_bot_token'])}")
+        return ExecuteResponse(
+            task_id=result["task_id"],
+            status=result["status"],
+            result=result.get("result"),
+        )
 
-def main():
-    logger.info(f"Starting Syndicate Agent Runtime for: {AGENT_ID}")
-    load_agent_secrets()
-    
-    port = int(os.getenv("PORT", "8000"))
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Task execution failed", error=str(exc), exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal execution error")
+
+
+@app.post("/webhook/{source}")
+async def webhook_handler(
+    source: str,
+    request: Request,
+    state: AppState = Depends(require_ready),
+):
+    """Unified webhook endpoint for external integrations (Telegram, n8n, etc.)."""
+    body = await request.json()
+    logger.info("Webhook received", source=source)
+
+    try:
+        result = await state.orchestrator.handle_webhook(source=source, payload=body)
+        return {"ok": True, "result": result}
+    except Exception as exc:
+        logger.error("Webhook handling failed", source=source, error=str(exc))
+        return Response(content='{"ok": false}', status_code=200, media_type="application/json")
+
+
+# ─── Graceful Shutdown ───────────────────────────────────────────────────────
+
+def _signal_handler(sig, frame):
+    logger.info("Shutdown signal received", signal=sig)
+
+
+signal.signal(signal.SIGTERM, _signal_handler)
+signal.signal(signal.SIGINT, _signal_handler)
+
 
 if __name__ == "__main__":
-    main()
+    uvicorn.run(
+        "agent_runner:app",
+        host="0.0.0.0",
+        port=8000,
+        workers=1,
+        log_config=None,  # structlog handles logging
+    )

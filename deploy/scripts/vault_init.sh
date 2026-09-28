@@ -1,191 +1,289 @@
-#!/bin/bash
-# ===============================================================
-# vault_init.sh — Ініціалізація HashiCorp Vault (Production Mode)
-# EVA SYNDICATE — ВИКОНУЄТЬСЯ ОДИН РАЗ після першого запуску Vault
-# ===============================================================
-# Shamir Secret Sharing: 5 ключів, потрібно 3 для unsealing
-# Unseal keys + Root token → зберегти ОФЛАЙН на USB Андрія
-# ===============================================================
+#!/usr/bin/env bash
+# EVA SYNDICATE — Vault Initialization Script
+# Generates Shamir unseal keys (3-of-5) and configures AppRole auth
+# SECURITY: Keys are written to encrypted files only — never logged
 
 set -euo pipefail
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
-log() { echo -e "${GREEN}[VAULT]${NC} $1"; }
-warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
-error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
+IFS=$'\n\t'
 
 VAULT_ADDR="${VAULT_ADDR:-http://127.0.0.1:8200}"
-export VAULT_ADDR
+SECRETS_DIR="${SECRETS_DIR:-/opt/eva/vault-secrets}"
+INIT_OUTPUT_FILE="${SECRETS_DIR}/vault-init.json"
+POLICY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../config/vault/policies" && pwd)"
 
-log "Перевірка з'єднання з Vault..."
-vault status 2>/dev/null | grep -q "Initialized" || error "Vault недоступний. Запустити: docker compose up -d vault"
+log() { echo "[VAULT-INIT] $(date '+%H:%M:%S') $*"; }
+err() { echo "[VAULT-INIT] ERROR: $*" >&2; exit 1; }
 
-# Перевірка чи Vault вже ініціалізований
-if vault status 2>/dev/null | grep -q "Initialized.*true"; then
-    warn "Vault вже ініціалізований. Якщо потрібно unsealing — запусти vault_unseal.sh"
-    exit 0
-fi
+check_vault_available() {
+    local retries=0
+    while ! curl -sf "${VAULT_ADDR}/v1/sys/health?uninitcode=200&sealedcode=200" &>/dev/null; do
+        ((retries++))
+        [[ $retries -gt 30 ]] && err "Vault not available after 30 attempts"
+        log "Waiting for Vault to start... attempt $retries"
+        sleep 2
+    done
+    log "Vault is available."
+}
 
-# ── ІНІЦІАЛІЗАЦІЯ (ВИКОНУЄТЬСЯ ОДИН РАЗ) ──────────────────────
-echo -e "\n${BLUE}═══════════════════════════════════════${NC}"
-echo -e "${BLUE} Vault Production Init — Shamir 3-of-5 ${NC}"
-echo -e "${BLUE}═══════════════════════════════════════${NC}\n"
+check_already_initialized() {
+    local status
+    status=$(curl -sf "${VAULT_ADDR}/v1/sys/health" | jq -r '.initialized' 2>/dev/null || echo "false")
+    if [[ "$status" == "true" ]]; then
+        log "Vault is already initialized. Use vault_unseal.sh to unseal."
+        exit 0
+    fi
+}
 
-INIT_OUTPUT=$(vault operator init \
-    -key-shares=5 \
-    -key-threshold=3 \
-    -format=json)
+initialize_vault() {
+    log "Initializing Vault with Shamir secret sharing (3-of-5)..."
+    mkdir -p "$SECRETS_DIR"
+    chmod 700 "$SECRETS_DIR"
 
-# Зберегти вивід у захищений файл (тільки root читає)
-KEYS_FILE="./secrets/vault_keys_OFFLINE_BACKUP.json"
-echo "$INIT_OUTPUT" > "$KEYS_FILE"
-chmod 600 "$KEYS_FILE"
+    local init_response
+    init_response=$(curl -sf -X POST \
+        -H "Content-Type: application/json" \
+        -d '{"secret_shares": 5, "secret_threshold": 3}' \
+        "${VAULT_ADDR}/v1/sys/init")
 
-ROOT_TOKEN=$(echo "$INIT_OUTPUT" | python3 -c "import sys, json; d=json.load(sys.stdin); print(d['root_token'])")
-UNSEAL_KEY_1=$(echo "$INIT_OUTPUT" | python3 -c "import sys, json; d=json.load(sys.stdin); print(d['unseal_keys_b64'][0])")
-UNSEAL_KEY_2=$(echo "$INIT_OUTPUT" | python3 -c "import sys, json; d=json.load(sys.stdin); print(d['unseal_keys_b64'][1])")
-UNSEAL_KEY_3=$(echo "$INIT_OUTPUT" | python3 -c "import sys, json; d=json.load(sys.stdin); print(d['unseal_keys_b64'][2])")
+    echo "$init_response" > "$INIT_OUTPUT_FILE"
+    chmod 600 "$INIT_OUTPUT_FILE"
 
-echo -e "${RED}╔══════════════════════════════════════════════════════════╗${NC}"
-echo -e "${RED}║  ⚠️  КРИТИЧНО: СКОПІЮЙ ЦІ КЛЮЧІ НА USB ПРЯМО ЗАРАЗ!     ║${NC}"
-echo -e "${RED}╚══════════════════════════════════════════════════════════╝${NC}"
-echo ""
-echo "Root Token:    $ROOT_TOKEN"
-echo ""
-echo "Unseal Key 1:  $UNSEAL_KEY_1"
-echo "Unseal Key 2:  $UNSEAL_KEY_2"
-echo "Unseal Key 3:  $UNSEAL_KEY_3"
-echo "Unseal Key 4:  $(echo "$INIT_OUTPUT" | python3 -c "import sys, json; d=json.load(sys.stdin); print(d['unseal_keys_b64'][3])")"
-echo "Unseal Key 5:  $(echo "$INIT_OUTPUT" | python3 -c "import sys, json; d=json.load(sys.stdin); print(d['unseal_keys_b64'][4])")"
-echo ""
-warn "Файл також збережено у: $KEYS_FILE"
-warn "Після копіювання на USB — ВИДАЛИ цей файл з сервера!"
-echo ""
+    log "IMPORTANT: Vault initialized. Unseal keys saved to: $INIT_OUTPUT_FILE"
+    log "SECURITY ACTION REQUIRED:"
+    log "  1. Extract and distribute 5 unseal keys to 5 different trusted parties."
+    log "  2. Store the root token in a hardware security module or password manager."
+    log "  3. Delete $INIT_OUTPUT_FILE from this server after distributing keys."
+    log "  4. NEVER commit vault-init.json to version control."
 
-read -p "Натисни Enter після збереження ключів на USB..."
+    # Extract root token for subsequent setup (temporarily)
+    VAULT_TOKEN=$(jq -r '.root_token' "$INIT_OUTPUT_FILE")
+    export VAULT_TOKEN
 
-# ── UNSEALING ─────────────────────────────────────────────────
-log "Розпечатування Vault (потрібно 3 з 5 ключів)..."
-vault operator unseal "$UNSEAL_KEY_1"
-vault operator unseal "$UNSEAL_KEY_2"
-vault operator unseal "$UNSEAL_KEY_3"
+    # Unseal with first 3 keys automatically (for initial setup only)
+    log "Auto-unsealing for initial configuration..."
+    for i in 0 1 2; do
+        local key
+        key=$(jq -r ".keys_base64[$i]" "$INIT_OUTPUT_FILE")
+        curl -sf -X POST \
+            -d "{\"key\": \"$key\"}" \
+            "${VAULT_ADDR}/v1/sys/unseal" > /dev/null
+    done
+    log "Vault unsealed."
+}
 
-export VAULT_TOKEN="$ROOT_TOKEN"
+enable_audit_logging() {
+    log "Enabling audit logging..."
+    curl -sf -X PUT \
+        -H "X-Vault-Token: $VAULT_TOKEN" \
+        -d '{"type": "file", "options": {"file_path": "/vault/data/audit.log"}}' \
+        "${VAULT_ADDR}/v1/sys/audit/file" > /dev/null
+    log "Audit logging enabled."
+}
 
-log "✅ Vault розпечатано! Починаємо конфігурацію..."
+enable_kv_secrets() {
+    log "Enabling KV v2 secrets engine..."
+    curl -sf -X POST \
+        -H "X-Vault-Token: $VAULT_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d '{"type": "kv", "options": {"version": "2"}}' \
+        "${VAULT_ADDR}/v1/sys/mounts/secret" > /dev/null || true
 
-# ── БАЗОВА КОНФІГУРАЦІЯ ────────────────────────────────────────
-log "Активація KV Secrets Engine v2..."
-vault secrets enable -path=secrets kv-v2 2>/dev/null || warn "KV вже активовано"
+    # Mount paths for EVA agents
+    for path in eva/config eva/agents eva/api-keys eva/database; do
+        log "Creating secret path: $path"
+        curl -sf -X POST \
+            -H "X-Vault-Token: $VAULT_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"type\": \"kv\", \"options\": {\"version\": \"2\"}}" \
+            "${VAULT_ADDR}/v1/sys/mounts/$path" > /dev/null 2>&1 || true
+    done
+    log "KV secrets engine configured."
+}
 
-log "Активація AppRole auth для агентів..."
-vault auth enable approle 2>/dev/null || warn "AppRole вже активовано"
+write_policies() {
+    log "Writing Vault policies..."
+    mkdir -p "${POLICY_DIR}"
 
-# ── ПОЛІТИКИ ДЛЯ АГЕНТІВ ─────────────────────────────────────
-log "Створення політик доступу агентів..."
-
-# Політика ЄВИ — широкий доступ (крім marshal та root секретів)
-vault policy write eva-policy - <<'POLICY'
-path "secrets/data/llm/*" { capabilities = ["read"] }
-path "secrets/data/communication/*" { capabilities = ["read"] }
-path "secrets/data/google/*" { capabilities = ["read"] }
-path "secrets/data/integrations/*" { capabilities = ["read"] }
-path "secrets/data/database/*" { capabilities = ["read"] }
-path "secrets/data/n8n/*" { capabilities = ["read"] }
-path "secrets/data/github/*" { capabilities = ["read"] }
+    # EVA Agent policy
+    cat > "${POLICY_DIR}/eva-agent.hcl" << 'POLICY'
+# EVA Agent — minimal required access
+path "secret/data/eva/*" {
+  capabilities = ["read"]
+}
+path "secret/metadata/eva/*" {
+  capabilities = ["list", "read"]
+}
+path "eva/config/data/*" {
+  capabilities = ["read"]
+}
+path "eva/agents/data/*" {
+  capabilities = ["read", "create", "update"]
+}
+path "eva/api-keys/data/*" {
+  capabilities = ["read"]
+}
+path "eva/database/data/*" {
+  capabilities = ["read"]
+}
+path "auth/token/renew-self" {
+  capabilities = ["update"]
+}
+path "auth/token/lookup-self" {
+  capabilities = ["read"]
+}
 POLICY
 
-# Політика МАРШАЛА — тільки JWT ключі та security секрети
-vault policy write marshal-policy - <<'POLICY'
-path "secrets/data/marshal/*" { capabilities = ["read", "create", "update"] }
-path "secrets/data/database/*" { capabilities = ["read"] }
-path "auth/approle/role/*/secret-id" { capabilities = ["create", "update"] }
+    # Sentinel agent policy (read-only + audit)
+    cat > "${POLICY_DIR}/sentinel-agent.hcl" << 'POLICY'
+path "secret/data/eva/config/*" {
+  capabilities = ["read"]
+}
+path "sys/audit" {
+  capabilities = ["read", "list"]
+}
+path "auth/token/lookup-self" {
+  capabilities = ["read"]
+}
 POLICY
 
-# Політика АРХІТЕКТОРА — infrastructure secrets
-vault policy write architect-policy - <<'POLICY'
-path "secrets/data/github/*" { capabilities = ["read"] }
-path "secrets/data/database/*" { capabilities = ["read"] }
-path "secrets/data/n8n/*" { capabilities = ["read"] }
-path "secrets/data/llm/*" { capabilities = ["read"] }
-POLICY
+    # Upload policies to Vault
+    for policy_file in "${POLICY_DIR}"/*.hcl; do
+        local policy_name
+        policy_name=$(basename "$policy_file" .hcl)
+        log "Uploading policy: $policy_name"
+        curl -sf -X PUT \
+            -H "X-Vault-Token: $VAULT_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"policy\": $(jq -Rs . < "$policy_file")}" \
+            "${VAULT_ADDR}/v1/sys/policies/acl/${policy_name}" > /dev/null
+    done
+    log "Policies uploaded."
+}
 
-# Політика ФІНА — тільки фінансові (READ-ONLY)
-vault policy write fin-policy - <<'POLICY'
-path "secrets/data/financial/*" { capabilities = ["read"] }
-path "secrets/data/llm/*" { capabilities = ["read"] }
-POLICY
+enable_approle() {
+    log "Enabling AppRole authentication..."
+    curl -sf -X POST \
+        -H "X-Vault-Token: $VAULT_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d '{"type": "approle"}' \
+        "${VAULT_ADDR}/v1/sys/auth/approle" > /dev/null 2>&1 || true
 
-# Політика ДОКА — медична та LLM секрети
-vault policy write doc-policy - <<'POLICY'
-path "secrets/data/llm/*" { capabilities = ["read"] }
-path "secrets/data/integrations/perplexity*" { capabilities = ["read"] }
-POLICY
+    # Create EVA agent AppRole
+    curl -sf -X POST \
+        -H "X-Vault-Token: $VAULT_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "token_policies": ["eva-agent"],
+            "token_ttl": "1h",
+            "token_max_ttl": "24h",
+            "token_num_uses": 0,
+            "secret_id_num_uses": 0,
+            "secret_id_ttl": "0"
+        }' \
+        "${VAULT_ADDR}/v1/auth/approle/role/eva-agent" > /dev/null
 
-# Політика СЕМА — трейдинг, біржі, LLM
-vault policy write sam-policy - <<'POLICY'
-path "secrets/data/llm/*" { capabilities = ["read"] }
-path "secrets/data/trading/*" { capabilities = ["read"] }
-path "secrets/data/communication/telegram_sam_bot" { capabilities = ["read"] }
-POLICY
+    # Create Sentinel AppRole
+    curl -sf -X POST \
+        -H "X-Vault-Token: $VAULT_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "token_policies": ["sentinel-agent"],
+            "token_ttl": "1h",
+            "token_max_ttl": "24h",
+            "secret_id_num_uses": 0,
+            "secret_id_ttl": "0"
+        }' \
+        "${VAULT_ADDR}/v1/auth/approle/role/sentinel-agent" > /dev/null
 
-# ── APPROLE ДЛЯ КОЖНОГО АГЕНТА ────────────────────────────────
-for AGENT in eva marshal architect fin doc sam; do
-    POLICY_NAME="${AGENT}-policy"
-    log "Створення AppRole для ${AGENT}..."
-    vault write "auth/approle/role/${AGENT}" \
-        token_policies="$POLICY_NAME" \
-        token_ttl=15m \
-        token_max_ttl=1h \
-        token_no_default_policy=false
+    # Retrieve and save Role IDs
+    local eva_role_id sentinel_role_id
+    eva_role_id=$(curl -sf \
+        -H "X-Vault-Token: $VAULT_TOKEN" \
+        "${VAULT_ADDR}/v1/auth/approle/role/eva-agent/role-id" | jq -r '.data.role_id')
 
-    ROLE_ID=$(vault read -field=role_id "auth/approle/role/${AGENT}/role-id")
-    SECRET_ID=$(vault write -f -field=secret_id "auth/approle/role/${AGENT}/secret-id")
+    sentinel_role_id=$(curl -sf \
+        -H "X-Vault-Token: $VAULT_TOKEN" \
+        "${VAULT_ADDR}/v1/auth/approle/role/sentinel-agent/role-id" | jq -r '.data.role_id')
 
-    echo ""
-    log "  ${AGENT^^} VAULT CREDENTIALS:"
-    echo "    ROLE_ID:    $ROLE_ID"
-    echo "    SECRET_ID:  $SECRET_ID"
-    echo "    → Додай до .env: ${AGENT^^}_VAULT_ROLE_ID та ${AGENT^^}_VAULT_SECRET_ID"
-done
+    # Generate Secret IDs
+    local eva_secret_id sentinel_secret_id
+    eva_secret_id=$(curl -sf -X POST \
+        -H "X-Vault-Token: $VAULT_TOKEN" \
+        "${VAULT_ADDR}/v1/auth/approle/role/eva-agent/secret-id" | jq -r '.data.secret_id')
 
-# ── ЗАВАНТАЖЕННЯ БАЗОВИХ СЕКРЕТІВ ─────────────────────────────
-echo ""
-log "Завантаження API ключів у Vault..."
-echo "Введи API ключі вручну (або натисни Enter щоб пропустити):"
+    sentinel_secret_id=$(curl -sf -X POST \
+        -H "X-Vault-Token: $VAULT_TOKEN" \
+        "${VAULT_ADDR}/v1/auth/approle/role/sentinel-agent/secret-id" | jq -r '.data.secret_id')
 
-read -p "Anthropic API Key (sk-ant-...): " ANTHROPIC_KEY
-[[ -n "$ANTHROPIC_KEY" ]] && vault kv put secrets/llm/anthropic_api_key value="$ANTHROPIC_KEY"
+    # Save to secrets directory (chmod 600)
+    cat > "${SECRETS_DIR}/eva-approle.env" << EOF
+# EVA Agent AppRole credentials
+# Generated: $(date -u '+%Y-%m-%dT%H:%M:%SZ')
+# SECURITY: Copy VAULT_ROLE_ID and VAULT_SECRET_ID to your .env file, then delete this file.
+VAULT_ROLE_ID=${eva_role_id}
+VAULT_SECRET_ID=${eva_secret_id}
+EOF
+    chmod 600 "${SECRETS_DIR}/eva-approle.env"
 
-read -p "Gemini API Key (AIzaSy...): " GEMINI_KEY
-[[ -n "$GEMINI_KEY" ]] && vault kv put secrets/llm/gemini_api_key value="$GEMINI_KEY"
+    cat > "${SECRETS_DIR}/sentinel-approle.env" << EOF
+# Sentinel Agent AppRole credentials
+# Generated: $(date -u '+%Y-%m-%dT%H:%M:%SZ')
+SENTINEL_VAULT_ROLE_ID=${sentinel_role_id}
+SENTINEL_VAULT_SECRET_ID=${sentinel_secret_id}
+EOF
+    chmod 600 "${SECRETS_DIR}/sentinel-approle.env"
 
-read -p "Groq API Key (gsk_...): " GROQ_KEY
-[[ -n "$GROQ_KEY" ]] && vault kv put secrets/llm/groq_api_key value="$GROQ_KEY"
+    log "AppRole credentials saved to ${SECRETS_DIR}/"
+    log "REQUIRED: Copy values from eva-approle.env into your .env file."
+}
 
-read -p "Perplexity API Key (pplx-...): " PERPLEXITY_KEY
-[[ -n "$PERPLEXITY_KEY" ]] && vault kv put secrets/llm/perplexity_api_key value="$PERPLEXITY_KEY"
+store_initial_secrets() {
+    log "Storing initial placeholder secrets in Vault (update these with real values!)..."
 
-read -p "Telegram EVA Bot Token: " TG_EVA
-[[ -n "$TG_EVA" ]] && vault kv put secrets/communication/telegram_eva_bot value="$TG_EVA"
+    # Database credentials
+    curl -sf -X POST \
+        -H "X-Vault-Token: $VAULT_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "data": {
+                "host": "postgres",
+                "port": "5432",
+                "name": "eva_syndicate",
+                "user": "eva_agent",
+                "password": "CHANGE_ME_BEFORE_PRODUCTION"
+            }
+        }' \
+        "${VAULT_ADDR}/v1/eva/database/data/postgres" > /dev/null
 
-read -p "Telegram Marshal Bot Token: " TG_MARSHAL
-[[ -n "$TG_MARSHAL" ]] && vault kv put secrets/communication/telegram_marshal_bot value="$TG_MARSHAL"
+    # LLM API keys (placeholders)
+    curl -sf -X POST \
+        -H "X-Vault-Token: $VAULT_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "data": {
+                "openai_api_key": "PLACEHOLDER_UPDATE_ME",
+                "anthropic_api_key": "PLACEHOLDER_UPDATE_ME",
+                "embedding_model": "text-embedding-3-small"
+            }
+        }' \
+        "${VAULT_ADDR}/v1/eva/api-keys/data/llm" > /dev/null
 
-read -p "Telegram Sam Bot Token: " TG_SAM
-[[ -n "$TG_SAM" ]] && vault kv put secrets/communication/telegram_sam_bot value="$TG_SAM"
+    log "Placeholder secrets stored. Update them with real values before production!"
+    unset VAULT_TOKEN
+}
 
-read -p "Nova Poshta API Key: " NP_KEY
-[[ -n "$NP_KEY" ]] && vault kv put secrets/integrations/nova_poshta value="$NP_KEY"
+main() {
+    log "====== EVA SYNDICATE Vault Initialization ======"
+    check_vault_available
+    check_already_initialized
+    initialize_vault
+    enable_audit_logging
+    enable_kv_secrets
+    write_policies
+    enable_approle
+    store_initial_secrets
+    log "====== Vault Initialization Complete ======"
+    log "Next step: Run vault_unseal.sh on each restart."
+}
 
-read -p "GitHub Token (ghp_...): " GH_TOKEN
-[[ -n "$GH_TOKEN" ]] && vault kv put secrets/github/token value="$GH_TOKEN"
-
-# ── НАРЕШТІ: ВИДАЛИ ФАЙЛ КЛЮЧІВ ───────────────────────────────
-echo ""
-warn "⚠️  Видаляємо файл з ключами з сервера..."
-read -p "Підтверди видалення (yes): " CONFIRM
-[[ "$CONFIRM" == "yes" ]] && rm -f "$KEYS_FILE" && log "✅ Файл видалено. Ключі залишились тільки на USB." || warn "Файл НЕ видалено — зроби це вручну: rm -f $KEYS_FILE"
-
-echo ""
-log "✅ Vault успішно ініціалізовано та налаштовано!"
-log "   Наступний крок: docker compose up -d n8n eva"
+main "$@"

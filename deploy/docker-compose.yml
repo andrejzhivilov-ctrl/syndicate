@@ -1,223 +1,153 @@
 version: "3.9"
 
-# ===========================================================
-# EVA SYNDICATE — Full Ecosystem Docker Compose v3.0
-# Contabo VPS 12: 12 vCPU / 48 GB RAM / 400 GB SSD
-# РЕЖИМ: Повна екосистема — всі 5 агентів + повна інфраструктура
-# Розрахунок: RESOURCE_CALCULATION.md
-# ===========================================================
-
-x-agent-security: &agent-security
-  security_opt:
-    - no-new-privileges:true
-  cap_drop:
-    - ALL
-  read_only: true
-  restart: unless-stopped
-  logging:
-    driver: "json-file"
-    options:
-      max-size: "50m"
-      max-file: "5"
-
 networks:
-  syndicate-internal:
+  backend:
     driver: bridge
     internal: true
     ipam:
       config:
         - subnet: 172.20.0.0/24
-  syndicate-edge:
+  frontend:
     driver: bridge
     ipam:
       config:
         - subnet: 172.21.0.0/24
-  syndicate-security:
-    driver: bridge
-    internal: true
-    ipam:
-      config:
-        - subnet: 172.22.0.0/24
 
 volumes:
-  # Дані прив'язані до LUKS-зашифрованих директорій на хості
-  postgres-data:
+  postgres_data:
     driver: local
-    driver_opts: { type: none, o: bind, device: /data/postgres }
-  redis-data:
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/postgres
+  redis_data:
     driver: local
-    driver_opts: { type: none, o: bind, device: /data/redis }
-  vault-data:
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/redis
+  vault_data:
     driver: local
-    driver_opts: { type: none, o: bind, device: /data/vault }
-  # Робочі простори агентів
-  eva-workspace:
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/vault
+  n8n_data:
     driver: local
-    driver_opts: { type: none, o: bind, device: /data/eva }
-  marshal-workspace:
-    driver: local
-    driver_opts: { type: none, o: bind, device: /data/marshal }
-  architect-workspace:
-    driver: local
-    driver_opts: { type: none, o: bind, device: /data/architect }
-  fin-workspace:
-    driver: local
-    driver_opts: { type: none, o: bind, device: /data/fin }
-  doc-workspace:
-    driver: local
-    driver_opts: { type: none, o: bind, device: /data/doc }
-  sam-workspace:
-    driver: local
-    driver_opts: { type: none, o: bind, device: /data/sam }
-  # Спільні
-  n8n-data:
-  nginx-certs:
-  vault-logs:
-  whisper-models:
-  audit-logs:
-    driver: local
-    driver_opts: { type: none, o: bind, device: /data/audit }
-
-# ═══════════════════════════════════════════════════════════
-# ГРУПА A: ІНФРАСТРУКТУРА
-# ═══════════════════════════════════════════════════════════
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/n8n
 
 services:
-
-  # ── 1. PostgreSQL + pgvector ────────────────────────────
   postgres:
     image: pgvector/pgvector:pg16
-    container_name: syndicate-postgres
-    <<: *agent-security
-    read_only: false
+    restart: unless-stopped
     user: "999:999"
-    environment:
-      POSTGRES_DB: syndicate
-      POSTGRES_USER: syndicate_user
-      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
-      # Performance tuning для 6GB limit
-      POSTGRES_SHARED_BUFFERS: "2GB"
-      POSTGRES_EFFECTIVE_CACHE_SIZE: "4GB"
-      POSTGRES_WORK_MEM: "64MB"
-      POSTGRES_MAINTENANCE_WORK_MEM: "256MB"
-    secrets:
-      - postgres_password
+    networks:
+      - backend
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
       - ./config/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-      - ./config/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
-    networks:
-      - syndicate-internal
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-eva_syndicate}
+      POSTGRES_USER: ${POSTGRES_USER:-eva}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U syndicate_user -d syndicate"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-    deploy:
-      resources:
-        limits:
-          memory: 6G
-          cpus: "2.0"
-
-  # ── 2. Redis ────────────────────────────────────────────
-  redis:
-    image: redis:7.2-alpine
-    container_name: syndicate-redis
-    <<: *agent-security
-    read_only: false
-    user: "999:999"
-    command: >
-      redis-server
-      --requirepass ${REDIS_PASSWORD}
-      --maxmemory 2gb
-      --maxmemory-policy allkeys-lru
-      --appendonly yes
-      --appendfsync everysec
-      --save 900 1
-      --save 300 10
-    volumes:
-      - redis-data:/data
-    networks:
-      - syndicate-internal
-    healthcheck:
-      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
-      interval: 30s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-eva} -d ${POSTGRES_DB:-eva_syndicate}"]
+      interval: 10s
       timeout: 5s
       retries: 5
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-          cpus: "0.5"
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
 
-  # ── 3. HashiCorp Vault (Production Mode) ────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    user: "999:999"
+    networks:
+      - backend
+    volumes:
+      - redis_data:/data
+      - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
   vault:
-    image: hashicorp/vault:1.17
-    container_name: syndicate-vault
-    <<: *agent-security
-    read_only: false
+    image: hashicorp/vault:1.15
+    restart: unless-stopped
     user: "100:1000"
+    networks:
+      - backend
+    ports:
+      - "127.0.0.1:8200:8200"
+    volumes:
+      - vault_data:/vault/data
+      - ./config/vault/vault.hcl:/vault/config/vault.hcl:ro
+    environment:
+      VAULT_ADDR: "http://127.0.0.1:8200"
+      VAULT_API_ADDR: "http://0.0.0.0:8200"
+      VAULT_CLUSTER_ADDR: "http://vault:8201"
+    command: ["vault", "server", "-config=/vault/config/vault.hcl"]
     cap_add:
       - IPC_LOCK
-    environment:
-      VAULT_ADDR: "http://0.0.0.0:8200"
-      VAULT_API_ADDR: "http://vault:8200"
-    volumes:
-      - vault-data:/vault/data
-      - vault-logs:/vault/logs
-      - ./config/vault/vault.hcl:/vault/config/vault.hcl:ro
-    networks:
-      - syndicate-internal
-      - syndicate-security
-    command: server
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8200/v1/sys/health | grep -q '\"sealed\":false' || exit 1"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8200/v1/sys/health?sealedcode=200&uninitcode=200"]
+      interval: 10s
+      timeout: 5s
       retries: 5
-      start_period: 15s
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: "0.3"
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
 
-  # ── 4. N8N ──────────────────────────────────────────────
-  n8n:
-    image: n8nio/n8n:1.65.2
-    container_name: syndicate-n8n
-    <<: *agent-security
-    read_only: false
-    user: "1000:1000"
-    expose:
-      - "5678"
-    environment:
-      DB_TYPE: postgresdb
-      DB_POSTGRESDB_HOST: postgres
-      DB_POSTGRESDB_PORT: 5432
-      DB_POSTGRESDB_DATABASE: syndicate
-      DB_POSTGRESDB_USER: syndicate_user
-      DB_POSTGRESDB_PASSWORD: ${N8N_DB_PASSWORD}
-      QUEUE_BULL_REDIS_HOST: redis
-      QUEUE_BULL_REDIS_PORT: 6379
-      QUEUE_BULL_REDIS_PASSWORD: ${REDIS_PASSWORD}
-      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
-      N8N_BLOCK_ENV_ACCESS_IN_NODE: "true"
-      N8N_RESTRICT_FILE_ACCESS_TO: /home/node/.n8n/
-      N8N_BLOCK_SHELL_COMMANDS: "true"
-      N8N_SECURITY_AUDIT_LOGS: "true"
-      WEBHOOK_URL: https://${N8N_DOMAIN}/
-      N8N_HOST: ${N8N_DOMAIN}
-      N8N_PROTOCOL: https
-      GENERIC_TIMEZONE: Europe/Kyiv
-      TZ: Europe/Kyiv
-      EXECUTIONS_MODE: queue
-      QUEUE_HEALTH_CHECK_ACTIVE: "true"
-    volumes:
-      - n8n-data:/home/node/.n8n
+  eva-agent:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.agent
+    restart: unless-stopped
+    user: "1001:1001"
     networks:
-      - syndicate-internal
-      - syndicate-edge
+      - backend
+    volumes:
+      - ./deploy/runtime:/app/runtime:ro
+      - ./src:/app/src:ro
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      VAULT_ADDR: ${VAULT_ADDR:-http://vault:8200}
+      VAULT_ROLE_ID: ${VAULT_ROLE_ID:?VAULT_ROLE_ID required}
+      VAULT_SECRET_ID: ${VAULT_SECRET_ID:?VAULT_SECRET_ID required}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-eva_syndicate}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,uid=1001,gid=1001
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     depends_on:
       postgres:
         condition: service_healthy
@@ -225,589 +155,67 @@ services:
         condition: service_healthy
       vault:
         condition: service_healthy
+
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    user: "1000:1000"
+    networks:
+      - backend
+      - frontend
+    volumes:
+      - n8n_data:/home/node/.n8n
+    environment:
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_USER:?N8N_USER required}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_PASSWORD:?N8N_PASSWORD required}
+      N8N_PROTOCOL: "https"
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PORT: "5678"
+      WEBHOOK_URL: https://${DOMAIN:-localhost}/n8n/
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?N8N_ENCRYPTION_KEY required}
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: "5432"
+      DB_POSTGRESDB_DATABASE: ${N8N_DB:-n8n}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:-eva}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:5678/healthz || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5678/healthz || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 5
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-          cpus: "1.0"
+      retries: 3
+      start_period: 60s
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
 
-  # ── 5. Nginx ─────────────────────────────────────────────
   nginx:
-    image: nginx:1.27-alpine
-    container_name: syndicate-nginx
-    <<: *agent-security
-    read_only: false
-    user: "101:101"
+    image: nginx:1.25-alpine
+    restart: unless-stopped
+    networks:
+      - backend
+      - frontend
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./config/nginx/conf.d:/etc/nginx/conf.d:ro
-      - nginx-certs:/etc/letsencrypt:ro
-    networks:
-      - syndicate-edge
-    depends_on:
-      - n8n
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost/health || exit 1"]
-      interval: 60s
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
       timeout: 5s
       retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: "0.2"
-
-  # ── 6. Whisper STT (faster-whisper large-v3-int8) ───────
-  # Локальний STT. CPU-only з int8 квантизацією: 2-3× realtime
-  # Fallback при черзі >3хв → Groq API (автоматично в Eva)
-  whisper:
-    build:
-      context: ..
-      dockerfile: deploy/docker/whisper.Dockerfile
-    image: syndicate/whisper:1.0.0
-    container_name: syndicate-whisper
-    <<: *agent-security
-    read_only: false
-    user: "1002:1002"
-    expose:
-      - "9000"
-    environment:
-      ASR_MODEL: large-v3
-      ASR_ENGINE: faster_whisper
-      ASR_QUANTIZATION: int8
-      ASR_THREADS: "2"          # Обмежуємо CPU щоб не насичувати при піках
-      ASR_LANGUAGE: uk          # Українська пріоритет
-      TZ: Europe/Kyiv
-    volumes:
-      - whisper-models:/root/.cache/whisper:rw
-    networks:
-      - syndicate-internal
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:9000/health || exit 1"]
-      interval: 60s
-      timeout: 15s
-      retries: 3
-      start_period: 60s          # Завантаження моделі займає ~45с
-    deploy:
-      resources:
-        limits:
-          memory: 3G
-          cpus: "2.0"            # Throttle: Whisper не повинен перекрити агентів
-
-# ═══════════════════════════════════════════════════════════
-# ГРУПА B: АГЕНТИ (всі 6)
-# ═══════════════════════════════════════════════════════════
-
-  # ── 7. EVA (Головний агент — CEO, Orchestrator) ──────────
-  eva:
-    build:
-      context: ..
-      dockerfile: deploy/docker/agent.Dockerfile
-      args:
-        AGENT_UID: "1001"
-        AGENT_GID: "1001"
-        AGENT_NAME: "eva"
-    image: syndicate/eva:1.0.0
-    container_name: syndicate-eva
-    <<: *agent-security
-    user: "1001:1001"
-    tmpfs:
-      - /tmp:noexec,nosuid,nodev,size=200m
-    expose:
-      - "8001"
-    environment:
-      AGENT_ID: eva
-      VAULT_ADDR: http://vault:8200
-      VAULT_ROLE_ID: ${EVA_VAULT_ROLE_ID}
-      VAULT_SECRET_ID: ${EVA_VAULT_SECRET_ID}
-      POSTGRES_HOST: postgres
-      REDIS_HOST: redis
-      N8N_BASE: http://n8n:5678
-      WHISPER_URL: http://whisper:9000
-      PLAYWRIGHT_SERVER_URL: "ws://browser-use:3000/"
-      BROWSER_USE_ENDPOINT: "http://browser-use:3000"
-      GOOGLE_WORKSPACE_MCP_ENABLED: "true"
-      TELEGRAM_ANDRII_CHAT_ID: ${TELEGRAM_ANDRII_CHAT_ID}
-      TZ: Europe/Kyiv
-      LOG_LEVEL: INFO
-    volumes:
-      - eva-workspace:/data/workspace:rw
-      - ./eva_core:/app/persona:ro
-      - audit-logs:/data/audit:rw
-    networks:
-      - syndicate-internal
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      vault:
-        condition: service_healthy
-      n8n:
-        condition: service_healthy
-      whisper:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8001/health || exit 1"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: 4G
-          cpus: "2.0"
-
-  # ── 8. MARSHAL (Безпека — Security Director) ─────────────
-  marshal:
-    build:
-      context: ..
-      dockerfile: deploy/docker/agent.Dockerfile
-      args:
-        AGENT_UID: "1003"
-        AGENT_GID: "1003"
-        AGENT_NAME: "marshal"
-    image: syndicate/marshal:1.0.0
-    container_name: syndicate-marshal
-    <<: *agent-security
-    user: "1003:1003"
-    tmpfs:
-      - /tmp:noexec,nosuid,nodev,size=100m
-    expose:
-      - "8002"
-    environment:
-      AGENT_ID: marshal
-      VAULT_ADDR: http://vault:8200
-      VAULT_ROLE_ID: ${MARSHAL_VAULT_ROLE_ID}
-      VAULT_SECRET_ID: ${MARSHAL_VAULT_SECRET_ID}
-      POSTGRES_HOST: postgres
-      REDIS_HOST: redis
-      # Marshal читає audit logs інших агентів (read-only)
-      AUDIT_LOG_PATH: /data/audit
-      # Behavioral profiling config
-      SENTYR_TRAINING_DAYS: "7"
-      SENTYR_CONTAMINATION: "0.05"
-      TZ: Europe/Kyiv
-      LOG_LEVEL: INFO
-    volumes:
-      - marshal-workspace:/data/workspace:rw
-      - ./marshal_core:/app/persona:ro
-      - audit-logs:/data/audit:ro    # Marshal читає audit logs, не пише
-    networks:
-      - syndicate-internal
-      - syndicate-security
-    depends_on:
-      postgres:
-        condition: service_healthy
-      vault:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8002/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-    deploy:
-      resources:
-        limits:
-          memory: 3G
-          cpus: "1.5"
-
-  # ── 9. ARCHITECT (Інфраструктура — CTO) ──────────────────
-  architect:
-    build:
-      context: ..
-      dockerfile: deploy/docker/agent.Dockerfile
-      args:
-        AGENT_UID: "1004"
-        AGENT_GID: "1004"
-        AGENT_NAME: "architect"
-    image: syndicate/architect:1.0.0
-    container_name: syndicate-architect
-    <<: *agent-security
-    user: "1004:1004"
-    tmpfs:
-      - /tmp:noexec,nosuid,nodev,size=100m
-    expose:
-      - "8003"
-    environment:
-      AGENT_ID: architect
-      VAULT_ADDR: http://vault:8200
-      VAULT_ROLE_ID: ${ARCHITECT_VAULT_ROLE_ID}
-      VAULT_SECRET_ID: ${ARCHITECT_VAULT_SECRET_ID}
-      POSTGRES_HOST: postgres
-      REDIS_HOST: redis
-      N8N_BASE: http://n8n:5678
-      # Architect керує контейнерами через внутрішній ізольований Docker Proxy (не socket!)
-      DOCKER_HOST: tcp://docker-proxy:2375
-      TZ: Europe/Kyiv
-      LOG_LEVEL: INFO
-    volumes:
-      - architect-workspace:/data/workspace:rw
-      - ./architect_core:/app/persona:ro
-    networks:
-      - syndicate-internal
-    depends_on:
-      postgres:
-        condition: service_healthy
-      vault:
-        condition: service_healthy
-      marshal:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8003/health || exit 1"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: "0.5"
-
-  # ── 10. FIN (Фінанси — CFO) ───────────────────────────────
-  fin:
-    build:
-      context: ..
-      dockerfile: deploy/docker/agent.Dockerfile
-      args:
-        AGENT_UID: "1005"
-        AGENT_GID: "1005"
-        AGENT_NAME: "fin"
-    image: syndicate/fin:1.0.0
-    container_name: syndicate-fin
-    <<: *agent-security
-    user: "1005:1005"
-    tmpfs:
-      - /tmp:noexec,nosuid,nodev,size=100m
-    expose:
-      - "8004"
-    environment:
-      AGENT_ID: fin
-      VAULT_ADDR: http://vault:8200
-      VAULT_ROLE_ID: ${FIN_VAULT_ROLE_ID}
-      VAULT_SECRET_ID: ${FIN_VAULT_SECRET_ID}
-      POSTGRES_HOST: postgres
-      REDIS_HOST: redis
-      # hledger journal path
-      HLEDGER_FILE: /data/workspace/finances.journal
-      # Fin має READ-ONLY доступ до банків
-      BANK_ACCESS_MODE: read_only
-      TZ: Europe/Kyiv
-      LOG_LEVEL: INFO
-    volumes:
-      - fin-workspace:/data/workspace:rw
-      - ./fin_core:/app/persona:ro
-    networks:
-      - syndicate-internal
-    depends_on:
-      postgres:
-        condition: service_healthy
-      vault:
-        condition: service_healthy
-      marshal:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8004/health || exit 1"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: "0.5"
-
-  # ── 11. DOC (Медик / Тренер / Нутриціолог) ───────────────
-  doc:
-    build:
-      context: ..
-      dockerfile: deploy/docker/agent.Dockerfile
-      args:
-        AGENT_UID: "1006"
-        AGENT_GID: "1006"
-        AGENT_NAME: "doc"
-    image: syndicate/doc:1.0.0
-    container_name: syndicate-doc
-    <<: *agent-security
-    user: "1006:1006"
-    tmpfs:
-      - /tmp:noexec,nosuid,nodev,size=100m
-    expose:
-      - "8005"
-    environment:
-      AGENT_ID: doc
-      VAULT_ADDR: http://vault:8200
-      VAULT_ROLE_ID: ${DOC_VAULT_ROLE_ID}
-      VAULT_SECRET_ID: ${DOC_VAULT_SECRET_ID}
-      POSTGRES_HOST: postgres
-      REDIS_HOST: redis
-      # R&D schedule: Tuesday & Friday 04:30
-      PERPLEXITY_SCHEDULE: "30 4 * * 2,5"
-      # Анти-чуш фільтр: мінімальний рівень доказовості
-      EVIDENCE_MIN_LEVEL: "2"    # 1=RCT, 2=Systematic Review, 3=Meta-analysis
-      TZ: Europe/Kyiv
-      LOG_LEVEL: INFO
-    volumes:
-      - doc-workspace:/data/workspace:rw
-      - ./doc_core:/app/persona:ro
-    networks:
-      - syndicate-internal
-    depends_on:
-      postgres:
-        condition: service_healthy
-      vault:
-        condition: service_healthy
-      marshal:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8005/health || exit 1"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: "0.5"
-
-  # ── 12. SAM (Квант-трейдер та Керуючий Активами — CIO) ─────
-  sam:
-    build:
-      context: ..
-      dockerfile: deploy/docker/agent.Dockerfile
-      args:
-        AGENT_UID: "1009"
-        AGENT_GID: "1009"
-        AGENT_NAME: "sam"
-    image: syndicate/sam:1.0.0
-    container_name: syndicate-sam
-    <<: *agent-security
-    user: "1009:1009"
-    tmpfs:
-      - /tmp:noexec,nosuid,nodev,size=150m
-    expose:
-      - "8006"
-    environment:
-      AGENT_ID: sam
-      VAULT_ADDR: http://vault:8200
-      VAULT_ROLE_ID: ${SAM_VAULT_ROLE_ID}
-      VAULT_SECRET_ID: ${SAM_VAULT_SECRET_ID}
-      POSTGRES_HOST: postgres
-      REDIS_HOST: redis
-      N8N_BASE: http://n8n:5678
-      TELEGRAM_ANDRII_CHAT_ID: ${TELEGRAM_ANDRII_CHAT_ID}
-      # Confluence & Risk Management
-      MIN_CONFLUENCE_SCORE: "0.95"
-      MAX_RISK_PER_TRADE_USD: "1.00"
-      MAX_DAILY_DRAWDOWN_USD: "3.00"
-      DEFAULT_LOT_SIZE: "0.01"
-      # IBKR Bridge
-      IBKR_GATEWAY_HOST: "ib-gateway"
-      IBKR_GATEWAY_PORT: "4002"
-      TZ: Europe/Kyiv
-      LOG_LEVEL: INFO
-    volumes:
-      - sam-workspace:/data/workspace:rw
-      - ./sam_core:/app/persona:ro
-      - audit-logs:/data/audit:rw
-    networks:
-      - syndicate-internal
-    depends_on:
-      postgres:
-        condition: service_healthy
-      vault:
-        condition: service_healthy
-      marshal:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8006/health || exit 1"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-      start_period: 25s
-    deploy:
-      resources:
-        limits:
-          memory: 1.5G
-          cpus: "1.0"
-
-# ═══════════════════════════════════════════════════════════
-# ГРУПА C: БЕЗПЕКА (4 сервіси Маршала)
-# ═══════════════════════════════════════════════════════════
-
-  # ── 13. Browser-Use (Playwright headless Chromium) ───────
-  browser-use:
-    image: mcr.microsoft.com/playwright:v1.47.0-jammy
-    container_name: syndicate-browser
-    <<: *agent-security
-    read_only: false
-    user: "1007:1007"
-    expose:
-      - "3000"
-    environment:
-      # Playwright сервер для Browser-Use агента
-      PLAYWRIGHT_SERVER_PORT: "3000"
-      TZ: Europe/Kyiv
-    tmpfs:
-      - /tmp:noexec,nosuid,nodev,size=500m
-      - /home/pwuser/.config:size=100m
-    networks:
-      - syndicate-internal
-    depends_on:
-      - marshal
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-          cpus: "1.5"
-
-  # ── 14. ClamAV (Antivirus) ───────────────────────────────
-  clamav:
-    image: clamav/clamav:stable
-    container_name: syndicate-clamav
-    <<: *agent-security
-    read_only: false
-    user: "1008:1008"
-    environment:
-      CLAMAV_NO_CLAMD: "false"
-      CLAMAV_NO_FRESHCLAMD: "false"
-      TZ: Europe/Kyiv
-    volumes:
-      - /data/clamav:/var/lib/clamav:rw
-    networks:
-      - syndicate-security
-    healthcheck:
-      test: ["CMD", "clamdscan", "--version"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-      start_period: 120s         # Перше оновлення баз займає до 2 хв
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: "0.2"
-
-  # ── 15. Docker TLS Proxy (Для Архітектора — замість socket) ─
-  # Надає Архітектору обмежений доступ до Docker API через TLS
-  # Тільки: container restart, logs, inspect — без повного root socket
-  docker-proxy:
-    image: tecnativa/docker-socket-proxy:latest
-    container_name: syndicate-docker-proxy
-    <<: *agent-security
-    read_only: false
-    user: "1000:999"             # Non-root user + docker socket group
-    environment:
-      # Дозволяємо тільки безпечні операції
-      CONTAINERS: "1"            # /containers/*
-      INFO: "1"                  # /info
-      PING: "1"                  # /ping
-      VERSION: "1"               # /version
-      SERVICES: "0"              # Забороняємо swarm services
-      NETWORKS: "0"              # Забороняємо маніпуляції мережами
-      VOLUMES: "0"               # Забороняємо маніпуляції volumes
-      BUILD: "0"                 # Забороняємо build
-      COMMIT: "0"
-      CONFIGS: "0"
-      DISTRIBUTION: "0"
-      EXEC: "0"                  # Забороняємо exec у контейнери
-      IMAGES: "1"                # Дозволяємо читати images list
-      PLUGINS: "0"
-      POST: "0"                  # Тільки GET (читання)
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    expose:
-      - "2375"
-    networks:
-      - syndicate-internal
-    deploy:
-      resources:
-        limits:
-          memory: 64M
-          cpus: "0.1"
-
-  # ── 16. Falco (Runtime Security & Syscall Detection) ─────
-  falco:
-    image: falcosecurity/falco-no-driver:0.38.2
-    container_name: syndicate-falco
-    restart: unless-stopped
-    privileged: true
-    volumes:
-      - /var/run/docker.sock:/host/var/run/docker.sock:ro
-      - /proc:/host/proc:ro
-      - /boot:/host/boot:ro
-      - /lib/modules:/host/lib/modules:ro
-      - /usr:/host/usr:ro
-      - /etc:/host/etc:ro
-    environment:
-      FALCO_BPF_PROBE: ""
-    networks:
-      - syndicate-security
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: "0.5"
-
-  # ── 17. Suricata (Network Intrusion Detection System) ───
-  suricata:
-    image: jasonish/suricata:7.0.6
-    container_name: syndicate-suricata
-    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     cap_add:
-      - NET_ADMIN
-      - NET_RAW
-      - SYS_NICE
-    network_mode: host
-    volumes:
-      - /data/suricata/logs:/var/log/suricata
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: "0.5"
-
-# ═══════════════════════════════════════════════════════════
-# SECRETS
-# ═══════════════════════════════════════════════════════════
-
-secrets:
-  postgres_password:
-    file: ./secrets/postgres_password.txt
-
-# ═══════════════════════════════════════════════════════════
-# ПІДСУМОК РЕСУРСІВ (для перевірки):
-#
-# ЗАГАЛЬНО ВИДІЛЕНО:
-#   RAM limits:  postgres(6G) + redis(2G) + vault(0.5G) +
-#                n8n(2G) + nginx(0.25G) + whisper(3G) +
-#                eva(4G) + marshal(3G) + architect(1G) +
-#                fin(1G) + doc(1G) + sam(1.5G) + browser(2G) +
-#                clamav(0.5G) + docker-proxy(0.06G)
-#              = ~27.8 GB limits (з 48 GB доступно)
-#   Буфер:     ~20.2 GB для page cache PostgreSQL + системи
-#
-#   CPU limits: ~13 vCPU limits (при піку Whisper throttle до 2 vCPU)
-#   SSD:        ~225 GB за рік (з 400 GB)
-#
-# ЧЕРГА ЗАПУСКУ (перший раз):
-#   1. docker compose up -d postgres redis vault nginx
-#   2. ./scripts/vault_init.sh
-#   3. docker compose up -d n8n whisper clamav docker-proxy
-#   4. docker compose up -d marshal
-#   5. docker compose up -d eva architect fin doc sam browser-use
-#   6. docker compose ps
-# ═══════════════════════════════════════════════════════════
+      - NET_BIND_SERVICE
+    depends_on:
+      - eva-agent
+      - n8n
