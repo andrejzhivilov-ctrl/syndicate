@@ -86,6 +86,7 @@ class EvaOrchestrator:
         llm_config: Dict[str, Any],
         config: Optional[Dict[str, Any]] = None,
         registry: Optional[Any] = None,
+        voice_manager: Optional[Any] = None,
     ) -> None:
         self._memory = memory_manager
         self._sentinel = sentinel
@@ -94,6 +95,9 @@ class EvaOrchestrator:
         # connector registry (Telegram / Google / MCP) for agents that need them.
         self._config = dict(config or {})
         self._registry = registry
+        # Provider-agnostic voice subsystem (TTS/STT with fallback chains).
+        # Exposed to agents (e.g. Eva voice briefings) via self._voice.
+        self._voice = voice_manager
         self._llm = None
         self._graph = None
 

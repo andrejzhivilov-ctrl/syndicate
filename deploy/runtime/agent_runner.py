@@ -23,6 +23,9 @@ from src.vault_client import VaultClient
 from src.memory import MemoryManager
 from src.orchestrator import EvaOrchestrator
 from src.agents.sentinel import SentinelAgent
+from src.integrations import build_default_registry
+from src.voice import build_voice_manager
+from src.runtime_config import build_runtime_config
 
 # ─── Logging ────────────────────────────────────────────────────────────────
 
@@ -50,6 +53,8 @@ class AppState:
     memory_manager: Optional[MemoryManager] = None
     orchestrator: Optional[EvaOrchestrator] = None
     sentinel: Optional[SentinelAgent] = None
+    registry: Optional[Any] = None
+    voice_manager: Optional[Any] = None
     start_time: float = time.time()
     ready: bool = False
 
@@ -97,17 +102,39 @@ async def lifespan(app: FastAPI):
             vault_client=app_state.vault_client,
         )
 
-        # 5. Initialize Orchestrator
+        # 5. Assemble runtime config + connector registry + voice subsystem.
+        #    Secrets resolve via Vault at call time; env values are dev fallbacks
+        #    / feature toggles. build_* helpers never raise on missing config.
+        runtime_config = build_runtime_config()
+        app_state.registry = build_default_registry(
+            vault_client=app_state.vault_client,
+            config=runtime_config,
+        )
+        app_state.voice_manager = build_voice_manager(
+            vault_client=app_state.vault_client,
+            config=runtime_config,
+        )
+        logger.info(
+            "Integrations + voice initialized",
+            connectors=runtime_config.get("enabled", []),
+            tts_priority=runtime_config.get("tts_priority", []),
+            stt_priority=runtime_config.get("stt_priority", []),
+        )
+
+        # 6. Initialize Orchestrator
         llm_secrets = await app_state.vault_client.get_secret("eva/api-keys/data/llm")
         app_state.orchestrator = EvaOrchestrator(
             memory_manager=app_state.memory_manager,
             sentinel=app_state.sentinel,
             llm_config=llm_secrets,
+            config=runtime_config,
+            registry=app_state.registry,
+            voice_manager=app_state.voice_manager,
         )
         await app_state.orchestrator.initialize()
         logger.info("EVA orchestrator initialized")
 
-        # 6. Start token renewal background task
+        # 7. Start token renewal background task
         asyncio.create_task(app_state.vault_client.start_token_renewal())
 
         app_state.ready = True
@@ -203,6 +230,13 @@ async def status(state: AppState = Depends(require_ready)):
         "agent": "eva-orchestrator",
         "uptime": round(time.time() - state.start_time, 2),
         "ready": state.ready,
+        "connectors": list(state.registry._connectors) if state.registry else [],
+        "voice": {
+            "tts": [p.PROVIDER_NAME for p in state.voice_manager._tts]
+            if state.voice_manager else [],
+            "stt": [p.PROVIDER_NAME for p in state.voice_manager._stt]
+            if state.voice_manager else [],
+        },
     }
 
 
