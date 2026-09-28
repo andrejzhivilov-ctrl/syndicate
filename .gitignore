@@ -1,0 +1,41 @@
+# EVA SYNDICATE — Git ignore rules
+
+# Secrets & environment
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+vault-init.json
+*-approle.env
+/opt/eva/vault-secrets/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Node / n8n
+node_modules/
+
+# Data & runtime
+/data/
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Generated document previews (not source)
+*.pdf
+*.docx
