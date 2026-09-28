@@ -1,0 +1,87 @@
+{
+  "name": "golden_idempotent_webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "golden_idempotent_webhook",
+        "responseMode": "onReceived"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "golden_idempotent_webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "const crypto = require('crypto');\nconst body = JSON.stringify($json.body || $json);\nconst hash = crypto.createHash('sha256').update(body).digest('hex');\nconst store = $getWorkflowStaticData('global');\nstore.seen = store.seen || {};\n// redis SETNX equivalent: reject duplicates within TTL window\nif (store.seen[hash]) { return []; }\nstore.seen[hash] = Date.now();\nreturn [{ json: { ...$json, _idempotency_key: hash } }];\n"
+      },
+      "name": "Idempotency Guard",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.ARCHITECT_ALERT_CHAT_ID }}",
+        "text": "=🚨 Workflow error in '{{ $workflow.name }}': {{ $json.error || $json.message }}",
+        "additionalFields": {}
+      },
+      "name": "Notify Marshal (OnError)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        480
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "={{ $env.N8N_TELEGRAM_CRED_ID }}",
+          "name": "ArchitectBot"
+        }
+      },
+      "continueOnFail": true
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Idempotency Guard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Idempotency Guard": {
+      "main": [],
+      "error": [
+        [
+          {
+            "node": "Notify Marshal (OnError)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [
+    "eva-syndicate",
+    "architect-generated"
+  ]
+}

@@ -1,0 +1,332 @@
+"""SAM — Sovereign Asset & Market Manager (Chief Investment & Trading Officer).
+
+Ties together the confluence engine, quant skills, risk guard, self-learning
+journal and HITL signalling into a single orchestrator-compatible agent.
+
+Follows the same shape as the other domain agents (see ``fin.py``):
+``AGENT_ID``, ``__init__(self, memory, llm=None, ...)`` and an async
+``execute(payload)`` dispatching on ``payload["action"]`` and returning a dict
+tagged with ``agent``.
+
+Iron rules honoured here (spec §4):
+  * Sam NEVER auto-executes — every tradeable signal returns
+    ``requires_hitl=True`` and is routed to the human for approval.
+  * Hard Stop-Loss and per-trade risk cap are always applied.
+  * Daily stop-out and news-freeze produce a hard block / veto.
+  * No fabricated accuracy figures — see ``confluence.py`` honesty note.
+"""
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional
+
+import structlog
+
+from .confluence import (
+    DEFAULT_CONFLUENCE_THRESHOLD,
+    ConfluenceEngine,
+    LayerScore,
+)
+from .journal import JournalEntry, TradeJournal
+from .signal import (
+    build_eva_digest,
+    build_signal_keyboard,
+    build_signal_message,
+    new_proposal_id,
+    parse_callback,
+)
+from . import skills as skill_mod
+
+logger = structlog.get_logger(__name__)
+
+
+class SamAgent:
+    """Quant trading & asset-management specialist agent."""
+
+    AGENT_ID = "sam"
+
+    def __init__(
+        self,
+        memory: Any,
+        llm: Optional[Any] = None,
+        *,
+        config: Optional[Dict[str, Any]] = None,
+        registry: Optional[Any] = None,
+    ) -> None:
+        self._memory = memory
+        self._llm = llm
+        self._config = dict(config or {})
+        self._registry = registry  # ConnectorRegistry (telegram, mcp, google...)
+
+        threshold = float(self._config.get("confluence_threshold", DEFAULT_CONFLUENCE_THRESHOLD))
+        weights = self._config.get("confluence_weights")
+        self._engine = ConfluenceEngine(weights=weights, threshold=threshold)
+        self._journal = TradeJournal(memory=memory)
+
+    # ------------------------------------------------------------------ #
+    # Orchestrator entry point.
+    # ------------------------------------------------------------------ #
+    async def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        action = payload.get("action", "analyze")
+        try:
+            if action in ("analyze", "evaluate", "signal"):
+                return await self.evaluate_setup(payload)
+            if action == "decision":
+                return await self.handle_decision(payload)
+            if action == "outcome":
+                return await self.record_outcome(payload)
+            if action == "digest":
+                return self.build_digest(payload)
+            if action == "reflect":
+                return await self.reflect(payload)
+            if action in ("capabilities", "status"):
+                return self.capabilities()
+            return {"error": f"Unknown action: {action}", "agent": self.AGENT_ID}
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("sam_execute_failed", action=action)
+            return {"error": str(exc), "agent": self.AGENT_ID, "action": action}
+
+    # ------------------------------------------------------------------ #
+    # Core: evaluate a potential setup through the confluence engine.
+    # ------------------------------------------------------------------ #
+    async def evaluate_setup(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        symbol = payload.get("symbol", "UNKNOWN")
+        direction = (payload.get("direction") or "long").lower()
+        features: Dict[str, Any] = dict(payload.get("features") or {})
+        features.setdefault("direction", direction)
+
+        # Build per-layer scores from skills (data-driven when libs+data present,
+        # otherwise from supplied features).
+        layers: List[LayerScore] = [
+            skill_mod.smc_layer(features.get("smc", features)),
+            skill_mod.macro_layer({**features, **(features.get("macro") or {})}),
+            skill_mod.cot_layer({**features, **(features.get("cot") or {})}),
+            skill_mod.derivatives_layer(features.get("derivatives") or {}),
+            skill_mod.news_shield_layer(
+                features.get("news") or features,
+                freeze_minutes=int(self._config.get("news_freeze_minutes", 30)),
+            ),
+        ]
+
+        result = self._engine.synthesize(layers, direction=direction)
+
+        # Negative-constraint gate: block repetition of previously-flagged losers.
+        constraints = await self._journal.negative_constraints(symbol=symbol)
+        blocked_by_constraint = self._match_constraint(symbol, direction, constraints)
+
+        response: Dict[str, Any] = {
+            "agent": self.AGENT_ID,
+            "symbol": symbol,
+            "direction": direction,
+            "confluence": result.to_dict(),
+            "requires_hitl": True,
+            "auto_execute": False,
+        }
+
+        if blocked_by_constraint:
+            response.update(
+                {
+                    "tradeable": False,
+                    "blocked": True,
+                    "block_reason": f"negative constraint match: {blocked_by_constraint}",
+                }
+            )
+            return response
+
+        if not result.passes:
+            reason = "vetoed by news/black-swan shield" if result.vetoed else (
+                f"confluence {result.score:.1f} < threshold {result.threshold:.1f}"
+            )
+            response.update({"tradeable": False, "reason": reason})
+            return response
+
+        # Signal passes the gate → compute risk plan (never auto-executed).
+        risk_input = payload.get("risk") or {}
+        plan = skill_mod.compute_risk_plan(
+            balance=float(risk_input.get("balance", self._config.get("balance", 100.0))),
+            entry=float(risk_input.get("entry", payload.get("entry", 0.0))),
+            stop_loss=float(risk_input.get("stop_loss", payload.get("stop_loss", 0.0))),
+            take_profit=risk_input.get("take_profit", payload.get("take_profit")),
+            risk_pct=float(risk_input.get("risk_pct", self._config.get("risk_pct", 1.0))),
+            contract_size=float(risk_input.get("contract_size", 100.0)),
+            daily_loss_used_pct=float(risk_input.get("daily_loss_used_pct", 0.0)),
+            daily_stop_pct=float(self._config.get("daily_stop_pct", 3.0)),
+        )
+
+        if plan.get("blocked"):
+            response.update(
+                {"tradeable": False, "blocked": True, "risk_plan": plan,
+                 "block_reason": "; ".join(plan.get("reasons", []))}
+            )
+            return response
+
+        proposal_id = new_proposal_id()
+        entry_price = float(risk_input.get("entry", payload.get("entry", 0.0)))
+        message = build_signal_message(
+            symbol=symbol,
+            direction=direction,
+            confluence_score=result.score,
+            platform=payload.get("platform", "MetaTrader 5"),
+            timeframe=payload.get("timeframe", "M15"),
+            rationale_layers=result.rationale_lines,
+            entry=entry_price,
+            stop_loss=plan["hard_stop_loss"],
+            take_profit=plan.get("take_profit") or entry_price,
+            rr_ratio=plan.get("rr_ratio"),
+            risk_amount=plan["risk_amount"],
+            risk_pct=plan["risk_pct"],
+            position_size=plan["position_size_lots"],
+            balance=float(risk_input.get("balance", self._config.get("balance", 100.0))),
+            ttl_minutes=int(self._config.get("proposal_ttl_minutes", 10)),
+        )
+        keyboard = build_signal_keyboard(proposal_id)
+
+        # Persist the proposal to the self-learning journal.
+        await self._journal.record_signal(
+            JournalEntry(
+                signal_id=proposal_id,
+                symbol=symbol,
+                direction=direction,
+                confluence_score=result.score,
+                threshold=result.threshold,
+                layers=result.layers,
+                venue=payload.get("platform"),
+                entry_price=entry_price,
+                stop_loss=plan["hard_stop_loss"],
+                take_profit=plan.get("take_profit"),
+                risk_pct=plan["risk_pct"],
+                position_size=plan["position_size_lots"],
+                status="proposed",
+            )
+        )
+
+        # Deliver to the human via Telegram if a connector is wired.
+        delivered = await self._deliver_signal(message, keyboard)
+
+        response.update(
+            {
+                "tradeable": True,
+                "proposal_id": proposal_id,
+                "risk_plan": plan,
+                "hitl_message": message,
+                "hitl_keyboard": keyboard,
+                "delivered": delivered,
+            }
+        )
+        return response
+
+    def _match_constraint(
+        self, symbol: str, direction: str, constraints: List[Dict[str, Any]]
+    ) -> Optional[str]:
+        needle = f"{symbol}:{direction}".lower()
+        for c in constraints:
+            summ = (c.get("summary") or "").lower()
+            if symbol.lower() in summ or needle in summ:
+                return c.get("summary")
+        return None
+
+    async def _deliver_signal(self, message: str, keyboard: Any) -> bool:
+        if not self._registry:
+            return False
+        try:
+            telegram = None
+            getter = getattr(self._registry, "get", None)
+            if callable(getter):
+                telegram = getter("telegram")
+            if telegram is None:
+                return False
+            chat_id = self._config.get("sam_chat_id") or self._config.get("owner_chat_id")
+            if not chat_id:
+                return False
+            await telegram.send_message(
+                chat_id=chat_id,
+                text=message,
+                reply_markup={"inline_keyboard": keyboard},
+            )
+            return True
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("sam_signal_delivery_failed", error=str(exc))
+            return False
+
+    # ------------------------------------------------------------------ #
+    # HITL decision handling (approve / reject / halfrisk callbacks).
+    # ------------------------------------------------------------------ #
+    async def handle_decision(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        callback = payload.get("callback_data", "")
+        parsed = parse_callback(callback) if callback else {
+            "action": payload.get("decision", "reject"),
+            "proposal_id": payload.get("proposal_id", ""),
+        }
+        action = parsed["action"]
+        proposal_id = parsed["proposal_id"]
+        by = payload.get("by", "andrii")
+        reason = payload.get("reason", "")
+
+        if action == "unknown" or not proposal_id:
+            return {"agent": self.AGENT_ID, "error": "unrecognised decision callback"}
+
+        decision = "approve" if action in ("approve", "halfrisk") else "reject"
+        await self._journal.record_decision(proposal_id, decision, by=by, reason=reason)
+
+        # NOTE: even an "approve" here only *unlocks* execution — the actual
+        # order placement is delegated to the broker executor skill under
+        # Marshal's guard and is intentionally NOT performed automatically here.
+        return {
+            "agent": self.AGENT_ID,
+            "proposal_id": proposal_id,
+            "decision": decision,
+            "half_risk": action == "halfrisk",
+            "execution": "unlocked_pending_broker_bridge" if decision == "approve" else "cancelled",
+            "note": "Approval recorded. Order placement handled by guarded executor, never auto-fired.",
+        }
+
+    async def record_outcome(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        signal_id = payload.get("proposal_id") or payload.get("signal_id", "")
+        outcome = payload.get("outcome", "scratch")
+        realized_r = payload.get("realized_r")
+        await self._journal.record_outcome(signal_id, outcome, realized_r=realized_r)
+        # Turn a loss into an explicit lesson for the RAG negative-constraint set.
+        if outcome == "loss":
+            await self._journal.add_reflection(
+                signal_id=signal_id,
+                kind="lesson",
+                summary=payload.get("lesson") or f"Loss on {signal_id}: review confluence layers",
+            )
+        return {"agent": self.AGENT_ID, "signal_id": signal_id, "outcome": outcome, "recorded": True}
+
+    async def reflect(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Nightly/periodic reflection — summarise realised performance."""
+        stats = await self._journal.performance_stats(
+            lookback=int(payload.get("lookback", 200))
+        )
+        return {"agent": self.AGENT_ID, "performance": stats}
+
+    def build_digest(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        digest = build_eva_digest(
+            market_status=payload.get("market_status", "NORMAL"),
+            sentiment=payload.get("sentiment", "NEUTRAL"),
+            pnl_24h_usd=float(payload.get("pnl_24h_usd", 0.0)),
+            pnl_24h_percent=float(payload.get("pnl_24h_percent", 0.0)),
+            active_trades_count=int(payload.get("active_trades_count", 0)),
+            key_event_today=payload.get("key_event_today", ""),
+        )
+        return {"agent": self.AGENT_ID, "digest": digest}
+
+    def capabilities(self) -> Dict[str, Any]:
+        return {
+            "agent": self.AGENT_ID,
+            "role": "Chief Investment & Trading Officer (quant)",
+            "confluence_threshold": self._engine.threshold,
+            "confluence_weights": self._engine.weights,
+            "quant_libraries": skill_mod.capability_report(),
+            "hitl": "mandatory — Sam never auto-executes",
+            "capital_protection": {
+                "risk_pct_per_trade": self._config.get("risk_pct", 1.0),
+                "daily_stop_pct": self._config.get("daily_stop_pct", 3.0),
+                "hard_stop_loss": "always required",
+            },
+            "honesty": (
+                "Confluence threshold gates how many independent factors must "
+                "agree before proposing to the human; it is NOT a promised "
+                "win-rate. Markets are stochastic; no fixed accuracy is guaranteed."
+            ),
+        }

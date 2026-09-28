@@ -1,0 +1,99 @@
+{
+  "name": "golden_retry_policy",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 4
+            }
+          ]
+        }
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.endpoint }}",
+        "options": {
+          "retry": {
+            "maxTries": 5,
+            "waitBetweenTries": 1000
+          },
+          "timeout": 15000
+        }
+      },
+      "name": "HTTP Request (Retry)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        460,
+        300
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.ARCHITECT_ALERT_CHAT_ID }}",
+        "text": "=🚨 Workflow error in '{{ $workflow.name }}': {{ $json.error || $json.message }}",
+        "additionalFields": {}
+      },
+      "name": "Notify Marshal (OnError)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        480
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "={{ $env.N8N_TELEGRAM_CRED_ID }}",
+          "name": "ArchitectBot"
+        }
+      },
+      "continueOnFail": true
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request (Retry)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request (Retry)": {
+      "main": [],
+      "error": [
+        [
+          {
+            "node": "Notify Marshal (OnError)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "tags": [
+    "eva-syndicate",
+    "architect-generated"
+  ]
+}

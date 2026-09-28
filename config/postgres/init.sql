@@ -130,6 +130,96 @@ CREATE INDEX IF NOT EXISTS idx_audit_event_type ON audit.events (event_type, cre
 CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit.events (actor, created_at DESC);
 
 -- ============================================================
+-- TABLE: Integration audit log (third-party connector calls)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS audit.integration_audit_log (
+    id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    connector     VARCHAR(64) NOT NULL,      -- google_workspace, telegram, mcp, ...
+    operation     VARCHAR(128) NOT NULL,     -- gmail.create_draft, calendar.create_event, ...
+    actor_agent   VARCHAR(64),               -- which agent initiated the call
+    request_meta  JSONB DEFAULT '{}',        -- non-sensitive request context (never secrets)
+    status        VARCHAR(32) NOT NULL CHECK (status IN ('success', 'failure', 'rate_limited', 'blocked')),
+    latency_ms    INTEGER,
+    error_message TEXT,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_integration_connector ON audit.integration_audit_log (connector, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_integration_agent ON audit.integration_audit_log (actor_agent, created_at DESC);
+
+-- ============================================================
+-- TABLE: Voice events (TTS / STT usage across agents)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS audit.voice_events (
+    id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    agent         VARCHAR(64),               -- agent that produced/consumed audio
+    direction     VARCHAR(8) NOT NULL CHECK (direction IN ('tts', 'stt')),
+    provider      VARCHAR(64) NOT NULL,      -- elevenlabs, xai, openai, whisper, groq
+    text_chars    INTEGER,                   -- characters synthesized / transcribed
+    audio_bytes   INTEGER,
+    latency_ms    INTEGER,
+    status        VARCHAR(32) NOT NULL CHECK (status IN ('success', 'failure')),
+    error_message TEXT,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_voice_provider ON audit.voice_events (provider, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_voice_agent ON audit.voice_events (agent, created_at DESC);
+
+-- ============================================================
+-- TABLE: Sam quant trade journal (self-learning)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS agents.sam_trade_journal (
+    id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    signal_id         VARCHAR(64) UNIQUE NOT NULL,
+    symbol            VARCHAR(32) NOT NULL,
+    venue             VARCHAR(32),            -- mt5, ibkr, binance, bybit, ...
+    direction         VARCHAR(8) NOT NULL CHECK (direction IN ('long', 'short')),
+    confluence_score  NUMERIC(5,2) NOT NULL,  -- 0-100 weighted confluence
+    threshold         NUMERIC(5,2) NOT NULL,  -- gating threshold at decision time
+    layers            JSONB NOT NULL DEFAULT '{}',   -- per-layer scores & rationale
+    entry_price       NUMERIC(20,8),
+    stop_loss         NUMERIC(20,8),
+    take_profit       NUMERIC(20,8),
+    risk_pct          NUMERIC(6,3),
+    position_size     NUMERIC(20,8),
+    status            VARCHAR(32) NOT NULL DEFAULT 'proposed'
+                      CHECK (status IN ('proposed', 'approved', 'rejected', 'expired', 'open', 'closed')),
+    hitl_decision     VARCHAR(32),            -- approve / reject / null (pending)
+    hitl_by           VARCHAR(128),
+    outcome           VARCHAR(16) CHECK (outcome IN ('win', 'loss', 'breakeven', 'scratch')),
+    realized_r        NUMERIC(10,3),          -- realized reward in R multiples
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    decided_at        TIMESTAMPTZ,
+    closed_at         TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_sam_journal_symbol ON agents.sam_trade_journal (symbol, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_sam_journal_status ON agents.sam_trade_journal (status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_sam_journal_outcome ON agents.sam_trade_journal (outcome, created_at DESC);
+
+-- ============================================================
+-- TABLE: Sam reflections (post-trade learning / negative constraints)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS agents.sam_reflections (
+    id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    signal_id      VARCHAR(64) REFERENCES agents.sam_trade_journal (signal_id) ON DELETE SET NULL,
+    kind           VARCHAR(32) NOT NULL DEFAULT 'lesson'
+                   CHECK (kind IN ('lesson', 'negative_constraint', 'pattern', 'calibration')),
+    summary        TEXT NOT NULL,
+    detail         JSONB DEFAULT '{}',
+    embedding      vector(1536),              -- for RAG retrieval of past lessons
+    weight         NUMERIC(5,2) DEFAULT 1.0,  -- salience of this lesson
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_sam_reflections_kind ON agents.sam_reflections (kind, created_at DESC);
+
+-- ============================================================
 -- FUNCTION: Updated timestamp trigger
 -- ============================================================
 

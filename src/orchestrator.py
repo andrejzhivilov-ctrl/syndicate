@@ -50,6 +50,8 @@ Specialist agents available:
 - Sentinel: Security validation, permission checks, threat assessment
 - Doc: Document analysis, summarization, information extraction
 - Fin: Financial analysis, data aggregation, reporting
+- Sam: Quant trading & asset management (confluence engine, strict HITL, capital protection)
+- Architect: Infrastructure/CTO, n8n workflow engineering, FlowLint QA, GitOps/ADR, code review
 
 Always respond with structured JSON indicating routing decisions."""
 
@@ -64,6 +66,17 @@ class EvaOrchestrator:
         "security_check": "sentinel",
         "chat": "eva",
         "webhook_telegram": "eva",
+        # Sam — quant trading & asset management
+        "quant_signal": "sam",
+        "evaluate_setup": "sam",
+        "trade_decision": "sam",
+        "portfolio_review": "sam",
+        # Architect — infrastructure, n8n engineering, GitOps
+        "design_workflow": "architect",
+        "lint_workflow": "architect",
+        "golden_template": "architect",
+        "generate_adr": "architect",
+        "review_code": "architect",
     }
 
     def __init__(
@@ -71,10 +84,16 @@ class EvaOrchestrator:
         memory_manager: MemoryManager,
         sentinel: SentinelAgent,
         llm_config: Dict[str, Any],
+        config: Optional[Dict[str, Any]] = None,
+        registry: Optional[Any] = None,
     ) -> None:
         self._memory = memory_manager
         self._sentinel = sentinel
         self._llm_config = llm_config
+        # Agent-level config (risk params, chat ids, thresholds) and the shared
+        # connector registry (Telegram / Google / MCP) for agents that need them.
+        self._config = dict(config or {})
+        self._registry = registry
         self._llm = None
         self._graph = None
 
@@ -104,6 +123,8 @@ class EvaOrchestrator:
         builder.add_node("eva_direct", self._eva_direct_handler)
         builder.add_node("doc_agent", self._doc_agent_handler)
         builder.add_node("fin_agent", self._fin_agent_handler)
+        builder.add_node("sam_agent", self._sam_agent_handler)
+        builder.add_node("architect_agent", self._architect_agent_handler)
         builder.add_node("sentinel_check", self._sentinel_check_handler)
         builder.add_node("hitl_gate", self._hitl_gate)
         builder.add_node("finalize", self._finalize)
@@ -119,12 +140,17 @@ class EvaOrchestrator:
                 "eva": "eva_direct",
                 "doc": "doc_agent",
                 "fin": "fin_agent",
+                "sam": "sam_agent",
+                "architect": "architect_agent",
                 "sentinel": "sentinel_check",
             },
         )
 
         # All agents go through HITL gate before finalization
-        for agent_node in ["eva_direct", "doc_agent", "fin_agent", "sentinel_check"]:
+        for agent_node in [
+            "eva_direct", "doc_agent", "fin_agent",
+            "sam_agent", "architect_agent", "sentinel_check",
+        ]:
             builder.add_edge(agent_node, "hitl_gate")
 
         builder.add_conditional_edges(
@@ -185,6 +211,59 @@ class EvaOrchestrator:
         from src.agents.fin import FinAgent
         agent = FinAgent(memory=self._memory, llm=self._llm)
         result = await agent.execute(state["payload"])
+        state["result"] = result
+        state["status"] = "completed"
+        return state
+
+    async def _sam_agent_handler(self, state: AgentState) -> AgentState:
+        """Delegate to Sam (quant CIO). Maps task_type → agent action."""
+        from src.agents.sam import SamAgent
+
+        agent = SamAgent(
+            memory=self._memory,
+            llm=self._llm,
+            config=self._config.get("sam", self._config),
+            registry=self._registry,
+        )
+        payload = dict(state["payload"])
+        # Infer the Sam action from the routed task_type when not explicit.
+        action_map = {
+            "quant_signal": "evaluate_setup",
+            "evaluate_setup": "evaluate_setup",
+            "trade_decision": "decision",
+            "portfolio_review": "reflect",
+        }
+        payload.setdefault("action", action_map.get(state["task_type"], "evaluate_setup"))
+        result = await agent.execute(payload)
+        state["result"] = result
+        # A tradeable Sam signal is surfaced for human approval via Telegram; the
+        # graph does not auto-execute — the real decision arrives as a separate
+        # trade_decision task from the callback.
+        if result.get("tradeable") and result.get("requires_hitl"):
+            state["hitl_reason"] = "Sam quant signal requires human approval"
+        state["status"] = "completed"
+        return state
+
+    async def _architect_agent_handler(self, state: AgentState) -> AgentState:
+        """Delegate to the Architect (CTO / n8n engineer)."""
+        from src.agents.architect import ArchitectAgent
+
+        agent = ArchitectAgent(
+            memory=self._memory,
+            llm=self._llm,
+            config=self._config.get("architect", self._config),
+            registry=self._registry,
+        )
+        payload = dict(state["payload"])
+        action_map = {
+            "design_workflow": "design_workflow",
+            "lint_workflow": "lint_workflow",
+            "golden_template": "golden_template",
+            "generate_adr": "adr",
+            "review_code": "review_code",
+        }
+        payload.setdefault("action", action_map.get(state["task_type"], "capabilities"))
+        result = await agent.execute(payload)
         state["result"] = result
         state["status"] = "completed"
         return state

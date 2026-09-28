@@ -1,0 +1,54 @@
+{
+  "name": "golden_error_handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.ARCHITECT_ALERT_CHAT_ID }}",
+        "text": "=🚨 Workflow error in '{{ $workflow.name }}': {{ $json.error || $json.message }}",
+        "additionalFields": {}
+      },
+      "name": "Alert @architect_infra_bot",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        520,
+        300
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "={{ $env.N8N_TELEGRAM_CRED_ID }}",
+          "name": "ArchitectBot"
+        }
+      },
+      "continueOnFail": true
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Alert @architect_infra_bot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "tags": [
+    "golden-template"
+  ]
+}
