@@ -38,6 +38,12 @@ volumes:
       type: none
       o: bind
       device: /data/n8n
+  whisper_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/whisper
 
 services:
   postgres:
@@ -191,6 +197,41 @@ services:
         condition: service_healthy
     security_opt:
       - no-new-privileges:true
+
+  whisper:
+    build:
+      context: .
+      dockerfile: deploy/docker/whisper.Dockerfile
+    restart: unless-stopped
+    networks:
+      - backend
+    volumes:
+      - whisper_data:/app/model_cache
+    environment:
+      ASR_MODEL: ${ASR_MODEL:-large-v3}
+      ASR_QUANTIZATION: ${ASR_QUANTIZATION:-int8}
+      ASR_THREADS: ${ASR_THREADS:-2}
+      # Redirect HuggingFace model cache to persistent volume
+      HF_HOME: /app/model_cache
+      PORT: "9000"
+    deploy:
+      resources:
+        limits:
+          memory: 3g
+          cpus: "2.0"
+        reservations:
+          memory: 2g
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      # large-v3-int8 (~2.5 GB) takes up to 2 min to download + load on first start
+      start_period: 120s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
 
   nginx:
     image: nginx:1.25-alpine

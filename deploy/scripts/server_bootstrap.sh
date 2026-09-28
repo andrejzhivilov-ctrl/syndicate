@@ -92,7 +92,8 @@ create_data_directories() {
         "$DATA_ROOT/redis" \
         "$DATA_ROOT/vault" \
         "$DATA_ROOT/vault/audit" \
-        "$DATA_ROOT/n8n"
+        "$DATA_ROOT/n8n" \
+        "$DATA_ROOT/whisper"
 
     # Postgres data directory (UID 999)
     chown -R "$POSTGRES_UID:$POSTGRES_UID" "$DATA_ROOT/postgres"
@@ -110,6 +111,9 @@ create_data_directories() {
     # n8n data directory (UID 1000)
     chown -R "$N8N_UID:$N8N_UID" "$DATA_ROOT/n8n"
     chmod 750 "$DATA_ROOT/n8n"
+
+    # Whisper model cache (root — whisper container runs as root for model download)
+    chmod 755 "$DATA_ROOT/whisper"
 
     log "Data directories created and permissions set."
 }
