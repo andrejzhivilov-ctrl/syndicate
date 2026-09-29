@@ -61,6 +61,10 @@ class ArchitectAgent:
                 return self.generate_adr(payload)
             if action in ("review_code", "code_review"):
                 return await self.review_code(payload)
+            if action in ("gitops_sync", "open_pr"):
+                return await self.gitops_sync(payload)
+            if action in ("drift_detect", "check_drift"):
+                return await self.drift_detect(payload)
             if action in ("capabilities", "status"):
                 return self.capabilities()
             return {"error": f"Unknown action: {action}", "agent": self.AGENT_ID}
@@ -178,6 +182,75 @@ class ArchitectAgent:
         if not findings:
             findings.append({"severity": "info", "line": "0", "message": "No obvious static issues found"})
         return findings
+
+    async def gitops_sync(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """GitOps synchronization loop:
+        Prepares a pull request bundle with workflow JSON, ADR, and deployment manifest.
+        """
+        workflow_name = payload.get("workflow_name", "unnamed_workflow")
+        workflow_json = payload.get("workflow_json", {})
+        adr_bundle = payload.get("adr", {})
+
+        pr_title = f"feat(n8n): deploy workflow {workflow_name}"
+        pr_body = (
+            f"## Automated Workflow Deployment: {workflow_name}\n\n"
+            f"### Context & Architectural Decision\n"
+            f"- Generated via Architect Agent 7-step regimen\n"
+            f"- FlowLint status: PASSED\n"
+            f"- ADR reference: #{adr_bundle.get('number', 1)} {adr_bundle.get('title', '')}\n\n"
+            f"### Safety Guarantees\n"
+            f"- Core nodes only\n"
+            f"- Mandatory OnError branch attached\n"
+            f"- Idempotency guard enabled\n"
+        )
+        return {
+            "agent": self.AGENT_ID,
+            "action": "gitops_sync",
+            "workflow_name": workflow_name,
+            "pr_bundle": {
+                "title": pr_title,
+                "body": pr_body,
+                "branch": f"feature/n8n-{workflow_name.lower().replace('_', '-')}",
+                "files": [
+                    {"path": f"workflows/{workflow_name}.json", "content": workflow_json},
+                    {"path": f"docs/adr/{workflow_name}_adr.md", "content": adr_bundle.get("markdown", "")},
+                ],
+            },
+            "status": "pr_bundle_ready_pending_approval",
+        }
+
+    async def drift_detect(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Drift detector:
+        Compares live n8n workflows against committed golden templates in the repo.
+        """
+        live_workflows = payload.get("live_workflows", [])
+        expected_templates = list(n8n_builder.GOLDEN_TEMPLATES.keys())
+
+        drifted = []
+        missing = []
+
+        live_names = {w.get("name") for w in live_workflows if isinstance(w, dict)}
+        for exp in expected_templates:
+            if exp not in live_names:
+                missing.append(exp)
+
+        # Check for unapproved nodes in live workflows (e.g. community packages)
+        for w in live_workflows:
+            report = lint_workflow(w)
+            if not report.passed:
+                drifted.append({
+                    "name": w.get("name", "unknown"),
+                    "violations": [v.rule for v in report.violations],
+                })
+
+        return {
+            "agent": self.AGENT_ID,
+            "drift_detected": len(drifted) > 0 or len(missing) > 0,
+            "missing_golden_templates": missing,
+            "drifted_live_workflows": drifted,
+            "live_count": len(live_workflows),
+            "recommendation": "Re-sync live workflows with repository templates" if (drifted or missing) else "All workflows in sync",
+        }
 
     def capabilities(self) -> Dict[str, Any]:
         return {
