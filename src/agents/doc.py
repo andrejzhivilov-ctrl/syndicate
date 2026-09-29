@@ -49,6 +49,8 @@ class DocAgent:
                 return await self._nervous_system(payload)
             elif action == "morning_data":
                 return await self._morning_data(payload)
+            elif action in ("swarm_research", "deep_medical_research"):
+                return await self._swarm_research(payload)
             else:
                 logger.warning("Unknown action in DocAgent", action=action)
                 return {"error": f"Unknown action: {action}"}
@@ -420,3 +422,20 @@ class DocAgent:
             metadata={}
         )
         return result
+
+    async def _swarm_research(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Deep medical / pharmacology research via Swarm (Scout, Extractor, Critic)."""
+        from src.swarm import SwarmResearcher
+
+        query = payload.get("query", "General biomedical health query")
+        sources = payload.get("sources", ["PubMed", "Examine.com", "UpToDate", "OpenFoodFacts"])
+
+        swarm = SwarmResearcher(llm=self._llm, memory=self._memory, registry=self._registry)
+        briefing = await swarm.run_swarm(query=query, domain="biomedical", sources=sources)
+
+        return {
+            "agent": self.AGENT_ID,
+            "action": "swarm_research",
+            "medical_briefing": briefing,
+        }
+
