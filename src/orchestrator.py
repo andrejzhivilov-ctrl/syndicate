@@ -11,6 +11,10 @@ import structlog
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
+from src.lessons import LessonsStore
+from src.confidence import ConfidenceBudget, EscalationLevel
+from src.pii import PIIRedactor
+
 try:
     from langgraph.graph import StateGraph, END
     from langgraph.checkpoint.base import BaseCheckpointSaver
@@ -77,6 +81,20 @@ class EvaOrchestrator:
         "golden_template": "architect",
         "generate_adr": "architect",
         "review_code": "architect",
+        # Eva Curator
+        "weekly_review": "eva_curator",
+        "record_decision": "eva_curator",
+        "deadline_check": "eva_curator",
+        "social_pulse": "eva_curator",
+        # Doc full
+        "morning_readiness": "doc",
+        "training_protocol": "doc",
+        "nutrition_plan": "doc",
+        "biomarker_trend": "doc",
+        "screening_calendar": "doc",
+        "emergency_card": "doc",
+        "compliance_check": "doc",
+        "nervous_system": "doc",
     }
 
     def __init__(
@@ -87,6 +105,9 @@ class EvaOrchestrator:
         config: Optional[Dict[str, Any]] = None,
         registry: Optional[Any] = None,
         voice_manager: Optional[Any] = None,
+        lessons_store: Optional[LessonsStore] = None,
+        confidence_budget: Optional[ConfidenceBudget] = None,
+        pii_redactor: Optional[PIIRedactor] = None,
     ) -> None:
         self._memory = memory_manager
         self._sentinel = sentinel
@@ -98,6 +119,9 @@ class EvaOrchestrator:
         # Provider-agnostic voice subsystem (TTS/STT with fallback chains).
         # Exposed to agents (e.g. Eva voice briefings) via self._voice.
         self._voice = voice_manager
+        self._lessons = lessons_store
+        self._confidence = confidence_budget
+        self._pii = pii_redactor
         self._llm = None
         self._graph = None
 
@@ -124,21 +148,28 @@ class EvaOrchestrator:
 
         # Nodes
         builder.add_node("router", self._route_task)
+        builder.add_node("lessons_check", self._lessons_check)
         builder.add_node("eva_direct", self._eva_direct_handler)
         builder.add_node("doc_agent", self._doc_agent_handler)
         builder.add_node("fin_agent", self._fin_agent_handler)
         builder.add_node("sam_agent", self._sam_agent_handler)
         builder.add_node("architect_agent", self._architect_agent_handler)
         builder.add_node("sentinel_check", self._sentinel_check_handler)
+        builder.add_node("eva_curator", self._eva_curator_handler)
+        builder.add_node("confidence_gate", self._confidence_gate)
+        builder.add_node("outbound_veto", self._outbound_veto)
         builder.add_node("hitl_gate", self._hitl_gate)
         builder.add_node("finalize", self._finalize)
 
         # Entry point
         builder.set_entry_point("router")
 
-        # Conditional routing from router
+        # Router to lessons_check
+        builder.add_edge("router", "lessons_check")
+
+        # Conditional routing from lessons_check
         builder.add_conditional_edges(
-            "router",
+            "lessons_check",
             self._select_agent,
             {
                 "eva": "eva_direct",
@@ -147,16 +178,20 @@ class EvaOrchestrator:
                 "sam": "sam_agent",
                 "architect": "architect_agent",
                 "sentinel": "sentinel_check",
+                "eva_curator": "eva_curator",
             },
         )
 
-        # All agents go through HITL gate before finalization
+        # All agents go through confidence gate
         for agent_node in [
             "eva_direct", "doc_agent", "fin_agent",
-            "sam_agent", "architect_agent", "sentinel_check",
+            "sam_agent", "architect_agent", "sentinel_check", "eva_curator",
         ]:
-            builder.add_edge(agent_node, "hitl_gate")
+            builder.add_edge(agent_node, "confidence_gate")
 
+        builder.add_edge("confidence_gate", "outbound_veto")
+        builder.add_edge("outbound_veto", "hitl_gate")
+        
         builder.add_conditional_edges(
             "hitl_gate",
             lambda s: "finalize" if not s["requires_hitl"] else "hitl_gate",
@@ -177,16 +212,68 @@ class EvaOrchestrator:
     def _select_agent(self, state: AgentState) -> str:
         return state.get("current_agent", "eva")
 
+    async def _lessons_check(self, state: AgentState) -> AgentState:
+        if self._lessons:
+            lessons = await self._lessons.check_before_action(
+                agent_id=state.get('current_agent', 'eva'),
+                action_embedding=None,  # embedding computed if available
+            )
+            if lessons:
+                state['payload']['prior_lessons'] = lessons
+        return state
+
+    async def _confidence_gate(self, state: AgentState) -> AgentState:
+        if self._confidence and state.get('result'):
+            confidence = state['result'].get('confidence', 0.75)
+            action_risk = state['result'].get('action_risk', 'low')
+            escalation = self._confidence.evaluate(
+                agent_id=state.get('current_agent', 'eva'),
+                confidence=confidence,
+                action_type=state.get('task_type', 'unknown'),
+                action_risk=action_risk,
+            )
+            if escalation.level == EscalationLevel.REFUSE:
+                state['result']['refused'] = True
+                state['result']['refuse_reason'] = escalation.reason
+            elif escalation.level == EscalationLevel.ASK:
+                state['requires_hitl'] = True
+                state['hitl_reason'] = f'Confidence gate: {escalation.reason}'
+        return state
+
+    async def _outbound_veto(self, state: AgentState) -> AgentState:
+        if state.get('result', {}).get('outbound_actions'):
+            blocked = []
+            for action in state['result']['outbound_actions']:
+                veto = await self._sentinel.veto_outbound_action(state.get('current_agent', 'eva'), action)
+                if not veto.allowed:
+                    blocked.append({**action, 'veto_reason': veto.reason})
+            if blocked:
+                state['result']['blocked_actions'] = blocked
+        return state
+
+    async def _eva_curator_handler(self, state: AgentState) -> AgentState:
+        from src.agents.eva_curator import EvaCurator
+        agent = EvaCurator(memory=self._memory, llm=self._llm, config=self._config)
+        result = await agent.execute(state['payload'])
+        state['result'] = result
+        state['status'] = 'completed'
+        return state
+
     async def _eva_direct_handler(self, state: AgentState) -> AgentState:
         """EVA handles simple orchestration tasks directly."""
         if not self._llm:
             state["result"] = {"response": "LLM not configured. Stub response.", "agent": "eva"}
             state["status"] = "completed"
             return state
+            
+        if self._pii:
+            payload_text, _ = self._pii.redact(str(state['payload']))
+        else:
+            payload_text = str(state['payload'])
 
         messages = [
             SystemMessage(content=SYSTEM_PROMPT),
-            HumanMessage(content=str(state["payload"])),
+            HumanMessage(content=payload_text),
         ]
         response = await self._llm.ainvoke(messages)
         state["result"] = {"response": response.content, "agent": "eva"}
@@ -352,3 +439,19 @@ class EvaOrchestrator:
         task_type = f"webhook_{source}"
         result = await self.execute(task_type=task_type, payload=payload)
         return result
+
+    async def proactive_daily_briefing(self) -> Dict:
+        """Called by n8n cron at 07:00. Gathers data from all agents."""
+        results = {}
+        for agent_id, port in [('eva', 8001), ('fin', 8004), ('sam', 8006), ('doc', 8005), ('marshal', 8002)]:
+            try:
+                r = await self.execute('morning_data_' + agent_id, {'action': 'morning_data'})
+                results[agent_id] = r.get('result', {})
+            except Exception:
+                results[agent_id] = {'error': 'unavailable'}
+        # Compose briefing via Eva
+        briefing = await self.execute('compose_briefing', {'agent_data': results})
+        # Voice briefing if voice manager available
+        if self._voice and briefing.get('result', {}).get('response'):
+            await self._voice.speak(briefing['result']['response'])
+        return briefing
