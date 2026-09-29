@@ -95,6 +95,13 @@ class EvaOrchestrator:
         "emergency_card": "doc",
         "compliance_check": "doc",
         "nervous_system": "doc",
+        "swarm_research_doc": "doc",
+        # Sam & Architect additions
+        "swarm_research_sam": "sam",
+        "portfolio_risk": "sam",
+        "generate_ui_scaffold": "architect",
+        "gitops_sync": "architect",
+        "drift_detect": "architect",
     }
 
     def __init__(
