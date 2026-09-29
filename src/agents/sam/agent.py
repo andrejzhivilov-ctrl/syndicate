@@ -80,6 +80,8 @@ class SamAgent:
                 return await self.reflect(payload)
             if action in ("portfolio_risk", "correlation"):
                 return await self.check_portfolio_risk(payload)
+            if action in ("swarm_research", "macro_swarm", "market_swarm"):
+                return await self.swarm_research(payload)
             if action in ("capabilities", "status"):
                 return self.capabilities()
             return {"error": f"Unknown action: {action}", "agent": self.AGENT_ID}
@@ -364,6 +366,22 @@ class SamAgent:
             "correlation_warnings": warnings,
             "allowed": len(warnings) == 0,
             "requires_hitl": len(warnings) > 0,
+        }
+
+    async def swarm_research(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Deep macro & market sentiment research via Swarm (Scout, Extractor, Critic)."""
+        from src.swarm import SwarmResearcher
+
+        query = payload.get("query", "Macroeconomic volatility and liquidity conditions")
+        sources = payload.get("sources", ["CFTC COT", "Federal Reserve / ECB", "TradingView", "Coinglass", "Bloomberg/Reuters"])
+
+        swarm = SwarmResearcher(llm=self._llm, memory=self._memory, registry=self._registry)
+        briefing = await swarm.run_swarm(query=query, domain="quant", sources=sources)
+
+        return {
+            "agent": self.AGENT_ID,
+            "action": "swarm_research",
+            "market_briefing": briefing,
         }
 
     def capabilities(self) -> Dict[str, Any]:
