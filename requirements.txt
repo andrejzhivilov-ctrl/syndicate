@@ -1,4 +1,4 @@
-# EVA SYNDICATE — Python Dependencies
+# EVA SYNDICATE — Python Dependencies v4.0
 # Core
 fastapi==0.109.2
 uvicorn[standard]==0.27.1
@@ -68,3 +68,25 @@ google-auth-oauthlib>=1.2.0
 google-auth-httplib2>=0.2.0
 # Technical-analysis indicators for Sam's confluence engine
 pandas-ta>=0.3.14b0
+
+# ═══════════════════════════════════════════════════════
+# v4.0 NEW DEPENDENCIES
+# ═══════════════════════════════════════════════════════
+
+# ── Observability & Tracing (decision audit, LangSmith) ──
+opentelemetry-api>=1.27.0
+opentelemetry-sdk>=1.27.0
+opentelemetry-exporter-otlp>=1.27.0
+# LangSmith for LangGraph tracing (optional, set LANGSMITH_API_KEY)
+langsmith>=0.1.0
+
+# ── Scheduling (proactive Eva, cron triggers) ──
+apscheduler>=3.10.4
+
+# ── Hashing & Security (PII, HMAC, decision audit) ──
+# cryptography already above
+hashlib-additional>=1.0.1; python_version < "3.0"  # stdlib hashlib is sufficient
+
+# ── Health & Fitness (Doc agent calculations) ──
+# numpy & scipy already above — used for biomarker trend analysis
+# No additional deps needed; Mifflin-St Jeor is pure math
