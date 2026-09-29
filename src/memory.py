@@ -249,3 +249,80 @@ class MemoryManager:
             if row:
                 return json.loads(row.state_data)
             return None
+
+    # ─── Semantic Response Cache (Token Savings) ───────────────────────────
+
+    async def check_response_cache(
+        self,
+        query_embedding: List[float],
+        agent_id: Optional[str] = None,
+        similarity_threshold: float = 0.95,
+    ) -> Optional[Dict[str, Any]]:
+        """Check if a semantically similar query was already answered."""
+        async with self._session_factory() as session:
+            query = """
+                SELECT id, response_text, tokens_saved, hit_count,
+                       1 - (query_vector <=> :embedding::vector) AS similarity
+                FROM memory.response_cache
+                WHERE query_vector IS NOT NULL
+                  AND (:agent_id IS NULL OR agent_id = :agent_id)
+                  AND (expires_at IS NULL OR expires_at > NOW())
+                  AND 1 - (query_vector <=> :embedding::vector) >= :threshold
+                ORDER BY query_vector <=> :embedding::vector
+                LIMIT 1
+            """
+            result = await session.execute(
+                text(query),
+                {
+                    "embedding": str(query_embedding),
+                    "agent_id": agent_id,
+                    "threshold": similarity_threshold,
+                },
+            )
+            row = result.fetchone()
+            if row:
+                # Increment hit count asynchronously
+                await session.execute(
+                    text("UPDATE memory.response_cache SET hit_count = hit_count + 1 WHERE id = :id"),
+                    {"id": row.id},
+                )
+                await session.commit()
+                return {
+                    "cache_hit": True,
+                    "response": row.response_text,
+                    "similarity": float(row.similarity),
+                    "tokens_saved": row.tokens_saved,
+                }
+            return None
+
+    async def cache_response(
+        self,
+        query_text: str,
+        query_embedding: List[float],
+        response_text: str,
+        agent_id: str,
+        model_used: Optional[str] = None,
+        tokens_saved: int = 0,
+        ttl_hours: int = 24,
+    ) -> None:
+        """Cache an LLM response with pgvector embedding and TTL."""
+        async with self._session_factory() as session:
+            await session.execute(
+                text("""
+                    INSERT INTO memory.response_cache
+                    (agent_id, query_text, query_vector, response_text, model_used, tokens_saved, ttl_hours, expires_at)
+                    VALUES (:agent_id, :query_text, :vector, :response_text, :model_used, :tokens_saved, :ttl_hours,
+                            NOW() + INTERVAL '1 hour' * :ttl_hours)
+                """),
+                {
+                    "agent_id": agent_id,
+                    "query_text": query_text,
+                    "vector": str(query_embedding),
+                    "response_text": response_text,
+                    "model_used": model_used,
+                    "tokens_saved": tokens_saved,
+                    "ttl_hours": ttl_hours,
+                },
+            )
+            await session.commit()
+
