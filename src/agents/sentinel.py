@@ -5,6 +5,9 @@ Sentinel Agent — Security validation, permission checks, threat assessment.
 from __future__ import annotations
 
 import time
+import json
+import hmac
+import hashlib
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set
 
@@ -19,6 +22,21 @@ BLOCKED_TASK_TYPES: Set[str] = {
     "raw_sql",
     "admin_override",
     "mount_filesystem",
+}
+
+OUTBOUND_POLICIES = {
+    'send_email':       {'rule': 'draft_only', 'risk': 'high'},
+    'send_email_direct': {'rule': 'block_always', 'risk': 'critical'},
+    'send_telegram':    {'rule': 'allow', 'risk': 'low', 'log': True},
+    'place_order':      {'rule': 'hitl_required', 'risk': 'critical'},
+    'trade_execute':    {'rule': 'hitl_required', 'risk': 'critical'},
+    'delete_data':      {'rule': 'block_always', 'risk': 'critical'},
+    'modify_config':    {'rule': 'hitl_required', 'risk': 'high'},
+    'modify_workflow':  {'rule': 'hitl_required', 'risk': 'high'},
+    'create_draft':     {'rule': 'allow', 'risk': 'low'},
+    'read_data':        {'rule': 'allow', 'risk': 'low'},
+    'analyze':          {'rule': 'allow', 'risk': 'low'},
+    'summarize':        {'rule': 'allow', 'risk': 'low'},
 }
 
 MAX_PAYLOAD_SIZE_BYTES = 1_048_576  # 1MB
@@ -61,7 +79,6 @@ class SentinelAgent:
             return result
 
         # 2. Payload size
-        import json
         payload_size = len(json.dumps(payload).encode("utf-8"))
         if payload_size > MAX_PAYLOAD_SIZE_BYTES:
             result = ValidationResult(
@@ -93,6 +110,46 @@ class SentinelAgent:
         )
         self._audit(task, result)
         return result
+
+    async def veto_outbound_action(self, agent_id: str, action: Dict) -> ValidationResult:
+        action_type = action.get('type', '')
+        policy = OUTBOUND_POLICIES.get(action_type, {'rule': 'hitl_required', 'risk': 'high'})
+        
+        rule = policy['rule']
+        if rule == 'block_always':
+            res = ValidationResult(allowed=False, reason="Action blocked by policy", risk_score=1.0)
+        elif rule == 'draft_only' and action.get('auto_send', False):
+            res = ValidationResult(allowed=False, reason="Action must be draft only", risk_score=0.8)
+        elif rule == 'hitl_required':
+            res = ValidationResult(allowed=True, reason="HITL required", risk_score=0.5, metadata={'requires_hitl': True})
+        else:
+            res = ValidationResult(allowed=True, reason="Action allowed", risk_score=0.1)
+            
+        self._audit({'agent_id': agent_id, 'action': action}, res)
+        return res
+
+    def scan_prompt_injection(self, text: str) -> ValidationResult:
+        patterns = [
+            'ignore previous instructions',
+            'you are now',
+            'system: ',
+            'OVERRIDE',
+            '```system',
+        ]
+        text_lower = text.lower()
+        matches = sum(1 for p in patterns if p.lower() in text_lower)
+        
+        # Various unicode tricks check (basic)
+        if '\\u' in text_lower or '\\x' in text_lower:
+            matches += 1
+            
+        risk = min(matches * 0.4, 1.0)
+        allowed = risk < 0.8
+        return ValidationResult(allowed=allowed, reason="Prompt injection risk" if not allowed else "Clean", risk_score=risk)
+
+    async def verify_webhook_signature(self, payload_bytes: bytes, signature: str, secret_key: str) -> bool:
+        expected_mac = hmac.new(secret_key.encode('utf-8'), payload_bytes, hashlib.sha256).hexdigest()
+        return hmac.compare_digest(expected_mac, signature)
 
     def _scan_for_injections(self, payload: Dict[str, Any]) -> float:
         """Scan payload for potential injection patterns. Returns risk score 0-1."""
@@ -142,7 +199,7 @@ class SentinelAgent:
         """Record security event to in-memory audit log (persisted to DB by orchestrator)."""
         self._audit_log.append({
             "timestamp": time.time(),
-            "task_type": task.get("task_type"),
+            "task_type": task.get("task_type", "unknown"),
             "allowed": result.allowed,
             "reason": result.reason,
             "risk_score": result.risk_score,
@@ -151,7 +208,7 @@ class SentinelAgent:
         if not result.allowed:
             logger.warning(
                 "Task blocked by Sentinel",
-                task_type=task.get("task_type"),
+                task_type=task.get("task_type", "unknown"),
                 reason=result.reason,
                 risk_score=result.risk_score,
             )
