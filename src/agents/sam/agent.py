@@ -78,6 +78,8 @@ class SamAgent:
                 return self.build_digest(payload)
             if action == "reflect":
                 return await self.reflect(payload)
+            if action in ("portfolio_risk", "correlation"):
+                return await self.check_portfolio_risk(payload)
             if action in ("capabilities", "status"):
                 return self.capabilities()
             return {"error": f"Unknown action: {action}", "agent": self.AGENT_ID}
@@ -310,6 +312,59 @@ class SamAgent:
             key_event_today=payload.get("key_event_today", ""),
         )
         return {"agent": self.AGENT_ID, "digest": digest}
+
+    async def check_portfolio_risk(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Portfolio-level risk and correlation analysis.
+        Prevents opening multiple highly correlated positions simultaneously.
+        """
+        open_positions = payload.get("open_positions", [])
+        new_symbol = payload.get("symbol", "").upper()
+        new_direction = payload.get("direction", "long").lower()
+
+        # Known FX & Crypto correlation clusters
+        CLUSTERS = {
+            "USD_BULL": ["USDJPY:long", "EURUSD:short", "GBPUSD:short", "AUDUSD:short"],
+            "USD_BEAR": ["EURUSD:long", "GBPUSD:long", "AUDUSD:long", "USDJPY:short"],
+            "RISK_ON": ["BTCUSDT:long", "ETHUSDT:long", "NAS100:long", "EURUSD:long"],
+            "RISK_OFF": ["XAUUSD:long", "USDCHF:long", "USDJPY:long"],
+        }
+
+        new_key = f"{new_symbol}:{new_direction}"
+        warnings = []
+        cluster_matches = 0
+
+        for cluster_name, members in CLUSTERS.items():
+            if new_key in members:
+                # Count how many current positions belong to the same cluster
+                matching_current = [p for p in open_positions if f"{p.get('symbol')}:{p.get('direction')}" in members]
+                if matching_current:
+                    cluster_matches += len(matching_current)
+                    warnings.append(
+                        f"Correlation cluster '{cluster_name}' collision: already holding "
+                        f"{[p.get('symbol') for p in matching_current]}. Total exposure on same macro factor."
+                    )
+
+        total_open_risk = sum(float(p.get("risk_pct", 1.0)) for p in open_positions)
+        new_risk = float(payload.get("risk_pct", 1.0))
+        max_aggregate_risk = float(self._config.get("max_aggregate_risk_pct", 5.0))
+
+        excessive_risk = (total_open_risk + new_risk) > max_aggregate_risk
+        if excessive_risk:
+            warnings.append(
+                f"Aggregate risk {total_open_risk + new_risk:.1f}% exceeds max portfolio cap {max_aggregate_risk:.1f}%"
+            )
+
+        return {
+            "agent": self.AGENT_ID,
+            "symbol": new_symbol,
+            "direction": new_direction,
+            "open_positions_count": len(open_positions),
+            "aggregate_risk_pct": total_open_risk + new_risk,
+            "max_aggregate_risk_pct": max_aggregate_risk,
+            "correlation_warnings": warnings,
+            "allowed": len(warnings) == 0,
+            "requires_hitl": len(warnings) > 0,
+        }
 
     def capabilities(self) -> Dict[str, Any]:
         return {
