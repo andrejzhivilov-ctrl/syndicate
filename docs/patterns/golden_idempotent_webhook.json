@@ -18,11 +18,11 @@
     },
     {
       "parameters": {
-        "functionCode": "const crypto = require('crypto');\nconst body = JSON.stringify($json.body || $json);\nconst hash = crypto.createHash('sha256').update(body).digest('hex');\nconst store = $getWorkflowStaticData('global');\nstore.seen = store.seen || {};\n// redis SETNX equivalent: reject duplicates within TTL window\nif (store.seen[hash]) { return []; }\nstore.seen[hash] = Date.now();\nreturn [{ json: { ...$json, _idempotency_key: hash } }];\n"
+        "jsCode": "const crypto = require('crypto');\nconst body = JSON.stringify($input.first().json.body || $input.first().json);\nconst hash = crypto.createHash('sha256').update(body).digest('hex');\nconst store = $getWorkflowStaticData('global');\nstore.seen = store.seen || {};\n// redis SETNX equivalent: reject duplicates within TTL window\nif (store.seen[hash]) { return []; }\nstore.seen[hash] = Date.now();\nreturn [{ json: { ...$input.first().json, _idempotency_key: hash } }];\n"
       },
       "name": "Idempotency Guard",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         460,
         300
