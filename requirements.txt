@@ -1,92 +1,51 @@
-# EVA SYNDICATE — Python Dependencies v4.0
-# Core
-fastapi==0.109.2
-uvicorn[standard]==0.27.1
-pydantic==2.6.1
-pydantic-settings==2.1.0
+# EVA SYNDICATE — Python Dependencies (v4.1 Verified & Resolvable)
+# Core API & Server
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+pydantic-settings==2.5.2
 
-# LangGraph / LangChain
-langgraph==0.0.55
-langchain==0.1.9
-langchain-core==0.1.27
-langchain-openai==0.0.8
-langchain-anthropic==0.1.6
-langchain-community==0.0.24
+# LangGraph / LangChain (Compatible >=0.2 series)
+langgraph>=0.2.28,<0.3.0
+langchain-core>=0.2.40,<0.3.0
+langchain-openai>=0.1.25,<0.2.0
+langchain-anthropic>=0.1.23,<0.2.0
 
-# Database
+# Database & Vector Store
 asyncpg==0.29.0
-sqlalchemy[asyncio]==2.0.27
-pgvector==0.2.5
-alembic==1.13.1
+sqlalchemy[asyncio]==2.0.35
+pgvector==0.3.3
+psycopg2-binary==2.9.9
 
-# Redis
-redis[hiredis]==5.0.1
+# Redis Cache & Queue
+redis[hiredis]==5.0.8
 
-# Vault
-hvac==2.1.0
+# HashiCorp Vault Client
+hvac==2.3.0
 
-# Telegram
-python-telegram-bot==20.8
-
-# Utilities
-httpx==0.26.0
-tenacity==8.2.3
-structlog==24.1.0
+# HTTP, Retry & Logging
+httpx==0.27.2
+tenacity==9.0.0
+structlog==24.4.0
 python-dotenv==1.0.1
-aiofiles==23.2.1
-cryptography==42.0.2
+aiofiles==24.1.0
+cryptography==43.0.1
 
-# ── Additional LLM / AI Clients (Doc, Fin, Sam agents) ──
-anthropic>=0.36.0
-google-genai>=0.1.0
-groq>=0.11.0
-
-# ── Sync Postgres driver (used by legacy tooling / migrations) ──
-psycopg2-binary>=2.9.9
-
-# ── Quant, Trading & Math (Sam & Fin domain agents) ──
-smartmoneyconcepts>=0.0.26
-Riskfolio-Lib>=6.0.0
-ccxt>=4.4.0
+# Quant, Math & Trading (Sam & Fin)
+numpy>=1.26.4,<2.0.0
+pandas>=2.2.2
+scipy>=1.14.1
 yfinance>=0.2.44
-pandas>=2.2.0
-numpy>=1.26.0
-scipy>=1.14.0
-cot-reports>=0.1.3
+ccxt>=4.4.0
 
-# ── Document toolkit (Doc agent) ──
-openpyxl>=3.1.0
-python-docx>=1.1.0
-pypdf>=4.0.0
-reportlab>=4.0.0
+# Document Toolkit (Doc & Eva)
+openpyxl>=3.1.5
+python-docx>=1.1.2
+pypdf>=4.3.1
+reportlab>=4.2.2
 
-# ── Integrations & Voice ──
-# Google Workspace (Gmail / Calendar / Drive) — used by GoogleWorkspaceConnector
-google-api-python-client>=2.140.0
-google-auth>=2.34.0
-google-auth-oauthlib>=1.2.0
+# Google Workspace & Integrations
+google-api-python-client>=2.147.0
+google-auth>=2.35.0
+google-auth-oauthlib>=1.2.1
 google-auth-httplib2>=0.2.0
-# Technical-analysis indicators for Sam's confluence engine
-pandas-ta>=0.3.14b0
-
-# ═══════════════════════════════════════════════════════
-# v4.0 NEW DEPENDENCIES
-# ═══════════════════════════════════════════════════════
-
-# ── Observability & Tracing (decision audit, LangSmith) ──
-opentelemetry-api>=1.27.0
-opentelemetry-sdk>=1.27.0
-opentelemetry-exporter-otlp>=1.27.0
-# LangSmith for LangGraph tracing (optional, set LANGSMITH_API_KEY)
-langsmith>=0.1.0
-
-# ── Scheduling (proactive Eva, cron triggers) ──
-apscheduler>=3.10.4
-
-# ── Hashing & Security (PII, HMAC, decision audit) ──
-# cryptography already above
-hashlib-additional>=1.0.1; python_version < "3.0"  # stdlib hashlib is sufficient
-
-# ── Health & Fitness (Doc agent calculations) ──
-# numpy & scipy already above — used for biomarker trend analysis
-# No additional deps needed; Mifflin-St Jeor is pure math
