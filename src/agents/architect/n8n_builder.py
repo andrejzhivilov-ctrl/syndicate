@@ -42,27 +42,23 @@ def _telegram_error_node(name: str = _ERROR_NOTIFY_NODE, position=None) -> Dict[
 
 
 def _dedup_function_node(name: str = "Idempotency Guard", position=None) -> Dict[str, Any]:
-    """A core Function node that dedups by body hash using workflow static data.
-
-    In production this would be backed by Redis SETNX; the Function form keeps
-    the template dependency-free and lint-passing while documenting intent.
-    """
+    """A core Code node (n8n v2/v3 compatible) that dedups by body hash using workflow static data."""
     code = (
         "const crypto = require('crypto');\n"
-        "const body = JSON.stringify($json.body || $json);\n"
+        "const body = JSON.stringify($input.first().json.body || $input.first().json);\n"
         "const hash = crypto.createHash('sha256').update(body).digest('hex');\n"
         "const store = $getWorkflowStaticData('global');\n"
         "store.seen = store.seen || {};\n"
         "// redis SETNX equivalent: reject duplicates within TTL window\n"
         "if (store.seen[hash]) { return []; }\n"
         "store.seen[hash] = Date.now();\n"
-        "return [{ json: { ...$json, _idempotency_key: hash } }];\n"
+        "return [{ json: { ...$input.first().json, _idempotency_key: hash } }];\n"
     )
     return {
-        "parameters": {"functionCode": code},
+        "parameters": {"jsCode": code},
         "name": name,
-        "type": "n8n-nodes-base.function",
-        "typeVersion": 1,
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
         "position": position or [460, 300],
     }
 
