@@ -272,7 +272,7 @@ class EvaOrchestrator:
 
     async def _confidence_gate(self, state: AgentState) -> AgentState:
         if self._confidence and state.get('result'):
-            confidence = state['result'].get('confidence', 0.75)
+            confidence = state['result'].get('confidence', 0.90)
             action_risk = state['result'].get('action_risk', 'low')
             escalation = self._confidence.evaluate(
                 agent_id=state.get('current_agent', 'eva'),
@@ -371,6 +371,8 @@ class EvaOrchestrator:
             "evaluate_setup": "evaluate_setup",
             "trade_decision": "decision",
             "portfolio_review": "reflect",
+            "portfolio_risk": "portfolio_risk",
+            "swarm_research_sam": "swarm_research",
         }
         payload.setdefault("action", action_map.get(state["task_type"], "evaluate_setup"))
         result = await agent.execute(payload)
