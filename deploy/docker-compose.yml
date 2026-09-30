@@ -1,9 +1,20 @@
-version: "3.9"
+# EVA SYNDICATE — Production Docker Compose (v4.1 Verified)
+# Fixes applied:
+# - Separated db_net (internal: true for Postgres & Redis isolation) from backend (egress-enabled for API/Vault/Whisper)
+# - Mounted both 01-init.sql and 02-migration_v4.sql into Postgres initialization
+# - Pinned n8n image (1.68.0), set N8N_PATH=/n8n/, disabled executeCommand/ssh nodes
+# - Unified Nginx certificate mount (/data/nginx-certs:/etc/nginx/certs) with automatic self-signed bootstrap
 
 networks:
-  backend:
+  db_net:
     driver: bridge
     internal: true
+    ipam:
+      config:
+        - subnet: 172.19.0.0/24
+  backend:
+    driver: bridge
+    internal: false
     ipam:
       config:
         - subnet: 172.20.0.0/24
@@ -51,10 +62,11 @@ services:
     restart: unless-stopped
     user: "999:999"
     networks:
-      - backend
+      - db_net
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./config/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./config/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./config/postgres/migration_v4.sql:/docker-entrypoint-initdb.d/02-migration_v4.sql:ro
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-eva_syndicate}
       POSTGRES_USER: ${POSTGRES_USER:-eva}
@@ -79,7 +91,7 @@ services:
     restart: unless-stopped
     user: "999:999"
     networks:
-      - backend
+      - db_net
     volumes:
       - redis_data:/data
       - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
@@ -128,6 +140,7 @@ services:
     restart: unless-stopped
     user: "1001:1001"
     networks:
+      - db_net
       - backend
     volumes:
       - ./deploy/runtime:/app/runtime:ro
@@ -137,6 +150,8 @@ services:
       VAULT_ADDR: ${VAULT_ADDR:-http://vault:8200}
       VAULT_ROLE_ID: ${VAULT_ROLE_ID:?VAULT_ROLE_ID required}
       VAULT_SECRET_ID: ${VAULT_SECRET_ID:?VAULT_SECRET_ID required}
+      EVA_API_KEY: ${EVA_API_KEY:-}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
       POSTGRES_DB: ${POSTGRES_DB:-eva_syndicate}
@@ -163,22 +178,24 @@ services:
         condition: service_healthy
 
   n8n:
-    image: n8nio/n8n:latest
+    image: n8nio/n8n:1.68.0
     restart: unless-stopped
     user: "1000:1000"
     networks:
+      - db_net
       - backend
       - frontend
     volumes:
       - n8n_data:/home/node/.n8n
     environment:
-      N8N_BASIC_AUTH_ACTIVE: "true"
-      N8N_BASIC_AUTH_USER: ${N8N_USER:?N8N_USER required}
-      N8N_BASIC_AUTH_PASSWORD: ${N8N_PASSWORD:?N8N_PASSWORD required}
       N8N_PROTOCOL: "https"
       N8N_HOST: ${N8N_HOST:-localhost}
       N8N_PORT: "5678"
+      N8N_PATH: "/n8n/"
+      N8N_EDITOR_BASE_URL: https://${DOMAIN:-localhost}/n8n/
       WEBHOOK_URL: https://${DOMAIN:-localhost}/n8n/
+      N8N_COMMUNITY_PACKAGES_ENABLED: "false"
+      NODES_EXCLUDE: "[\"n8n-nodes-base.executeCommand\",\"n8n-nodes-base.ssh\"]"
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?N8N_ENCRYPTION_KEY required}
       DB_TYPE: postgresdb
       DB_POSTGRESDB_HOST: postgres
@@ -203,6 +220,7 @@ services:
       context: .
       dockerfile: deploy/docker/whisper.Dockerfile
     restart: unless-stopped
+    user: "1000:1000"
     networks:
       - backend
     volumes:
@@ -211,7 +229,6 @@ services:
       ASR_MODEL: ${ASR_MODEL:-large-v3}
       ASR_QUANTIZATION: ${ASR_QUANTIZATION:-int8}
       ASR_THREADS: ${ASR_THREADS:-2}
-      # Redirect HuggingFace model cache to persistent volume
       HF_HOME: /app/model_cache
       PORT: "9000"
     deploy:
@@ -226,7 +243,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      # large-v3-int8 (~2.5 GB) takes up to 2 min to download + load on first start
       start_period: 120s
     security_opt:
       - no-new-privileges:true
@@ -244,8 +260,16 @@ services:
       - "443:443"
     volumes:
       - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./config/nginx/conf.d:/etc/nginx/conf.d:ro
-      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /data/nginx-certs:/etc/nginx/certs
+    command: >
+      sh -c "if [ ! -f /etc/nginx/certs/live/default/fullchain.pem ]; then
+        apk add --no-cache openssl >/dev/null 2>&1 || true;
+        mkdir -p /etc/nginx/certs/live/default;
+        openssl req -x509 -nodes -days 365 -newkey rsa:2048
+          -keyout /etc/nginx/certs/live/default/privkey.pem
+          -out /etc/nginx/certs/live/default/fullchain.pem
+          -subj '/CN=localhost' >/dev/null 2>&1;
+      fi && exec nginx -g 'daemon off;'"
     healthcheck:
       test: ["CMD", "nginx", "-t"]
       interval: 30s
@@ -257,6 +281,8 @@ services:
       - ALL
     cap_add:
       - NET_BIND_SERVICE
+      - DAC_OVERRIDE
+      - CHOWN
     depends_on:
       - eva-agent
       - n8n
