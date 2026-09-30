@@ -6,24 +6,42 @@
   <title>SYNDIKAT — Autonomous Multi-Agent Cockpit</title>
   <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
   <style>
+    body {
+      background-color: #000000;
+      background-image: 
+        radial-gradient(circle at 50% 25%, rgba(10, 25, 60, 0.45) 0%, transparent 65%),
+        linear-gradient(180deg, #000000 0%, #01040d 30%, #03081a 65%, #061132 100%),
+        url('assets/bg/cockpit_bg.png');
+      background-attachment: fixed;
+      background-size: cover;
+      background-position: center top;
+      background-repeat: no-repeat;
+    }
     .glass-card {
-      background: rgba(10, 15, 26, 0.82);
+      background: rgba(6, 11, 22, 0.78);
       backdrop-filter: blur(20px);
       border: 1px solid rgba(255, 255, 255, 0.08);
     }
     .glass-card-active {
-      background: rgba(16, 24, 40, 0.92);
+      background: rgba(10, 18, 36, 0.88);
       backdrop-filter: blur(24px);
-      border: 1px solid rgba(255, 255, 255, 0.20);
+      border: 1px solid rgba(255, 255, 255, 0.18);
     }
     @keyframes pulse-ring {
       0% { transform: scale(0.95); opacity: 0.8; }
       50% { transform: scale(1.05); opacity: 0.3; }
       100% { transform: scale(0.95); opacity: 0.8; }
     }
+    @keyframes audio-shockwave {
+      0% { transform: scale(1.0); opacity: 0.8; }
+      100% { transform: scale(1.35); opacity: 0.0; }
+    }
+    .shockwave-active {
+      animation: audio-shockwave 1.2s cubic-bezier(0.1, 0.8, 0.3, 1) infinite;
+    }
   </style>
 </head>
-<body class="bg-[#070A0F] text-slate-100 min-h-screen font-sans selection:bg-blue-600 selection:text-white">
+<body class="text-slate-100 min-h-screen font-sans selection:bg-blue-600 selection:text-white">
   <div class="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
 
     <!-- Top Executive Header -->
@@ -63,29 +81,48 @@
       </div>
     </header>
 
-    <!-- Main Central Stage: 3D Fluid Silk Plasma Vortex Orb (Exact Screenshot Match) -->
+    <!-- Main Central Stage: Photorealistic 3D Energy Sphere (Exact Render + Audio/Status Reactive Layers) -->
     <div class="glass-card rounded-3xl p-6 sm:p-8 text-center relative overflow-hidden shadow-2xl border-white/10">
       <!-- Ambient Glow Filter Behind Orb -->
-      <div id="orbGlowBackdrop" class="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-3xl opacity-40 transition-all duration-700 bg-blue-600 pointer-events-none"></div>
+      <div id="orbGlowBackdrop" class="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-3xl opacity-50 transition-all duration-700 bg-blue-600 pointer-events-none"></div>
 
-      <!-- Real-time 3D Plasma Ribbon Vortex (No White Blowout) -->
+      <!-- Real-time 3D Plasma Ribbon Vortex with Master Render & Voice/Status Reactive Layers -->
       <div class="relative flex justify-center items-center py-4">
-        <div class="relative w-64 h-64 sm:w-72 sm:h-72 flex items-center justify-center cursor-pointer group select-none" onclick="toggleVoiceLive()">
-          <!-- Luminous Canvas rendering volumetric 3D energy ribbons -->
-          <canvas id="fluidOrbCanvas" width="380" height="380" class="w-60 h-60 sm:w-72 sm:h-72 relative z-10 rounded-full transition-transform duration-500 group-hover:scale-105 drop-shadow-[0_0_40px_rgba(37,99,235,0.6)]"></canvas>
+        <div id="orbInteractiveStage" class="relative w-64 h-64 sm:w-76 sm:h-76 flex items-center justify-center cursor-pointer select-none group" onclick="toggleVoiceLive()" title="Натисніть для увімкнення Live Голосу">
+          
+          <!-- Outer Atmospheric Corona Ring (Voice & Audio Reactive Shockwave) -->
+          <div id="orbCoronaShockwave" class="absolute w-72 h-72 sm:w-84 sm:h-84 rounded-full pointer-events-none transition-all duration-300 opacity-25 border border-blue-400/40"></div>
+          
+          <!-- Photorealistic 3D Energy Sphere Container -->
+          <div id="orbSphereShell" class="relative w-60 h-60 sm:w-72 sm:h-72 rounded-full overflow-hidden shadow-2xl flex items-center justify-center bg-black transition-transform duration-300 group-hover:scale-[1.03]">
+            <!-- Front Active Sphere Image Layer -->
+            <img id="orbImageFront" src="assets/spheres/eva.jpg" alt="Eva Energy Sphere" 
+                 class="w-full h-full object-cover rounded-full absolute inset-0 transition-opacity duration-500 ease-in-out opacity-100 will-change-transform pointer-events-none">
+            
+            <!-- Secondary Sphere Layer for Seamless Crossfade on Agent Switch -->
+            <img id="orbImageBack" src="assets/spheres/eva.jpg" alt="Agent Energy Sphere" 
+                 class="w-full h-full object-cover rounded-full absolute inset-0 transition-opacity duration-500 ease-in-out opacity-0 will-change-transform pointer-events-none">
 
-          <!-- Status badge below canvas -->
-          <div class="absolute -bottom-2 z-20 bg-slate-900/90 border border-blue-500/50 text-[10px] font-bold text-blue-300 px-3.5 py-0.5 rounded-full shadow-lg shadow-blue-500/20 flex items-center gap-1.5 backdrop-blur-md">
-            <span class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
+            <!-- High-Frequency Optical Harmonic Plasma & Waveform Layer -->
+            <canvas id="fluidOrbCanvas" width="400" height="400" 
+                    class="w-full h-full rounded-full relative z-10 pointer-events-none mix-blend-screen"></canvas>
+          </div>
+
+          <!-- Luminous Spherical Rim Border with Glow -->
+          <div id="orbRimBorder" class="absolute w-60 h-60 sm:w-72 sm:h-72 rounded-full pointer-events-none border border-blue-400/50 shadow-[inset_0_0_25px_rgba(59,130,246,0.5),0_0_40px_rgba(37,99,235,0.7)] transition-all duration-500"></div>
+
+          <!-- Dynamic Status Badge Below Sphere -->
+          <div id="orbStatusBadge" class="absolute -bottom-2 z-20 bg-slate-950/90 border border-blue-500/50 text-[10px] font-bold text-blue-300 px-3.5 py-0.5 rounded-full shadow-lg shadow-blue-500/25 flex items-center gap-1.5 backdrop-blur-md transition-all duration-300">
+            <span id="orbStatusDot" class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
             <span id="orbStatusText">LIVE READY</span>
           </div>
         </div>
       </div>
 
-      <!-- Personalized Dynamic Agent Greeting -->
+      <!-- Personalized Dynamic Agent Greeting (Addresses user as Лідере) -->
       <div class="mt-4 space-y-1.5 relative z-10">
         <h2 id="agentGreetingTitle" class="text-xl sm:text-2xl font-black tracking-wide text-white transition-all duration-500">
-          «Вітаю, Андрію. Єва на зв'язку.»
+          «Вітаю, Лідере. Єва на зв'язку.»
         </h2>
         <p id="agentGreetingSubtitle" class="text-sm text-blue-300/80 font-medium max-w-2xl mx-auto transition-all duration-500">
           Холдинг активний. Бібліотека MS Office та оперативна пам'ять синхронізовані. Чим займемося?
@@ -129,25 +166,31 @@
       </div>
     </div>
 
-    <!-- FLOOR 3: C-SUITE AGENT TABS (Clean Names Only, No Parentheses) -->
+    <!-- FLOOR 3: C-SUITE AGENT TABS (With Photorealistic Mini Orb Previews) -->
     <div id="floor-3-nav" class="flex items-center overflow-x-auto pb-1 gap-2 scrollbar-none">
-      <button onclick="switchAgent('eva')" id="tab-eva" class="tab-btn px-5 py-2.5 rounded-2xl text-xs font-black tracking-wide transition flex items-center gap-2 border bg-blue-500/20 text-blue-300 border-blue-500/40 shadow-lg shadow-blue-500/20">
-        ЄВА
+      <button onclick="switchAgent('eva')" id="tab-eva" class="tab-btn px-4 py-2 rounded-2xl text-xs font-black tracking-wide transition flex items-center gap-2 border bg-blue-500/20 text-blue-300 border-blue-500/40 shadow-lg shadow-blue-500/20">
+        <img src="assets/spheres/eva.jpg" alt="Єва" class="w-5 h-5 rounded-full object-cover border border-blue-400/80 shadow-[0_0_8px_rgba(59,130,246,0.6)]">
+        <span>ЄВА</span>
       </button>
-      <button onclick="switchAgent('sam')" id="tab-sam" class="tab-btn px-5 py-2.5 rounded-2xl text-xs font-black tracking-wide transition flex items-center gap-2 border bg-slate-900/60 text-slate-400 border-white/5 hover:text-white">
-        СЕМ
+      <button onclick="switchAgent('sam')" id="tab-sam" class="tab-btn px-4 py-2 rounded-2xl text-xs font-black tracking-wide transition flex items-center gap-2 border bg-slate-900/60 text-slate-400 border-white/5 hover:text-white">
+        <img src="assets/spheres/sam.jpg" alt="Сем" class="w-5 h-5 rounded-full object-cover border border-amber-400/80 shadow-[0_0_8px_rgba(245,158,11,0.6)]">
+        <span>СЕМ</span>
       </button>
-      <button onclick="switchAgent('fin')" id="tab-fin" class="tab-btn px-5 py-2.5 rounded-2xl text-xs font-black tracking-wide transition flex items-center gap-2 border bg-slate-900/60 text-slate-400 border-white/5 hover:text-white">
-        ФІН
+      <button onclick="switchAgent('fin')" id="tab-fin" class="tab-btn px-4 py-2 rounded-2xl text-xs font-black tracking-wide transition flex items-center gap-2 border bg-slate-900/60 text-slate-400 border-white/5 hover:text-white">
+        <img src="assets/spheres/fin.jpg" alt="Фін" class="w-5 h-5 rounded-full object-cover border border-emerald-400/80 shadow-[0_0_8px_rgba(16,185,129,0.6)]">
+        <span>ФІН</span>
       </button>
-      <button onclick="switchAgent('architect')" id="tab-architect" class="tab-btn px-5 py-2.5 rounded-2xl text-xs font-black tracking-wide transition flex items-center gap-2 border bg-slate-900/60 text-slate-400 border-white/5 hover:text-white">
-        АРХІТЕКТОР
+      <button onclick="switchAgent('architect')" id="tab-architect" class="tab-btn px-4 py-2 rounded-2xl text-xs font-black tracking-wide transition flex items-center gap-2 border bg-slate-900/60 text-slate-400 border-white/5 hover:text-white">
+        <img src="assets/spheres/architect.jpg" alt="Архітектор" class="w-5 h-5 rounded-full object-cover border border-purple-400/80 shadow-[0_0_8px_rgba(168,85,247,0.6)]">
+        <span>АРХІТЕКТОР</span>
       </button>
-      <button onclick="switchAgent('doc')" id="tab-doc" class="tab-btn px-5 py-2.5 rounded-2xl text-xs font-black tracking-wide transition flex items-center gap-2 border bg-slate-900/60 text-slate-400 border-white/5 hover:text-white">
-        ДОК
+      <button onclick="switchAgent('doc')" id="tab-doc" class="tab-btn px-4 py-2 rounded-2xl text-xs font-black tracking-wide transition flex items-center gap-2 border bg-slate-900/60 text-slate-400 border-white/5 hover:text-white">
+        <img src="assets/spheres/doc.jpg" alt="Док" class="w-5 h-5 rounded-full object-cover border border-lime-400/80 shadow-[0_0_8px_rgba(132,204,22,0.6)]">
+        <span>ДОК</span>
       </button>
-      <button onclick="switchAgent('marshal')" id="tab-marshal" class="tab-btn px-5 py-2.5 rounded-2xl text-xs font-black tracking-wide transition flex items-center gap-2 border bg-slate-900/60 text-slate-400 border-white/5 hover:text-white">
-        МАРШАЛ
+      <button onclick="switchAgent('marshal')" id="tab-marshal" class="tab-btn px-4 py-2 rounded-2xl text-xs font-black tracking-wide transition flex items-center gap-2 border bg-slate-900/60 text-slate-400 border-white/5 hover:text-white">
+        <img src="assets/spheres/marshal.jpg" alt="Маршал" class="w-5 h-5 rounded-full object-cover border border-red-500/80 shadow-[0_0_8px_rgba(239,68,68,0.6)]">
+        <span>МАРШАЛ</span>
       </button>
     </div>
 
@@ -186,7 +229,7 @@
               <span class="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 font-bold">1 сетап на перевірці</span>
             </div>
             <div class="text-2xl font-black text-white">BTC/USDT Long</div>
-            <p class="text-xs text-slate-400 mt-1">Confluence: 87.5% (Очікує підпису Голови)</p>
+            <p class="text-xs text-slate-400 mt-1">Confluence: 87.5% (Очікує підпису Лідера)</p>
           </div>
         </div>
 
@@ -195,7 +238,7 @@
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-blue-400"></span>
-              Черга на погодження Головою Холдингу (HITL)
+              Черга на погодження Лідером Холдингу (HITL)
             </h3>
             <span class="text-xs text-slate-400">2 задачі вимагають підтвердження</span>
           </div>
@@ -510,7 +553,7 @@
                   <span class="text-sm font-bold text-white">WF #2: Content Production Pipeline</span>
                   <span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-bold">ACTIVE</span>
                 </div>
-                <p class="text-xs text-slate-400 mt-1">Edge-TTS генерація озвучки ➔ FFmpeg складання ➔ відправка в Telegram на затвердження Голові.</p>
+                <p class="text-xs text-slate-400 mt-1">Edge-TTS генерація озвучки ➔ FFmpeg складання ➔ відправка в Telegram на затвердження Лідеру.</p>
               </div>
               <span class="text-xs font-mono text-slate-400">Cron: 09:00, 14:00, 19:00</span>
             </div>
@@ -995,13 +1038,145 @@ End Sub</pre>
       ctx2d.restore();
     }
 
+    // -------------------------------------------------------------
+    // Dynamic Voice, Audio Reactive & Agent Status Engine
+    // -------------------------------------------------------------
+    let voiceActive = false;
+    let audioContext = null;
+    let audioAnalyser = null;
+    let micStream = null;
+    let targetAudioIntensity = 0.0;
+    let agentStatus = 'ready'; // 'ready', 'thinking', 'speaking', 'listening', 'alert'
+
+    function setAgentStatus(status, customLabel) {
+      agentStatus = status;
+      const dot = document.getElementById('orbStatusDot');
+      const text = document.getElementById('orbStatusText');
+      const shock = document.getElementById('orbCoronaShockwave');
+
+      if (!dot || !text) return;
+
+      if (status === 'ready') {
+        text.innerText = customLabel || "LIVE READY";
+        dot.className = "w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse";
+        if (shock) shock.classList.remove('shockwave-active');
+      } else if (status === 'thinking') {
+        text.innerText = customLabel || "ОБРОБКА СИНАПСІВ...";
+        dot.className = "w-1.5 h-1.5 rounded-full bg-cyan-300 animate-ping";
+        if (shock) shock.classList.add('shockwave-active');
+      } else if (status === 'speaking') {
+        text.innerText = customLabel || "ГОЛОС АГЕНТА (ON-AIR)";
+        dot.className = "w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce";
+        if (shock) shock.classList.add('shockwave-active');
+      } else if (status === 'listening') {
+        text.innerText = customLabel || "СЛУХАЮ ЛІДЕРА...";
+        dot.className = "w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping";
+      } else if (status === 'alert') {
+        text.innerText = customLabel || "ВЕТО / ПЕРЕВІРКА";
+        dot.className = "w-1.5 h-1.5 rounded-full bg-red-500 animate-ping";
+        if (shock) shock.classList.add('shockwave-active');
+      }
+    }
+
+    async function toggleVoiceLive() {
+      voiceActive = !voiceActive;
+      const cfg = agentConfigs[currentAgent];
+
+      if (voiceActive) {
+        setAgentStatus('listening', `СЛУХАЮ ЛІДЕРА (${cfg.name})`);
+        
+        // Init Web Audio API for Real Microphone Reactivity
+        try {
+          if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          }
+          if (audioContext.state === 'suspended') {
+            await audioContext.resume();
+          }
+          if (!micStream && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const source = audioContext.createMediaStreamSource(micStream);
+            audioAnalyser = audioContext.createAnalyser();
+            audioAnalyser.fftSize = 128;
+            source.connect(audioAnalyser);
+          }
+        } catch (e) {
+          console.warn("Microphone not available, using synthetic voice cadence.", e);
+        }
+
+        // Voice Greeting with SpeechSynthesis
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          const phrase = `Вітаю, Лідере. ${cfg.name} на зв'язку. Система готова до ваших вказівок.`;
+          const utter = new SpeechSynthesisUtterance(phrase);
+          utter.lang = 'uk-UA';
+          utter.rate = 1.05;
+          utter.pitch = currentAgent === 'eva' ? 1.15 : (currentAgent === 'marshal' ? 0.85 : 1.0);
+          utter.onstart = () => setAgentStatus('speaking', `${cfg.name} ГОВОРИТЬ...`);
+          utter.onend = () => {
+            if (voiceActive) setAgentStatus('listening', `СЛУХАЮ ЛІДЕРА (${cfg.name})`);
+          };
+          window.speechSynthesis.speak(utter);
+        }
+      } else {
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        setAgentStatus('ready', 'LIVE READY');
+        if (micStream) {
+          micStream.getTracks().forEach(t => t.stop());
+          micStream = null;
+          audioAnalyser = null;
+        }
+      }
+    }
+
     function renderOrbLoop() {
-      animTime += 0.024;
+      // Dynamic motion speed & intensity by agent status
+      if (agentStatus === 'thinking') {
+        animTime += 0.048;
+        targetAudioIntensity = 0.45 + Math.sin(animTime * 10) * 0.25;
+      } else if (agentStatus === 'speaking' || agentStatus === 'listening') {
+        animTime += 0.028;
+        if (audioAnalyser) {
+          const freqData = new Uint8Array(audioAnalyser.frequencyBinCount);
+          audioAnalyser.getByteFrequencyData(freqData);
+          let sum = 0;
+          for (let i = 0; i < freqData.length; i++) sum += freqData[i];
+          const avg = sum / freqData.length;
+          targetAudioIntensity = Math.min(1.0, avg / 60.0);
+        } else {
+          // Natural speech cadence simulation
+          const voiceCycle = Math.sin(animTime * 8.0) * Math.cos(animTime * 3.2);
+          targetAudioIntensity = voiceCycle > 0.1 ? 0.35 + voiceCycle * 0.45 : 0.06;
+        }
+      } else if (agentStatus === 'alert') {
+        animTime += 0.062;
+        targetAudioIntensity = 0.70 + Math.sin(animTime * 14) * 0.28;
+      } else {
+        animTime += 0.018;
+        targetAudioIntensity = 0.04 + Math.sin(animTime * 1.8) * 0.03;
+      }
 
       mousePos.x += (targetMouse.x - mousePos.x) * 0.08;
       mousePos.y += (targetMouse.y - mousePos.y) * 0.08;
 
-      audioIntensity += (0.0 - audioIntensity) * 0.05;
+      audioIntensity += (targetAudioIntensity - audioIntensity) * 0.15;
+
+      // Dynamic physical scale and shockwave of the sphere container
+      const shell = document.getElementById('orbSphereShell');
+      const shock = document.getElementById('orbCoronaShockwave');
+      const glow = document.getElementById('orbGlowBackdrop');
+      if (shell) {
+        const breath = 1.0 + (audioIntensity * 0.09) + Math.sin(animTime * 2.0) * 0.012;
+        shell.style.transform = `scale(${breath.toFixed(4)})`;
+      }
+      if (shock) {
+        const shockScale = 1.0 + audioIntensity * 0.28;
+        shock.style.transform = `scale(${shockScale.toFixed(4)})`;
+        shock.style.opacity = (0.2 + audioIntensity * 0.65).toFixed(3);
+      }
+      if (glow) {
+        glow.style.opacity = (0.35 + audioIntensity * 0.45).toFixed(3);
+      }
 
       // Color lerp
       for (let i = 0; i < 3; i++) {
@@ -1058,91 +1233,109 @@ End Sub</pre>
 
     // -------------------------------------------------------------
     // Agent Configurations & Colors
-    // Eva: Pure blue like screenshot
-    // Sam: Pure vibrant yellow
-    // Fin: US Dollar green
-    // Architect: Royal violet / purple
-    // Doc: Lime green (color of life)
-    // Marshal: Bright laser red (not Sentinel)
+    // Eva: Pure royal/electric blue
+    // Sam: Pure golden solar yellow
+    // Fin: US Dollar emerald green
+    // Architect: Royal ultraviolet
+    // Doc: Salatovy lime green (color of life)
+    // Marshal: Bright laser crimson red (not Sentinel)
     // -------------------------------------------------------------
     const agentConfigs = {
       eva: {
         name: "ЄВА",
         hue: 220,
+        sphereSrc: "assets/spheres/eva.jpg",
+        rimColor: "#3b82f6",
         backdrop: "bg-blue-600",
         tabColor: "bg-blue-500/20 text-blue-300 border-blue-500/40 shadow-blue-500/20",
+        statusColor: "border-blue-500/50 text-blue-300 shadow-blue-500/25",
         colors: {
           deep: [0.03, 0.08, 0.45],
           main: [0.06, 0.35, 0.95],
           highlight: [0.55, 0.78, 1.00]
         },
-        greeting: "«Вітаю, Андрію. Єва на зв'язку.»",
+        greeting: "«Вітаю, Лідере. Єва на зв'язку.»",
         sub: "Холдинг активний. Бібліотека MS Office та оперативна пам'ять синхронізовані. Чим займемося?"
       },
       sam: {
         name: "СЕМ",
         hue: 48,
+        sphereSrc: "assets/spheres/sam.jpg",
+        rimColor: "#f59e0b",
         backdrop: "bg-yellow-500",
         tabColor: "bg-yellow-500/20 text-yellow-300 border-yellow-500/40 shadow-yellow-500/20",
+        statusColor: "border-amber-500/50 text-amber-300 shadow-amber-500/25",
         colors: {
           deep: [0.40, 0.25, 0.00],
           main: [0.96, 0.82, 0.05],
           highlight: [1.00, 0.95, 0.45]
         },
         greeting: "«Сем на зв'язку. Сканую ліквідність та книги ордерів.»",
-        sub: "Торговий поверх активний. На ринку виявлено 1 висококонфлюентний сетап. Потрібен ваш аппрув."
+        sub: "Торговий поверх активний. На ринку виявлено 1 висококонфлюентний сетап. Очікую вашого рішення, Лідере."
       },
       fin: {
         name: "ФІН",
         hue: 140,
+        sphereSrc: "assets/spheres/fin.jpg",
+        rimColor: "#10b981",
         backdrop: "bg-emerald-600",
         tabColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-emerald-500/20",
+        statusColor: "border-emerald-500/50 text-emerald-300 shadow-emerald-500/25",
         colors: {
           deep: [0.01, 0.22, 0.08],
           main: [0.12, 0.68, 0.28],
           highlight: [0.50, 0.92, 0.65]
         },
         greeting: "«Фін на зв'язку. Доповідаю по казначейству.»",
-        sub: "Поточний ROI становить 4.8x. Усі надходження зі Stripe, PayPal та CPA акумулюються у Vault."
+        sub: "Поточний ROI становить 4.8x. Усі надходження зі Stripe, PayPal та CPA акумулюються у Vault під вашим контролем."
       },
       architect: {
         name: "АРХІТЕКТОР",
         hue: 275,
+        sphereSrc: "assets/spheres/architect.jpg",
+        rimColor: "#a855f7",
         backdrop: "bg-purple-600",
         tabColor: "bg-purple-500/20 text-purple-300 border-purple-500/40 shadow-purple-500/20",
+        statusColor: "border-purple-500/50 text-purple-300 shadow-purple-500/25",
         colors: {
           deep: [0.22, 0.04, 0.42],
           main: [0.62, 0.25, 0.96],
           highlight: [0.85, 0.65, 1.00]
         },
         greeting: "«Архітектор онлайн. Інфраструктура в стані 100%.»",
-        sub: "FlowLint та AST Compiler перевірили воркфлоу n8n на Contabo. Жодних конфліктів чи вразливостей."
+        sub: "FlowLint та AST Compiler перевірили воркфлоу n8n на Contabo. Графи процесів стабільні, Лідере."
       },
       doc: {
         name: "ДОК",
         hue: 85,
+        sphereSrc: "assets/spheres/doc.jpg",
+        rimColor: "#84cc16",
         backdrop: "bg-lime-500",
         tabColor: "bg-lime-500/20 text-lime-300 border-lime-500/40 shadow-lime-500/20",
+        statusColor: "border-lime-500/50 text-lime-300 shadow-lime-500/25",
         colors: {
           deep: [0.15, 0.32, 0.02],
           main: [0.55, 0.88, 0.12],
           highlight: [0.82, 0.98, 0.48]
         },
         greeting: "«Док на зв'язку. Біомаркери в зеленій зоні.»",
-        sub: "Індекс готовності 88/100. Нервова система повністю відновилася після сну. Гарний день для продуктивності."
+        sub: "Індекс готовності 88/100. Нервова система повністю відновилася після сну. Продуктивний день для Лідера Холдингу."
       },
       marshal: {
         name: "МАРШАЛ",
         hue: 0,
+        sphereSrc: "assets/spheres/marshal.jpg",
+        rimColor: "#ef4444",
         backdrop: "bg-rose-600",
         tabColor: "bg-rose-500/20 text-rose-300 border-rose-500/40 shadow-rose-500/20",
+        statusColor: "border-red-500/50 text-red-300 shadow-red-500/25",
         colors: {
           deep: [0.42, 0.02, 0.02],
           main: [0.96, 0.12, 0.12],
           highlight: [1.00, 0.50, 0.50]
         },
         greeting: "«Маршал на варті. Периметр захищено.»",
-        sub: "Антидетект-профілі Camoufox прогріті. Ротація проксі активна. Бан-ворди та стоп-слова під контролем."
+        sub: "Антидетект-профілі Camoufox прогріті. Ротація проксі активна. Жодних витоків чи загроз не виявлено."
       }
     };
 
@@ -1182,7 +1375,7 @@ End Sub</pre>
     }
 
     // -------------------------------------------------------------
-    // Agent Switcher
+    // Agent Switcher (Photorealistic Crossfade & Dynamic Layer Retuning)
     // -------------------------------------------------------------
     function switchAgent(agentKey) {
       currentAgent = agentKey;
@@ -1194,25 +1387,58 @@ End Sub</pre>
         targetMain = cfg.colors.main;
         targetHigh = cfg.colors.highlight;
       }
-      audioIntensity = 0.85;
 
-      document.getElementById('orbGlowBackdrop').className = `absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-3xl opacity-40 transition-all duration-700 ${cfg.backdrop} pointer-events-none`;
+      // Smooth Crossfade of Photorealistic Sphere Render
+      const front = document.getElementById('orbImageFront');
+      const back = document.getElementById('orbImageBack');
+      const rim = document.getElementById('orbRimBorder');
+      const shock = document.getElementById('orbCoronaShockwave');
+      const backdrop = document.getElementById('orbGlowBackdrop');
+      const badge = document.getElementById('orbStatusBadge');
+
+      if (front && back && cfg.sphereSrc) {
+        back.src = cfg.sphereSrc;
+        back.style.opacity = '1';
+        front.style.opacity = '0';
+        setTimeout(() => {
+          front.src = cfg.sphereSrc;
+          front.style.opacity = '1';
+          back.style.opacity = '0';
+        }, 500);
+      }
+
+      if (rim && cfg.rimColor) {
+        rim.style.borderColor = `${cfg.rimColor}80`;
+        rim.style.boxShadow = `inset 0 0 25px ${cfg.rimColor}40, 0 0 40px ${cfg.rimColor}70`;
+      }
+      if (shock && cfg.rimColor) {
+        shock.style.borderColor = `${cfg.rimColor}50`;
+      }
+      if (backdrop && cfg.backdrop) {
+        backdrop.className = `absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-3xl opacity-50 transition-all duration-700 ${cfg.backdrop} pointer-events-none`;
+      }
+      if (badge && cfg.statusColor) {
+        badge.className = `absolute -bottom-2 z-20 bg-slate-950/90 border ${cfg.statusColor} text-[10px] font-bold px-3.5 py-0.5 rounded-full shadow-lg flex items-center gap-1.5 backdrop-blur-md transition-all duration-300`;
+      }
+
       document.getElementById('agentGreetingTitle').innerText = cfg.greeting;
       document.getElementById('agentGreetingSubtitle').innerText = cfg.sub;
 
       // Update Agent Tabs
       document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.className = "tab-btn px-5 py-2.5 rounded-2xl text-xs font-black tracking-wide transition flex items-center gap-2 border bg-slate-900/60 text-slate-400 border-white/5 hover:text-white";
+        btn.className = "tab-btn px-4 py-2 rounded-2xl text-xs font-black tracking-wide transition flex items-center gap-2 border bg-slate-900/60 text-slate-400 border-white/5 hover:text-white";
       });
       const activeTab = document.getElementById(`tab-${agentKey}`);
       if (activeTab) {
-        activeTab.className = `tab-btn px-5 py-2.5 rounded-2xl text-xs font-black tracking-wide transition flex items-center gap-2 border ${cfg.tabColor}`;
+        activeTab.className = `tab-btn px-4 py-2 rounded-2xl text-xs font-black tracking-wide transition flex items-center gap-2 border ${cfg.tabColor}`;
       }
 
       // Switch View
       document.querySelectorAll('.agent-view').forEach(view => view.classList.add('hidden'));
       const activeView = document.getElementById(`view-${agentKey}`);
       if (activeView) activeView.classList.remove('hidden');
+
+      setAgentStatus('ready', 'LIVE READY');
     }
 
     // -------------------------------------------------------------
@@ -1382,18 +1608,29 @@ End Sub`;
 
     function triggerAction(action) {
       if (action === 'emergency_stop') {
-        alert("🚨 PANIC STOP активовано! Всі вихідні ордери та пости заблоковано Сентинелом / Маршалом.");
+        switchAgent('marshal');
+        setAgentStatus('alert', '🚨 PANIC STOP: ВЕТО');
+        alert("🛑 PANIC STOP активовано! Всі вихідні ордери та пости заблоковано Маршалом за наказом Лідера Холдингу.");
       } else if (action === 'self_test') {
-        alert("🟢 СЕЛФ-ТЕСТ ПРОЙДЕНО: Усі 8 пісочничних тестів успішні. Мікросервіси та n8n в стані 100%.");
+        setAgentStatus('thinking', 'ТЕСТУВАННЯ СИСТЕМ...');
+        setTimeout(() => {
+          setAgentStatus('speaking', 'ТЕСТ УСПІШНИЙ (100%)');
+          alert("🟢 СЕЛФ-ТЕСТ ПРОЙДЕНО: Усі 8 пісочничних тестів успішні. Мікросервіси та n8n в стані 100%. Всі 6 агентів активні, Лідере.");
+          setTimeout(() => setAgentStatus('ready', 'LIVE READY'), 2000);
+        }, 1200);
       } else if (action === 'briefing_report') {
-        alert("📊 ЗВІТ ЗГЕНЕРОВАНО: Ранковий брифінг холдингу підготовлено Євою та надіслано в чат.");
+        setAgentStatus('speaking', 'ГЕНЕРАЦІЯ ЗВІТУ...');
+        alert("📊 ЗВІТ ЗГЕНЕРОВАНО: Ранковий брифінг холдингу підготовлено Євою та надіслано Лідеру Холдингу.");
+        setTimeout(() => setAgentStatus('ready', 'LIVE READY'), 1500);
       } else if (action === 'launch_cycle') {
-        alert("⚡ ЦИКЛ ЗАПУЩЕНО: Контент-Цех та відділи сканування офферів розпочали новий 24h цикл.");
+        setAgentStatus('thinking', 'ЗАПУСК 24H ЦИКЛУ...');
+        alert("⚡ ЦИКЛ ЗАПУЩЕНО: Контент-Цех та відділи сканування офферів розпочали новий 24h цикл за розпорядженням Лідера.");
+        setTimeout(() => setAgentStatus('ready', 'LIVE READY'), 1500);
       }
     }
 
     function approveTask(taskId) {
-      alert(`✅ Задачу [${taskId}] затверджено Головою Холдингу. Передано у вихідний контур n8n.`);
+      alert(`✅ Задачу [${taskId}] затверджено Лідером Холдингу. Передано у вихідний контур n8n.`);
     }
 
     function previewMedia(type) {
