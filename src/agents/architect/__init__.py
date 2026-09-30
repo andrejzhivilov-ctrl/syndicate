@@ -1,19 +1,11 @@
-"""ARCHITECT — Chief Infrastructure Architect & CTO agent package."""
-from __future__ import annotations
-
-from .adr import build_adr_bundle, commit_message, format_adr
-from .agent import ArchitectAgent
-from .flowlint import LintReport, lint_workflow
-from .n8n_builder import GOLDEN_TEMPLATES, build_workflow, render_template
+from src.agents.architect.agent import ArchitectAgent
+from src.agents.architect.flowlint import lint_workflow
+from src.agents.architect.adr import build_adr_bundle
+from src.agents.architect import n8n_builder
 
 __all__ = [
     "ArchitectAgent",
     "lint_workflow",
-    "LintReport",
-    "build_workflow",
-    "render_template",
-    "GOLDEN_TEMPLATES",
-    "format_adr",
     "build_adr_bundle",
-    "commit_message",
+    "n8n_builder",
 ]
