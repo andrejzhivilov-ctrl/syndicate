@@ -94,10 +94,7 @@
 
     <!-- Main Central Stage: Photorealistic 3D Energy Sphere (Exact Render + Audio/Status Reactive Layers) -->
     <div id="centralOrbContainer" class="relative py-4 sm:py-6 flex flex-col items-center justify-center text-center">
-      <!-- Ambient Glow Filter Behind Orb -->
-      <div id="orbGlowBackdrop" class="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-3xl opacity-50 transition-all duration-700 bg-blue-600 pointer-events-none"></div>
-
-      <!-- Living 3D Holographic Energy Sphere with Real Liquid Force Lines & Audio/Status Reactive Layers -->
+            <!-- Living 3D Holographic Energy Sphere with Real Liquid Force Lines & Audio/Status Reactive Layers -->
       <div class="relative flex justify-center items-center py-4">
         <!-- SVG Turbulence Filter for Real Living Force Lines Undulation (Displaces pixels organically) -->
         <svg class="absolute w-0 h-0 pointer-events-none" aria-hidden="true" style="position: absolute; width: 0; height: 0; overflow: hidden;">
@@ -109,10 +106,13 @@
           </defs>
         </svg>
 
-        <div id="orbInteractiveStage" class="relative w-64 h-64 sm:w-80 sm:h-80 flex items-center justify-center cursor-pointer select-none group" onclick="toggleVoiceLive()" title="Натисніть для увімкнення Live Голосу">
+        <div id="orbInteractiveStage" class="relative w-64 h-64 sm:w-80 sm:h-80 flex items-center justify-center cursor-pointer select-none group" onclick="toggleVoiceLive()" title="РќР°С‚РёСЃРЅС–С‚СЊ РґР»СЏ СѓРІС–РјРєРЅРµРЅРЅСЏ Live Р“РѕР»РѕСЃСѓ">
           
-          <!-- Outer Atmospheric Corona Ambient Bloom (Audio & Reactive Halo, NO HARD BORDERS) -->
-          <div id="orbCoronaShockwave" class="absolute w-72 h-72 sm:w-88 sm:h-88 rounded-full pointer-events-none transition-all duration-500 opacity-40 blur-2xl bg-blue-600/30"></div>
+                              <!-- Deep Volumetric 360В° Ambient Glow (Calibrated +20% Brightness, Smooth Falloff into Background) -->
+          <div id="orbGlowBackdrop" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] h-[520px] sm:w-[620px] sm:h-[620px] rounded-full blur-3xl pointer-events-none transition-all duration-700" style="background: radial-gradient(circle at center, rgba(37, 99, 235, 0.65) 0%, rgba(37, 99, 235, 0.48) 30%, rgba(29, 78, 216, 0.28) 55%, rgba(15, 23, 42, 0.08) 80%, transparent 100%); opacity: 0.75;"></div>
+
+          <!-- Outer Atmospheric Corona Ambient Bloom (Audio & Reactive Halo) -->
+          <div id="orbCoronaShockwave" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 sm:w-88 sm:h-88 rounded-full pointer-events-none transition-all duration-500 blur-2xl" style="background: radial-gradient(circle, rgba(59, 130, 246, 0.45) 0%, rgba(59, 130, 246, 0.18) 50%, transparent 75%); opacity: 0.45;"></div>
           
           <!-- Photorealistic 3D Energy Sphere Container (Transparent, No Dark Box) -->
           <div id="orbSphereShell" class="relative w-64 h-64 sm:w-80 sm:h-80 rounded-full overflow-hidden flex items-center justify-center bg-transparent transition-transform duration-300 group-hover:scale-[1.03]">
@@ -953,13 +953,13 @@ End Sub</pre>
       }
 
       // 6. Atmospheric Corona Ambient Halo (Soft, No Hard Rings)
-      if (shock) {
+            if (shock) {
         const shockScale = 1.0 + Math.sin(animTime * 1.5) * 0.04 + audioIntensity * 0.35;
-        shock.style.transform = `scale(${shockScale.toFixed(4)})`;
+        shock.style.transform = `translate(-50%, -50%) scale(${shockScale.toFixed(4)})`;
         shock.style.opacity = (0.35 + audioIntensity * 0.55).toFixed(3);
       }
-      if (glow) {
-        glow.style.opacity = (0.45 + Math.sin(animTime * 1.2) * 0.08 + audioIntensity * 0.45).toFixed(3);
+                  if (glow) {
+        glow.style.opacity = (0.70 + Math.sin(animTime * 1.2) * 0.06 + audioIntensity * 0.25).toFixed(3);
       }
       if (rim && cfg.rimColor) {
         rim.style.boxShadow = `0 0 ${(30 + audioIntensity * 35).toFixed(1)}px ${cfg.rimColor}70, inset 0 0 ${(15 + audioIntensity * 15).toFixed(1)}px ${cfg.rimColor}40`;
@@ -1299,11 +1299,11 @@ End Sub</pre>
         rim.style.borderColor = `${cfg.rimColor}90`;
         rim.style.boxShadow = `0 0 35px ${cfg.rimColor}80`;
       }
-      if (shock && cfg.rimColor) {
-        shock.style.background = `radial-gradient(circle, ${cfg.rimColor}40 0%, transparent 70%)`;
+                  if (shock && cfg.rimColor) {
+        shock.style.background = `radial-gradient(circle, ${cfg.rimColor}45 0%, ${cfg.rimColor}18 50%, transparent 75%)`;
       }
-      if (backdrop && cfg.backdrop) {
-        backdrop.className = `absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-3xl opacity-50 transition-all duration-700 ${cfg.backdrop} pointer-events-none`;
+      if (backdrop && cfg.rimColor) {
+        backdrop.style.background = `radial-gradient(circle at center, ${cfg.rimColor}65 0%, ${cfg.rimColor}48 30%, ${cfg.rimColor}28 55%, ${cfg.rimColor}08 80%, transparent 100%)`;
       }
       if (badge && cfg.statusColor) {
         badge.className = `absolute -bottom-2 z-20 bg-slate-950/90 border ${cfg.statusColor} text-[10px] font-bold px-3.5 py-0.5 rounded-full shadow-lg flex items-center gap-1.5 backdrop-blur-md transition-all duration-300`;
