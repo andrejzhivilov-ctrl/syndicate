@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SYNDIKAT — Autonomous Multi-Agent Cockpit</title>
   <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <script src="assets/spheres_data.js"></script>
   <style>
     body {
       background-color: #000000;
@@ -119,10 +120,10 @@
         </div>
       </div>
 
-      <!-- Personalized Dynamic Agent Greeting (Addresses user as Лідере) -->
+      <!-- Personalized Dynamic Agent Greeting: Андрію -->
       <div class="mt-4 space-y-1.5 relative z-10">
         <h2 id="agentGreetingTitle" class="text-xl sm:text-2xl font-black tracking-wide text-white transition-all duration-500">
-          «Вітаю, Лідере. Єва на зв'язку.»
+          «Вітаю, Андрію. Єва на зв'язку.»
         </h2>
         <p id="agentGreetingSubtitle" class="text-sm text-blue-300/80 font-medium max-w-2xl mx-auto transition-all duration-500">
           Холдинг активний. Бібліотека MS Office та оперативна пам'ять синхронізовані. Чим займемося?
@@ -229,7 +230,7 @@
               <span class="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 font-bold">1 сетап на перевірці</span>
             </div>
             <div class="text-2xl font-black text-white">BTC/USDT Long</div>
-            <p class="text-xs text-slate-400 mt-1">Confluence: 87.5% (Очікує підпису Лідера)</p>
+            <p class="text-xs text-slate-400 mt-1">Confluence: 87.5% (Очікує підтвердження Лідера Холдингу)</p>
           </div>
         </div>
 
@@ -839,203 +840,110 @@ End Sub</pre>
 
   <script>
     // -------------------------------------------------------------
-    // Real-Time 3D Plasma Ribbon Vortex (Exact Match to Reference Screenshot)
-    // Raymarched silk ribbon filaments with saturation-preserving tone map.
-    // Zero white blowout! Saturated cobalt/electric blue, yellow, dollar green,
-    // violet, lime life green, bright laser red.
+    // Photorealistic 3D Energy Spheres Engine (Exact Render Display)
+    // The master rendered 3D sphere is the HERO visual element.
+    // Audio-reactive scale, breathing oscillation, and acoustic ripple shockwaves.
     // -------------------------------------------------------------
+    const AGENT_SPHERES = (window.AGENT_SPHERES_DATA) || {
+      eva: 'assets/spheres/eva.jpg',
+      sam: 'assets/spheres/sam.jpg',
+      fin: 'assets/spheres/fin.jpg',
+      architect: 'assets/spheres/architect.jpg',
+      doc: 'assets/spheres/doc.jpg',
+      marshal: 'assets/spheres/marshal.jpg'
+    };
+
+    // Immediately display Eva's photorealistic sphere in full resolution
+    const frontImg = document.getElementById('orbImageFront');
+    if (frontImg && AGENT_SPHERES.eva) {
+      frontImg.src = AGENT_SPHERES.eva;
+    }
+
     const canvas = document.getElementById('fluidOrbCanvas');
-    let gl = null;
-    let program = null;
-    let positionLocation, resolutionLoc, timeLoc, intensityLoc, mouseLoc, colorDeepLoc, colorMainLoc, colorHighlightLoc;
+    const ctx = canvas ? canvas.getContext('2d') : null;
     let animTime = 0;
     let audioIntensity = 0.0;
     let mousePos = { x: 0, y: 0 };
     let targetMouse = { x: 0, y: 0 };
 
-    // Dynamic color uniforms (smooth RGB lerp)
-    // Default: Eva (pure royal/electric blue matching screenshot)
-    let curDeep = [0.03, 0.08, 0.45];
-    let curMain = [0.06, 0.35, 0.95];
-    let curHigh = [0.55, 0.78, 1.00];
+    function renderAcousticOrbOverlay() {
+      animTime += 0.024;
+      audioIntensity += (targetAudioIntensity - audioIntensity) * 0.15;
+      mousePos.x += (targetMouse.x - mousePos.x) * 0.08;
+      mousePos.y += (targetMouse.y - mousePos.y) * 0.08;
 
-    let targetDeep = [0.03, 0.08, 0.45];
-    let targetMain = [0.06, 0.35, 0.95];
-    let targetHigh = [0.55, 0.78, 1.00];
+      // Dynamic physical scale and shockwave of the sphere container
+      const shell = document.getElementById('orbSphereShell');
+      const shock = document.getElementById('orbCoronaShockwave');
+      const glow = document.getElementById('orbGlowBackdrop');
+      
+      if (shell) {
+        const breath = 1.0 + (audioIntensity * 0.09) + Math.sin(animTime * 2.0) * 0.015;
+        shell.style.transform = `scale(${breath.toFixed(4)}) perspective(600px) rotateY(${(mousePos.x * 10).toFixed(2)}deg) rotateX(${(-mousePos.y * 10).toFixed(2)}deg)`;
+      }
+      if (shock) {
+        const shockScale = 1.0 + audioIntensity * 0.28;
+        shock.style.transform = `scale(${shockScale.toFixed(4)})`;
+        shock.style.opacity = (0.2 + audioIntensity * 0.65).toFixed(3);
+      }
+      if (glow) {
+        glow.style.opacity = (0.45 + audioIntensity * 0.45).toFixed(3);
+      }
 
-    try {
-      gl = canvas.getContext('webgl', { alpha: true, antialias: true, premultipliedAlpha: false }) ||
-           canvas.getContext('experimental-webgl', { alpha: true, antialias: true, premultipliedAlpha: false });
-    } catch (e) {
-      console.warn("WebGL not available, fallback will be used", e);
-    }
+      // Draw transparent acoustic wave ripples ONLY when speaking, thinking, or alert
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    if (gl) {
-      const vs = `
-        attribute vec2 a_position;
-        void main() {
-          gl_Position = vec4(a_position, 0.0, 1.0);
-        }
-      `;
+        if (audioIntensity > 0.05 || agentStatus === 'thinking' || agentStatus === 'speaking' || agentStatus === 'alert') {
+          const cx = canvas.width / 2;
+          const cy = canvas.height / 2;
+          const cfg = (typeof agentConfigs !== 'undefined' && agentConfigs[currentAgent]) || { hue: 220 };
+          const ringCount = agentStatus === 'alert' ? 4 : 3;
 
-      // Refined shader: marches through sphere, accumulating delicate silk wave filaments
-      // with saturation-preserving tone mapping (NO white clipping)
-      const fs = `
-        #ifdef GL_FRAGMENT_PRECISION_HIGH
-        precision highp float;
-        #else
-        precision mediump float;
-        #endif
-
-        uniform vec2 u_resolution;
-        uniform float u_time;
-        uniform float u_intensity;
-        uniform vec2 u_mouse;
-        uniform vec3 u_colorDeep;
-        uniform vec3 u_colorMain;
-        uniform vec3 u_colorHighlight;
-
-        mat2 rot(float a) {
-          float s = sin(a), c = cos(a);
-          return mat2(c, -s, s, c);
-        }
-
-        void main() {
-          vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / min(u_resolution.x, u_resolution.y);
-          
-          vec3 ro = vec3(0.0, 0.45, 2.25);
-          ro.xz *= rot(u_mouse.x * 0.45);
-          ro.yz *= rot(u_mouse.y * 0.35);
-          
-          vec3 ta = vec3(0.0, 0.0, 0.0);
-          vec3 ww = normalize(ta - ro);
-          vec3 uu = normalize(cross(ww, vec3(0.0, 1.0, 0.0)));
-          vec3 vv = cross(uu, ww);
-          vec3 rd = normalize(uv.x * uu + uv.y * vv + 1.9 * ww);
-          
-          vec3 col = vec3(0.0);
-          float t = 1.0;
-          
-          for (int i = 0; i < 44; i++) {
-            vec3 p = ro + rd * t;
-            float r = length(p);
-            
-            if (r < 0.95) {
-              float phi = atan(p.z, p.x);
-              float theta = asin(clamp(p.y / (r + 0.0001), -1.0, 1.0));
-              
-              // Delicate undulating silk ribbons sweeping horizontally and twisting
-              float w1 = sin(p.x * 2.8 + p.y * 1.6 - u_time * 1.5 + phi * 1.2);
-              float w2 = cos(p.x * 3.5 - p.z * 2.2 + u_time * 1.8 - theta * 1.5);
-              float w3 = sin(p.y * 3.2 + p.z * 2.8 - u_time * 1.3);
-              
-              float d1 = abs(p.y - 0.22 * w1 - 0.12 * w2) + 0.04 * abs(w3);
-              float d2 = abs(length(p.xz) - 0.65 - 0.12 * w2) + 0.05 * abs(w1);
-              float dStrand = min(d1, d2);
-              
-              // Luminous inverse-square density
-              float density = 0.0028 / (dStrand * dStrand + 0.00065);
-              
-              // Outer spherical rim glow
-              float rim = smoothstep(0.88, 0.72, r) * smoothstep(0.55, 0.82, r) * 0.85;
-              
-              vec3 strandCol = mix(u_colorDeep, u_colorMain, clamp(0.5 + 0.5 * w1, 0.0, 1.0));
-              strandCol = mix(strandCol, u_colorHighlight, pow(clamp(0.5 + 0.5 * w2, 0.0, 1.0), 3.0) * 0.75);
-              
-              col += (strandCol * density + u_colorMain * rim * 0.25) * (0.85 + 0.15 * sin(phi * 3.0 + u_time));
-            }
-            
-            t += 0.038;
-            if (t > 3.4) break;
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          for (let i = 0; i < ringCount; i++) {
+            const progress = ((animTime * 1.6 + i * 0.45) % 1.5);
+            const r = 45 + progress * 115;
+            const alpha = Math.max(0, (1.0 - progress / 1.5) * (audioIntensity * 1.3 + 0.25));
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.strokeStyle = `hsla(${cfg.hue}, 100%, 75%, ${alpha.toFixed(3)})`;
+            ctx.lineWidth = 2.0;
+            ctx.stroke();
           }
-          
-          float centerDist = length(uv);
-          col += u_colorDeep * 0.12 * exp(-centerDist * 2.8);
-          
-          // Saturation-preserving tone mapping (eliminates white blowout!)
-          float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
-          col = col / (1.0 + lum * 0.85);
-          
-          float alpha = smoothstep(0.92, 0.72, centerDist);
-          
-          gl_FragColor = vec4(col, alpha);
+          ctx.restore();
         }
-      `;
-
-      function compileShader(glCtx, type, src) {
-        const s = glCtx.createShader(type);
-        glCtx.shaderSource(s, src);
-        glCtx.compileShader(s);
-        if (!glCtx.getShaderParameter(s, glCtx.COMPILE_STATUS)) {
-          console.error(glCtx.getShaderInfoLog(s));
-          glCtx.deleteShader(s);
-          return null;
-        }
-        return s;
       }
 
-      const vertShader = compileShader(gl, gl.VERTEX_SHADER, vs);
-      const fragShader = compileShader(gl, gl.FRAGMENT_SHADER, fs);
-      if (vertShader && fragShader) {
-        program = gl.createProgram();
-        gl.attachShader(program, vertShader);
-        gl.attachShader(program, fragShader);
-        gl.linkProgram(program);
-
-        positionLocation = gl.getAttribLocation(program, "a_position");
-        resolutionLoc = gl.getUniformLocation(program, "u_resolution");
-        timeLoc = gl.getUniformLocation(program, "u_time");
-        intensityLoc = gl.getUniformLocation(program, "u_intensity");
-        mouseLoc = gl.getUniformLocation(program, "u_mouse");
-        colorDeepLoc = gl.getUniformLocation(program, "u_colorDeep");
-        colorMainLoc = gl.getUniformLocation(program, "u_colorMain");
-        colorHighlightLoc = gl.getUniformLocation(program, "u_colorHighlight");
-
-        const posBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-          -1, -1,
-           1, -1,
-          -1,  1,
-          -1,  1,
-           1, -1,
-           1,  1,
-        ]), gl.STATIC_DRAW);
-
-        gl.enableVertexAttribArray(positionLocation);
-        gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
-      }
+      requestAnimationFrame(renderAcousticOrbOverlay);
     }
+    requestAnimationFrame(renderAcousticOrbOverlay);
 
-    // 2D Canvas Fallback
-    const ctx2d = !gl ? canvas.getContext('2d') : null;
-    let fallbackHue = 220;
-    let targetFallbackHue = 220;
-
-    function renderCanvas2DFallback() {
-      if (!ctx2d) return;
-      fallbackHue += (targetFallbackHue - fallbackHue) * 0.08;
-      ctx2d.clearRect(0, 0, canvas.width, canvas.height);
-      const cx = canvas.width / 2;
-      const cy = canvas.height / 2;
-
-      ctx2d.save();
-      ctx2d.globalCompositeOperation = 'lighter';
-      for (let i = 0; i < 16; i++) {
-        const angle = (i / 16) * Math.PI * 2 + animTime * 0.4;
-        const rx = 110 + Math.sin(animTime * 1.5 + i) * 16;
-        const ry = 65 + Math.cos(animTime * 1.2 + i * 0.5) * 12;
-        ctx2d.save();
-        ctx2d.translate(cx, cy);
-        ctx2d.rotate(angle * 0.5);
-        ctx2d.beginPath();
-        ctx2d.ellipse(0, 0, rx, ry, angle, 0, Math.PI * 2);
-        ctx2d.strokeStyle = `hsla(${fallbackHue + i * 4}, 95%, ${55 + (i % 3) * 10}%, 0.45)`;
-        ctx2d.lineWidth = 3.0 + Math.sin(animTime * 2 + i) * 1.4;
-        ctx2d.stroke();
-        ctx2d.restore();
-      }
-      ctx2d.restore();
+    // Mouse / Touch Tilt
+    const interactiveStage = document.getElementById('orbInteractiveStage') || canvas;
+    if (interactiveStage) {
+      interactiveStage.addEventListener('mousemove', (e) => {
+        const rect = interactiveStage.getBoundingClientRect();
+        targetMouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        targetMouse.y = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
+      });
+      interactiveStage.addEventListener('mouseleave', () => {
+        targetMouse.x = 0;
+        targetMouse.y = 0;
+      });
+      interactiveStage.addEventListener('touchmove', (e) => {
+        if (e.touches.length > 0) {
+          const rect = interactiveStage.getBoundingClientRect();
+          const t = e.touches[0];
+          targetMouse.x = ((t.clientX - rect.left) / rect.width) * 2 - 1;
+          targetMouse.y = -(((t.clientY - rect.top) / rect.height) * 2 - 1);
+        }
+      }, { passive: true });
+      interactiveStage.addEventListener('touchend', () => {
+        targetMouse.x = 0;
+        targetMouse.y = 0;
+      });
     }
 
     // -------------------------------------------------------------
@@ -1129,122 +1037,20 @@ End Sub</pre>
       }
     }
 
-    function renderOrbLoop() {
-      // Dynamic motion speed & intensity by agent status
-      if (agentStatus === 'thinking') {
-        animTime += 0.048;
-        targetAudioIntensity = 0.45 + Math.sin(animTime * 10) * 0.25;
-      } else if (agentStatus === 'speaking' || agentStatus === 'listening') {
-        animTime += 0.028;
-        if (audioAnalyser) {
-          const freqData = new Uint8Array(audioAnalyser.frequencyBinCount);
-          audioAnalyser.getByteFrequencyData(freqData);
-          let sum = 0;
-          for (let i = 0; i < freqData.length; i++) sum += freqData[i];
-          const avg = sum / freqData.length;
-          targetAudioIntensity = Math.min(1.0, avg / 60.0);
-        } else {
-          // Natural speech cadence simulation
-          const voiceCycle = Math.sin(animTime * 8.0) * Math.cos(animTime * 3.2);
-          targetAudioIntensity = voiceCycle > 0.1 ? 0.35 + voiceCycle * 0.45 : 0.06;
-        }
-      } else if (agentStatus === 'alert') {
-        animTime += 0.062;
-        targetAudioIntensity = 0.70 + Math.sin(animTime * 14) * 0.28;
-      } else {
-        animTime += 0.018;
-        targetAudioIntensity = 0.04 + Math.sin(animTime * 1.8) * 0.03;
-      }
-
-      mousePos.x += (targetMouse.x - mousePos.x) * 0.08;
-      mousePos.y += (targetMouse.y - mousePos.y) * 0.08;
-
-      audioIntensity += (targetAudioIntensity - audioIntensity) * 0.15;
-
-      // Dynamic physical scale and shockwave of the sphere container
-      const shell = document.getElementById('orbSphereShell');
-      const shock = document.getElementById('orbCoronaShockwave');
-      const glow = document.getElementById('orbGlowBackdrop');
-      if (shell) {
-        const breath = 1.0 + (audioIntensity * 0.09) + Math.sin(animTime * 2.0) * 0.012;
-        shell.style.transform = `scale(${breath.toFixed(4)})`;
-      }
-      if (shock) {
-        const shockScale = 1.0 + audioIntensity * 0.28;
-        shock.style.transform = `scale(${shockScale.toFixed(4)})`;
-        shock.style.opacity = (0.2 + audioIntensity * 0.65).toFixed(3);
-      }
-      if (glow) {
-        glow.style.opacity = (0.35 + audioIntensity * 0.45).toFixed(3);
-      }
-
-      // Color lerp
-      for (let i = 0; i < 3; i++) {
-        curDeep[i] += (targetDeep[i] - curDeep[i]) * 0.07;
-        curMain[i] += (targetMain[i] - curMain[i]) * 0.07;
-        curHigh[i] += (targetHigh[i] - curHigh[i]) * 0.07;
-      }
-
-      if (gl && program) {
-        gl.viewport(0, 0, canvas.width, canvas.height);
-        gl.clearColor(0, 0, 0, 0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-
-        gl.useProgram(program);
-        gl.uniform2f(resolutionLoc, canvas.width, canvas.height);
-        gl.uniform1f(timeLoc, animTime);
-        gl.uniform1f(intensityLoc, audioIntensity);
-        gl.uniform2f(mouseLoc, mousePos.x, mousePos.y);
-        gl.uniform3fv(colorDeepLoc, curDeep);
-        gl.uniform3fv(colorMainLoc, curMain);
-        gl.uniform3fv(colorHighlightLoc, curHigh);
-
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-      } else {
-        renderCanvas2DFallback();
-      }
-
-      requestAnimationFrame(renderOrbLoop);
-    }
-    requestAnimationFrame(renderOrbLoop);
-
-    // Mouse / Touch Tilt
-    canvas.addEventListener('mousemove', (e) => {
-      const rect = canvas.getBoundingClientRect();
-      targetMouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      targetMouse.y = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
-    });
-    canvas.addEventListener('mouseleave', () => {
-      targetMouse.x = 0;
-      targetMouse.y = 0;
-    });
-    canvas.addEventListener('touchmove', (e) => {
-      if (e.touches.length > 0) {
-        const rect = canvas.getBoundingClientRect();
-        const t = e.touches[0];
-        targetMouse.x = ((t.clientX - rect.left) / rect.width) * 2 - 1;
-        targetMouse.y = -(((t.clientY - rect.top) / rect.height) * 2 - 1);
-      }
-    }, { passive: true });
-    canvas.addEventListener('touchend', () => {
-      targetMouse.x = 0;
-      targetMouse.y = 0;
-    });
-
     // -------------------------------------------------------------
-    // Agent Configurations & Colors
-    // Eva: Pure royal/electric blue
-    // Sam: Pure golden solar yellow
-    // Fin: US Dollar emerald green
-    // Architect: Royal ultraviolet
-    // Doc: Salatovy lime green (color of life)
-    // Marshal: Bright laser crimson red (not Sentinel)
+    // Agent Configurations & Photorealistic Spheres
+    // Eva: Cobalt/royal blue (#3b82f6)
+    // Sam: Pure golden solar yellow (#f59e0b)
+    // Fin: US Dollar emerald green (#10b981)
+    // Architect: Royal ultraviolet (#a855f7)
+    // Doc: Salatovy lime green (#84cc16)
+    // Marshal: Bright laser crimson red (#ef4444)
     // -------------------------------------------------------------
     const agentConfigs = {
       eva: {
         name: "ЄВА",
         hue: 220,
-        sphereSrc: "assets/spheres/eva.jpg",
+        sphereSrc: (window.AGENT_SPHERES_DATA && window.AGENT_SPHERES_DATA.eva) || 'assets/spheres/eva.jpg',
         rimColor: "#3b82f6",
         backdrop: "bg-blue-600",
         tabColor: "bg-blue-500/20 text-blue-300 border-blue-500/40 shadow-blue-500/20",
@@ -1254,13 +1060,13 @@ End Sub</pre>
           main: [0.06, 0.35, 0.95],
           highlight: [0.55, 0.78, 1.00]
         },
-        greeting: "«Вітаю, Лідере. Єва на зв'язку.»",
+        greeting: "«Вітаю, Андрію. Єва на зв'язку.»",
         sub: "Холдинг активний. Бібліотека MS Office та оперативна пам'ять синхронізовані. Чим займемося?"
       },
       sam: {
         name: "СЕМ",
         hue: 48,
-        sphereSrc: "assets/spheres/sam.jpg",
+        sphereSrc: (window.AGENT_SPHERES_DATA && window.AGENT_SPHERES_DATA.sam) || 'assets/spheres/sam.jpg',
         rimColor: "#f59e0b",
         backdrop: "bg-yellow-500",
         tabColor: "bg-yellow-500/20 text-yellow-300 border-yellow-500/40 shadow-yellow-500/20",
@@ -1270,13 +1076,13 @@ End Sub</pre>
           main: [0.96, 0.82, 0.05],
           highlight: [1.00, 0.95, 0.45]
         },
-        greeting: "«Сем на зв'язку. Сканую ліквідність та книги ордерів.»",
-        sub: "Торговий поверх активний. На ринку виявлено 1 висококонфлюентний сетап. Очікую вашого рішення, Лідере."
+        greeting: "«Сем на зв'язку, Андрію. Сканую ліквідність та книги ордерів.»",
+        sub: "Торговий поверх активний. На ринку виявлено 1 висококонфлюентний сетап. Потрібен ваш аппрув."
       },
       fin: {
         name: "ФІН",
         hue: 140,
-        sphereSrc: "assets/spheres/fin.jpg",
+        sphereSrc: (window.AGENT_SPHERES_DATA && window.AGENT_SPHERES_DATA.fin) || 'assets/spheres/fin.jpg',
         rimColor: "#10b981",
         backdrop: "bg-emerald-600",
         tabColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-emerald-500/20",
@@ -1286,13 +1092,13 @@ End Sub</pre>
           main: [0.12, 0.68, 0.28],
           highlight: [0.50, 0.92, 0.65]
         },
-        greeting: "«Фін на зв'язку. Доповідаю по казначейству.»",
+        greeting: "«Фін на зв'язку, Андрію. Доповідаю по казначейству.»",
         sub: "Поточний ROI становить 4.8x. Усі надходження зі Stripe, PayPal та CPA акумулюються у Vault під вашим контролем."
       },
       architect: {
         name: "АРХІТЕКТОР",
         hue: 275,
-        sphereSrc: "assets/spheres/architect.jpg",
+        sphereSrc: (window.AGENT_SPHERES_DATA && window.AGENT_SPHERES_DATA.architect) || 'assets/spheres/architect.jpg',
         rimColor: "#a855f7",
         backdrop: "bg-purple-600",
         tabColor: "bg-purple-500/20 text-purple-300 border-purple-500/40 shadow-purple-500/20",
@@ -1302,13 +1108,13 @@ End Sub</pre>
           main: [0.62, 0.25, 0.96],
           highlight: [0.85, 0.65, 1.00]
         },
-        greeting: "«Архітектор онлайн. Інфраструктура в стані 100%.»",
-        sub: "FlowLint та AST Compiler перевірили воркфлоу n8n на Contabo. Графи процесів стабільні, Лідере."
+        greeting: "«Архітектор онлайн, Андрію. Інфраструктура в стані 100%.»",
+        sub: "FlowLint та AST Compiler перевірили воркфлоу n8n на Contabo. Графи процесів стабільні."
       },
       doc: {
         name: "ДОК",
         hue: 85,
-        sphereSrc: "assets/spheres/doc.jpg",
+        sphereSrc: (window.AGENT_SPHERES_DATA && window.AGENT_SPHERES_DATA.doc) || 'assets/spheres/doc.jpg',
         rimColor: "#84cc16",
         backdrop: "bg-lime-500",
         tabColor: "bg-lime-500/20 text-lime-300 border-lime-500/40 shadow-lime-500/20",
@@ -1318,13 +1124,13 @@ End Sub</pre>
           main: [0.55, 0.88, 0.12],
           highlight: [0.82, 0.98, 0.48]
         },
-        greeting: "«Док на зв'язку. Біомаркери в зеленій зоні.»",
-        sub: "Індекс готовності 88/100. Нервова система повністю відновилася після сну. Продуктивний день для Лідера Холдингу."
+        greeting: "«Док на зв'язку, Андрію. Біомаркери в зеленій зоні.»",
+        sub: "Індекс готовності 88/100. Нервова система повністю відновилася після сну. Гарний день для продуктивності."
       },
       marshal: {
         name: "МАРШАЛ",
         hue: 0,
-        sphereSrc: "assets/spheres/marshal.jpg",
+        sphereSrc: (window.AGENT_SPHERES_DATA && window.AGENT_SPHERES_DATA.marshal) || 'assets/spheres/marshal.jpg',
         rimColor: "#ef4444",
         backdrop: "bg-rose-600",
         tabColor: "bg-rose-500/20 text-rose-300 border-rose-500/40 shadow-rose-500/20",
@@ -1334,7 +1140,7 @@ End Sub</pre>
           main: [0.96, 0.12, 0.12],
           highlight: [1.00, 0.50, 0.50]
         },
-        greeting: "«Маршал на варті. Периметр захищено.»",
+        greeting: "«Маршал на варті, Андрію. Периметр захищено.»",
         sub: "Антидетект-профілі Camoufox прогріті. Ротація проксі активна. Жодних витоків чи загроз не виявлено."
       }
     };
@@ -1381,13 +1187,6 @@ End Sub</pre>
       currentAgent = agentKey;
       const cfg = agentConfigs[agentKey];
 
-      targetFallbackHue = cfg.hue;
-      if (cfg.colors) {
-        targetDeep = cfg.colors.deep;
-        targetMain = cfg.colors.main;
-        targetHigh = cfg.colors.highlight;
-      }
-
       // Smooth Crossfade of Photorealistic Sphere Render
       const front = document.getElementById('orbImageFront');
       const back = document.getElementById('orbImageBack');
@@ -1396,23 +1195,25 @@ End Sub</pre>
       const backdrop = document.getElementById('orbGlowBackdrop');
       const badge = document.getElementById('orbStatusBadge');
 
-      if (front && back && cfg.sphereSrc) {
-        back.src = cfg.sphereSrc;
+      const newSrc = (window.AGENT_SPHERES_DATA && window.AGENT_SPHERES_DATA[agentKey]) || cfg.sphereSrc;
+
+      if (front && back && newSrc) {
+        back.src = newSrc;
         back.style.opacity = '1';
         front.style.opacity = '0';
         setTimeout(() => {
-          front.src = cfg.sphereSrc;
+          front.src = newSrc;
           front.style.opacity = '1';
           back.style.opacity = '0';
-        }, 500);
+        }, 400);
       }
 
       if (rim && cfg.rimColor) {
-        rim.style.borderColor = `${cfg.rimColor}80`;
-        rim.style.boxShadow = `inset 0 0 25px ${cfg.rimColor}40, 0 0 40px ${cfg.rimColor}70`;
+        rim.style.borderColor = `${cfg.rimColor}90`;
+        rim.style.boxShadow = `inset 0 0 30px ${cfg.rimColor}50, 0 0 50px ${cfg.rimColor}80`;
       }
       if (shock && cfg.rimColor) {
-        shock.style.borderColor = `${cfg.rimColor}50`;
+        shock.style.borderColor = `${cfg.rimColor}60`;
       }
       if (backdrop && cfg.backdrop) {
         backdrop.className = `absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-3xl opacity-50 transition-all duration-700 ${cfg.backdrop} pointer-events-none`;
