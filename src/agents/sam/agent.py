@@ -68,7 +68,7 @@ class SamAgent:
     async def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         action = payload.get("action", "analyze")
         try:
-            if action in ("analyze", "evaluate", "signal"):
+            if action in ("analyze", "evaluate", "evaluate_setup", "signal"):
                 return await self.evaluate_setup(payload)
             if action == "decision":
                 return await self.handle_decision(payload)
