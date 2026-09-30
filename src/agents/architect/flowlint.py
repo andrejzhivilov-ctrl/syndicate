@@ -49,10 +49,21 @@ def _is_trigger(node_type: str) -> bool:
     low = node_type.lower()
     return any(h in low for h in TRIGGER_NODE_HINTS)
 
+# Explicitly forbidden node types (Zero-Trust security & n8n 3.0 deprecation)
+FORBIDDEN_NODE_TYPES = {
+    "n8n-nodes-base.executeCommand": "Shell execution via executeCommand is prohibited by Zero-Trust policy",
+    "n8n-nodes-base.ssh": "Direct SSH execution is prohibited by Zero-Trust policy",
+    "n8n-nodes-base.function": "Legacy Function node is removed in n8n 3.0; use n8n-nodes-base.code instead",
+    "n8n-nodes-base.functionItem": "Legacy FunctionItem node is removed in n8n 3.0; use n8n-nodes-base.code instead",
+}
+
 # Heuristic patterns that look like inlined secrets.
 SECRET_PATTERNS = [
     re.compile(r"(?i)(api[_-]?key|secret|password|token|bearer)\s*[:=]\s*['\"][A-Za-z0-9_\-]{12,}"),
-    re.compile(r"sk-[A-Za-z0-9]{20,}"),
+    re.compile(r"sk-ant-[A-Za-z0-9_\-]{15,}"),
+    re.compile(r"sk-proj-[A-Za-z0-9_\-]{15,}"),
+    re.compile(r"sk-[A-Za-z0-9_\-]{20,}"),
+    re.compile(r"\b\d{8,10}:[A-Za-z0-9_\-]{35}\b"),  # Telegram Bot Token
     re.compile(r"xoxb-[A-Za-z0-9-]{20,}"),
     re.compile(r"AIza[0-9A-Za-z_\-]{30,}"),
     re.compile(r"ghp_[A-Za-z0-9]{30,}"),
@@ -138,10 +149,18 @@ def lint_workflow(workflow: Dict[str, Any]) -> LintReport:
     )
     has_webhook_trigger = any("webhook" in t.lower() for t in node_types)
 
-    # Rule 1 — core nodes only.
+    # Rule 1 — core nodes only & forbidden nodes check.
     for n in nodes:
         t = _node_type(n)
-        if t and not _is_core(t):
+        if t in FORBIDDEN_NODE_TYPES:
+            issues.append(
+                LintIssue(
+                    "error", "forbidden-node",
+                    FORBIDDEN_NODE_TYPES[t],
+                    node=n.get("name"),
+                )
+            )
+        elif t and not _is_core(t):
             issues.append(
                 LintIssue(
                     "error", "core-nodes-only",
