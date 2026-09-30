@@ -104,7 +104,22 @@ class EvaOrchestrator:
         "drift_detect": "architect",
         "verify_code": "architect",
         "self_healing_generate": "architect",
+        # Office Copilot (Eva MS Office Hub)
+        "office_lookup": "eva_office",
+        "generate_macro": "eva_office",
+        "create_excel_report": "eva_office",
+        "create_word_document": "eva_office",
+        # Floor 2: Operations, Content Factory, Compliance
+        "render_short_video": "floor2",
+        "generate_viral_thread": "floor2",
+        "generate_pod_mockup": "floor2",
+        "scout_affiliate_offers": "floor2",
+        "analyze_pod_trends": "floor2",
+        "aggregate_growth_metrics": "floor2",
+        "setup_antidetect_profile": "floor2",
     }
+
+
 
     def __init__(
         self,
@@ -204,6 +219,8 @@ class EvaOrchestrator:
         builder.add_node("architect_agent", self._architect_agent_handler)
         builder.add_node("sentinel_check", self._sentinel_check_handler)
         builder.add_node("eva_curator", self._eva_curator_handler)
+        builder.add_node("eva_office", self._eva_office_handler)
+        builder.add_node("floor2", self._floor2_handler)
         builder.add_node("confidence_gate", self._confidence_gate)
         builder.add_node("outbound_veto", self._outbound_veto)
         builder.add_node("hitl_gate", self._hitl_gate)
@@ -227,13 +244,15 @@ class EvaOrchestrator:
                 "architect": "architect_agent",
                 "sentinel": "sentinel_check",
                 "eva_curator": "eva_curator",
+                "eva_office": "eva_office",
+                "floor2": "floor2",
             },
         )
 
         # All agents go through confidence gate
         for agent_node in [
             "eva_direct", "doc_agent", "fin_agent",
-            "sam_agent", "architect_agent", "sentinel_check", "eva_curator",
+            "sam_agent", "architect_agent", "sentinel_check", "eva_curator", "eva_office", "floor2",
         ]:
             builder.add_edge(agent_node, "confidence_gate")
 
@@ -306,6 +325,28 @@ class EvaOrchestrator:
         state['result'] = result
         state['status'] = 'completed'
         return state
+
+    async def _eva_office_handler(self, state: AgentState) -> AgentState:
+        from src.agents.office_copilot import OfficeCopilotAgent
+        agent = OfficeCopilotAgent(memory=self._memory, llm=self._llm, config=self._config)
+        result = await agent.execute(state['payload'])
+        state['result'] = result
+        state['status'] = 'completed'
+        return state
+
+    async def _floor2_handler(self, state: AgentState) -> AgentState:
+        from src.departments.coordinator import Floor2Coordinator
+        coord = Floor2Coordinator(config=self._config)
+        # Pass the task_type as action if not explicitly given in payload
+        payload = dict(state['payload'])
+        if "action" not in payload:
+            payload["action"] = state["task_type"]
+        result = await coord.execute(payload)
+        state['result'] = result
+        state['status'] = 'completed'
+        return state
+
+
 
     async def _eva_direct_handler(self, state: AgentState) -> AgentState:
         """EVA handles simple orchestration tasks directly."""

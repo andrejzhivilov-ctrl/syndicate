@@ -16,12 +16,15 @@ import os
 import signal
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 import structlog
 import uvicorn
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+
 from pydantic import BaseModel, Field
 
 from src.agents.sentinel import SentinelAgent
@@ -259,7 +262,23 @@ async def require_auth(
 
 # ─── Endpoints ───────────────────────────────────────────────────────────────
 
+@app.get("/", response_class=HTMLResponse)
+@app.get("/cockpit", response_class=HTMLResponse)
+async def cockpit_interface():
+    """Serve the interactive SYNDIKAT Executive Cockpit interface."""
+    candidates = [
+        Path(__file__).parents[2] / "syndikat_cockpit.html",
+        Path(__file__).parents[2] / "static" / "cockpit.html",
+        Path(__file__).parent / "static" / "cockpit.html",
+    ]
+    for p in candidates:
+        if p.exists():
+            return HTMLResponse(content=p.read_text(encoding="utf-8"))
+    return HTMLResponse("<h2>SYNDIKAT Cockpit File Not Found</h2>", status_code=404)
+
+
 @app.get("/health", response_model=HealthResponse)
+
 async def health_check():
     """Liveness/readiness probe."""
     return HealthResponse(
