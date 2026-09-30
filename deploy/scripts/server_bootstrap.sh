@@ -93,7 +93,8 @@ create_data_directories() {
         "$DATA_ROOT/vault" \
         "$DATA_ROOT/vault/audit" \
         "$DATA_ROOT/n8n" \
-        "$DATA_ROOT/whisper"
+        "$DATA_ROOT/whisper" \
+        "$DATA_ROOT/nginx-certs"
 
     # Postgres data directory (UID 999)
     chown -R "$POSTGRES_UID:$POSTGRES_UID" "$DATA_ROOT/postgres"
@@ -114,6 +115,9 @@ create_data_directories() {
 
     # Whisper model cache (root — whisper container runs as root for model download)
     chmod 755 "$DATA_ROOT/whisper"
+
+    # Nginx SSL certs directory
+    chmod 755 "$DATA_ROOT/nginx-certs"
 
     log "Data directories created and permissions set."
 }
