@@ -298,46 +298,48 @@ class ArchitectAgent:
         `verify_code_integrity()`, and automatically loops up to `max_retries` times until
         0 AST/signature/security errors remain.
         """
-        task_prompt = payload.get("prompt", "")
-        initial_code = payload.get("code", "")
+        task_prompt = payload.get("prompt") or payload.get("specification") or ""
+        current_code = payload.get("code", "")
         max_retries = int(payload.get("max_retries", 3))
 
-        current_code = initial_code
         history: List[Dict[str, Any]] = []
+        verification: Dict[str, Any] = {"passed": False, "errors": []}
+
+        if current_code:
+            verification = self.verify_code_integrity(current_code)
+            if verification["passed"]:
+                return {
+                    "agent": self.AGENT_ID,
+                    "verified": True,
+                    "status": "verified_clean",
+                    "attempts": 0,
+                    "code": current_code,
+                    "verification": verification,
+                    "healing_history": history,
+                }
 
         for attempt in range(1, max_retries + 1):
-            if current_code:
-                verification = self.verify_code_integrity(current_code)
-                history.append({"attempt": attempt, "passed": verification["passed"], "errors": verification["errors"]})
-                if verification["passed"]:
-                    return {
-                        "agent": self.AGENT_ID,
-                        "status": "verified_clean",
-                        "attempts": attempt,
-                        "code": current_code,
-                        "verification": verification,
-                        "healing_history": history,
-                    }
-            else:
-                verification = {"passed": False, "errors": [{"message": "Initial generation required"}]}
-
             if not self._llm:
                 return {
                     "agent": self.AGENT_ID,
+                    "verified": False,
                     "status": "failed_no_llm_for_healing",
+                    "attempts": attempt,
                     "code": current_code,
                     "verification": verification,
                 }
 
             from langchain_core.messages import HumanMessage, SystemMessage
             error_feedback = json.dumps(verification.get("errors", []), ensure_ascii=False)
+            prev_status = "PREVIOUS ATTEMPT FAILED COMPILER VERIFICATION.\n" if verification.get("errors") else ""
             repair_prompt = (
-                f"Task: {task_prompt}\n\n"
+                f"{prev_status}"
+                f"Write production-ready async Python code for: {task_prompt}\n\n"
                 f"Current code:\n```python\n{current_code}\n```\n\n"
-                f"Compiler/AST Verification Errors to fix:\n{error_feedback}\n\n"
+                f"Compiler-in-the-Loop AST/Signature Errors to fix:\n{error_feedback}\n\n"
                 "Rules:\n"
                 "1. Use `await self._llm.ainvoke([HumanMessage(...)])` (never `.generate()`).\n"
-                "2. Use `CAST(:param AS vector)` in SQLAlchemy `text()` (never `:param::vector`).\n"
+                "2. Use `CAST(:param AS vector)` in SQLAlchemy `text()`.\n"
                 "3. Match `save_episode(session_id=..., agent_id=..., role=..., content=..., metadata=...)`.\n"
                 "Return ONLY valid Python code without markdown fences."
             )
@@ -351,13 +353,26 @@ class ArchitectAgent:
                 raw = re.sub(r"\n```$", "", raw)
             current_code = raw.strip()
 
-        final_verify = self.verify_code_integrity(current_code)
+            verification = self.verify_code_integrity(current_code)
+            history.append({"attempt": attempt, "passed": verification["passed"], "errors": verification["errors"]})
+            if verification["passed"]:
+                return {
+                    "agent": self.AGENT_ID,
+                    "verified": True,
+                    "status": "verified_clean",
+                    "attempts": attempt,
+                    "code": current_code,
+                    "verification": verification,
+                    "healing_history": history,
+                }
+
         return {
             "agent": self.AGENT_ID,
-            "status": "verified_clean" if final_verify["passed"] else "max_retries_reached",
+            "verified": verification.get("passed", False),
+            "status": "verified_clean" if verification.get("passed") else "max_retries_reached",
             "attempts": max_retries,
             "code": current_code,
-            "verification": final_verify,
+            "verification": verification,
             "healing_history": history,
         }
 
