@@ -48,11 +48,15 @@ class ValidationResult:
     risk_score: float = 0.0
     metadata: Dict[str, Any] = field(default_factory=dict)
 
+    @property
+    def requires_hitl(self) -> bool:
+        return bool(self.metadata.get("requires_hitl", False))
+
 
 class SentinelAgent:
     """Security validation agent for EVA SYNDICATE."""
 
-    def __init__(self, vault_client: VaultClient) -> None:
+    def __init__(self, vault_client: Optional[VaultClient] = None) -> None:
         self._vault = vault_client
         self._audit_log: List[Dict[str, Any]] = []
 
@@ -143,8 +147,8 @@ class SentinelAgent:
         if '\\u' in text_lower or '\\x' in text_lower:
             matches += 1
             
-        risk = min(matches * 0.4, 1.0)
-        allowed = risk < 0.8
+        risk = min(0.85 + (matches - 1) * 0.1, 1.0) if matches > 0 else 0.0
+        allowed = matches == 0
         return ValidationResult(allowed=allowed, reason="Prompt injection risk" if not allowed else "Clean", risk_score=risk)
 
     async def verify_webhook_signature(self, payload_bytes: bytes, signature: str, secret_key: str) -> bool:
