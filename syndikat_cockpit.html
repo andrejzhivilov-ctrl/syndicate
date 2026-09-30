@@ -71,23 +71,20 @@
       <!-- Ambient Glow Filter Behind Sphere -->
       <div id="orbGlowBackdrop" class="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-3xl opacity-40 transition-all duration-700 bg-cyan-500 pointer-events-none"></div>
 
-      <!-- Real-time HTML5 3D Fluid Neon Orb Canvas (Screenshot Style) -->
-      <div class="relative flex justify-center items-center py-2">
-        <div class="relative w-48 h-48 sm:w-56 sm:h-56 flex items-center justify-center cursor-pointer" onclick="toggleVoiceLive()">
-          <!-- Animated Background Rings -->
-          <div id="orbRing" class="absolute inset-0 rounded-full border border-cyan-400/20 pulse-ring-anim pointer-events-none"></div>
-          <div class="absolute inset-4 rounded-full border border-white/10 pointer-events-none"></div>
-
-          <!-- HTML5 Canvas rendering fluid energy ribbons -->
-          <canvas id="fluidOrbCanvas" width="220" height="220" class="relative z-10 rounded-full drop-shadow-[0_0_35px_rgba(34,211,238,0.6)]"></canvas>
+      <!-- Real-time 3D Plasma Ribbon Vortex (Identical to Aurora AI Reference) -->
+      <div class="relative flex justify-center items-center py-4">
+        <div class="relative w-64 h-64 sm:w-72 sm:h-72 flex items-center justify-center cursor-pointer group select-none" onclick="toggleVoiceLive()">
+          <!-- Luminous Canvas rendering volumetric 3D energy ribbons -->
+          <canvas id="fluidOrbCanvas" width="380" height="380" class="w-60 h-60 sm:w-72 sm:h-72 relative z-10 rounded-full transition-transform duration-500 group-hover:scale-105"></canvas>
 
           <!-- Status badge below canvas -->
-          <div class="absolute -bottom-2 z-20 bg-slate-900/90 border border-cyan-500/50 text-[10px] font-bold text-cyan-300 px-3 py-0.5 rounded-full shadow-lg flex items-center gap-1.5">
+          <div class="absolute -bottom-2 z-20 bg-slate-900/90 border border-cyan-500/50 text-[10px] font-bold text-cyan-300 px-3.5 py-0.5 rounded-full shadow-lg shadow-cyan-500/20 flex items-center gap-1.5 backdrop-blur-md">
             <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
             <span id="orbStatusText">LIVE READY</span>
           </div>
         </div>
       </div>
+
 
       <!-- Personalized Dynamic Agent Greeting -->
       <div class="mt-4 space-y-1.5 relative z-10">
@@ -544,70 +541,267 @@ End Sub</pre>
 
   <script>
     // -------------------------------------------------------------
-    // Real-Time HTML5 3D Fluid Neon Orb Simulation (Screenshot Match)
+    // Real-Time 3D Plasma Ribbon Vortex (Identical to Aurora AI Reference)
+    // Raymarched volumetric plasma torus with harmonic filament twists,
+    // smooth agent color morphing, and interactive perspective tilt.
     // -------------------------------------------------------------
     const canvas = document.getElementById('fluidOrbCanvas');
-    const ctx = canvas.getContext('2d');
-    let orbHue = 186; // Cyan for Eva
-    let orbTargetHue = 186;
+    let gl = null;
+    let program = null;
+    let positionLocation, resolutionLoc, timeLoc, intensityLoc, mouseLoc, colorDeepLoc, colorMainLoc, colorHighlightLoc;
     let animTime = 0;
+    let audioIntensity = 0.0;
+    let mousePos = { x: 0, y: 0 };
+    let targetMouse = { x: 0, y: 0 };
 
-    function renderFluidOrb() {
-      animTime += 0.035;
-      orbHue += (orbTargetHue - orbHue) * 0.08;
+    // Dynamic color uniforms (smooth RGB lerp)
+    let curDeep = [0.02, 0.12, 0.48];
+    let curMain = [0.00, 0.82, 1.00];
+    let curHigh = [0.90, 0.98, 1.00];
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const cx = canvas.width / 2;
-      const cy = canvas.height / 2;
-      const baseR = 72;
+    let targetDeep = [0.02, 0.12, 0.48];
+    let targetMain = [0.00, 0.82, 1.00];
+    let targetHigh = [0.90, 0.98, 1.00];
 
-      // Outer Glow Halo
-      const haloGrad = ctx.createRadialGradient(cx, cy, 30, cx, cy, 105);
-      haloGrad.addColorStop(0, `hsla(${orbHue}, 90%, 65%, 0.35)`);
-      haloGrad.addColorStop(0.6, `hsla(${orbHue}, 80%, 45%, 0.12)`);
-      haloGrad.addColorStop(1, 'transparent');
-      ctx.fillStyle = haloGrad;
-      ctx.beginPath();
-      ctx.arc(cx, cy, 105, 0, Math.PI * 2);
-      ctx.fill();
+    try {
+      gl = canvas.getContext('webgl', { alpha: true, antialias: true, premultipliedAlpha: false }) ||
+           canvas.getContext('experimental-webgl', { alpha: true, antialias: true, premultipliedAlpha: false });
+    } catch (e) {
+      console.warn("WebGL not available, fallback will be used", e);
+    }
 
-      // Fluid Swirling Energy Filaments (6 overlapping sine ribbons)
-      for (let i = 0; i < 6; i++) {
-        const offset = i * (Math.PI / 3);
-        const r1 = baseR + Math.sin(animTime * 1.5 + offset) * 9;
-        const r2 = baseR + Math.cos(animTime * 1.2 - offset) * 7;
+    if (gl) {
+      const vs = `
+        attribute vec2 a_position;
+        void main() {
+          gl_Position = vec4(a_position, 0.0, 1.0);
+        }
+      `;
 
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.rotate(animTime * (i % 2 === 0 ? 0.3 : -0.4) + offset);
+      const fs = `
+        #ifdef GL_FRAGMENT_PRECISION_HIGH
+        precision highp float;
+        #else
+        precision mediump float;
+        #endif
 
-        const ribbonGrad = ctx.createLinearGradient(-r1, -r2, r1, r2);
-        ribbonGrad.addColorStop(0, `hsla(${orbHue + (i * 8)}, 95%, 70%, 0.75)`);
-        ribbonGrad.addColorStop(0.5, `hsla(${orbHue - 20}, 90%, 50%, 0.45)`);
-        ribbonGrad.addColorStop(1, `hsla(${orbHue + 30}, 100%, 80%, 0.8)`);
+        uniform vec2 u_resolution;
+        uniform float u_time;
+        uniform float u_intensity;
+        uniform vec2 u_mouse;
+        uniform vec3 u_colorDeep;
+        uniform vec3 u_colorMain;
+        uniform vec3 u_colorHighlight;
 
-        ctx.strokeStyle = ribbonGrad;
-        ctx.lineWidth = 3.5 + Math.sin(animTime + i) * 1.5;
-        ctx.beginPath();
-        ctx.ellipse(0, 0, r1, r2, Math.PI / 4, 0, Math.PI * 2);
-        ctx.stroke();
+        mat2 rot(float a) {
+          float s = sin(a), c = cos(a);
+          return mat2(c, -s, s, c);
+        }
 
-        ctx.restore();
+        void main() {
+          vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / min(u_resolution.x, u_resolution.y);
+          
+          // Camera perspective angled down into the hollow vortex core
+          vec3 ro = vec3(0.0, 1.25, 2.45);
+          ro.xz *= rot(u_mouse.x * 0.45);
+          ro.yz *= rot(u_mouse.y * 0.32);
+          
+          vec3 ta = vec3(0.0, 0.0, 0.0);
+          vec3 ww = normalize(ta - ro);
+          vec3 uu = normalize(cross(ww, vec3(0.0, 1.0, 0.0)));
+          vec3 vv = cross(uu, ww);
+          vec3 rd = normalize(uv.x * uu + uv.y * vv + 1.85 * ww);
+          
+          vec3 col = vec3(0.0);
+          float t = 1.15;
+          float R0 = 0.72;
+          
+          for (int i = 0; i < 46; i++) {
+            vec3 p = ro + rd * t;
+            
+            float rXZ = length(p.xz);
+            float phi = atan(p.z, p.x);
+            
+            vec2 q = vec2(rXZ - R0, p.y);
+            float rTube = length(q);
+            float theta = atan(q.y, q.x);
+            
+            // Harmonic filament twists forming the ethereal vortex
+            float twist1 = phi * 2.0 + theta * 1.5 - u_time * 1.7;
+            float twist2 = phi * 3.0 - theta * 2.0 + u_time * 2.1;
+            float twist3 = phi * 1.0 + theta * 3.5 - u_time * 1.3;
+            
+            float rib1 = sin(twist1);
+            float rib2 = cos(twist2);
+            float rib3 = sin(twist3);
+            
+            float targetR = 0.27 + 0.07 * rib1 * (1.0 + u_intensity * 0.5);
+            float d = abs(rTube - targetR) + 0.042 * (abs(rib1) + 0.55 * abs(rib2) + 0.35 * abs(rib3));
+            
+            // Luminous inverse-square filament density
+            float density = 0.0034 / (d * d + 0.00075);
+            
+            vec3 c = mix(u_colorDeep, u_colorMain, clamp(0.5 + 0.5 * rib1, 0.0, 1.0));
+            c = mix(c, u_colorHighlight, pow(clamp(0.5 + 0.5 * rib2, 0.0, 1.0), 3.2));
+            
+            col += c * density * (0.85 + 0.15 * sin(phi * 4.0 + u_time));
+            
+            t += max(d * 0.32, 0.035);
+            if (t > 4.2) break;
+          }
+          
+          float centerDist = length(uv);
+          col += u_colorMain * 0.07 * exp(-centerDist * 3.2);
+          
+          // Filmic tone mapping
+          col = (col * (2.51 * col + 0.03)) / (col * (2.43 * col + 0.59) + 0.14);
+          col = clamp(col, 0.0, 1.0);
+          
+          // Smooth circular edge
+          float alpha = smoothstep(0.96, 0.70, centerDist);
+          
+          gl_FragColor = vec4(col, alpha);
+        }
+      `;
+
+      function compileShader(glCtx, type, src) {
+        const s = glCtx.createShader(type);
+        glCtx.shaderSource(s, src);
+        glCtx.compileShader(s);
+        if (!glCtx.getShaderParameter(s, glCtx.COMPILE_STATUS)) {
+          console.error(glCtx.getShaderInfoLog(s));
+          glCtx.deleteShader(s);
+          return null;
+        }
+        return s;
       }
 
-      // Bright Core Highlight
-      const coreGrad = ctx.createRadialGradient(cx - 15, cy - 15, 5, cx, cy, 60);
-      coreGrad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
-      coreGrad.addColorStop(0.3, `hsla(${orbHue}, 90%, 75%, 0.5)`);
-      coreGrad.addColorStop(1, 'transparent');
-      ctx.fillStyle = coreGrad;
-      ctx.beginPath();
-      ctx.arc(cx, cy, 55, 0, Math.PI * 2);
-      ctx.fill();
+      const vertShader = compileShader(gl, gl.VERTEX_SHADER, vs);
+      const fragShader = compileShader(gl, gl.FRAGMENT_SHADER, fs);
+      if (vertShader && fragShader) {
+        program = gl.createProgram();
+        gl.attachShader(program, vertShader);
+        gl.attachShader(program, fragShader);
+        gl.linkProgram(program);
 
-      requestAnimationFrame(renderFluidOrb);
+        positionLocation = gl.getAttribLocation(program, "a_position");
+        resolutionLoc = gl.getUniformLocation(program, "u_resolution");
+        timeLoc = gl.getUniformLocation(program, "u_time");
+        intensityLoc = gl.getUniformLocation(program, "u_intensity");
+        mouseLoc = gl.getUniformLocation(program, "u_mouse");
+        colorDeepLoc = gl.getUniformLocation(program, "u_colorDeep");
+        colorMainLoc = gl.getUniformLocation(program, "u_colorMain");
+        colorHighlightLoc = gl.getUniformLocation(program, "u_colorHighlight");
+
+        const posBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+          -1, -1,
+           1, -1,
+          -1,  1,
+          -1,  1,
+           1, -1,
+           1,  1,
+        ]), gl.STATIC_DRAW);
+
+        gl.enableVertexAttribArray(positionLocation);
+        gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+      }
     }
-    requestAnimationFrame(renderFluidOrb);
+
+    // 2D Canvas Fallback if WebGL unsupported
+    const ctx2d = !gl ? canvas.getContext('2d') : null;
+    let fallbackHue = 195;
+    let targetFallbackHue = 195;
+
+    function renderCanvas2DFallback() {
+      if (!ctx2d) return;
+      fallbackHue += (targetFallbackHue - fallbackHue) * 0.08;
+      ctx2d.clearRect(0, 0, canvas.width, canvas.height);
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+
+      ctx2d.save();
+      ctx2d.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 16; i++) {
+        const angle = (i / 16) * Math.PI * 2 + animTime * 0.4;
+        const rx = 110 + Math.sin(animTime * 1.5 + i) * 16;
+        const ry = 65 + Math.cos(animTime * 1.2 + i * 0.5) * 12;
+        ctx2d.save();
+        ctx2d.translate(cx, cy);
+        ctx2d.rotate(angle * 0.5);
+        ctx2d.beginPath();
+        ctx2d.ellipse(0, 0, rx, ry, angle, 0, Math.PI * 2);
+        ctx2d.strokeStyle = `hsla(${fallbackHue + i * 5}, 95%, ${65 + (i % 3) * 12}%, 0.45)`;
+        ctx2d.lineWidth = 3.2 + Math.sin(animTime * 2 + i) * 1.6;
+        ctx2d.stroke();
+        ctx2d.restore();
+      }
+      ctx2d.restore();
+    }
+
+    function renderOrbLoop() {
+      animTime += 0.024;
+
+      // Smooth mouse interpolation
+      mousePos.x += (targetMouse.x - mousePos.x) * 0.08;
+      mousePos.y += (targetMouse.y - mousePos.y) * 0.08;
+
+      // Audio intensity decay
+      audioIntensity += (0.0 - audioIntensity) * 0.05;
+
+      // Color lerp
+      for (let i = 0; i < 3; i++) {
+        curDeep[i] += (targetDeep[i] - curDeep[i]) * 0.07;
+        curMain[i] += (targetMain[i] - curMain[i]) * 0.07;
+        curHigh[i] += (targetHigh[i] - curHigh[i]) * 0.07;
+      }
+
+      if (gl && program) {
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        gl.useProgram(program);
+        gl.uniform2f(resolutionLoc, canvas.width, canvas.height);
+        gl.uniform1f(timeLoc, animTime);
+        gl.uniform1f(intensityLoc, audioIntensity);
+        gl.uniform2f(mouseLoc, mousePos.x, mousePos.y);
+        gl.uniform3fv(colorDeepLoc, curDeep);
+        gl.uniform3fv(colorMainLoc, curMain);
+        gl.uniform3fv(colorHighlightLoc, curHigh);
+
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+      } else {
+        renderCanvas2DFallback();
+      }
+
+      requestAnimationFrame(renderOrbLoop);
+    }
+    requestAnimationFrame(renderOrbLoop);
+
+    // Interactive mouse / touch tilt
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      targetMouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      targetMouse.y = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
+    });
+    canvas.addEventListener('mouseleave', () => {
+      targetMouse.x = 0;
+      targetMouse.y = 0;
+    });
+    canvas.addEventListener('touchmove', (e) => {
+      if (e.touches.length > 0) {
+        const rect = canvas.getBoundingClientRect();
+        const t = e.touches[0];
+        targetMouse.x = ((t.clientX - rect.left) / rect.width) * 2 - 1;
+        targetMouse.y = -(((t.clientY - rect.top) / rect.height) * 2 - 1);
+      }
+    }, { passive: true });
+    canvas.addEventListener('touchend', () => {
+      targetMouse.x = 0;
+      targetMouse.y = 0;
+    });
 
     // -------------------------------------------------------------
     // Agent Configurations & Colors
@@ -615,47 +809,78 @@ End Sub</pre>
     const agentConfigs = {
       eva: {
         name: "ЄВА (CEO)",
-        hue: 186, // Cyan
+        hue: 195,
         backdrop: "bg-cyan-500",
+        colors: {
+          deep: [0.02, 0.12, 0.48],
+          main: [0.00, 0.82, 1.00],
+          highlight: [0.90, 0.98, 1.00]
+        },
         greeting: "«Вітаю, Андрію. Єва на зв'язку.»",
         sub: "Холдинг активний. Знання MS Office та пам'ять інструментів синхронізовані з архівом. Чим займемося?"
       },
       sam: {
         name: "СЕМ (Quant CIO)",
-        hue: 142, // Emerald
-        backdrop: "bg-emerald-500",
+        hue: 38,
+        backdrop: "bg-amber-500",
+        colors: {
+          deep: [0.42, 0.16, 0.00],
+          main: [0.96, 0.64, 0.06],
+          highlight: [1.00, 0.97, 0.85]
+        },
         greeting: "«Сем слухає. Сканую ліквідність та книги ордерів.»",
         sub: "Торговий поверх активний. На ринку виявлено 1 висококонфлюентний сетап. Потрібен ваш аппрув."
       },
       fin: {
         name: "ФІН (CFO)",
-        hue: 45, // Amber
-        backdrop: "bg-amber-500",
+        hue: 155,
+        backdrop: "bg-emerald-500",
+        colors: {
+          deep: [0.02, 0.28, 0.16],
+          main: [0.06, 0.76, 0.52],
+          highlight: [0.85, 1.00, 0.92]
+        },
         greeting: "«Фін на зв'язку. Доповідаю по казначейству.»",
         sub: "Поточний ROI становить 4.8x. Усі надходження зі Stripe, PayPal та CPA акумулюються у Vault."
       },
       architect: {
         name: "АРХІТЕКТОР (CTO)",
-        hue: 265, // Purple / Indigo
+        hue: 270,
         backdrop: "bg-indigo-500",
+        colors: {
+          deep: [0.24, 0.04, 0.44],
+          main: [0.58, 0.38, 0.98],
+          highlight: [0.94, 0.88, 1.00]
+        },
         greeting: "«Архітектор онлайн. Інфраструктура в стані 100%.»",
         sub: "FlowLint та AST Compiler перевірили воркфлоу n8n на Contabo. Жодних конфліктів чи вразливостей."
       },
       doc: {
         name: "ДОК (Health & Longevity)",
-        hue: 168, // Mint Teal
-        backdrop: "bg-teal-500",
+        hue: 345,
+        backdrop: "bg-rose-500",
+        colors: {
+          deep: [0.48, 0.05, 0.22],
+          main: [0.96, 0.26, 0.48],
+          highlight: [1.00, 0.88, 0.95]
+        },
         greeting: "«Док на зв'язку. Біомаркери в зеленій зоні.»",
         sub: "Індекс готовності 88/100. Нервова система повністю відновилася після сну. Гарний день для продуктивності."
       },
       sentinel: {
         name: "СЕНТИНЕЛ (CISO & Anti-Ban)",
-        hue: 350, // Crimson Red
-        backdrop: "bg-rose-500",
+        hue: 0,
+        backdrop: "bg-red-500",
+        colors: {
+          deep: [0.48, 0.05, 0.05],
+          main: [0.96, 0.28, 0.28],
+          highlight: [1.00, 0.90, 0.90]
+        },
         greeting: "«Сентинел на варті. Периметр захищено.»",
         sub: "Антидетект-профілі Camoufox прогріті. Ротація проксі активна. Бан-ворди та стоп-слова під контролем."
       }
     };
+
 
     let currentAgent = 'eva';
 
@@ -663,8 +888,15 @@ End Sub</pre>
       currentAgent = agentKey;
       const cfg = agentConfigs[agentKey];
 
-      // Update Orb Hue Target for smooth 3D color morph
-      orbTargetHue = cfg.hue;
+      // Update WebGL 3D Plasma Palette & Fallback Hue
+      targetFallbackHue = cfg.hue;
+      if (cfg.colors) {
+        targetDeep = cfg.colors.deep;
+        targetMain = cfg.colors.main;
+        targetHigh = cfg.colors.highlight;
+      }
+      audioIntensity = 0.85; // Dynamic energy pulse when switching agent
+
       document.getElementById('orbGlowBackdrop').className = `absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-3xl opacity-40 transition-all duration-700 ${cfg.backdrop} pointer-events-none`;
 
       // Update Greeting
@@ -778,13 +1010,16 @@ End Sub`;
       const statusText = document.getElementById('orbStatusText');
       if (statusText.innerText === "LIVE READY") {
         statusText.innerText = "RECORDING...";
+        audioIntensity = 1.0;
         statusText.parentElement.className = "absolute -bottom-2 z-20 bg-rose-950/90 border border-rose-500/80 text-[10px] font-bold text-rose-300 px-3 py-0.5 rounded-full shadow-lg flex items-center gap-1.5 animate-pulse";
       } else {
         statusText.innerText = "LIVE READY";
+        audioIntensity = 0.4;
         statusText.parentElement.className = "absolute -bottom-2 z-20 bg-slate-900/90 border border-cyan-500/50 text-[10px] font-bold text-cyan-300 px-3 py-0.5 rounded-full shadow-lg flex items-center gap-1.5";
         alert(`Голосове повідомлення надіслано до ${agentConfigs[currentAgent].name}. Відповідь генерується...`);
       }
     }
+
 
     function startLiveMultimodal(mode) {
       document.getElementById('liveModal').classList.remove('hidden');
