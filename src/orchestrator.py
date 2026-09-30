@@ -130,24 +130,46 @@ class EvaOrchestrator:
         self._confidence = confidence_budget
         self._pii = pii_redactor
         self._llm = None
+        self._llm_fast = None
         self._graph = None
 
     async def initialize(self) -> None:
-        """Initialize LLM and build the agent graph."""
+        """Initialize tiered LLMs (Claude 3.5 Sonnet + OpenAI fast tier) and build the agent graph."""
+        anthropic_key = self._llm_config.get("anthropic_api_key", "")
         openai_key = self._llm_config.get("openai_api_key", "")
+
+        if anthropic_key and anthropic_key != "PLACEHOLDER_UPDATE_ME":
+            try:
+                from langchain_anthropic import ChatAnthropic
+                self._llm = ChatAnthropic(
+                    api_key=anthropic_key,
+                    model="claude-3-5-sonnet-20241022",
+                    temperature=0,
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Failed to initialize ChatAnthropic", error=str(exc))
+
         if openai_key and openai_key != "PLACEHOLDER_UPDATE_ME":
-            self._llm = ChatOpenAI(
+            fast_llm = ChatOpenAI(
                 api_key=openai_key,
-                model="gpt-4-turbo-preview",
+                model="gpt-4o-mini",
                 temperature=0,
             )
-        else:
-            logger.warning("LLM API key not configured — running in stub mode")
+            self._llm_fast = fast_llm
+            if self._llm is None:
+                self._llm = ChatOpenAI(
+                    api_key=openai_key,
+                    model="gpt-4o",
+                    temperature=0,
+                )
+
+        if self._llm is None:
+            logger.warning("LLM API keys not configured — running in deterministic/stub mode")
 
         if LANGGRAPH_AVAILABLE:
             self._graph = self._build_graph()
 
-        logger.info("Orchestrator initialized", llm_ready=self._llm is not None)
+        logger.info("Orchestrator initialized", llm_ready=self._llm is not None, fast_llm_ready=self._llm_fast is not None)
 
     def _build_graph(self) -> Any:
         """Build the LangGraph state machine."""
