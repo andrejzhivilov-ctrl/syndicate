@@ -60,7 +60,7 @@ class FinAgent:
         Calculate survival runway in months/days.
         Runway = Total Liquid Cash / Monthly Burn Rate
         """
-        total_balance = float(payload.get("total_balance", 0.0))
+        total_balance = float(payload.get("total_balance", payload.get("liquid_assets", 0.0)))
         monthly_burn = float(payload.get("monthly_burn", 0.0))
         daily_burn = float(payload.get("daily_burn", 0.0))
 
