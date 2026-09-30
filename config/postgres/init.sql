@@ -236,21 +236,98 @@ CREATE TRIGGER trg_episodes_updated
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- ============================================================
--- PERMISSIONS (least privilege)
+-- v4.0 TABLES (Included in init.sql for single-pass bootstrap)
 -- ============================================================
 
--- EVA agent user (limited to DML on specific schemas)
+CREATE TABLE IF NOT EXISTS memory.lessons (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    agent_id        VARCHAR(64) NOT NULL,
+    kind            VARCHAR(32) NOT NULL DEFAULT 'lesson'
+                    CHECK (kind IN ('lesson', 'negative_constraint', 'pattern', 'calibration', 'warning')),
+    category        VARCHAR(128),
+    summary         TEXT NOT NULL,
+    context         TEXT,
+    severity        VARCHAR(16) DEFAULT 'medium'
+                    CHECK (severity IN ('low', 'medium', 'high', 'critical')),
+    lesson_vector   vector(1536),
+    times_matched   INTEGER DEFAULT 0,
+    do_not_compress BOOLEAN DEFAULT false,
+    expires_at      TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_lessons_agent ON memory.lessons (agent_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_lessons_vector_hnsw
+    ON memory.lessons USING hnsw (lesson_vector vector_cosine_ops)
+    WITH (m = 16, ef_construction = 64);
+
+CREATE TABLE IF NOT EXISTS memory.response_cache (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    agent_id        VARCHAR(64) NOT NULL,
+    query_text      TEXT NOT NULL,
+    query_vector    vector(1536),
+    response_text   TEXT NOT NULL,
+    model_used      VARCHAR(64),
+    tokens_saved    INTEGER DEFAULT 0,
+    hit_count       INTEGER DEFAULT 0,
+    cache_tier      VARCHAR(16) DEFAULT 'dynamic'
+                    CHECK (cache_tier IN ('dynamic', 'static', 'permanent')),
+    ttl_hours       INTEGER DEFAULT 24,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at      TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_cache_agent ON memory.response_cache (agent_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_cache_vector_hnsw
+    ON memory.response_cache USING hnsw (query_vector vector_cosine_ops)
+    WITH (m = 16, ef_construction = 64);
+
+CREATE TABLE IF NOT EXISTS audit.decisions (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    agent_id        VARCHAR(64) NOT NULL,
+    action          VARCHAR(128) NOT NULL,
+    task_type       VARCHAR(128),
+    confidence      NUMERIC(5,3),
+    escalation      VARCHAR(16) CHECK (escalation IN ('act', 'ask', 'refuse')),
+    facts_used      JSONB DEFAULT '[]',
+    lessons_checked JSONB DEFAULT '[]',
+    model_used      VARCHAR(64),
+    input_hash      VARCHAR(64),
+    outcome         VARCHAR(32) DEFAULT 'pending'
+                    CHECK (outcome IN ('pending', 'success', 'failure', 'overridden', 'blocked', 'refused')),
+    hitl_override   BOOLEAN DEFAULT false,
+    details         JSONB DEFAULT '{}',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS audit.outbound_vetoes (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    agent_id        VARCHAR(64) NOT NULL,
+    action_type     VARCHAR(128) NOT NULL,
+    policy_rule     VARCHAR(32) NOT NULL,
+    allowed         BOOLEAN NOT NULL,
+    reason          TEXT,
+    risk_level      VARCHAR(16),
+    details         JSONB DEFAULT '{}',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
+-- PERMISSIONS (least privilege — NOLOGIN until Vault rotates password)
+-- ============================================================
+
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'eva_agent') THEN
-        CREATE ROLE eva_agent WITH LOGIN PASSWORD 'CHANGE_ME_IN_VAULT';
+        CREATE ROLE eva_agent WITH NOLOGIN;
     END IF;
 END
 $$;
 
 GRANT USAGE ON SCHEMA memory, agents, audit TO eva_agent;
-GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA memory TO eva_agent;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA memory TO eva_agent;
 GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA agents TO eva_agent;
-GRANT INSERT ON audit.events TO eva_agent;
+GRANT INSERT ON ALL TABLES IN SCHEMA audit TO eva_agent;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA memory TO eva_agent;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA agents TO eva_agent;
+
