@@ -40,8 +40,7 @@ from src.voice import build_voice_manager
 structlog.configure(
     processors=[
         structlog.contextvars.merge_contextvars,
-        structlog.stdlib.add_log_level,
-        structlog.stdlib.add_logger_name,
+        structlog.processors.add_log_level,
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.JSONRenderer(),
@@ -333,6 +332,7 @@ async def webhook_handler(
     source: str,
     request: Request,
     x_hub_signature_256: Optional[str] = Header(default=None, alias="X-Hub-Signature-256"),
+    x_webhook_signature: Optional[str] = Header(default=None, alias="X-Webhook-Signature"),
     x_telegram_secret: Optional[str] = Header(default=None, alias="X-Telegram-Bot-Api-Secret-Token"),
     state: AppState = Depends(require_ready),
 ):
@@ -340,7 +340,9 @@ async def webhook_handler(
     raw_bytes = await request.body()
 
     if state.webhook_secret:
-        sig = x_hub_signature_256 or ""
+        sig = x_hub_signature_256 or x_webhook_signature or ""
+        if sig.startswith("sha256="):
+            sig = sig[7:]
         if sig:
             valid = await state.sentinel.verify_webhook_signature(raw_bytes, sig, state.webhook_secret)
             if not valid:
