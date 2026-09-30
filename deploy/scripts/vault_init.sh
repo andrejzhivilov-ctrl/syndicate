@@ -17,7 +17,7 @@ err() { echo "[VAULT-INIT] ERROR: $*" >&2; exit 1; }
 check_vault_available() {
     local retries=0
     while ! curl -sf "${VAULT_ADDR}/v1/sys/health?uninitcode=200&sealedcode=200" &>/dev/null; do
-        ((retries++))
+        retries=$((retries + 1))
         [[ $retries -gt 30 ]] && err "Vault not available after 30 attempts"
         log "Waiting for Vault to start... attempt $retries"
         sleep 2
