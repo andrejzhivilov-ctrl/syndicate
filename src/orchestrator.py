@@ -102,6 +102,8 @@ class EvaOrchestrator:
         "generate_ui_scaffold": "architect",
         "gitops_sync": "architect",
         "drift_detect": "architect",
+        "verify_code": "architect",
+        "self_healing_generate": "architect",
     }
 
     def __init__(
@@ -131,12 +133,14 @@ class EvaOrchestrator:
         self._pii = pii_redactor
         self._llm = None
         self._llm_fast = None
+        self._llm_reasoning = None
         self._graph = None
 
     async def initialize(self) -> None:
-        """Initialize tiered LLMs (Claude 3.5 Sonnet + OpenAI fast tier) and build the agent graph."""
+        """Initialize tiered LLMs (Claude 3.5 Sonnet + OpenAI fast tier + Reasoning tier for Architect) and build the agent graph."""
         anthropic_key = self._llm_config.get("anthropic_api_key", "")
         openai_key = self._llm_config.get("openai_api_key", "")
+        reasoning_model = self._llm_config.get("reasoning_model", "o3-mini")
 
         if anthropic_key and anthropic_key != "PLACEHOLDER_UPDATE_ME":
             try:
@@ -156,6 +160,13 @@ class EvaOrchestrator:
                 temperature=0,
             )
             self._llm_fast = fast_llm
+            try:
+                self._llm_reasoning = ChatOpenAI(
+                    api_key=openai_key,
+                    model=reasoning_model,
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Failed to initialize reasoning LLM, falling back to primary LLM", error=str(exc))
             if self._llm is None:
                 self._llm = ChatOpenAI(
                     api_key=openai_key,
@@ -163,13 +174,21 @@ class EvaOrchestrator:
                     temperature=0,
                 )
 
+        if self._llm_reasoning is None and self._llm is not None:
+            self._llm_reasoning = self._llm
+
         if self._llm is None:
             logger.warning("LLM API keys not configured — running in deterministic/stub mode")
 
         if LANGGRAPH_AVAILABLE:
             self._graph = self._build_graph()
 
-        logger.info("Orchestrator initialized", llm_ready=self._llm is not None, fast_llm_ready=self._llm_fast is not None)
+        logger.info(
+            "Orchestrator initialized",
+            llm_ready=self._llm is not None,
+            fast_llm_ready=self._llm_fast is not None,
+            reasoning_llm_ready=self._llm_reasoning is not None,
+        )
 
     def _build_graph(self) -> Any:
         """Build the LangGraph state machine."""
@@ -365,12 +384,12 @@ class EvaOrchestrator:
         return state
 
     async def _architect_agent_handler(self, state: AgentState) -> AgentState:
-        """Delegate to the Architect (CTO / n8n engineer)."""
+        """Delegate to the Architect (CTO / n8n engineer) using dedicated Reasoning LLM tier."""
         from src.agents.architect import ArchitectAgent
 
         agent = ArchitectAgent(
             memory=self._memory,
-            llm=self._llm,
+            llm=self._llm_reasoning or self._llm,
             config=self._config.get("architect", self._config),
             registry=self._registry,
         )
@@ -381,6 +400,11 @@ class EvaOrchestrator:
             "golden_template": "golden_template",
             "generate_adr": "adr",
             "review_code": "review_code",
+            "generate_ui_scaffold": "generate_ui_scaffold",
+            "gitops_sync": "gitops_sync",
+            "drift_detect": "drift_detect",
+            "verify_code": "verify_code",
+            "self_healing_generate": "self_healing_generate",
         }
         payload.setdefault("action", action_map.get(state["task_type"], "capabilities"))
         result = await agent.execute(payload)
