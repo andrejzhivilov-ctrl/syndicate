@@ -1,0 +1,288 @@
+# EVA SYNDICATE — Production Docker Compose (v4.1 Verified)
+# Fixes applied:
+# - Separated db_net (internal: true for Postgres & Redis isolation) from backend (egress-enabled for API/Vault/Whisper)
+# - Mounted both 01-init.sql and 02-migration_v4.sql into Postgres initialization
+# - Pinned n8n image (1.68.0), set N8N_PATH=/n8n/, disabled executeCommand/ssh nodes
+# - Unified Nginx certificate mount (/data/nginx-certs:/etc/nginx/certs) with automatic self-signed bootstrap
+
+networks:
+  db_net:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.19.0.0/24
+  backend:
+    driver: bridge
+    internal: false
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+  frontend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/24
+
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/postgres
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/redis
+  vault_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/vault
+  n8n_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/n8n
+  whisper_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/whisper
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    user: "999:999"
+    networks:
+      - db_net
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./config/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./config/postgres/migration_v4.sql:/docker-entrypoint-initdb.d/02-migration_v4.sql:ro
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-eva_syndicate}
+      POSTGRES_USER: ${POSTGRES_USER:-eva}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-eva} -d ${POSTGRES_DB:-eva_syndicate}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    user: "999:999"
+    networks:
+      - db_net
+    volumes:
+      - redis_data:/data
+      - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  vault:
+    image: hashicorp/vault:1.15
+    restart: unless-stopped
+    user: "100:1000"
+    networks:
+      - backend
+    ports:
+      - "127.0.0.1:8200:8200"
+    volumes:
+      - vault_data:/vault/data
+      - ./config/vault/vault.hcl:/vault/config/vault.hcl:ro
+    environment:
+      VAULT_ADDR: "http://127.0.0.1:8200"
+      VAULT_API_ADDR: "http://0.0.0.0:8200"
+      VAULT_CLUSTER_ADDR: "http://vault:8201"
+    command: ["vault", "server", "-config=/vault/config/vault.hcl"]
+    cap_add:
+      - IPC_LOCK
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8200/v1/sys/health?sealedcode=200&uninitcode=200"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+
+  eva-agent:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.agent
+    restart: unless-stopped
+    user: "1001:1001"
+    networks:
+      - db_net
+      - backend
+    volumes:
+      - ./deploy/runtime:/app/runtime:ro
+      - ./src:/app/src:ro
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      VAULT_ADDR: ${VAULT_ADDR:-http://vault:8200}
+      VAULT_ROLE_ID: ${VAULT_ROLE_ID:?VAULT_ROLE_ID required}
+      VAULT_SECRET_ID: ${VAULT_SECRET_ID:?VAULT_SECRET_ID required}
+      EVA_API_KEY: ${EVA_API_KEY:-}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-eva_syndicate}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,uid=1001,gid=1001
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+
+  n8n:
+    image: n8nio/n8n:1.68.0
+    restart: unless-stopped
+    user: "1000:1000"
+    networks:
+      - db_net
+      - backend
+      - frontend
+    volumes:
+      - n8n_data:/home/node/.n8n
+    environment:
+      N8N_PROTOCOL: "https"
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PORT: "5678"
+      N8N_PATH: "/n8n/"
+      N8N_EDITOR_BASE_URL: https://${DOMAIN:-localhost}/n8n/
+      WEBHOOK_URL: https://${DOMAIN:-localhost}/n8n/
+      N8N_COMMUNITY_PACKAGES_ENABLED: "false"
+      NODES_EXCLUDE: "[\"n8n-nodes-base.executeCommand\",\"n8n-nodes-base.ssh\"]"
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?N8N_ENCRYPTION_KEY required}
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: "5432"
+      DB_POSTGRESDB_DATABASE: ${N8N_DB:-n8n}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:-eva}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5678/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+
+  whisper:
+    build:
+      context: .
+      dockerfile: deploy/docker/whisper.Dockerfile
+    restart: unless-stopped
+    user: "1000:1000"
+    networks:
+      - backend
+    volumes:
+      - whisper_data:/app/model_cache
+    environment:
+      ASR_MODEL: ${ASR_MODEL:-large-v3}
+      ASR_QUANTIZATION: ${ASR_QUANTIZATION:-int8}
+      ASR_THREADS: ${ASR_THREADS:-2}
+      HF_HOME: /app/model_cache
+      PORT: "9000"
+    deploy:
+      resources:
+        limits:
+          memory: 3g
+          cpus: "2.0"
+        reservations:
+          memory: 2g
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  nginx:
+    image: nginx:1.25-alpine
+    restart: unless-stopped
+    networks:
+      - backend
+      - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /data/nginx-certs:/etc/nginx/certs
+    command: >
+      sh -c "if [ ! -f /etc/nginx/certs/live/default/fullchain.pem ]; then
+        apk add --no-cache openssl >/dev/null 2>&1 || true;
+        mkdir -p /etc/nginx/certs/live/default;
+        openssl req -x509 -nodes -days 365 -newkey rsa:2048
+          -keyout /etc/nginx/certs/live/default/privkey.pem
+          -out /etc/nginx/certs/live/default/fullchain.pem
+          -subj '/CN=localhost' >/dev/null 2>&1;
+      fi && exec nginx -g 'daemon off;'"
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - DAC_OVERRIDE
+      - CHOWN
+    depends_on:
+      - eva-agent
+      - n8n
