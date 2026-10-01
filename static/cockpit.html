@@ -448,96 +448,277 @@
 
             <!-- KIRA ACADEMY & ENLIGHTENMENT WORKSPACE (FLOOR 8) -->
       <div id="view-kira" class="agent-view hidden space-y-6">
-        <!-- Academy Banner -->
-        <div class="glass-card rounded-2xl p-6 border-cyan-200/30 space-y-5">
+        <!-- 1. ACADEMY COMMAND BANNER & KEY METRICS -->
+        <div class="glass-card rounded-2xl p-6 border-cyan-400/30 bg-gradient-to-r from-slate-950/90 via-slate-900/90 to-cyan-950/40 space-y-5 shadow-2xl">
           <div class="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
-            <div class="flex items-center gap-3">
-              <div class="w-12 h-12 rounded-2xl bg-cyan-500/20 border border-cyan-300/40 flex items-center justify-center text-2xl shadow-lg shadow-cyan-500/20">
+            <div class="flex items-center gap-3.5">
+              <div class="w-14 h-14 rounded-2xl bg-cyan-500/20 border border-cyan-300/40 flex items-center justify-center text-3xl shadow-lg shadow-cyan-500/25">
                 🎓
               </div>
               <div>
-                <div class="flex items-center gap-2">
-                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-200 font-bold uppercase tracking-wider">Поверх 8 • SYNDICATE Academy</span>
-                  <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 font-semibold border border-emerald-500/20">Сувора Ізоляція Поверху</span>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-200 font-bold uppercase tracking-wider border border-cyan-400/30">
+                    Поверх 8 • SYNDICATE Academy
+                  </span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 font-semibold border border-emerald-500/20">
+                    Сувора Ізоляція Поверху
+                  </span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-300 font-semibold border border-purple-500/20">
+                    First Principles Engine
+                  </span>
                 </div>
-                <h2 class="text-xl font-black text-white mt-1">КІРА — Академічний Ментор & Інтелектуальний Спаринг</h2>
-                <p class="text-xs text-slate-400">Персональний наставник Андрія: Англійська, Програмування, Нейромережі, Вайбкодинг та Історія.</p>
+                <h2 class="text-2xl font-black text-white mt-1.5 flex items-center gap-2">
+                  КІРА — Академічний Ментор & Інтелектуальний Спаринг
+                </h2>
+                <p class="text-xs text-slate-300 max-w-3xl leading-relaxed mt-0.5">
+                  Персональний наставник Андрія: Англійська мова (C2), Програмування (High-Load Architecture), Штучний Інтелект, Вайбкодинг та Світова Історія. Сувора методологія: деконструкція припущень до перших принципів без води та галюцинацій.
+                </p>
               </div>
             </div>
+
             <div class="flex items-center gap-2">
-              <span class="px-3 py-1.5 rounded-xl bg-slate-900/80 border border-cyan-300/30 text-xs font-mono text-cyan-200">
-                🧊 Льодове Сяйво • First Principles
-              </span>
+              <div class="px-3.5 py-2 rounded-xl bg-slate-900/90 border border-cyan-300/30 text-right">
+                <span class="text-[10px] text-cyan-300/70 uppercase block font-mono">Спектр Сяйва</span>
+                <span class="text-xs font-black text-cyan-200 font-mono">Pure Platinum / Ice White</span>
+              </div>
             </div>
           </div>
 
-          <!-- 5 Discipline Switcher Buttons -->
-          <div class="space-y-2">
-            <span class="text-[11px] font-black uppercase tracking-wider text-slate-400">Оберіть академічний напрямок:</span>
+          <!-- Academic Dashboard Stats -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="p-3.5 rounded-xl bg-slate-900/80 border border-white/5 space-y-1">
+              <div class="flex items-center justify-between text-[11px] text-slate-400">
+                <span>🎯 Поточний фокус</span>
+                <span class="text-cyan-400 font-bold">LIVE</span>
+              </div>
+              <div class="text-sm font-black text-white">C2 English & Agentic AI</div>
+              <div class="text-[10px] text-slate-400">Executive Pitches & Swarms</div>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-slate-900/80 border border-white/5 space-y-1">
+              <div class="flex items-center justify-between text-[11px] text-slate-400">
+                <span>🔥 Академічний стрік</span>
+                <span class="text-amber-400 font-bold">14 днів</span>
+              </div>
+              <div class="text-sm font-black text-white">Щоденні спаринги</div>
+              <div class="text-[10px] text-slate-400">100% регулярність сесій</div>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-slate-900/80 border border-white/5 space-y-1">
+              <div class="flex items-center justify-between text-[11px] text-slate-400">
+                <span>📊 Засвоєно модулів</span>
+                <span class="text-emerald-400 font-bold">64%</span>
+              </div>
+              <div class="text-sm font-black text-white">32 з 50 тем</div>
+              <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mt-1">
+                <div class="bg-emerald-400 h-full rounded-full" style="width: 64%"></div>
+              </div>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-slate-900/80 border border-white/5 space-y-1">
+              <div class="flex items-center justify-between text-[11px] text-slate-400">
+                <span>⚡ Векторна пам'ять</span>
+                <span class="text-purple-400 font-bold">pgvector</span>
+              </div>
+              <div class="text-sm font-black text-white">1,420 ембеддінгів</div>
+              <div class="text-[10px] text-slate-400">Персональний стиль Лідера</div>
+            </div>
+          </div>
+
+          <!-- 2. DISCIPLINE SWITCHER BUTTONS (5 DISCIPLINES) -->
+          <div class="space-y-2 pt-1">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-black uppercase tracking-wider text-slate-300">
+                Оберіть академічну дисципліну:
+              </span>
+              <span class="text-[11px] text-cyan-300/80">
+                Клікніть для миттєвого перемикання силабусу
+              </span>
+            </div>
             <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
               <button onclick="switchKiraDiscipline('english')" id="kira-btn-english" class="kira-disc-btn p-3 rounded-xl border text-left transition bg-cyan-500/20 text-cyan-200 border-cyan-400/50 shadow-md shadow-cyan-500/20">
-                <div class="text-lg">🇬🇧</div>
-                <div class="text-xs font-black mt-1">Англійська</div>
+                <div class="flex items-center justify-between">
+                  <span class="text-xl">🇬🇧</span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-400/20 text-cyan-200 font-bold">C2</span>
+                </div>
+                <div class="text-xs font-black mt-1.5">Англійська</div>
                 <div class="text-[10px] text-cyan-300/70">Executive & Pitches</div>
               </button>
+
               <button onclick="switchKiraDiscipline('programming')" id="kira-btn-programming" class="kira-disc-btn p-3 rounded-xl border text-left transition bg-slate-900/60 text-slate-400 border-white/5 hover:text-white hover:border-white/20">
-                <div class="text-lg">💻</div>
-                <div class="text-xs font-black mt-1">Програмування</div>
+                <div class="flex items-center justify-between">
+                  <span class="text-xl">💻</span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold">Senior+</span>
+                </div>
+                <div class="text-xs font-black mt-1.5">Програмування</div>
                 <div class="text-[10px] text-slate-400">Architecture & Clean Code</div>
               </button>
+
               <button onclick="switchKiraDiscipline('ai_engineering')" id="kira-btn-ai_engineering" class="kira-disc-btn p-3 rounded-xl border text-left transition bg-slate-900/60 text-slate-400 border-white/5 hover:text-white hover:border-white/20">
-                <div class="text-lg">🧠</div>
-                <div class="text-xs font-black mt-1">Нейромережі</div>
+                <div class="flex items-center justify-between">
+                  <span class="text-xl">🧠</span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold">Swarms</span>
+                </div>
+                <div class="text-xs font-black mt-1.5">Нейромережі</div>
                 <div class="text-[10px] text-slate-400">Agent Swarms & RAG</div>
               </button>
+
               <button onclick="switchKiraDiscipline('vibecoding')" id="kira-btn-vibecoding" class="kira-disc-btn p-3 rounded-xl border text-left transition bg-slate-900/60 text-slate-400 border-white/5 hover:text-white hover:border-white/20">
-                <div class="text-lg">⚡</div>
-                <div class="text-xs font-black mt-1">Вайбкодинг</div>
+                <div class="flex items-center justify-between">
+                  <span class="text-xl">⚡</span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold">Fast MVP</span>
+                </div>
+                <div class="text-xs font-black mt-1.5">Вайбкодинг</div>
                 <div class="text-[10px] text-slate-400">Rapid MVP & Cursor</div>
               </button>
+
               <button onclick="switchKiraDiscipline('history')" id="kira-btn-history" class="kira-disc-btn p-3 rounded-xl border text-left transition bg-slate-900/60 text-slate-400 border-white/5 hover:text-white hover:border-white/20">
-                <div class="text-lg">🏛️</div>
-                <div class="text-xs font-black mt-1">Історія</div>
+                <div class="flex items-center justify-between">
+                  <span class="text-xl">🏛️</span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">Strategy</span>
+                </div>
+                <div class="text-xs font-black mt-1.5">Історія</div>
                 <div class="text-[10px] text-slate-400">Strategy & Empires</div>
               </button>
             </div>
           </div>
 
-          <!-- Dynamic Discipline Detail Panel -->
-          <div id="kiraDisciplineDisplay" class="p-4 rounded-xl bg-slate-900/90 border border-white/10 space-y-4">
-            <!-- Will be populated by switchKiraDiscipline() -->
+          <!-- 3. DYNAMIC DISCIPLINE DETAIL PANEL (Pre-populated with English by default) -->
+          <div id="kiraDisciplineDisplay" class="p-5 rounded-xl bg-slate-900/90 border border-cyan-400/20 space-y-4 shadow-inner">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+              <div>
+                <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-200 font-bold uppercase tracking-wider">
+                  C2 Mastery • Executive Level
+                </span>
+                <h3 class="text-lg font-black text-white mt-1">🇬🇧 Англійська Мова (Executive & Pitches)</h3>
+              </div>
+              <span class="text-xs text-slate-400">Наставник: Кіра (8-й поверх)</span>
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed">
+              Інтенсивний розвиток мовної свободи рівня C2. Ділові переговори з венчурними фондами США/ЄС, публічні пітчі технологічних продуктів, використання переконливих ідіом влади, деконструкція акценту та позбавлення від буквального перекладу.
+            </p>
+            <div class="space-y-1.5 py-1">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Навчальні Модулі:</span>
+              <div class="space-y-1.5">
+                <div class="text-xs text-cyan-100/90 font-medium bg-slate-950/60 px-3 py-2 rounded-lg border border-white/5 flex items-center justify-between">
+                  <span>🎯 Модуль 1: High-Stakes Investor Pitching & Objection Handling (Нейтралізація скепсису інвесторів)</span>
+                  <span class="text-[10px] text-emerald-400 font-bold">Засвоєно 100%</span>
+                </div>
+                <div class="text-xs text-cyan-100/90 font-medium bg-slate-950/60 px-3 py-2 rounded-lg border border-white/5 flex items-center justify-between">
+                  <span>⚙️ Модуль 2: Nuances of Power & Corporate Idioms (Англійська як інструмент стратегічного впливу)</span>
+                  <span class="text-[10px] text-cyan-300 font-bold">В процесі (75%)</span>
+                </div>
+                <div class="text-xs text-cyan-100/90 font-medium bg-slate-950/60 px-3 py-2 rounded-lg border border-white/5 flex items-center justify-between">
+                  <span>🥊 Модуль 3: Socratic Argumentation & Technical Debates (Англомовний сократівський спаринг)</span>
+                  <span class="text-[10px] text-amber-400 font-bold">На черзі</span>
+                </div>
+              </div>
+            </div>
+            <div class="space-y-1.5 pt-1">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Швидкі тези для спарингу (натисніть для вставки):</span>
+              <div class="flex flex-wrap gap-1.5">
+                <button onclick="setKiraPrompt('Defend SYNDICATE valuation model in 3 punchy sentences')" class="text-[11px] px-2.5 py-1 rounded-lg bg-cyan-950/40 hover:bg-cyan-900/60 text-cyan-200 border border-cyan-500/30 transition text-left">💡 Defend SYNDICATE valuation model in 3 punchy sentences</button>
+                <button onclick="setKiraPrompt('Explain why sovereign AI swarms beat monolithic SaaS')" class="text-[11px] px-2.5 py-1 rounded-lg bg-cyan-950/40 hover:bg-cyan-900/60 text-cyan-200 border border-cyan-500/30 transition text-left">💡 Explain why sovereign AI swarms beat monolithic SaaS</button>
+                <button onclick="setKiraPrompt('Simulate aggressive VC partner questioning our unit economics')" class="text-[11px] px-2.5 py-1 rounded-lg bg-cyan-950/40 hover:bg-cyan-900/60 text-cyan-200 border border-cyan-500/30 transition text-left">💡 Simulate aggressive VC partner questioning our unit economics</button>
+                <button onclick="setKiraPrompt('Replace weak filler words in my technical elevator pitch')" class="text-[11px] px-2.5 py-1 rounded-lg bg-cyan-950/40 hover:bg-cyan-900/60 text-cyan-200 border border-cyan-500/30 transition text-left">💡 Replace weak filler words in my technical elevator pitch</button>
+              </div>
+            </div>
           </div>
 
-          <!-- Interactive Socratic Sparring Console -->
-          <div class="glass-card rounded-xl p-4 border-cyan-400/20 bg-slate-950/70 space-y-3">
+          <!-- 4. INTERACTIVE SOCRATIC SPARRING CONSOLE -->
+          <div class="glass-card rounded-xl p-5 border-cyan-400/30 bg-slate-950/80 space-y-3.5 shadow-xl">
             <div class="flex items-center justify-between">
               <span class="text-xs font-bold text-cyan-200 flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-                Сократівський Спаринг-Консоль з Кірою
+                <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                Сократівський Спаринг-Консоль з Кірою (First Principles)
               </span>
-              <span class="text-[11px] text-slate-400">Метод First Principles</span>
+              <span class="text-[11px] text-slate-400 font-mono">Штучний Інтелект 8-го Поверху</span>
             </div>
 
             <div class="flex gap-2">
               <input id="kiraSparringInput" type="text" placeholder="Поставте питання, висуньте тезу або киньте виклик Кірі..." 
                      class="flex-1 px-4 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition"
                      onkeydown="if(event.key==='Enter') executeKiraAction('socratic')">
-              <button onclick="executeKiraAction('socratic')" class="px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs transition shadow-lg shadow-cyan-500/20 flex items-center gap-1.5">
+              <button onclick="executeKiraAction('socratic')" class="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs transition shadow-lg shadow-cyan-500/20 flex items-center gap-1.5">
                 🥊 <span>Спаринг</span>
               </button>
             </div>
 
-            <!-- Quick Action Chips -->
+            <!-- Quick Action Formats -->
             <div class="flex flex-wrap items-center gap-2 text-[11px]">
-              <span class="text-slate-500">Швидкі формати:</span>
-              <button onclick="executeKiraAction('lesson')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 transition">📚 Скласти навчальний план</button>
-              <button onclick="executeKiraAction('review')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 transition">🔍 Менторський рев'ю</button>
-              <button onclick="executeKiraAction('quiz')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 transition">⚡ Експрес-тест (Micro-Quiz)</button>
-              <button onclick="executeKiraAction('history_model')" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-white/5 transition">🏛️ Історична паралель</button>
+              <span class="text-slate-400 font-bold">Формати аналізу:</span>
+              <button onclick="executeKiraAction('lesson')" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 border border-white/10 transition flex items-center gap-1">
+                📚 <span>Скласти навчальний план</span>
+              </button>
+              <button onclick="executeKiraAction('review')" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 border border-white/10 transition flex items-center gap-1">
+                🔍 <span>Менторський рев'ю</span>
+              </button>
+              <button onclick="executeKiraAction('quiz')" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 border border-white/10 transition flex items-center gap-1">
+                ⚡ <span>Бліц-тест (Micro-Quiz)</span>
+              </button>
+              <button onclick="executeKiraAction('history_model')" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 border border-white/10 transition flex items-center gap-1">
+                🏛️ <span>Історична паралель</span>
+              </button>
             </div>
 
-            <!-- Terminal Output -->
-            <div id="kiraSparringOutput" class="hidden p-4 rounded-xl bg-slate-900 border border-cyan-500/20 font-mono text-xs text-slate-200 whitespace-pre-wrap leading-relaxed">
+            <!-- Terminal Output with Initial Welcome Sparring -->
+            <div id="kiraSparringOutput" class="p-4 rounded-xl bg-slate-900/95 border border-cyan-500/30 font-mono text-xs text-slate-200 whitespace-pre-wrap leading-relaxed shadow-inner">🥊 [СОКРАТІВСЬКИЙ СПАРИНГ • КІРА]
+Статус: Активовано дисципліну «🇬🇧 Англійська мова (Executive & Pitches)»
+Принцип: First Principles Reasoning
+
+«Вітаю на 8-му поверсі, Андрію. Я не просто даю відповіді — я тестую міцність твоєї аргументації.
+Будь-яка ідея чи проект тут розкладаються до фундаментальних законів природи, коду та економіки.
+
+Введи будь-яку тезу, або натисни одну з підказок вгорі. 
+Наприклад: "Defend SYNDICATE valuation model in 3 punchy sentences" або "Simulate aggressive VC partner".
+Чекаю на твій виклик.»</div>
+          </div>
+
+          <!-- 5. KNOWLEDGE VAULT & MENTAL MODELS (PERMANENT CARDS) -->
+          <div class="space-y-3 pt-2">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                <span>🧠</span> База Фундаментальних Ментальних Моделей Кіри
+              </h3>
+              <span class="text-[11px] text-slate-500">Філософія SYNDICATE Academy</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+              <div class="p-4 rounded-xl bg-slate-900/70 border border-white/5 space-y-1.5 hover:border-cyan-400/30 transition">
+                <div class="flex items-center gap-2 font-bold text-white">
+                  <span>⚛️</span> First Principles
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Зведення речей до найбільш фундаментальних істин і побудова висновків звідти, замість міркування за аналогією з іншими.
+                </p>
+              </div>
+
+              <div class="p-4 rounded-xl bg-slate-900/70 border border-white/5 space-y-1.5 hover:border-cyan-400/30 transition">
+                <div class="flex items-center gap-2 font-bold text-white">
+                  <span>🔄</span> Inversion (Якобі)
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  "Invert, always invert". Замість думати як досягти успіху, визначте як гарантовано зазнати краху — і систематично уникайте цього.
+                </p>
+              </div>
+
+              <div class="p-4 rounded-xl bg-slate-900/70 border border-white/5 space-y-1.5 hover:border-cyan-400/30 transition">
+                <div class="flex items-center gap-2 font-bold text-white">
+                  <span>🎯</span> Second-Order Thinking
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  "І що потім?" Оцінюйте не лише негайні наслідки рішення, а й наслідки тих наслідків через місяці та роки.
+                </p>
+              </div>
+
+              <div class="p-4 rounded-xl bg-slate-900/70 border border-white/5 space-y-1.5 hover:border-cyan-400/30 transition">
+                <div class="flex items-center gap-2 font-bold text-white">
+                  <span>🗡️</span> Occam's Razor
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Серед кількох конкуруючих гіпотез або архітектур та, що потребує найменшої кількості припущень та сутностей, є найстійкішою.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -1338,6 +1519,22 @@ End Sub</pre>
         },
         greeting: "«Маршал на варті, Андрію. Периметр захищено.»",
         sub: "Антидетект-профілі Camoufox прогріті. Ротація проксі активна. Жодних витоків чи загроз не виявлено."
+      },
+      kira: {
+        name: "КІРА",
+        hue: 195,
+        sphereSrc: window.AGENT_SPHERES_DATA.kira,
+        rimColor: "#38bdf8",
+        backdrop: "bg-cyan-500",
+        tabColor: "bg-cyan-500/20 text-cyan-200 border-cyan-400/50 shadow-cyan-500/20",
+        statusColor: "border-cyan-400/50 text-cyan-200 shadow-cyan-500/25",
+        colors: {
+          deep: [0.02, 0.20, 0.35],
+          main: [0.22, 0.74, 0.97],
+          highlight: [0.88, 0.95, 1.00]
+        },
+        greeting: "«Вітаю, Андрію. Кіра на зв'язку.»",
+        sub: "SYNDICATE Academy активна. 8-й поверх готовий до академічного спарингу та освоєння нових дисциплін."
       }
     };
 
@@ -1595,7 +1792,7 @@ End Sub</pre>
     // -------------------------------------------------------------
     function switchAgent(agentKey) {
       currentAgent = agentKey;
-      const cfg = agentConfigs[agentKey];
+      const cfg = agentConfigs[agentKey] || agentConfigs['eva'];
 
       // Smooth Crossfade of Photorealistic Sphere Render
       const front = document.getElementById('orbImageFront');
@@ -1631,7 +1828,7 @@ End Sub</pre>
         rim.style.borderColor = `${cfg.rimColor}90`;
         rim.style.boxShadow = `0 0 35px ${cfg.rimColor}80`;
       }
-                  if (shock && cfg.rimColor) {
+      if (shock && cfg.rimColor) {
         shock.style.background = `radial-gradient(circle, ${cfg.rimColor}45 0%, ${cfg.rimColor}18 50%, transparent 75%)`;
       }
       if (backdrop && cfg.rimColor) {
@@ -1641,8 +1838,10 @@ End Sub</pre>
         badge.className = `absolute -bottom-2 z-20 bg-slate-950/90 border ${cfg.statusColor} text-[10px] font-bold px-3.5 py-0.5 rounded-full shadow-lg flex items-center gap-1.5 backdrop-blur-md transition-all duration-300`;
       }
 
-      document.getElementById('agentGreetingTitle').innerText = cfg.greeting;
-      document.getElementById('agentGreetingSubtitle').innerText = cfg.sub;
+      const greetTitle = document.getElementById('agentGreetingTitle');
+      if (greetTitle) greetTitle.innerText = cfg.greeting;
+      const greetSub = document.getElementById('agentGreetingSubtitle');
+      if (greetSub) greetSub.innerText = cfg.sub;
 
       // Update Agent Tabs
       document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -1657,6 +1856,26 @@ End Sub</pre>
       document.querySelectorAll('.agent-view').forEach(view => view.classList.add('hidden'));
       const activeView = document.getElementById(`view-${agentKey}`);
       if (activeView) activeView.classList.remove('hidden');
+
+      // Synchronize Elevator floor highlight
+      let targetFloor = 10;
+      if (agentKey === 'doc') targetFloor = 9;
+      else if (agentKey === 'kira') targetFloor = 8;
+      else if (agentKey === 'sam') targetFloor = 7;
+      currentFloor = targetFloor;
+
+      document.querySelectorAll('.floor-btn').forEach(btn => {
+        btn.className = "floor-btn px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 border bg-slate-900/60 text-slate-400 border-white/5 hover:text-white";
+      });
+      const activeFloorBtn = document.getElementById("floor-btn-" + targetFloor);
+      if (activeFloorBtn) {
+        activeFloorBtn.className = "floor-btn px-3.5 py-2 rounded-xl text-xs font-black transition flex items-center gap-2 border bg-blue-500/20 text-blue-300 border-blue-500/40 shadow-lg shadow-blue-500/20";
+      }
+
+      // If Kira is selected, activate her current discipline
+      if (agentKey === 'kira' && typeof switchKiraDiscipline === 'function') {
+        switchKiraDiscipline(currentKiraDiscipline || 'english');
+      }
 
       setAgentStatus('ready', 'LIVE READY');
     }
