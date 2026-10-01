@@ -8,6 +8,7 @@ from src.agents.sam.agent import SamAgent
 from src.agents.sentinel import SentinelAgent
 from src.agents.office_copilot import OfficeCopilotAgent, OfficeKnowledgeBase
 from src.agents.marshal import MarshalAgent
+from src.agents.kira import KiraAgent
 
 __all__ = [
     "ArchitectAgent",
@@ -19,4 +20,5 @@ __all__ = [
     "OfficeCopilotAgent",
     "OfficeKnowledgeBase",
     "MarshalAgent",
+    "KiraAgent",
 ]

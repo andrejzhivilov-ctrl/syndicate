@@ -117,6 +117,16 @@ class EvaOrchestrator:
         "analyze_pod_trends": "floor2",
         "aggregate_growth_metrics": "floor2",
         "setup_antidetect_profile": "floor2",
+        # Floor 8: Kira — Academic Mentor & SYNDICATE Academy
+        "socratic_dialogue": "kira",
+        "lesson_plan": "kira",
+        "mentor_code_review": "kira",
+        "language_practice": "kira",
+        "history_synthesis": "kira",
+        "vibecoding_session": "kira",
+        "micro_quiz": "kira",
+        "academy_overview": "kira",
+        "morning_data_kira": "kira",
     }
 
 
@@ -221,6 +231,7 @@ class EvaOrchestrator:
         builder.add_node("eva_curator", self._eva_curator_handler)
         builder.add_node("eva_office", self._eva_office_handler)
         builder.add_node("floor2", self._floor2_handler)
+        builder.add_node("kira_agent", self._kira_agent_handler)
         builder.add_node("confidence_gate", self._confidence_gate)
         builder.add_node("outbound_veto", self._outbound_veto)
         builder.add_node("hitl_gate", self._hitl_gate)
@@ -246,13 +257,14 @@ class EvaOrchestrator:
                 "eva_curator": "eva_curator",
                 "eva_office": "eva_office",
                 "floor2": "floor2",
+                "kira": "kira_agent",
             },
         )
 
         # All agents go through confidence gate
         for agent_node in [
             "eva_direct", "doc_agent", "fin_agent",
-            "sam_agent", "architect_agent", "sentinel_check", "eva_curator", "eva_office", "floor2",
+            "sam_agent", "architect_agent", "sentinel_check", "eva_curator", "eva_office", "floor2", "kira_agent",
         ]:
             builder.add_edge(agent_node, "confidence_gate")
 
@@ -346,7 +358,17 @@ class EvaOrchestrator:
         state['status'] = 'completed'
         return state
 
-
+    async def _kira_agent_handler(self, state: AgentState) -> AgentState:
+        """Delegate to Kira (Academic Mentor & Academy Director, Floor 8)."""
+        from src.agents.kira import KiraAgent
+        agent = KiraAgent(memory=self._memory, llm=self._llm, config=self._config.get("kira", self._config))
+        payload = dict(state['payload'])
+        if "action" not in payload:
+            payload["action"] = state["task_type"]
+        result = await agent.execute(payload)
+        state['result'] = result
+        state['status'] = 'completed'
+        return state
 
     async def _eva_direct_handler(self, state: AgentState) -> AgentState:
         """EVA handles simple orchestration tasks directly."""
@@ -539,7 +561,7 @@ class EvaOrchestrator:
     async def proactive_daily_briefing(self) -> Dict:
         """Called by n8n cron at 07:00. Gathers data from all agents."""
         results = {}
-        for agent_id, port in [('eva', 8001), ('fin', 8004), ('sam', 8006), ('doc', 8005), ('marshal', 8002)]:
+        for agent_id, port in [('eva', 8001), ('fin', 8004), ('sam', 8006), ('doc', 8005), ('marshal', 8002), ('kira', 8007)]:
             try:
                 r = await self.execute('morning_data_' + agent_id, {'action': 'morning_data'})
                 results[agent_id] = r.get('result', {})
