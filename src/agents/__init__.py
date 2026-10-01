@@ -7,6 +7,7 @@ from src.agents.fin import FinAgent
 from src.agents.sam.agent import SamAgent
 from src.agents.sentinel import SentinelAgent
 from src.agents.office_copilot import OfficeCopilotAgent, OfficeKnowledgeBase
+from src.agents.marshal import MarshalAgent
 
 __all__ = [
     "ArchitectAgent",
@@ -17,4 +18,5 @@ __all__ = [
     "SentinelAgent",
     "OfficeCopilotAgent",
     "OfficeKnowledgeBase",
+    "MarshalAgent",
 ]

@@ -14,8 +14,13 @@ import structlog
 
 from src.departments.compliance.antidetect_browser import AntiDetectProfileManager
 from src.departments.compliance.policy_sentinel import PolicySentinel
+from src.departments.content_factory.broll_scout import BRollScout
+from src.departments.content_factory.caption_engine import CaptionEngine
 from src.departments.content_factory.grok_writer import GrokWriter
 from src.departments.content_factory.mockup_studio import MockupStudio
+from src.departments.content_factory.publisher import ContentPublisher
+from src.departments.content_factory.script_director import ScriptDirector
+from src.departments.content_factory.video_engine_v2 import VideoEngineV2
 from src.departments.content_factory.video_producer import VideoProducer
 from src.departments.operations.affiliate_scout import AffiliateScout
 from src.departments.operations.growth_analyst import GrowthAnalyst
@@ -32,6 +37,11 @@ class Floor2Coordinator:
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.config = config or {}
         self.video_producer = VideoProducer()
+        self.video_engine_v2 = VideoEngineV2()
+        self.script_director = ScriptDirector()
+        self.broll_scout = BRollScout()
+        self.caption_engine = CaptionEngine()
+        self.publisher = ContentPublisher()
         self.grok_writer = GrokWriter()
         self.mockup_studio = MockupStudio()
         self.affiliate_scout = AffiliateScout()
@@ -51,6 +61,48 @@ class Floor2Coordinator:
             filename = payload.get("output_filename", "short_render.mp4")
             voice = payload.get("voice")
             return await self.video_producer.render_video(broll, script, filename, voice=voice)
+
+        elif action == "create_viral_short":
+            # Next-Gen End-to-End Pipeline
+            topic = payload.get("topic", "Автономний холдинг на одному сервері")
+            niche = payload.get("niche", "ai_automation")
+            duration = payload.get("duration_sec", 30)
+            voice = payload.get("voice", "uk-UA-PolinaNeural")
+            filename = payload.get("output_filename")
+            bg_music = payload.get("bg_music")
+            style = payload.get("caption_style", "hormozi_cyan")
+            return await self.video_engine_v2.render_complete_short(
+                topic=topic,
+                niche=niche,
+                duration_sec=duration,
+                voice=voice,
+                output_filename=filename,
+                bg_music=bg_music,
+                caption_style=style
+            )
+
+        elif action == "direct_short_script":
+            topic = payload.get("topic", "Автоматизація бізнесу без SaaS витрат")
+            niche = payload.get("niche", "ai_holding")
+            duration = payload.get("duration_sec", 30)
+            return await self.script_director.generate_short_script(topic, niche, target_duration_sec=duration)
+
+        elif action == "source_broll_batch":
+            scenes = payload.get("scenes", [])
+            return {"status": "ok", "clips": await self.broll_scout.fetch_broll_batch(scenes)}
+
+        elif action == "generate_karaoke_captions":
+            text = payload.get("text", "")
+            duration = payload.get("duration_sec", 30.0)
+            timed_words = self.caption_engine.generate_word_timestamps(text, duration)
+            style = payload.get("style", "hormozi_cyan")
+            ass_path = self.caption_engine.create_ass_karaoke_file(timed_words, style_preset=style)
+            return {"status": "ok", "ass_path": ass_path, "timed_words_count": len(timed_words)}
+
+        elif action == "publish_content_campaign":
+            video_path = payload.get("video_path", "")
+            metadata = payload.get("seo_metadata", {})
+            return await self.publisher.dispatch_full_campaign(video_path, metadata)
 
         elif action == "generate_viral_thread":
             topic = payload.get("topic", "Lean AI holding automation")
@@ -91,6 +143,11 @@ class Floor2Coordinator:
                 "status": "error",
                 "message": f"Unknown floor2 action: '{action}'",
                 "available_actions": [
+                    "create_viral_short",
+                    "direct_short_script",
+                    "source_broll_batch",
+                    "generate_karaoke_captions",
+                    "publish_content_campaign",
                     "render_short_video",
                     "generate_viral_thread",
                     "generate_pod_mockup",
