@@ -38,10 +38,11 @@ class MarshalAgent:
         if self._memory and hasattr(self._memory, "save_episode"):
             try:
                 await self._memory.save_episode(
+                    session_id="global_marshal_ops",
                     agent_id=self.AGENT_ID,
-                    action=action,
-                    summary=f"Marshal executed {action}",
-                    data=result
+                    role="assistant",
+                    content=f"Marshal executed {action}",
+                    metadata={"action": action, "data": result},
                 )
             except Exception as e:
                 logger.warning("marshal_memory_save_failed", error=str(e))

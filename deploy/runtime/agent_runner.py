@@ -268,12 +268,19 @@ async def cockpit_interface():
     """Serve the interactive SYNDIKAT Executive Cockpit interface."""
     candidates = [
         Path(__file__).parents[2] / "syndikat_cockpit.html",
+        Path(__file__).parents[2] / "cockpit.html",
         Path(__file__).parents[2] / "static" / "cockpit.html",
         Path(__file__).parent / "static" / "cockpit.html",
+        Path("repo_code/syndikat_cockpit.html"),
+        Path("repo_code/cockpit.html"),
+        Path("syndikat_cockpit.html"),
     ]
     for p in candidates:
         if p.exists():
-            return HTMLResponse(content=p.read_text(encoding="utf-8"))
+            text = p.read_text(encoding="utf-8")
+            if "SYNDIKAT" not in text and "SYNDICATE" in text:
+                text = text.replace("<title>SYNDICATE", "<title>SYNDIKAT / SYNDICATE")
+            return HTMLResponse(content=text)
     return HTMLResponse("<h2>SYNDIKAT Cockpit File Not Found</h2>", status_code=404)
 
 
@@ -346,6 +353,14 @@ async def execute_task(
         raise HTTPException(status_code=500, detail="Internal execution error")
 
 
+@app.post("/webhook/error")
+async def error_webhook(request: Request, state: AppState = Depends(require_ready)):
+    """Dead-letter error recording from n8n / subagents (Floor 1)."""
+    body = await request.json()
+    result = await state.orchestrator.execute("record_error", body)
+    return {"ok": True, "result": result}
+
+
 @app.post("/webhook/{source}")
 async def webhook_handler(
     source: str,
@@ -384,6 +399,79 @@ async def webhook_handler(
     except Exception as exc:
         logger.error("Webhook handling failed", source=source, error=str(exc))
         return Response(content='{"ok": false}', status_code=200, media_type="application/json")
+
+
+# ─── 10-Floor Specialized Endpoints ──────────────────────────────────────────
+
+@app.get("/floors")
+async def get_floors_registry(state: AppState = Depends(require_ready)):
+    """Return the single source of truth 10-floor syndicate layout."""
+    if state.orchestrator:
+        return state.orchestrator.get_floors_registry()
+    from src.floors import FLOORS, active_floors, reserved_floors
+    return {"floors": FLOORS, "active": active_floors(), "reserved": reserved_floors()}
+
+
+@app.post("/sensory/extract")
+async def sensory_extract(request: Request, state: AppState = Depends(require_auth)):
+    """Deterministic document extraction (Floor 1)."""
+    body = await request.json()
+    result = await state.orchestrator.execute("sensory_extract_doc", body)
+    return result
+
+
+@app.post("/sensory/chunk")
+async def sensory_chunk(request: Request, state: AppState = Depends(require_auth)):
+    """Deterministic text chunker for embeddings (Floor 1)."""
+    body = await request.json()
+    result = await state.orchestrator.execute("sensory_chunk_text", body)
+    return result
+
+
+@app.post("/proactive/morning")
+async def trigger_morning_briefing(state: AppState = Depends(require_auth)):
+    """Trigger 07:30 morning briefing (Floor 1 / Floor 10)."""
+    result = await state.orchestrator.proactive_daily_briefing()
+    return {"ok": True, "briefing": result}
+
+
+@app.post("/proactive/evening")
+async def trigger_evening_reflection(state: AppState = Depends(require_auth)):
+    """Trigger 21:00 evening reflection (Floor 1 / Floor 8 / Floor 9)."""
+    result = await state.orchestrator.proactive_evening_reflection()
+    return {"ok": True, "reflection": result}
+
+
+@app.post("/council")
+async def deliberate_council(request: Request, state: AppState = Depends(require_auth)):
+    """Multi-model LLM Council deliberation (Floor 10)."""
+    body = await request.json()
+    result = await state.orchestrator.execute("council_deliberate", body)
+    return result
+
+
+@app.post("/cr/submit")
+async def submit_cr(request: Request, state: AppState = Depends(require_auth)):
+    """Submit Change Request for protected statutes / dossiers (Floor 10)."""
+    body = await request.json()
+    result = await state.orchestrator.execute("submit_change_request", body)
+    return result
+
+
+@app.post("/cr/review")
+async def review_cr(request: Request, state: AppState = Depends(require_auth)):
+    """Review Change Request (approve/reject) (Floor 10)."""
+    body = await request.json()
+    result = await state.orchestrator.execute("review_change_request", body)
+    return result
+
+
+@app.post("/cr/apply")
+async def apply_cr(request: Request, state: AppState = Depends(require_auth)):
+    """Apply approved Change Request to vault (Floor 10)."""
+    body = await request.json()
+    result = await state.orchestrator.execute("apply_change_request", body)
+    return result
 
 
 # ─── Graceful Shutdown ───────────────────────────────────────────────────────

@@ -119,6 +119,7 @@ class KiraAgent:
             "vibecoding_session": self.vibecoding_session,
             "micro_quiz": self.micro_quiz,
             "disciplines_overview": self.disciplines_overview,
+            "academy_overview": self.disciplines_overview,
             "morning_data": self.morning_data,
         }
 
@@ -130,6 +131,7 @@ class KiraAgent:
     async def disciplines_overview(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Return structured catalogue of all active Academy disciplines."""
         return {
+            "status": "ok",
             "agent": self.AGENT_ID,
             "floor": self.FLOOR,
             "title": "SYNDICATE Academy — Поверх 8",

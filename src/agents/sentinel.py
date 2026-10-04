@@ -4,6 +4,7 @@ Sentinel Agent — Security validation, permission checks, threat assessment.
 
 from __future__ import annotations
 
+import re
 import time
 import json
 import hmac
@@ -41,6 +42,39 @@ OUTBOUND_POLICIES = {
 
 MAX_PAYLOAD_SIZE_BYTES = 1_048_576  # 1MB
 
+_ZERO_WIDTH = re.compile("[\u200b\u200c\u200d\u2060\ufeff\u202e]")
+_EXTERNAL_INJECTION_RULES = [
+    ("ignore_instructions_en", re.compile(r"ignore (all |any )?(previous|prior|above) (instructions|rules|prompts)", re.I), 0.6),
+    ("ignore_instructions_ru_uk", re.compile(r"(игнорируй|ігноруй|забудь)\s+(все\s+)?(предыдущ|попередн|прежн)", re.I), 0.6),
+    ("role_override", re.compile(r"\b(you are now|act as|from now on you)\b", re.I), 0.35),
+    ("system_marker", re.compile(r"(^|\n)\s*(system|assistant)\s*:", re.I), 0.35),
+    ("code_fence_system", re.compile(r"```\s*system", re.I), 0.5),
+    ("exfiltration", re.compile(r"(send|post|upload|email|exfiltrate|відправ|отправь).{0,60}(\.env|api[_ -]?key|secret|token|password|ssh)", re.I | re.S), 0.7),
+    ("tool_hijack", re.compile(r"(run|execute|виконай|выполни).{0,40}(curl|wget|bash|powershell|rm -rf)", re.I | re.S), 0.6),
+    ("hidden_html_instruction", re.compile(r"<!--.{0,200}(ignore|instruction|system).{0,200}-->", re.I | re.S), 0.5),
+    ("override_keyword", re.compile(r"\bOVERRIDE\b"), 0.3),
+]
+_SECRET_PATTERNS = [
+    ("anthropic_key", re.compile(r"sk-ant-[A-Za-z0-9_\-]{15,}")),
+    ("openai_key", re.compile(r"sk-(proj-)?[A-Za-z0-9_\-]{20,}")),
+    ("github_token", re.compile(r"\bgh[pousr]_[A-Za-z0-9]{30,}")),
+    ("aws_access_key", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
+    ("telegram_bot_token", re.compile(r"\b\d{8,10}:[A-Za-z0-9_\-]{35}\b")),
+    ("bearer_header", re.compile(r"(?i)authorization:\s*bearer\s+[A-Za-z0-9._\-]{16,}")),
+    ("private_key_block", re.compile(r"-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----")),
+]
+_DANGEROUS_COMMANDS = [
+    ("rm_rf", re.compile(r"\brm\s+(-[a-zA-Z]*r[a-zA-Z]*f|-[a-zA-Z]*f[a-zA-Z]*r)\b")),
+    ("drop_table", re.compile(r"\bdrop\s+(table|database|schema)\b", re.I)),
+    ("truncate", re.compile(r"\btruncate\s+table\b", re.I)),
+    ("delete_without_where", re.compile(r"\bdelete\s+from\s+\w+\s*(;|$)", re.I)),
+    ("disk_wipe", re.compile(r"\b(mkfs(\.\w+)?|dd\s+if=)")),
+    ("pipe_to_shell", re.compile(r"(curl|wget)[^|\n]*\|\s*(sudo\s+)?(ba)?sh\b")),
+    ("chmod_777", re.compile(r"\bchmod\s+(-R\s+)?777\b")),
+    ("force_push", re.compile(r"git\s+push\s+.*(--force|-f)\b")),
+    ("backup_removal", re.compile(r"(rm|del|Remove-Item)\b.*\b(backup|backups|\.bak)\b", re.I)),
+]
+
 @dataclass
 class ValidationResult:
     allowed: bool
@@ -51,6 +85,36 @@ class ValidationResult:
     @property
     def requires_hitl(self) -> bool:
         return bool(self.metadata.get("requires_hitl", False))
+
+    def __getitem__(self, item: str) -> Any:
+        if item == "allowed":
+            return self.allowed
+        if item == "reason":
+            return self.reason
+        if item == "risk_score":
+            return self.risk_score
+        if item == "metadata":
+            return self.metadata
+        if item in self.metadata:
+            return self.metadata[item]
+        raise KeyError(item)
+
+    def get(self, item: str, default: Any = None) -> Any:
+        try:
+            return self[item]
+        except KeyError:
+            return default
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = {
+            "allowed": self.allowed,
+            "reason": self.reason,
+            "risk_score": self.risk_score,
+            "metadata": self.metadata,
+            "requires_hitl": self.requires_hitl,
+        }
+        d.update(self.metadata)
+        return d
 
 
 class SentinelAgent:
@@ -154,6 +218,103 @@ class SentinelAgent:
     async def verify_webhook_signature(self, payload_bytes: bytes, signature: str, secret_key: str) -> bool:
         expected_mac = hmac.new(secret_key.encode('utf-8'), payload_bytes, hashlib.sha256).hexdigest()
         return hmac.compare_digest(expected_mac, signature)
+
+    # ── Lethal Trifecta shield ────────────────────────────────────────────
+    def check_lethal_trifecta(self, capabilities: Dict[str, bool]) -> ValidationResult:
+        """Block any agent that combines private data + untrusted content + external actions.
+
+        capabilities keys: private_data_access, untrusted_content, external_actions (or aliases).
+        """
+        has_private = bool(capabilities.get("private_data_access") or capabilities.get("reads_private_data"))
+        has_untrusted = bool(capabilities.get("untrusted_content") or capabilities.get("processes_untrusted_input"))
+        has_external = bool(capabilities.get("external_actions") or capabilities.get("initiates_external_communication"))
+        legs = []
+        if has_private:
+            legs.append("private_data_access")
+        if has_untrusted:
+            legs.append("untrusted_content")
+        if has_external:
+            legs.append("external_actions")
+        if len(legs) == 3:
+            res = ValidationResult(
+                allowed=False,
+                reason="Lethal trifecta: private data + untrusted content + external actions in one agent",
+                risk_score=1.0,
+                metadata={"legs": legs},
+            )
+        else:
+            res = ValidationResult(True, f"Trifecta intact ({len(legs)}/3 legs)", risk_score=0.2 * len(legs), metadata={"legs": legs})
+        self._audit({"check": "lethal_trifecta", "capabilities": capabilities}, res)
+        return res
+
+    def scan_external_content(self, text: str) -> ValidationResult:
+        """Rich indirect-prompt-injection scan for web pages, issues, e-mails and documents."""
+        score = 0.0
+        hits: List[str] = []
+        for name, rx, weight in _EXTERNAL_INJECTION_RULES:
+            if rx.search(text):
+                hits.append(name)
+                score += weight
+        if _ZERO_WIDTH.search(text):
+            hits.append("zero_width_characters")
+            score += 0.3
+        score = min(score, 1.0)
+        res = ValidationResult(
+            allowed=score < 0.5,
+            reason="External content looks like an injection" if score >= 0.5 else "External content clean",
+            risk_score=score,
+            metadata={"hits": hits},
+        )
+        self._audit({"check": "external_content", "hits": hits}, res)
+        return res
+
+    def assess_dependency_install(
+        self, packages: List[str] | str, lockfile_packages: Optional[Set[str]] = None, allowlist: Optional[Set[str]] = None
+    ) -> ValidationResult:
+        """Slopsquatting guard: a hallucinated package name must never be installed automatically."""
+        if isinstance(packages, str):
+            packages = [packages]
+        known = {p.lower() for p in (lockfile_packages or set())} | {p.lower() for p in (allowlist or set())}
+        unknown = [p for p in packages if p.lower().split("==")[0].split(">=")[0] not in known]
+        if unknown:
+            res = ValidationResult(
+                allowed=True,
+                reason="Packages not in lockfile/allowlist require human review",
+                risk_score=0.7,
+                metadata={"requires_hitl": True, "unknown_packages": unknown, "risk": "high", "is_slopsquatting": True},
+            )
+        else:
+            res = ValidationResult(True, "All packages pinned", risk_score=0.05, metadata={"risk": "low", "is_slopsquatting": False})
+        self._audit({"check": "dependency_install", "packages": packages}, res)
+        return res
+
+    def scan_output_for_secrets(self, text: str) -> ValidationResult:
+        """Detect secrets leaking into logs / stdout / agent replies."""
+        found = [name for name, rx in _SECRET_PATTERNS if rx.search(text)]
+        redacted = text
+        for name, rx in _SECRET_PATTERNS:
+            token_tag = "[REDACTED_GH_TOKEN]" if "github" in name else f"[REDACTED_{name.upper()}]"
+            redacted = rx.sub(token_tag, redacted)
+        res = ValidationResult(
+            allowed=not found,
+            reason="Secret material detected in output" if found else "No secrets detected",
+            risk_score=1.0 if found else 0.0,
+            metadata={"kinds": found, "has_secrets": bool(found), "redacted_output": redacted},
+        )
+        self._audit({"check": "secret_scan", "kinds": found}, res)
+        return res
+
+    def check_command_safety(self, command: str) -> ValidationResult:
+        """Destructive shell / SQL commands are blocked outright (PocketOS-style incidents)."""
+        for name, rx in _DANGEROUS_COMMANDS:
+            if rx.search(command):
+                res = ValidationResult(False, f"Destructive command blocked: {name}", risk_score=1.0, metadata={"rule": name})
+                self._audit({"check": "command_safety", "rule": name}, res)
+                return res
+        res = ValidationResult(True, "Command not flagged", risk_score=0.1)
+        self._audit({"check": "command_safety"}, res)
+        return res
+
 
     def _scan_for_injections(self, payload: Dict[str, Any]) -> float:
         """Scan payload for potential injection patterns. Returns risk score 0-1."""
