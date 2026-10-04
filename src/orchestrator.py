@@ -691,30 +691,14 @@ class EvaOrchestrator:
     # ─── Floor 10 Handlers (Command Floor) ──────────────────────────────────
 
     async def _eva_direct_handler(self, state: AgentState) -> AgentState:
-        if not self._llm:
-            state["result"] = {"response": "LLM not configured. Deterministic Eva response.", "agent": "eva"}
-            state["status"] = "completed"
-            return state
-
-        if self._pii:
-            payload_text, _ = self._pii.redact(str(state["payload"]))
-        else:
-            payload_text = str(state["payload"])
-
-        messages = [
-            SystemMessage(content=SYSTEM_PROMPT),
-            HumanMessage(content=payload_text),
-        ]
-        response = await self._llm.ainvoke(messages)
-        state["result"] = {"response": response.content, "agent": "eva"}
+        from src.agents.eva import EvaAgent
+        agent = EvaAgent(memory=self._memory, llm=self._llm, config=self._config)
+        payload = dict(state["payload"])
+        if "action" not in payload:
+            payload["action"] = state["task_type"] if state["task_type"] in ("chat", "compose_briefing", "compose_reflection", "delegate", "system_status") else "chat"
+        result = await agent.execute(payload)
+        state["result"] = result
         state["status"] = "completed"
-
-        await self._memory.save_episode(
-            session_id=state["session_id"],
-            agent_id="eva",
-            role="assistant",
-            content=response.content,
-        )
         return state
 
     async def _eva_curator_handler(self, state: AgentState) -> AgentState:
