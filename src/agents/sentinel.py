@@ -1,5 +1,7 @@
 """
-Sentinel Agent — Security validation, permission checks, threat assessment.
+Sentinel Protocol — Zero-Trust Security Shield subordinate to Marshal (Chief Security Officer).
+Automated first-line defense: inbound prompt injection filtering, outbound action veto,
+lethal trifecta guard, destructive command blocking, slopsquatting check, secret leakage scan.
 """
 
 from __future__ import annotations

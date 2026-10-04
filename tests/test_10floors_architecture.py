@@ -579,9 +579,15 @@ async def run_10floors_sandbox_suite():
     fin_runway = await fin.execute({"action": "runway", "cash_balance": 50000.0, "monthly_burn": 5000.0})
     assert fin_runway["runway_months"] == 10.0
 
-    marshal = MarshalAgent(memory=mem, llm=mock_llm)
-    marshal_status = await marshal.execute({"action": "aggregate_growth_metrics", "revenue": 1000.0, "costs": 200.0})
-    assert marshal_status["cfo_dossier"]["recipient"] == "Fin (CFO)"
+    # 8f. Fin Agent (CFO) and Marshal Agent (CSO - Chief Security Officer commanding Sentinel)
+    marshal = MarshalAgent(memory=mem, llm=mock_llm, sentinel=sentinel)
+    marshal_audit = await marshal.execute({"action": "security_audit"})
+    assert marshal_audit["role"] == "Chief Security Officer (CSO)"
+    assert "Sentinel Protocol" in marshal_audit["protocol_status"]
+
+    # Marshal enforces Sentinel Protocol on dangerous task
+    marshal_check = await marshal.execute({"action": "validate_task", "task": {"task_type": "admin_override"}})
+    assert not marshal_check["allowed"] and marshal_check["commander"] == "Marshal"
 
     # 8g. Eva Curator Life Review
     curator = EvaCurator(memory=mem, llm=mock_llm)

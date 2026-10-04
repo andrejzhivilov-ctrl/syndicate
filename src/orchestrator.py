@@ -174,10 +174,13 @@ class EvaOrchestrator:
         "fin_sync_bank": "fin",
         "morning_data_fin": "fin",
         "fin_report": "fin",
-        # Marshal (COO)
+        # Marshal (CSO - Chief Security Officer commanding Sentinel Protocol)
         "marshal_execute": "marshal",
         "morning_data_marshal": "marshal",
-        "operational_status": "marshal",
+        "security_audit": "marshal",
+        "security_status": "marshal",
+        "incident_report": "marshal",
+        "emergency_lockdown": "marshal",
         # Architect (CTO)
         "design_workflow": "architect",
         "lint_workflow": "architect",
@@ -744,14 +747,23 @@ class EvaOrchestrator:
 
     async def _marshal_agent_handler(self, state: AgentState) -> AgentState:
         from src.agents.marshal import MarshalAgent
-        agent = MarshalAgent(memory=self._memory, llm=self._llm, config=self._config.get("marshal", self._config))
+        agent = MarshalAgent(
+            memory=self._memory,
+            llm=self._llm,
+            config=self._config.get("marshal", self._config),
+            sentinel=self._sentinel,
+        )
         payload = dict(state["payload"])
         action_map = {
-            "marshal_execute": payload.get("action", "aggregate_growth_metrics"),
+            "marshal_execute": payload.get("action", "security_audit"),
             "morning_data_marshal": "morning_data",
-            "operational_status": "operational_status",
+            "security_audit": "security_audit",
+            "security_status": "security_audit",
+            "incident_report": "incident_report",
+            "emergency_lockdown": "emergency_lockdown",
+            "compliance_check": "compliance_check",
         }
-        payload["action"] = action_map.get(state["task_type"], payload.get("action", "aggregate_growth_metrics"))
+        payload["action"] = action_map.get(state["task_type"], payload.get("action", "security_audit"))
         result = await agent.execute(payload)
         state["result"] = result
         state["status"] = "completed"

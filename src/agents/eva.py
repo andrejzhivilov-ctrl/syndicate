@@ -4,7 +4,7 @@ Floor 10 Command Specialist.
 
 Coordinates executive strategy, delegating tasks to:
 - Fin (CFO - Floor 10)
-- Marshal (COO - Floor 10 & Floor 2)
+- Marshal (CSO / Supreme Security Commander - Floor 10)
 - Architect (CTO - Floor 10)
 - Sam (CIO/Quant - Floor 7)
 - Kira (Academy Head - Floor 8)
@@ -28,12 +28,12 @@ EVA_SYSTEM_PROMPT = """Ти — Єва (Eva), верховний координ�
 Твоя мета — забезпечувати максимальну продуктивність, безпеку та стратегічну ясність оператора.
 Ти координуєш 10 поверхів Синдикату:
 - Поверх 1: Сервер та n8n (Сенсорний шлюз, черга помилок DLQ, крон)
-- Поверх 2: Фабрика контенту (Маршал, Humanizer, Google Veo 3 / Kling AI, POD мерч)
+- Поверх 2: Фабрика контенту (Контент-завод, Humanizer, Google Veo 3 / Kling AI, POD мерч)
 - Поверхи 3–6: Reserved Floors (Конституційний системний резерв)
 - Поверх 7: Сем (Квант, Confluence Engine, ліквідність, строгий HITL ризик-гейт)
 - Поверх 8: Кіра (SYNDICATE Academy, Сократівський тьютор 4 етапів)
 - Поверх 9: Док (Health & Energy, готовність HRV, Mifflin-St Jeor TDEE, відновлення)
-- Поверх 10: Командування (Єва, Фін, Маршал, Архітектор, Sentinel Zero-Trust, LLM Рада, Орк Верифікатор, Markdown Vault).
+- Поверх 10: Командування (Єва CEO, Фін CFO, Маршал CSO - Безпека, Архітектор CTO, Sentinel Protocol, LLM Рада, Орк Верифікатор, Markdown Vault).
 
 Спілкуйся ділово, впевнено, структуровано та українською мовою.
 """
@@ -226,22 +226,25 @@ class EvaAgent:
 
         if any(w in query for w in ["гроші", "бюджет", "витрати", "банк", "податки", "ранвей", "fin"]):
             target = "fin"
-            reason = "Фінансові операції та бюджетний контроль"
-        elif any(w in query for w in ["контент", "відео", "тікток", "мерч", "pod", "реліз", "маршал"]):
+            reason = "Фінансові операції та бюджетний контроль (Фін CFO)"
+        elif any(w in query for w in ["безпека", "захист", "атака", "злам", "інцидент", "маршал", "sentinel", "security"]):
             target = "marshal"
-            reason = "Операційне управління Фабрикою контенту та мерчем"
+            reason = "Аудит безпеки, відбиття загроз та нагляд Sentinel Protocol (Маршал CSO)"
+        elif any(w in query for w in ["контент", "відео", "тікток", "мерч", "pod", "реліз"]):
+            target = "floor2"
+            reason = "Операції Фабрики контенту (Поверх 2)"
         elif any(w in query for w in ["код", "архітектура", "репозиторій", "помилка", "компілятор", "архітектор"]):
             target = "architect"
-            reason = "Технічний аналіз коду та архітектури"
+            reason = "Технічний аналіз коду та архітектури (Архітектор CTO)"
         elif any(w in query for w in ["здоров'я", "пульс", "сон", "харчування", "стрес", "тренування", "док"]):
             target = "doc"
-            reason = "Медичний контроль та оптимізація енергії"
+            reason = "Медичний контроль та оптимізація енергії (Док Health Officer)"
         elif any(w in query for w in ["навчання", "курс", "знання", "підказка", "урок", "кіра"]):
             target = "kira"
-            reason = "Сократівське навчання в SYNDICATE Academy"
+            reason = "Сократівське навчання в SYNDICATE Academy (Кіра)"
         elif any(w in query for w in ["трейдинг", "біржа", "крипта", "btc", "сигнал", "сем"]):
             target = "sam"
-            reason = "Кількісний аналіз капіталу (Quant)"
+            reason = "Кількісний аналіз капіталу (Сем Quant CIO)"
 
         return {
             "agent": self.AGENT_ID,
