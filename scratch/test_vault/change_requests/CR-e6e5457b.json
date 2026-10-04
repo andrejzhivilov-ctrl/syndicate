@@ -1,0 +1,21 @@
+{
+  "id": "CR-e6e5457b",
+  "author": "floor2_coordinator",
+  "title": "Release pack REL-9d537328",
+  "rationale": "Content Factory release awaiting operator approval",
+  "changes": [
+    {
+      "path": "wiki/releases/REL-9d537328.md",
+      "content": "# REL-9d537328\n\n**Thesis:** Delve into the game-changer revolution in AI agent systems.\n\n## Telegram\nLook at the game-changer revolution in AI agent systems.\n\nLook at the game-changer revolution in AI agent systems.\n\n## Shorts script\n- Hook: Look at the game-changer revolution in AI agent systems.\n- Beat: Look at the game-changer revolution in AI agent systems.\n- CTA: Підписуйся, щоб не пропустити наступний розбір.\n\n## Video prompt\nDelve into the game-changer revolution in AI agent systems.. Camera: slow dolly push-in, 35mm anamorphic. Lighting: soft key light with warm rim light. Look: teal-orange film grade, subtle grain. Mood: dramatic, immersive. Format: vertical 9:16 (Shorts/Reels), 8 seconds, 24fps, 4K detail. Audio: subtle cinematic ambience, no speech.\n\n## Cover prompt\ncover image: Delve into the game-changer revolution in AI agent systems.. Camera: slow dolly push-in, 85mm macro, shallow depth of field. Lighting: diffused studio softbox. Look: clean high-key, platinum highlights. Mood: calm, premium. Format: square 1:1, 8 seconds, 24fps, 4K detail. Audio: subtle cinematic ambience, no speech.\n\nAI-voice score: 12.0\n"
+    }
+  ],
+  "tests_passed": [
+    "humanizer",
+    "orc_verifier"
+  ],
+  "risk": "low",
+  "status": "pending",
+  "created_at": 1791111854.4091797,
+  "decided_by": null,
+  "decided_at": null
+}
