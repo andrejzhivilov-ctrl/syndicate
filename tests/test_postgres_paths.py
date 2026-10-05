@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import os
 import re
 import sys
 import uuid
@@ -113,6 +114,24 @@ class TestSchemaOnLivePostgres:
         if not live_pg.degraded_extensions:
             assert live_pg.skipped_statements == []
             assert live_pg.notes == []
+
+    def test_ci_image_provides_every_extension_init_sql_requests(self, live_pg):
+        """init.sql asks for ``vector``, ``uuid-ossp`` and ``pg_trgm``.
+
+        The CI image (``pgvector/pgvector:pg16``) must provide all three —
+        otherwise the harness silently shims/skips statements there, and a
+        "green" CI run would no longer mean the real schema was applied.
+        Locally the bundled pgserver ships only ``vector``, where shimming is
+        the documented, visible fallback.
+        """
+        require = os.getenv("EVA_REQUIRE_LIVE_DB", "").strip().lower() in {"1", "true", "yes", "on"}
+        if not require:
+            pytest.skip("only enforced for the CI database image (EVA_REQUIRE_LIVE_DB=1)")
+        requested = set(
+            re.findall(r'CREATE EXTENSION IF NOT EXISTS\s+"?([\w-]+)"?', INIT_SQL.read_text(encoding="utf-8"))
+        )
+        missing = sorted(requested - live_pg.available_extensions)
+        assert not missing, f"the CI database image is missing extensions required by init.sql: {missing}"
 
     def test_every_table_from_init_sql_exists(self, live_pg):
         missing = [
