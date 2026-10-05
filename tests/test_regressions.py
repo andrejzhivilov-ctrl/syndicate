@@ -1243,5 +1243,222 @@ class TestRepositoryHygiene:
         assert failures == [], "import failures:\n" + "\n".join(failures)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Sam confluence — absent data must never be scored as an observation
+# ─────────────────────────────────────────────────────────────────────────────
+class TestConfluenceAbsenceIsNotAnObservation:
+    """Three confluence layers used to invent a score when their input was
+    missing, so an unreadable layer was indistinguishable from a measured one:
+
+    * ``news_shield_layer`` scored **80/100 and never vetoed** when the economic
+      calendar was unknown — the black-swan shield failed *open*, while an
+      FOMC/NFP/CPI release could be minutes away.
+    * ``smc_layer`` reported "no structural confluence detected" (0.0) when the
+      candles could not be analysed at all, and its derivation helper swallowed
+      every individual library error with ``except: pass``.
+    * ``derivatives_layer`` returned a manufactured "neutral" 45/50 with no
+      funding data.
+
+    All three now return ``unavailable=True``, which the engine treats exactly
+    like a layer that was never evaluated: 0 contribution, reported ``missing``.
+    """
+
+    def test_unknown_news_calendar_fails_closed(self):
+        """The critical one: no calendar ⇒ no safe score, and no free points."""
+        from src.agents.sam.skills import news_shield_layer
+
+        layer = news_shield_layer({})
+        assert layer.unavailable is True
+        assert layer.score == 0.0
+        assert "unavailable" in layer.rationale
+
+    def test_news_calendar_none_is_not_treated_as_clear(self):
+        """Explicit ``None`` (caller simply does not know) must equal unknown."""
+        from src.agents.sam.skills import news_shield_layer
+
+        layer = news_shield_layer({"minutes_to_high_impact": None})
+        assert layer.unavailable is True, "None must not be read as 'calendar clear'"
+        assert layer.score == 0.0
+
+    def test_checked_calendar_still_reports_clear(self):
+        """An explicit assertion that the calendar was read unlocks the score."""
+        from src.agents.sam.skills import news_shield_layer
+
+        layer = news_shield_layer({"news_calendar_checked": True})
+        assert layer.unavailable is False
+        assert layer.score == 80.0
+
+    def test_imminent_high_impact_event_still_vetoes(self):
+        """The fix must not weaken the real veto."""
+        from src.agents.sam.skills import news_shield_layer
+
+        layer = news_shield_layer({"minutes_to_high_impact": 10}, freeze_minutes=30)
+        assert layer.veto is True
+        assert layer.score == 0.0
+
+    def test_black_swan_still_vetoes(self):
+        from src.agents.sam.skills import news_shield_layer
+
+        layer = news_shield_layer({"black_swan": True})
+        assert layer.veto is True
+
+    def test_smc_without_candles_or_flags_is_unavailable(self):
+        """No input ⇒ 'layer skipped', never 'no structural confluence'."""
+        from src.agents.sam.skills import smc_layer
+
+        layer = smc_layer({})
+        assert layer.unavailable is True
+        assert layer.detail.get("hits") in (None, [])
+
+    def test_smc_unreadable_candles_are_unavailable_not_zero(self):
+        """``HAS_SMC`` is False in this environment, so candles cannot be read."""
+        from src.agents.sam.skills import HAS_SMC, smc_layer
+
+        if HAS_SMC:  # pragma: no cover - optional dependency
+            pytest.skip("smartmoneyconcepts installed; covered by the probe test")
+        layer = smc_layer({"candles": object()})
+        assert layer.unavailable is True
+        assert "not analysed" in layer.rationale
+
+    def test_smc_scored_result_still_scores(self):
+        """A caller that really did read the structure still gets a score."""
+        from src.agents.sam.skills import smc_layer
+
+        layer = smc_layer(
+            {"liquidity_sweep": True, "order_block": True, "fvg_test": True}
+        )
+        assert layer.unavailable is False
+        assert layer.score == 70.0
+
+    def test_smc_negative_finding_is_a_real_zero(self):
+        """'checked and found nothing' is a genuine 0.0, not 'unavailable'."""
+        from src.agents.sam.skills import smc_layer
+
+        layer = smc_layer({"liquidity_sweep": False, "order_block": False})
+        assert layer.unavailable is False
+        assert layer.score == 0.0
+        assert "no structural confluence" in layer.rationale
+
+    def test_smc_derivation_reports_failed_probes(self):
+        """The helper must return failures instead of swallowing them."""
+        import ast
+        import textwrap
+
+        src_text = (REPO_ROOT / "src" / "agents" / "sam" / "skills.py").read_text(
+            encoding="utf-8"
+        )
+        fn = next(
+            node
+            for node in ast.parse(src_text).body
+            if isinstance(node, ast.FunctionDef) and node.name == "_derive_smc_features"
+        )
+        body = ast.dump(fn)
+        assert "attr='append'" in body and "id='failed'" in body, (
+            "per-probe failures must be recorded"
+        )
+        # A bare ``except ...: pass`` inside the helper is the old defect.
+        swallowed = [
+            node
+            for node in ast.walk(fn)
+            if isinstance(node, ast.ExceptHandler)
+            and all(isinstance(st, ast.Pass) for st in node.body)
+        ]
+        assert swallowed == [], "SMC probe errors must not be silently swallowed"
+        assert textwrap.dedent(fn.__doc__ or ""), "helper must document its contract"
+
+    def test_macro_without_inputs_is_unavailable(self):
+        """"neutral / insufficient data" used to be reported as a 40/100 score."""
+        from src.agents.sam.skills import macro_layer
+
+        layer = macro_layer({"direction": "long"})
+        assert layer.unavailable is True
+        assert layer.score == 0.0
+
+    def test_macro_with_input_still_scores(self):
+        from src.agents.sam.skills import macro_layer
+
+        layer = macro_layer({"direction": "long", "real_yield_delta": -0.2})
+        assert layer.unavailable is False
+        assert layer.score == 60.0
+
+    def test_cot_without_flow_is_unavailable(self):
+        """"no fresh COT flow" is missing data, not a 45/100 observation."""
+        from src.agents.sam.skills import cot_layer
+
+        layer = cot_layer({"direction": "long"})
+        assert layer.unavailable is True
+        assert layer.score == 0.0
+
+    def test_cot_with_flow_still_scores(self):
+        from src.agents.sam.skills import cot_layer
+
+        layer = cot_layer({"direction": "long", "noncommercial_net_change": 2000})
+        assert layer.unavailable is False
+        assert layer.score > 45.0
+
+    def test_derivatives_without_funding_is_unavailable(self):
+        from src.agents.sam.skills import derivatives_layer
+
+        layer = derivatives_layer({"direction": "long"})
+        assert layer.unavailable is True
+        assert layer.score == 0.0
+
+    def test_derivatives_not_applicable_is_unavailable(self):
+        from src.agents.sam.skills import derivatives_layer
+
+        layer = derivatives_layer({})
+        assert layer.unavailable is True
+
+    def test_derivatives_with_funding_still_scores(self):
+        from src.agents.sam.skills import derivatives_layer
+
+        layer = derivatives_layer({"direction": "long", "funding_rate": 0.005})
+        assert layer.unavailable is False
+        assert layer.score == 65.0
+
+    def test_engine_ignores_unavailable_layers(self):
+        """Unavailable ⇒ ``missing``, zero contribution, and no upward rescale."""
+        from src.agents.sam.confluence import ConfluenceEngine
+        from src.agents.sam.skills import (
+            derivatives_layer,
+            news_shield_layer,
+            smc_layer,
+        )
+
+        engine = ConfluenceEngine()
+        result = engine.synthesize(
+            [smc_layer({}), derivatives_layer({"direction": "long"}), news_shield_layer({})],
+            direction="long",
+        ).to_dict()
+
+        assert result["confluence_score"] == 0.0
+        assert result["passes"] is False
+        for name in ("smc", "derivatives", "news_shield"):
+            assert result["layers"][name]["missing"] is True, name
+            assert result["layers"][name]["score"] is None, name
+
+    def test_engine_does_not_rescale_when_layers_are_missing(self):
+        """Removing layers must not inflate the score of the remaining ones."""
+        from src.agents.sam.confluence import ConfluenceEngine
+        from src.agents.sam.skills import news_shield_layer
+
+        engine = ConfluenceEngine()
+        full = engine.synthesize([news_shield_layer({"news_calendar_checked": True})])
+        partial = engine.synthesize([])
+
+        assert full.to_dict()["confluence_score"] == pytest.approx(8.0, abs=0.01)
+        assert partial.to_dict()["confluence_score"] == 0.0
+
+    def test_unavailable_layer_never_passes_the_gate(self):
+        """End-to-end: an entirely unreadable feature set cannot clear 95."""
+        from src.agents.sam.confluence import ConfluenceEngine
+        from src.agents.sam.skills import LAYER_PRODUCERS
+
+        layers = [producer({}) for producer in LAYER_PRODUCERS.values()]
+        result = ConfluenceEngine().synthesize(layers, direction="long").to_dict()
+        assert result["passes"] is False
+        assert result["confluence_score"] == 0.0
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

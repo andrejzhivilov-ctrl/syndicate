@@ -60,8 +60,23 @@
 | 12 | **Git LFS для `docs/EVA_SYNDICATE_SYSTEM_PASSPORT.pdf`.** Файл знято з відстеження, але блоб 6,3 МБ лишився в історії. Або LFS, або регенерувати з Markdown-джерела | `docs/` | AG |
 | 13 | **Видалити гілку `arena/01a10abd-eva-syndicate`**, коли сесія завершиться. Вона ідентична `main` — нічого не втратиться (є тег `archive/eva-syndicate-2026-10-05`) | GitHub | AA |
 | 14 | **Вирішити долю `backup-stable-cockpit` (`7be2dda`).** Там 736 комітів, яких немає в `main` (стара розкладка cockpit v4.2). Варіанти: залишити архівом (зараз), винести в окремий read-only репозиторій, або перенести тільки потрібніAssets в `static/` | GitHub | 👤 |
-| 15 | **Розширити `tools/check.sh`**: перевірка на незакомічені зміни як помилка в CI, `pip-audit` на вразливості, перевірка що `init.sql` і `migration_v4.sql` не розійшлися | `tools/check.sh` | AA |
+| 15 | **Розширити `tools/check.sh`**: `pip-audit` на вразливості, перевірка що `init.sql` і `migration_v4.sql` не розійшлися. (Перевірка `device_tokens` на ідентичність уже є в `tests/test_regressions.py::TestPostgresSchemaConsistency`.) **Головне:** CI як такий відсутній — див. 17 | `tools/check.sh` | AA |
 | 16 | **Покрити тестами SQL-шляхи `TradeJournal`** — зараз перевірений тільки in-memory бекенд, а символ-фільтр у SQL-гілці додано без теста | `agents/sam/journal.py`, `tests/` | AA |
+| 17 | 🔴 **Створити CI (`.github/workflows/check.yml`).** Його немає взагалі, хоч доки посилаються на «у CI» і `tools/check.sh` описаний як крок CI. Зараз «main завжди зелений» тримається лише на пам'яті людини: будь-який агент може запушити гілку з червоними воротами, і ніхто цього не помітить. Треба: `python -m venv`, `pip install -r requirements.txt pytest ruff`, `bash tools/check.sh` на push/PR. Без PostgreSQL-сервісу (SQL-гілки — 6) | `.github/workflows/` | AA |
+| 18 | 🟠 **`python deploy/runtime/agent_runner.py` падає** — `ModuleNotFoundError: No module named 'src'`. Блок `if __name__ == "__main__"` не додає корінь репозиторію в `sys.path`, тому локальний запуск без `PYTHONPATH` неможливий (у контейнері все гаразд, тому ворота цього не ловлять) | `deploy/runtime/agent_runner.py` | AA |
+| 19 | 🟡 **`VAULT_ADDR` без значення дає `KeyError: 'VAULT_ADDR'`** замість зрозумілого повідомлення; `python-dotenv` є в залежностях, але `.env` на старті не читається — оператор бачить криптичний трейсбек | `deploy/runtime/agent_runner.py` | AA |
+
+---
+
+## ✅ Закрито в сесії 8 (2026-10-05) — вигадані оцінки в confluence Sam
+
+Знайдено й виправлено **п'ять** шарів, які перетворювали відсутність даних на числову
+оцінку (порушення §1 `AGENTS.md`). Гірший — `news_shield` відмовляв **у бік дозволу**
+(80/100 без veto) при невідомому економічному календарі. Деталі — у `docs/HANDOFF.md`
+(сесія 8) і `tests/test_regressions.py::TestConfluenceAbsenceIsNotAnObservation`.
+
+Тепер «не змогли прочитати» = `unavailable` (0 внеску, `missing: True`), а «перевірили
+й нічого не знайшли» = справжній бал. Наслідок: сетап без реальних даних дає 0.0, а не ~40.
 
 ---
 

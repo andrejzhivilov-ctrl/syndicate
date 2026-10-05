@@ -52,14 +52,40 @@ def smc_layer(features: Dict[str, Any]) -> LayerScore:
         - ``trend_aligned`` (bool)
     When ``smartmoneyconcepts`` and a ``candles`` DataFrame are available the
     structural flags are derived instead of trusted blindly.
+
+    If candles are supplied but cannot be analysed (library missing, or any
+    individual probe raising), the layer is returned as ``unavailable`` rather
+    than scored 0.0. Scoring it would report "no structural confluence
+    detected", which is indistinguishable from a genuine analysis result.
     """
     f = dict(features or {})
 
-    if HAS_SMC and f.get("candles") is not None:
+    if f.get("candles") is not None:
+        if not HAS_SMC:
+            return LayerScore(
+                name="smc",
+                score=0.0,
+                rationale="SMC: smartmoneyconcepts not installed — candles were not analysed",
+                unavailable=True,
+            )
         try:  # pragma: no cover - requires optional dep + data
-            f.update(_derive_smc_features(f["candles"]))
+            derived, failed = _derive_smc_features(f["candles"])
+            f.update(derived)
         except Exception as exc:  # noqa: BLE001
-            logger.warning("smc_derivation_failed", error=str(exc))
+            return LayerScore(
+                name="smc",
+                score=0.0,
+                rationale=f"SMC: candle analysis failed ({type(exc).__name__}: {exc})",
+                unavailable=True,
+            )
+        if failed:
+            return LayerScore(
+                name="smc",
+                score=0.0,
+                rationale="SMC: could not derive " + ", ".join(failed),
+                detail={"failed": failed},
+                unavailable=True,
+            )
 
     checks = {
         "liquidity_sweep": 25.0,
@@ -68,6 +94,18 @@ def smc_layer(features: Dict[str, Any]) -> LayerScore:
         "bos": 15.0,
         "trend_aligned": 15.0,
     }
+
+    # Nothing to read: no candles were supplied and the caller provided none of
+    # the structural flags. Reporting "no structural confluence detected" here
+    # would invent a market observation out of a missing input.
+    if not any(key in f for key in checks):
+        return LayerScore(
+            name="smc",
+            score=0.0,
+            rationale="SMC: no candles and no structural flags supplied — layer skipped",
+            unavailable=True,
+        )
+
     score = 0.0
     hit: List[str] = []
     for key, pts in checks.items():
@@ -85,27 +123,34 @@ def smc_layer(features: Dict[str, Any]) -> LayerScore:
     return LayerScore(name="smc", score=score, rationale=rationale, detail={"hits": hit})
 
 
-def _derive_smc_features(candles: Any) -> Dict[str, Any]:  # pragma: no cover
-    """Derive structural flags from OHLC candles via smartmoneyconcepts."""
+def _derive_smc_features(candles: Any) -> "tuple[Dict[str, Any], List[str]]":  # pragma: no cover
+    """Derive structural flags from OHLC candles via smartmoneyconcepts.
+
+    Returns ``(features, failed_flags)``. A library call that raises must be
+    *reported*, never swallowed: silently dropping one flag turns "we could not
+    compute this" into "this structure is absent", and an absent FVG/order-block
+    is itself a bearish/neutral finding that feeds the confluence score.
+    """
     from smartmoneyconcepts import smc  # type: ignore
 
     out: Dict[str, Any] = {}
-    try:
-        fvg = smc.fvg(candles)
-        out["fvg_test"] = bool(fvg is not None and len(fvg) and fvg.iloc[-1].notna().any())
-    except Exception:  # noqa: BLE001
-        pass
-    try:
-        ob = smc.ob(candles)
-        out["order_block"] = bool(ob is not None and len(ob) and ob.iloc[-1].notna().any())
-    except Exception:  # noqa: BLE001
-        pass
-    try:
-        liq = smc.liquidity(candles)
-        out["liquidity_sweep"] = bool(liq is not None and len(liq) and liq.iloc[-1].notna().any())
-    except Exception:  # noqa: BLE001
-        pass
-    return out
+    failed: List[str] = []
+
+    probes = (
+        ("fvg_test", lambda: smc.fvg(candles)),
+        ("order_block", lambda: smc.ob(candles)),
+        ("liquidity_sweep", lambda: smc.liquidity(candles)),
+    )
+    for flag, probe in probes:
+        try:
+            result = probe()
+            out[flag] = bool(
+                result is not None and len(result) and result.iloc[-1].notna().any()
+            )
+        except Exception as exc:  # noqa: BLE001
+            failed.append(f"{flag} ({type(exc).__name__})")
+
+    return out, failed
 
 
 # --------------------------------------------------------------------------- #
@@ -119,10 +164,24 @@ def macro_layer(features: Dict[str, Any]) -> LayerScore:
         - ``real_yield_delta`` (float, %, negative is metals-bullish)
         - ``dxy_delta`` (float, %, negative is risk/metals-bullish)
         - ``regime`` (str: expansion/inflation/recession/recovery)
+
+    With neither macro input supplied the layer is ``unavailable`` — the old
+    "neutral baseline 40" was a numeric score derived from an empty payload and
+    was described in its own rationale as "insufficient data".
     """
     f = dict(features or {})
     direction = (f.get("direction") or "long").lower()
-    score = 40.0  # neutral baseline
+
+    if f.get("real_yield_delta") is None and f.get("dxy_delta") is None:
+        return LayerScore(
+            name="macro",
+            score=0.0,
+            rationale="Macro: no real-yield or DXY data — layer skipped",
+            detail={"regime": f.get("regime")},
+            unavailable=True,
+        )
+
+    score = 40.0  # neutral baseline, only reachable with at least one input
     notes: List[str] = []
 
     ry = f.get("real_yield_delta")
@@ -165,23 +224,35 @@ def cot_layer(features: Dict[str, Any]) -> LayerScore:
         - ``direction``
         - ``noncommercial_net_change`` (int, weekly change in net contracts)
         - ``noncommercial_net`` (int, absolute net)
+
+    Without a net-change figure the layer is ``unavailable``: "no fresh COT
+    flow" is a statement about missing data, and it used to be reported as a
+    45/100 score.
     """
     f = dict(features or {})
     direction = (f.get("direction") or "long").lower()
     change = f.get("noncommercial_net_change")
+
+    if change is None:
+        return LayerScore(
+            name="cot",
+            score=0.0,
+            rationale="COT: no net-change figure supplied — layer skipped",
+            unavailable=True,
+        )
+
     score = 45.0
     notes: List[str] = []
 
-    if change is not None:
-        if direction == "long" and change > 0:
-            score += min(45.0, abs(change) / 200.0)
-            notes.append(f"funds added +{change} net longs")
-        elif direction == "short" and change < 0:
-            score += min(45.0, abs(change) / 200.0)
-            notes.append(f"funds added {change} net shorts")
-        else:
-            score -= 15
-            notes.append(f"COT flow against direction ({change:+})")
+    if direction == "long" and change > 0:
+        score += min(45.0, abs(change) / 200.0)
+        notes.append(f"funds added +{change} net longs")
+    elif direction == "short" and change < 0:
+        score += min(45.0, abs(change) / 200.0)
+        notes.append(f"funds added {change} net shorts")
+    else:
+        score -= 15
+        notes.append(f"COT flow against direction ({change:+})")
 
     rationale = "COT: " + ("; ".join(notes) if notes else "no fresh COT flow")
     return LayerScore(name="cot", score=score, rationale=rationale)
@@ -198,27 +269,44 @@ def derivatives_layer(features: Dict[str, Any]) -> LayerScore:
         - ``funding_rate`` (float, per-8h; extreme positive = crowded longs)
         - ``oi_change_pct`` (float)
         - ``stablecoin_inflow`` (bool)
-    For non-crypto assets pass an empty dict → neutral score.
+    For non-crypto assets pass an empty dict → the layer is ``unavailable``
+    (it does not apply, so it must contribute nothing rather than a fabricated
+    neutral score). A payload that carries no ``funding_rate`` is likewise
+    ``unavailable``: without the primary microstructure input there is nothing
+    to score, and a manufactured "neutral 45" would quietly add weight to a
+    trade that the data never supported.
     """
     f = dict(features or {})
     if not f:
-        return LayerScore(name="derivatives", score=50.0, rationale="Derivatives: n/a for this asset")
+        return LayerScore(
+            name="derivatives",
+            score=0.0,
+            rationale="Derivatives: n/a for this asset — layer skipped",
+            unavailable=True,
+        )
+
+    funding = f.get("funding_rate")
+    if funding is None:
+        return LayerScore(
+            name="derivatives",
+            score=0.0,
+            rationale="Derivatives: no funding-rate data — layer skipped",
+            unavailable=True,
+        )
 
     direction = (f.get("direction") or "long").lower()
     score = 45.0
     notes: List[str] = []
 
-    funding = f.get("funding_rate")
-    if funding is not None:
-        # Contrarian: very positive funding favours shorts (long squeeze risk).
-        if direction == "long" and funding <= 0.01:
-            score += 20
-            notes.append(f"funding benign {funding:.4f}")
-        elif direction == "short" and funding >= 0.03:
-            score += 20
-            notes.append(f"funding hot {funding:.4f} (squeeze risk)")
-        else:
-            score -= 5
+    # Contrarian: very positive funding favours shorts (long squeeze risk).
+    if direction == "long" and funding <= 0.01:
+        score += 20
+        notes.append(f"funding benign {funding:.4f}")
+    elif direction == "short" and funding >= 0.03:
+        score += 20
+        notes.append(f"funding hot {funding:.4f} (squeeze risk)")
+    else:
+        score -= 5
 
     if f.get("stablecoin_inflow"):
         score += 15
@@ -241,7 +329,18 @@ def news_shield_layer(features: Dict[str, Any], freeze_minutes: int = 30) -> Lay
     ``features``:
         - ``minutes_to_high_impact`` (int|None): minutes until next High-impact
           event. If within ``freeze_minutes`` → hard VETO.
+        - ``news_calendar_checked`` (bool): the caller must set this to assert
+          that an economic calendar was actually consulted and holds no
+          high-impact event in the window. Without it, ``minutes_to_high_impact
+          is None`` is treated as "unknown", not as "clear" (see below).
         - ``black_swan`` (bool): manual/automatic kill switch.
+
+    Why the explicit ``news_calendar_checked`` flag: ``None`` is ambiguous — it
+    can mean "checked, nothing scheduled" *or* "we have no calendar wired up".
+    Collapsing the two made this layer fail **open**: an unknown calendar scored
+    80/100 and never vetoed, while an FOMC/NFP/CPI release could be minutes
+    away. A shield whose whole job is to fail closed must not award points for
+    data it never read.
     """
     f = dict(features or {})
     if f.get("black_swan"):
@@ -253,23 +352,36 @@ def news_shield_layer(features: Dict[str, Any], freeze_minutes: int = 30) -> Lay
         )
 
     mins = f.get("minutes_to_high_impact")
-    if mins is not None and mins <= freeze_minutes:
+    if mins is not None:
+        if mins <= freeze_minutes:
+            return LayerScore(
+                name="news_shield",
+                score=0.0,
+                rationale=f"High-impact event in {mins} min (< {freeze_minutes}m freeze) — VETO",
+                veto=True,
+            )
+        # Farther the event, the safer.
+        score = min(100.0, 60.0 + mins / 10.0)
         return LayerScore(
             name="news_shield",
-            score=0.0,
-            rationale=f"High-impact event in {mins} min (< {freeze_minutes}m freeze) — VETO",
-            veto=True,
+            score=score,
+            rationale=f"News: next high-impact in {mins} min",
         )
 
-    if mins is None:
-        return LayerScore(name="news_shield", score=80.0, rationale="News: calendar clear / unknown")
+    if f.get("news_calendar_checked"):
+        return LayerScore(
+            name="news_shield",
+            score=80.0,
+            rationale="News: calendar checked, no high-impact event in window",
+            detail={"calendar_checked": True},
+        )
 
-    # Farther the event, the safer.
-    score = min(100.0, 60.0 + mins / 10.0)
+    # No calendar and no explicit claim that one was read → fail closed.
     return LayerScore(
         name="news_shield",
-        score=score,
-        rationale=f"News: next high-impact in {mins} min",
+        score=0.0,
+        rationale="News: economic calendar unavailable — cannot rule out a high-impact event",
+        unavailable=True,
     )
 
 
