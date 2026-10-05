@@ -25,6 +25,98 @@
 
 ---
 
+> **Примітка:** сесії 8 (гілка `arena/01a10d46-eva-syndicate`) і 9 (гілка
+> `arena/01a10d4e-eva-syndicate`) виконувались **паралельно** і не бачили одна одну.
+> Обидві спершу назвались «сесія 8»; запис нижче перенумеровано на 9, щоб журнал був
+> однозначним. Порядок — newest first.
+
+## 2026-10-05 — Arena Agent (сесія 9): аудит працездатності + вигадані оцінки в confluence Sam
+
+**Гілка:** `arena/01a10d4e-eva-syndicate` · **Ворота:** ✅ (`tools/check.sh`, 299 тестів:
+279 базових + 20 нових) · **База:** `main` на `20ce936`
+
+### Зроблено — аудит працездатності
+
+Повний прогін воріт на чистому пісковиці (`.venv` створено заново — він не зберігається
+між сесіями). Усе зелене: 279 pytest, 10/10 floors, 8/8 sandbox, ruff F/E9/B/E/W/C901
+чисто, `api-contract.yaml` синхронний, `docker-compose.yml` синхронний,
+`compileall` без помилок, всі 91 модуль імпортуються.
+
+**Перевірено вручну й визнано коректним (не дефекти):**
+- `src/integrations/banking.py` — пісочниця за `EVA_BANKING_SANDBOX=1`, завжди
+  `synthetic: True`, плюс чесний порожній стан `status: "synced"` з 0 рахунків і
+  поясненням. Вигаданих балансів без opt-in немає.
+- `video_engine_v2` — `status: "ok"` тільки коли файл реально існує; збій Edge-TTS
+  потрапляє у `warnings` як `voiceover_unavailable`, а не ховається.
+- `datetime.utcnow()` — 0 випадків; усі `_utcnow()` використовують `datetime.now(timezone.utc)`.
+- `config/postgres/init.sql` vs `migration_v4.sql` — блок `auth.device_tokens` ідентичний
+  в обох (як і заявлено). Різниця набору об'єктів — за задумом: bootstrap vs інкрементальна міграція.
+
+### Зроблено — виправлено вигадані оцінки (порушення §1 AGENTS.md)
+
+Аудит знайшов **п'ять** шарів confluence у Sam, які перетворювали **відсутність даних на
+числову оцінку**. Гірший — `news_shield`: «чорнолебедний щит» **відмовляв у бік дозволу**
+(score 80/100, без veto), коли економічний календар невідомий. Це годувало гейт 95%.
+
+| Шар | Було | Стало |
+|---|---|---|
+| `news_shield_layer` | `None` → **80.0**, без veto, «calendar clear / unknown» | `unavailable=True`, 0.0. «Clear» лише за явного `news_calendar_checked: True` |
+| `smc_layer` | Деривація неможлива → **0.0** «no structural confluence detected» | `unavailable=True` з причиною (нема бібліотеки / нема свічок / нема флагів / збій) |
+| `macro_layer` | Порожній payload → **40.0** «neutral / insufficient data» | `unavailable=True`, 0.0 |
+| `cot_layer` | Немає данних → **45.0** «no fresh COT flow» | `unavailable=True`, 0.0 |
+| `derivatives_layer` | n/a → **50.0**, без funding → **45.0** | `unavailable=True`, 0.0 |
+
+- `src/agents/sam/confluence.py`: `LayerScore` отримав `unavailable: bool`. Рухоме
+  вікно трактує такий шар **точно як неоцінений**: `score: None`, `missing: True`,
+  нульовий внесок, без масштабування вгору. Це вже була задокументована філософія
+  рухомого вікна («incomplete picture cannot accidentally clear a high gate») — п'ять
+  шарів її просто обходили.
+- `_derive_smc_features` більше не має трьох `except Exception: pass`: він повертає
+  `(features, failed_flags)`, і будь-яка невдала проба чесно позначає шар як недоступний.
+  Раніше один збій бібліотеки тихо прибирав один флаг — а «флага немає» читалось як
+  «структури немає», тобто як ведмежий сигнал.
+- **Розрізнено два різні факти:** «перевірили й нічого не знайшли» — це справжній бал,
+  а «не змогли прочитати» — `unavailable`. Тести фіксують обидві гілки.
+
+Тести: `tests/test_regressions.py` → клас `TestConfluenceAbsenceIsNotAnObservation` (20 тестів).
+
+### Наслідок для поведінки (важливо)
+
+Сетап, у якому виклик не передав реальних даних, тепер дає confluence **0.0**, а не ~40.
+Це навмисно: щоб пройти гейт 95, потрібні реальні вхідні дані в усіх п'яти шарах, а не
+бали за замовчуванням. `requires_hitl` завжди `True`, `auto_execute` завжди `False`.
+
+Перевірено наскрізно через `SamAgent.evaluate_setup`:
+- без даних → `score 0.0`, `passes False`, усі 5 шарів `missing: True`;
+- з повними реальними даними → `score 82.0`, `passes False` (бо 82 < 95 — чесно).
+
+### Не дороблено / свідомо залишено
+
+- **`macro_layer`/`cot_layer` rate-limits не чіпав** — якщо колись з'явиться реальний
+  фетчер календаря/COT, він має передавати `news_calendar_checked` і `noncommercial_net_change`.
+- Порогова логіка гейта (95) і ваги шарів не змінювалися.
+
+### Наступне (знайдено аудитом, не виправлено)
+
+1. **CI відсутній повністю.** `.github/workflows/` немає, хоч доки посилаються на «у CI»,
+   а `--check` контракту описаний як CI-крок. Уся якість тримається на тому, що людина
+   згадає запустити `tools/check.sh`. Це варто закрити (backlog 15) — це зона AA.
+2. **`python deploy/runtime/agent_runner.py` падає** з `ModuleNotFoundError: No module named 'src'`:
+   блок `if __name__ == "__main__"` не додає корінь репозиторію в `sys.path`. У контейнері
+   (`PYTHONPATH=/app`, `uvicorn runtime.agent_runner:app`) усе гаразд, і тести додають шляхи
+   самі, тому ворота цього не бачать.
+3. **`VAULT_ADDR` відсутній → `KeyError: 'VAULT_ADDR'`** — криптична помилка замість
+   зрозумілого повідомлення; `python-dotenv` є в залежностях, але `.env` на старті не читається.
+4. Backlog 16: SQL-гілки `TradeJournal` досі без тестів.
+
+### Ризики й спостереження
+
+- ⚠️ `.venv` **не переноситься** між сесіями пісковиці (він у списку виключень): кожну
+  сесію треба `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt pytest ruff`.
+- ⚠️ `news_shield` при `minutes_to_high_impact=None` тепер `unavailable`. Якщо десь у
+  замовника є виклик, який свідомо означав «подій немає», його треба оновити на
+  `news_calendar_checked: True` — інакше такий сетап більше не набере балів. Це безпечний
+  напрямок (fail-closed), але про це треба сказати Antigravity, якщо вона будує UI поверх цього.
 ## 2026-10-05 — Arena Agent (сесія 8): живий PostgreSQL+pgvector замість статичної перевірки схеми
 
 **Гілка:** `arena/01a10d46-eva-syndicate` · **Ворота:** ✅ (`tools/check.sh`, включно з новим кроком «жива схема + SQL-шляхи»)

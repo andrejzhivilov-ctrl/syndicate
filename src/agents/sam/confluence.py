@@ -61,6 +61,13 @@ class LayerScore:
     # ``veto`` short-circuits the whole signal regardless of the weighted sum
     # (e.g. a high-impact news event inside the freeze window).
     veto: bool = False
+    # ``unavailable`` marks a layer whose inputs were absent or unreadable, so no
+    # honest score could be produced. The engine treats it exactly like a layer
+    # that was never evaluated: it contributes 0 and is reported as ``missing``.
+    # This exists because "we could not read the data" and "we read the data and
+    # found nothing" are different findings — collapsing them lets an unreadable
+    # layer silently count as a real market observation (see AGENTS.md §1).
+    unavailable: bool = False
 
     def clamped(self) -> float:
         return max(0.0, min(100.0, float(self.score)))
@@ -136,13 +143,16 @@ class ConfluenceEngine:
 
         for name, weight in self._weights.items():
             ls = by_name.get(name)
-            if ls is None:
-                # Missing layer contributes a neutral-conservative 0 so that an
-                # incomplete picture cannot accidentally clear a high gate.
+            if ls is None or ls.unavailable:
+                # Missing/unavailable layer contributes a neutral-conservative 0
+                # so that an incomplete picture cannot accidentally clear a high
+                # gate. An unreadable layer must never be scored as though its
+                # input had been observed (e.g. "news calendar unknown" is not
+                # "no news", and an unscored SMC layer is not "no structure").
                 layer_dump[name] = {
                     "score": None,
                     "weight": round(weight, 4),
-                    "rationale": "layer not evaluated",
+                    "rationale": ls.rationale if ls is not None else "layer not evaluated",
                     "missing": True,
                 }
                 continue
@@ -163,11 +173,12 @@ class ConfluenceEngine:
         for name, ls in by_name.items():
             if name not in layer_dump:
                 layer_dump[name] = {
-                    "score": round(ls.clamped(), 2),
+                    "score": None if ls.unavailable else round(ls.clamped(), 2),
                     "weight": 0.0,
                     "rationale": ls.rationale,
                     "veto": ls.veto,
                     "unweighted": True,
+                    **({"missing": True} if ls.unavailable else {}),
                 }
 
         # If some weighted layers were missing, the achievable maximum shrinks;
