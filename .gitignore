@@ -36,6 +36,12 @@ Thumbs.db
 .idea/
 .vscode/
 
+# Local backups produced by the audit session (never commit these)
+backup/
+*.bundle
+*.zip
+*.patch
+
 # Generated document previews (not source)
 *.pdf
 *.docx
