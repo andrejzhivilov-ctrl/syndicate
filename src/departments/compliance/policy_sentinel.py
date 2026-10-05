@@ -29,10 +29,17 @@ class PolicySentinel:
         "crypto giveaway", "free money", "hack account", "buy followers"
     ]
 
-    def check_design_compliance(self, prompt: str, tags: List[str]) -> Tuple[bool, List[str]]:
-        """Verify that merchandise artwork does not infringe on protected IP."""
+    def check_design_compliance(
+        self, design_reference: str, tags: List[str]
+    ) -> Tuple[bool, List[str]]:
+        """Verify that merchandise artwork does not infringe on protected IP.
+
+        ``design_reference`` is the artwork path / title / description — the
+        parameter used to be called ``prompt``, which made the only caller pass
+        a filesystem path and look like a bug.
+        """
         violations = []
-        combined_text = f"{prompt.lower()} {' '.join(t.lower() for t in tags)}"
+        combined_text = f"{design_reference.lower()} {' '.join(t.lower() for t in tags)}"
         # Sanitize delimiters so underscores/slashes/dots are treated as word separators
         sanitized = re.sub(r"[_\-/.\\+:]+", " ", combined_text)
 

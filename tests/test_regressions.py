@@ -594,6 +594,76 @@ class TestChangeRequestStore:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Growth analyst — no invented metrics in a CFO dossier
+# ─────────────────────────────────────────────────────────────────────────────
+class TestGrowthAnalystHonesty:
+    def test_no_channel_data_is_reported_as_unavailable(self):
+        from src.departments.operations.growth_analyst import GrowthAnalyst
+
+        out = GrowthAnalyst().aggregate_channel_performance()
+        assert out["status"] == "unavailable"
+        assert out["total_outbound_clicks"] == 0
+        assert out["channels"] == {}
+        # The old implementation hardcoded 128_500 impressions / 2_560 clicks.
+        assert out["total_outbound_clicks"] != 2560
+
+    def test_supplied_channels_are_aggregated(self):
+        from src.departments.operations.growth_analyst import GrowthAnalyst
+
+        out = GrowthAnalyst().aggregate_channel_performance({
+            "x": {"impressions": 1000, "link_clicks": 25},
+            "youtube": {"views": 500, "link_clicks": 10},
+        })
+        assert out["status"] == "ok"
+        assert out["total_outbound_clicks"] == 35
+        assert out["channels"]["x"]["ctr"] == "2.50%"
+
+    def test_dossier_without_ledger_figures_is_refused(self):
+        from src.departments.operations.growth_analyst import GrowthAnalyst
+
+        out = GrowthAnalyst().formulate_cfo_dossier(None, None)
+        assert out["status"] == "unavailable"
+        assert "calculated_roi" not in out
+        assert out["cfo_audit_required"] is True
+
+    def test_dossier_with_ledger_figures_computes_roi(self):
+        from src.departments.operations.growth_analyst import GrowthAnalyst
+
+        out = GrowthAnalyst().formulate_cfo_dossier(400.0, 100.0)
+        assert out["status"] == "ok"
+        assert out["calculated_roi"] == "300.0%"
+
+    def test_coordinator_does_not_default_the_money(self):
+        """The Floor-2 coordinator used to default revenue/costs to 210/35."""
+        from src.departments.coordinator import Floor2Coordinator
+
+        out = _run(Floor2Coordinator().execute({"action": "aggregate_growth_metrics"}))
+        dossier = out["cfo_dossier"]
+        assert dossier["status"] == "unavailable"
+        assert out["performance"]["status"] == "unavailable"
+        assert "$210.00" not in json.dumps(out)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Kira dispatch
+# ─────────────────────────────────────────────────────────────────────────────
+class TestKiraDispatch:
+    def test_unknown_action_is_an_error_not_a_dialogue(self):
+        from src.agents.kira import KiraAgent
+
+        out = _run(KiraAgent(memory=None).execute({"action": "definitely_not_an_action"}))
+        assert out["status"] == "error"
+        assert "Unknown action" in out["error"]
+        assert "available_actions" in out
+
+    def test_known_action_still_dispatches(self):
+        from src.agents.kira import KiraAgent
+
+        out = _run(KiraAgent(memory=None).execute({"action": "academy_overview"}))
+        assert out["status"] == "ok"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Repository hygiene
 # ─────────────────────────────────────────────────────────────────────────────
 class TestRepositoryHygiene:

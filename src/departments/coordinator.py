@@ -127,10 +127,16 @@ class Floor2Coordinator:
             return {"status": "ok", "niches": self.pod_analyzer.scan_niches()}
 
         elif action == "aggregate_growth_metrics":
-            perf = self.growth_analyst.aggregate_channel_performance()
-            costs = payload.get("costs", 35.0)
-            rev = payload.get("revenue", 210.0)
-            cfo_dossier = self.growth_analyst.formulate_cfo_dossier(rev, costs)
+            # No fabricated defaults: channel counters come from the caller and
+            # revenue/costs must come from the ledger. Defaulting them produced
+            # a RESTRICTED_EXECUTIVE_FINANCE dossier with invented money.
+            perf = self.growth_analyst.aggregate_channel_performance(
+                channels=payload.get("channels"),
+                period=payload.get("period", "Last 7 Days"),
+            )
+            cfo_dossier = self.growth_analyst.formulate_cfo_dossier(
+                payload.get("revenue"), payload.get("costs")
+            )
             return {"status": "ok", "performance": perf, "cfo_dossier": cfo_dossier}
 
         elif action == "setup_antidetect_profile":

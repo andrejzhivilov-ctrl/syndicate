@@ -123,7 +123,19 @@ class KiraAgent:
             "morning_data": self.morning_data,
         }
 
-        handler = dispatch_table.get(action, self.socratic_dialogue)
+        handler = dispatch_table.get(action)
+        if handler is None:
+            # Previously an unknown action silently fell through to
+            # ``socratic_dialogue``, so a typo produced a plausible-looking but
+            # unrelated answer instead of an error.
+            logger.warning("kira_unknown_action", action=action)
+            return {
+                "status": "error",
+                "agent": self.AGENT_ID,
+                "error": f"Unknown action: {action}",
+                "available_actions": sorted(dispatch_table),
+            }
+
         result = await handler(payload)
         await self._save(payload, f"academy_{action}", result)
         return result
