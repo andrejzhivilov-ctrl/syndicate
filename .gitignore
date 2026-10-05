@@ -53,5 +53,7 @@ media/videos/
 media/captions/
 media/broll_cache/
 media/mockups/
-!media/mockups/mockup_result.webp
 config/browser_profiles/
+
+# Local test scratch outputs (the suites now use temporary directories).
+/scratch/
