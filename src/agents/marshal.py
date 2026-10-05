@@ -154,6 +154,57 @@ class MarshalAgent:
         self._vault = vault_client or self._config.get("vault_client")
         self._incident_log: List[Dict[str, Any]] = []
 
+        # Action -> handler (was a 10-branch if/elif chain whose ``else``
+        # silently fell back to a full security audit).
+        self._ACTION_MAP: Dict[str, Any] = {}
+        for names, handler in (
+            (("security_audit", "audit", "system_audit"), self._security_audit),
+            (("incident_report", "threat_intel"), self._incident_report),
+            (("validate_task", "check_task"), self._act_validate_task),
+            (("veto_outbound", "outbound_veto"), self._act_veto_outbound),
+            (("lethal_trifecta", "check_trifecta"), self.check_lethal_trifecta),
+            (("dependency_audit", "slopsquatting"), self._act_dependency_audit),
+            (("scan_secrets", "leak_check"), self._act_scan_secrets),
+            (("emergency_lockdown", "containment"), self._emergency_lockdown),
+            (("morning_data", "security_status"), self._morning_data),
+            (("compliance_check", "check_design_compliance"), self._compliance_check),
+        ):
+            for name in names:
+                self._ACTION_MAP[name] = handler
+
+
+    async def _act_validate_task(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        task = payload.get("task", payload)
+        val = await self.validate_task(task)
+        return {
+            "agent": self.AGENT_ID,
+            "commander": "Marshal",
+            "allowed": val.allowed,
+            "reason": val.reason,
+            "risk_score": val.risk_score,
+            "requires_hitl": val.requires_hitl,
+        }
+
+    async def _act_veto_outbound(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        target = payload.get("target_agent", "unknown")
+        act = payload.get("action_data", payload)
+        val = await self.veto_outbound_action(target, act)
+        return {
+            "agent": self.AGENT_ID,
+            "allowed": val.allowed,
+            "reason": val.reason,
+            "risk_score": val.risk_score,
+            "requires_hitl": val.requires_hitl,
+        }
+
+    async def _act_dependency_audit(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        pkg = payload.get("package_name") or payload.get("package", "")
+        return self.assess_dependency_install(pkg)
+
+    async def _act_scan_secrets(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        text = payload.get("text") or payload.get("output", "")
+        return self.scan_output_for_secrets(text)
+
     # ─── Unified Dispatcher ──────────────────────────────────────────────────
 
     async def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -162,48 +213,18 @@ class MarshalAgent:
         logger.info("marshal_security_dispatched", action=action)
 
         try:
-            if action in ("security_audit", "audit", "system_audit"):
-                return await self._security_audit(payload)
-            elif action in ("incident_report", "threat_intel"):
-                return await self._incident_report(payload)
-            elif action in ("validate_task", "check_task"):
-                task = payload.get("task", payload)
-                val = await self.validate_task(task)
+            handler = self._ACTION_MAP.get(action)
+            if handler is None:
+                # Unknown actions used to silently run a full security audit,
+                # which is both expensive and surprising.
+                logger.warning("marshal_unknown_action", action=action)
                 return {
+                    "status": "error",
+                    "error": f"Unknown action: {action}",
                     "agent": self.AGENT_ID,
-                    "commander": "Marshal",
-                    "allowed": val.allowed,
-                    "reason": val.reason,
-                    "risk_score": val.risk_score,
-                    "requires_hitl": val.requires_hitl,
+                    "available_actions": sorted(self._ACTION_MAP),
                 }
-            elif action in ("veto_outbound", "outbound_veto"):
-                target = payload.get("target_agent", "unknown")
-                act = payload.get("action_data", payload)
-                val = await self.veto_outbound_action(target, act)
-                return {
-                    "agent": self.AGENT_ID,
-                    "allowed": val.allowed,
-                    "reason": val.reason,
-                    "risk_score": val.risk_score,
-                    "requires_hitl": val.requires_hitl,
-                }
-            elif action in ("lethal_trifecta", "check_trifecta"):
-                return self.check_lethal_trifecta(payload)
-            elif action in ("dependency_audit", "slopsquatting"):
-                pkg = payload.get("package_name") or payload.get("package", "")
-                return self.assess_dependency_install(pkg)
-            elif action in ("scan_secrets", "leak_check"):
-                text = payload.get("text") or payload.get("output", "")
-                return self.scan_output_for_secrets(text)
-            elif action in ("emergency_lockdown", "containment"):
-                return await self._emergency_lockdown(payload)
-            elif action in ("morning_data", "security_status"):
-                return await self._morning_data(payload)
-            elif action in ("compliance_check", "check_design_compliance"):
-                return await self._compliance_check(payload)
-            else:
-                return await self._security_audit(payload)
+            return await handler(payload)
         except Exception as exc:  # noqa: BLE001
             logger.exception("Marshal execution error", action=action, exc_info=exc)
             return {"error": str(exc), "agent": self.AGENT_ID, "action": action, "status": "failed"}

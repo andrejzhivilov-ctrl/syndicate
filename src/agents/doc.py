@@ -37,6 +37,25 @@ class DocAgent:
         self._llm = llm
         self._config = config or {}
         self._registry = registry
+        # Dispatch table (was a 13-branch if/elif chain that grew a new branch
+        # every time an action was added, and whose final ``else`` silently
+        # returned a string instead of a result dict).
+        self._ACTION_MAP: Dict[str, Any] = {
+            "summarize": self._summarize,
+            "extract": self._extract,
+            "morning_readiness": self._morning_readiness,
+            "training_protocol": self._training_protocol,
+            "nutrition_plan": self._nutrition_plan,
+            "biomarker_trend": self._biomarker_trend,
+            "screening_calendar": self._screening_calendar,
+            "emergency_card": self._emergency_card,
+            "pre_visit_dossier": self._pre_visit_dossier,
+            "compliance_check": self._compliance_check,
+            "nervous_system": self._nervous_system,
+            "morning_data": self._morning_data,
+            "swarm_research": self._swarm_research,
+            "deep_medical_research": self._swarm_research,
+        }
 
     async def _llm_ask(self, prompt: str, fallback: str) -> str:
         """Helper to invoke async ChatModel cleanly via ainvoke()."""
@@ -68,35 +87,16 @@ class DocAgent:
         """Execute action based on payload."""
         action = payload.get("action", "summarize")
         try:
-            if action == "summarize":
-                return await self._summarize(payload)
-            elif action == "extract":
-                return await self._extract(payload)
-            elif action == "morning_readiness":
-                return await self._morning_readiness(payload)
-            elif action == "training_protocol":
-                return await self._training_protocol(payload)
-            elif action == "nutrition_plan":
-                return await self._nutrition_plan(payload)
-            elif action == "biomarker_trend":
-                return await self._biomarker_trend(payload)
-            elif action == "screening_calendar":
-                return await self._screening_calendar(payload)
-            elif action == "emergency_card":
-                return await self._emergency_card(payload)
-            elif action == "pre_visit_dossier":
-                return await self._pre_visit_dossier(payload)
-            elif action == "compliance_check":
-                return await self._compliance_check(payload)
-            elif action == "nervous_system":
-                return await self._nervous_system(payload)
-            elif action == "morning_data":
-                return await self._morning_data(payload)
-            elif action in ("swarm_research", "deep_medical_research"):
-                return await self._swarm_research(payload)
-            else:
+            handler = self._ACTION_MAP.get(action)
+            if handler is None:
                 logger.warning("Unknown action in DocAgent", action=action)
-                return {"error": f"Unknown action: {action}", "agent": self.AGENT_ID}
+                return {
+                    "status": "error",
+                    "error": f"Unknown action: {action}",
+                    "agent": self.AGENT_ID,
+                    "available_actions": sorted(self._ACTION_MAP),
+                }
+            return await handler(payload)
         except Exception as exc:  # noqa: BLE001
             logger.exception("Error executing DocAgent action", action=action, exc_info=exc)
             return {"error": str(exc), "agent": self.AGENT_ID}

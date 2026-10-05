@@ -27,12 +27,14 @@ class BRollScout:
 
     def __init__(
         self,
-        cache_dir: str = "media/broll_cache",
+        cache_dir: Optional[str] = None,
         pexels_api_key: Optional[str] = None,
         pixabay_api_key: Optional[str] = None
     ):
-        self.cache_dir = Path(cache_dir)
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        # EVA_DATA_DIR-aware: the container root filesystem is read-only.
+        from src.data_paths import ensure_dir
+
+        self.cache_dir = ensure_dir("broll_cache", cache_dir)
         self.pexels_key = pexels_api_key or os.getenv("PEXELS_API_KEY", "")
         self.pixabay_key = pixabay_api_key or os.getenv("PIXABAY_API_KEY", "")
         self.ffmpeg_bin = shutil.which("ffmpeg") or "ffmpeg"
@@ -112,11 +114,14 @@ class BRollScout:
         for idx, res in enumerate(results):
             if isinstance(res, Exception):
                 logger.error("broll_fetch_failed", index=idx, error=str(res))
-                fallback = self.cache_dir / f"fallback_loop_{idx}.mp4"
+                # Report ``video_path: None`` instead of a path to a file that
+                # was never created — downstream checks ``Path(...).exists()``
+                # and silently skipped a non-existent "fallback" clip.
                 resolved.append({
                     "status": "error_fallback",
                     "scene_id": idx + 1,
-                    "video_path": str(fallback)
+                    "video_path": None,
+                    "error": str(res),
                 })
             else:
                 resolved.append(res)

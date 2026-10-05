@@ -9,7 +9,6 @@ Fixes applied:
 
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import hmac
 import logging
@@ -36,6 +35,7 @@ from src.orchestrator import EvaOrchestrator
 from src.pii import PIIRedactor
 from src.runtime_config import build_runtime_config
 from src.vault_client import VaultClient
+from src.vault_paths import secret_path
 from src.voice import build_voice_manager
 
 # ─── Logging ────────────────────────────────────────────────────────────────
@@ -97,7 +97,7 @@ async def lifespan(app: FastAPI):
         logger.info("Vault authentication successful")
 
         # 2. Retrieve database credentials from Vault
-        db_secrets = await app_state.vault_client.get_secret("eva/database/data/postgres")
+        db_secrets = await app_state.vault_client.get_secret(secret_path("database"))
 
         # 3. Initialize Memory Manager
         postgres_dsn = (
@@ -105,8 +105,8 @@ async def lifespan(app: FastAPI):
             f"@{os.getenv('POSTGRES_HOST', 'postgres')}:{os.getenv('POSTGRES_PORT', '5432')}"
             f"/{os.getenv('POSTGRES_DB', 'eva_syndicate')}"
         )
-        redis_password = await app_state.vault_client.get_secret("eva/config/data/redis")
-        redis_url = f"redis://:{redis_password.get('password', '')}@redis:6379/0"
+        redis_secrets = await app_state.vault_client.get_secret(secret_path("redis"))
+        redis_url = f"redis://:{redis_secrets.get('password', '')}@redis:6379/0"
 
         app_state.memory_manager = MemoryManager(
             postgres_dsn=postgres_dsn,
@@ -139,14 +139,16 @@ async def lifespan(app: FastAPI):
 
         # 6. Load API key & Webhook secret (Vault first, env fallback)
         try:
-            auth_secrets = await app_state.vault_client.get_secret("eva/config/data/auth")
+            auth_secrets = await app_state.vault_client.get_secret(secret_path("auth"))
         except Exception:
+            # The agent API key is optional in dev (private-range fallback),
+            # so a missing secret must not abort startup.
             auth_secrets = {}
         app_state.api_key = auth_secrets.get("api_key") or os.getenv("EVA_API_KEY") or os.getenv("MCP_SIGNING_KEY")
         app_state.webhook_secret = auth_secrets.get("webhook_secret") or os.getenv("WEBHOOK_SECRET") or os.getenv("MCP_SIGNING_KEY")
 
         # 7. Initialize Orchestrator with all v4 components wired
-        llm_secrets = await app_state.vault_client.get_secret("eva/api-keys/data/llm")
+        llm_secrets = await app_state.vault_client.get_secret(secret_path("api-keys"))
         app_state.orchestrator = EvaOrchestrator(
             memory_manager=app_state.memory_manager,
             sentinel=app_state.sentinel,
@@ -163,9 +165,7 @@ async def lifespan(app: FastAPI):
 
         # 8. Start token renewal background task (keep a reference: a bare
         #    create_task() result can be garbage-collected mid-flight).
-        app_state.vault_renewal_task = asyncio.create_task(
-            app_state.vault_client.start_token_renewal()
-        )
+        app_state.vault_renewal_task = app_state.vault_client.ensure_token_renewal()
 
         app_state.ready = True
         logger.info("EVA SYNDICATE agent ready", uptime=0)

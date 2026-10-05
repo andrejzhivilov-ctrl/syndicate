@@ -88,16 +88,12 @@ enable_kv_secrets() {
         -d '{"type": "kv", "options": {"version": "2"}}' \
         "${VAULT_ADDR}/v1/sys/mounts/secret" > /dev/null || true
 
-    # Mount paths for EVA agents
-    for path in eva/config eva/agents eva/api-keys eva/database; do
-        log "Creating secret path: $path"
-        curl -sf -X POST \
-            -H "X-Vault-Token: $VAULT_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{\"type\": \"kv\", \"options\": {\"version\": \"2\"}}" \
-            "${VAULT_ADDR}/v1/sys/mounts/$path" > /dev/null 2>&1 || true
-    done
-    log "KV secrets engine configured."
+    # NOTE: every secret lives under the single default KV v2 mount ("secret")
+    # with the "eva-syndicate" prefix — see src/vault_paths.py. Earlier revisions
+    # created four extra mounts (eva/config, eva/agents, eva/api-keys,
+    # eva/database) that agent_runner read but this script never populated, so
+    # the agent 404'd on startup.
+    log "KV secrets engine configured (mount: secret, prefix: eva-syndicate)."
 }
 
 write_policies() {
@@ -106,24 +102,13 @@ write_policies() {
 
     # EVA Agent policy
     cat > "${POLICY_DIR}/eva-agent.hcl" << 'POLICY'
-# EVA Agent — minimal required access
-path "secret/data/eva/*" {
+# EVA Agent — minimal required access.
+# Paths MUST match src/vault_paths.py (mount "secret", prefix "eva-syndicate").
+path "secret/data/eva-syndicate/*" {
   capabilities = ["read"]
 }
-path "secret/metadata/eva/*" {
+path "secret/metadata/eva-syndicate/*" {
   capabilities = ["list", "read"]
-}
-path "eva/config/data/*" {
-  capabilities = ["read"]
-}
-path "eva/agents/data/*" {
-  capabilities = ["read", "create", "update"]
-}
-path "eva/api-keys/data/*" {
-  capabilities = ["read"]
-}
-path "eva/database/data/*" {
-  capabilities = ["read"]
 }
 path "auth/token/renew-self" {
   capabilities = ["update"]
@@ -135,7 +120,7 @@ POLICY
 
     # Sentinel agent policy (read-only + audit)
     cat > "${POLICY_DIR}/sentinel-agent.hcl" << 'POLICY'
-path "secret/data/eva/config/*" {
+path "secret/data/eva-syndicate/config/*" {
   capabilities = ["read"]
 }
 path "sys/audit" {
@@ -253,7 +238,7 @@ store_initial_secrets() {
                 "password": "CHANGE_ME_BEFORE_PRODUCTION"
             }
         }' \
-        "${VAULT_ADDR}/v1/eva/database/data/postgres" > /dev/null
+        "${VAULT_ADDR}/v1/secret/data/eva-syndicate/database" > /dev/null
 
     # LLM API keys (placeholders)
     curl -sf -X POST \
@@ -266,9 +251,37 @@ store_initial_secrets() {
                 "embedding_model": "text-embedding-3-small"
             }
         }' \
-        "${VAULT_ADDR}/v1/eva/api-keys/data/llm" > /dev/null
+        "${VAULT_ADDR}/v1/secret/data/eva-syndicate/api-keys" > /dev/null
+
+    # Redis password. NOTE: this path used to be missing entirely, so
+    # agent_runner 404'd while building the Redis URL and the agent never booted.
+    curl -sf -X POST \
+        -H "X-Vault-Token: $VAULT_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "data": {
+                "password": "CHANGE_ME_REDIS_PASSWORD"
+            }
+        }' \
+        "${VAULT_ADDR}/v1/secret/data/eva-syndicate/redis" > /dev/null
+
+    # Agent API key + webhook HMAC secret. Also previously missing: without it
+    # every /execute call was answered with 401 "API authentication key not
+    # configured" unless EVA_API_KEY happened to be set in the environment.
+    curl -sf -X POST \
+        -H "X-Vault-Token: $VAULT_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "data": {
+                "api_key": "'"$(openssl rand -hex 32)"'",
+                "webhook_secret": "'"$(openssl rand -hex 32)"'"
+            }
+        }' \
+        "${VAULT_ADDR}/v1/secret/data/eva-syndicate/auth" > /dev/null
 
     log "Placeholder secrets stored. Update them with real values before production!"
+    log "Auth secrets (API key / webhook HMAC) were generated randomly —"
+    log "retrieve them with: vault kv get secret/eva-syndicate/auth"
     unset VAULT_TOKEN
 }
 

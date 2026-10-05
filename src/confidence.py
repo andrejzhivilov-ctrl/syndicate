@@ -63,7 +63,7 @@ class ConfidenceBudget:
                 "low": 0.0
             }
         )
-        
+
         self.agent_configs = agent_configs or {
             "sam": ConfidenceConfig(act_threshold=1.0, ask_threshold=0.0, risk_penalties=self.default_config.risk_penalties),
             "doc": ConfidenceConfig(act_threshold=0.85, ask_threshold=0.50, risk_penalties=self.default_config.risk_penalties),
@@ -72,7 +72,7 @@ class ConfidenceBudget:
             "sentinel": ConfidenceConfig(act_threshold=0.90, ask_threshold=0.60, risk_penalties=self.default_config.risk_penalties),
             "eva": ConfidenceConfig(act_threshold=0.80, ask_threshold=0.45, risk_penalties=self.default_config.risk_penalties),
         }
-        
+
         self.action_risk_map = {
             "send_email": "high",
             "place_order": "critical",
@@ -100,16 +100,16 @@ class ConfidenceBudget:
         to determine the required escalation level.
         """
         config = self.get_config(agent_id)
-        
+
         derived_risk = self.action_risk_map.get(action_type, action_risk)
         penalty = config.risk_penalties.get(derived_risk, 0.0)
-        
+
         adjusted_act_threshold = min(1.0, config.act_threshold + penalty)
         adjusted_ask_threshold = min(1.0, config.ask_threshold + penalty)
-        
+
         level = EscalationLevel.REFUSE
         reason = "Confidence below ask threshold."
-        
+
         if confidence >= adjusted_act_threshold:
             if action_type in self.NEVER_AUTO_ACT:
                 level = EscalationLevel.ASK
@@ -123,7 +123,7 @@ class ConfidenceBudget:
         elif confidence >= adjusted_ask_threshold:
             level = EscalationLevel.ASK
             reason = "Confidence within ask threshold range."
-            
+
         logger.info(
             "evaluated_confidence",
             agent_id=agent_id,
@@ -132,7 +132,7 @@ class ConfidenceBudget:
             level=level.name,
             derived_risk=derived_risk
         )
-        
+
         return EscalationResult(
             level=level,
             confidence=confidence,

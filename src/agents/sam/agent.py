@@ -17,6 +17,7 @@ Iron rules honoured here (spec §4):
 """
 from __future__ import annotations
 
+import inspect
 from typing import Any, Dict, List, Optional
 
 import structlog
@@ -75,34 +76,46 @@ class SamAgent:
         if "telegram_chat_id" in self._config and "sam_chat_id" not in self._config:
             self._config["sam_chat_id"] = self._config["telegram_chat_id"]
 
+        # Action -> handler (was a 10-branch if/elif chain). Mixed sync/async
+        # handlers are fine: execute() awaits only when the call returned an
+        # awaitable.
+        self._ACTION_MAP: Dict[str, Any] = {}
+        for names, handler in (
+            (("analyze", "evaluate", "evaluate_setup", "signal"), self.evaluate_setup),
+            (("decision",), self.handle_decision),
+            (("outcome",), self.record_outcome),
+            # Eva's 07:30 briefing calls ``morning_data_sam``; without an
+            # explicit entry Sam answered "Unknown action" and the briefing
+            # silently lost the whole market section.
+            (("digest", "morning_data", "briefing"), self.build_digest),
+            (("reflect",), self.reflect),
+            (("portfolio_risk", "correlation"), self.check_portfolio_risk),
+            (("swarm_research", "macro_swarm", "market_swarm"), self.swarm_research),
+            (("capabilities", "status"), self._act_capabilities),
+        ):
+            for name in names:
+                self._ACTION_MAP[name] = handler
+
+    def _act_capabilities(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """`capabilities()` takes no payload — adapt it to the dispatch table."""
+        return self.capabilities()
+
     # ------------------------------------------------------------------ #
     # Orchestrator entry point.
     # ------------------------------------------------------------------ #
     async def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         action = payload.get("action", "analyze")
         try:
-            if action in ("analyze", "evaluate", "evaluate_setup", "signal"):
-                return await self.evaluate_setup(payload)
-            if action == "decision":
-                return await self.handle_decision(payload)
-            if action == "outcome":
-                return await self.record_outcome(payload)
-            if action == "digest":
-                return self.build_digest(payload)
-            if action == "reflect":
-                return await self.reflect(payload)
-            if action in ("portfolio_risk", "correlation"):
-                return await self.check_portfolio_risk(payload)
-            if action in ("swarm_research", "macro_swarm", "market_swarm"):
-                return await self.swarm_research(payload)
-            if action in ("morning_data", "briefing"):
-                # Eva's 07:30 briefing calls ``morning_data_sam``; without this
-                # branch Sam answered "Unknown action" and the briefing silently
-                # lost the whole market section.
-                return self.build_digest(payload)
-            if action in ("capabilities", "status"):
-                return self.capabilities()
-            return {"error": f"Unknown action: {action}", "agent": self.AGENT_ID}
+            handler = self._ACTION_MAP.get(action)
+            if handler is None:
+                return {
+                    "status": "error",
+                    "error": f"Unknown action: {action}",
+                    "agent": self.AGENT_ID,
+                    "available_actions": sorted(self._ACTION_MAP),
+                }
+            result = handler(payload)
+            return await result if inspect.isawaitable(result) else result
         except Exception as exc:  # noqa: BLE001
             logger.exception("sam_execute_failed", action=action)
             return {"error": str(exc), "agent": self.AGENT_ID, "action": action}

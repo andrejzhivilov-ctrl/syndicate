@@ -17,6 +17,8 @@ configured — matching the spec's "0 tokens at rest" principle.
 """
 from __future__ import annotations
 
+import ast
+import inspect
 import json
 import re
 from typing import Any, Dict, List, Optional
@@ -47,33 +49,38 @@ class ArchitectAgent:
         self._llm = llm
         self._config = dict(config or {})
         self._registry = registry
+        # Action -> handler (was an 11-branch if/elif chain). execute() awaits
+        # only when the handler returned an awaitable.
+        self._ACTION_MAP: Dict[str, Any] = {}
+        for names, handler in (
+            (("design_workflow", "build_workflow"), self.design_workflow),
+            (("lint_workflow", "flowlint"), self.lint),
+            (("golden_template", "template"), self.golden_template),
+            (("adr",), self.generate_adr),
+            (("review_code", "code_review"), self.review_code),
+            (("gitops_sync", "open_pr"), self.gitops_sync),
+            (("drift_detect", "check_drift"), self.drift_detect),
+            (("generate_ui_scaffold", "build_ui", "app_generator"), self.generate_ui_scaffold),
+            (("verify_code", "verify_integrity", "ast_check"), self._act_verify_code),
+            (("self_healing_generate", "verified_codegen"), self.self_healing_generate),
+            (("capabilities", "status"), self._act_capabilities),
+        ):
+            for name in names:
+                self._ACTION_MAP[name] = handler
 
     async def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         action = payload.get("action", "capabilities")
         try:
-            if action in ("design_workflow", "build_workflow"):
-                return self.design_workflow(payload)
-            if action in ("lint_workflow", "flowlint"):
-                return self.lint(payload)
-            if action in ("golden_template", "template"):
-                return self.golden_template(payload)
-            if action == "adr":
-                return self.generate_adr(payload)
-            if action in ("review_code", "code_review"):
-                return await self.review_code(payload)
-            if action in ("gitops_sync", "open_pr"):
-                return await self.gitops_sync(payload)
-            if action in ("drift_detect", "check_drift"):
-                return await self.drift_detect(payload)
-            if action in ("generate_ui_scaffold", "build_ui", "app_generator"):
-                return await self.generate_ui_scaffold(payload)
-            if action in ("verify_code", "verify_integrity", "ast_check"):
-                return self.verify_code_integrity(payload.get("code", ""))
-            if action in ("self_healing_generate", "verified_codegen"):
-                return await self.self_healing_generate(payload)
-            if action in ("capabilities", "status"):
-                return self.capabilities()
-            return {"error": f"Unknown action: {action}", "agent": self.AGENT_ID}
+            handler = self._ACTION_MAP.get(action)
+            if handler is None:
+                return {
+                    "status": "error",
+                    "error": f"Unknown action: {action}",
+                    "agent": self.AGENT_ID,
+                    "available_actions": sorted(self._ACTION_MAP),
+                }
+            result = handler(payload)
+            return await result if inspect.isawaitable(result) else result
         except Exception as exc:  # noqa: BLE001
             logger.exception("architect_execute_failed", action=action)
             return {"error": str(exc), "agent": self.AGENT_ID, "action": action}
@@ -189,17 +196,108 @@ class ArchitectAgent:
             findings.append({"severity": "info", "line": "0", "message": "No obvious static issues found"})
         return findings
 
+    def _act_verify_code(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        return self.verify_code_integrity(payload.get("code", ""))
+
+    def _act_capabilities(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """`capabilities()` takes no payload — adapt it to the dispatch table."""
+        return self.capabilities()
+
+    @staticmethod
+    def _known_signatures() -> Dict[str, set]:
+        """Introspect the real EVA interfaces we validate calls against."""
+        from src.lessons import LessonsStore
+        from src.memory import MemoryManager
+
+        return {
+            "save_episode": set(inspect.signature(MemoryManager.save_episode).parameters) - {"self"},
+            "semantic_search": set(inspect.signature(MemoryManager.semantic_search).parameters) - {"self"},
+            "record_lesson": set(inspect.signature(LessonsStore.record_lesson).parameters) - {"self"},
+            "check_before_action": set(inspect.signature(LessonsStore.check_before_action).parameters) - {"self"},
+        }
+
+    @staticmethod
+    def _check_call_node(node: "ast.Call", known_signatures: Dict[str, set]) -> List[Dict[str, Any]]:
+        """Validate a single ``ast.Call`` node (rules A, B and C)."""
+        errors: List[Dict[str, Any]] = []
+
+        if isinstance(node.func, ast.Attribute):
+            func_name: Optional[str] = node.func.attr
+        elif isinstance(node.func, ast.Name):
+            func_name = node.func.id
+        else:
+            func_name = None
+
+        # Rule A: forbid synchronous .generate() on LLM clients.
+        if func_name == "generate" and isinstance(node.func, ast.Attribute):
+            owner = ast.unparse(node.func.value) if hasattr(ast, "unparse") else ""
+            if "llm" in owner.lower():
+                errors.append({
+                    "line": getattr(node, "lineno", 0),
+                    "rule": "async-llm-ainvoke",
+                    "message": (
+                        f"Forbidden call `{owner}.generate(...)`: use "
+                        f"`await {owner}.ainvoke([HumanMessage(...)])` instead."
+                    ),
+                })
+
+        if func_name is None:
+            return errors
+
+        # Rule B: keyword arguments must exist on the real signature.
+        allowed = known_signatures.get(func_name)
+        if allowed is not None:
+            passed = {kw.arg for kw in node.keywords if kw.arg is not None}
+            unknown = passed - allowed
+            if unknown:
+                errors.append({
+                    "line": getattr(node, "lineno", 0),
+                    "rule": "signature-mismatch",
+                    "message": (
+                        f"Call to `{func_name}()` passes unknown keyword argument(s): "
+                        f"{sorted(unknown)}. Allowed: {sorted(allowed)}"
+                    ),
+                })
+
+        # Rule C: semantic_search takes a vector, not a raw string.
+        if func_name == "semantic_search" and node.args:
+            first_arg = node.args[0]
+            if isinstance(first_arg, ast.Constant) and isinstance(first_arg.value, str):
+                errors.append({
+                    "line": getattr(node, "lineno", 0),
+                    "rule": "vector-type-mismatch",
+                    "message": (
+                        "`semantic_search()` expects `query_embedding: List[float]`, "
+                        "but received a `str` literal."
+                    ),
+                })
+
+        return errors
+
+    @staticmethod
+    def _check_sql_literal(node: "ast.Constant") -> List[Dict[str, Any]]:
+        """Rule D: `:param::vector` breaks SQLAlchemy bind parsing."""
+        if not isinstance(node.value, str):
+            return []
+        if ":vector" not in node.value:
+            return []
+        if re.search(r":[a-zA-Z_][a-zA-Z0-9_]*::vector", node.value):
+            return [{
+                "line": getattr(node, "lineno", 0),
+                "rule": "sqlalchemy-vector-cast",
+                "message": (
+                    "SQL string uses `:param::vector` which breaks SQLAlchemy bind "
+                    "parsing. Use `CAST(:param AS vector)` instead."
+                ),
+            }]
+        return []
+
     def verify_code_integrity(self, code: str) -> Dict[str, Any]:
         """Compiler-in-the-Loop verifier:
         1. Parses Python AST (`ast.parse`) to catch syntax errors.
-        2. Inspects method calls against core EVA Syndicate interfaces (`MemoryManager`, `LessonsStore`, `ChatOpenAI`).
+        2. Inspects method calls against core EVA Syndicate interfaces (`MemoryManager`, `LessonsStore`).
         3. Detects SQLAlchemy `:param::vector` bind conflicts and synchronous `.generate()` traps.
         """
-        import ast
-        import inspect
-        from src.memory import MemoryManager
-        from src.lessons import LessonsStore
-
         errors: List[Dict[str, Any]] = []
         warnings: List[Dict[str, Any]] = []
 
@@ -220,64 +318,14 @@ class ArchitectAgent:
                 }],
             }
 
-        # Step 2: Inspect real method signatures from codebase
-        known_signatures = {
-            "save_episode": set(inspect.signature(MemoryManager.save_episode).parameters.keys()) - {"self"},
-            "semantic_search": set(inspect.signature(MemoryManager.semantic_search).parameters.keys()) - {"self"},
-            "record_lesson": set(inspect.signature(LessonsStore.record_lesson).parameters.keys()) - {"self"},
-            "check_before_action": set(inspect.signature(LessonsStore.check_before_action).parameters.keys()) - {"self"},
-        }
+        known_signatures = self._known_signatures()
 
         # Step 3: Walk AST nodes to validate calls and SQL strings
         for node in ast.walk(tree):
             if isinstance(node, ast.Call):
-                func_name = None
-                if isinstance(node.func, ast.Attribute):
-                    func_name = node.func.attr
-                elif isinstance(node.func, ast.Name):
-                    func_name = node.func.id
-
-                # Rule A: Forbid synchronous .generate() on LLM clients
-                if func_name == "generate" and isinstance(node.func, ast.Attribute):
-                    owner = ast.unparse(node.func.value) if hasattr(ast, "unparse") else ""
-                    if "llm" in owner.lower():
-                        errors.append({
-                            "line": getattr(node, "lineno", 0),
-                            "rule": "async-llm-ainvoke",
-                            "message": f"Forbidden call `{owner}.generate(...)`: use `await {owner}.ainvoke([HumanMessage(...)])` instead.",
-                        })
-
-                # Rule B: Verify keyword arguments against known signatures
-                if func_name in known_signatures:
-                    allowed_params = known_signatures[func_name]
-                    passed_kwargs = {kw.arg for kw in node.keywords if kw.arg is not None}
-                    unknown_kwargs = passed_kwargs - allowed_params
-                    if unknown_kwargs:
-                        errors.append({
-                            "line": getattr(node, "lineno", 0),
-                            "rule": "signature-mismatch",
-                            "message": f"Call to `{func_name}()` passes unknown keyword argument(s): {sorted(unknown_kwargs)}. Allowed: {sorted(allowed_params)}",
-                        })
-
-                # Rule C: Check semantic_search first argument is not a raw string literal
-                if func_name == "semantic_search" and node.args:
-                    first_arg = node.args[0]
-                    if isinstance(first_arg, ast.Constant) and isinstance(first_arg.value, str):
-                        errors.append({
-                            "line": getattr(node, "lineno", 0),
-                            "rule": "vector-type-mismatch",
-                            "message": "`semantic_search()` expects `query_embedding: List[float]`, but received a `str` literal.",
-                        })
-
-            # Rule D: Check SQL strings for `:param::vector` SQLAlchemy bind conflict
-            if isinstance(node, ast.Constant) and isinstance(node.value, str):
-                if "::vector" in node.value and ":" in node.value.split("::vector")[0]:
-                    if re.search(r":[a-zA-Z_][a-zA-Z0-9_]*::vector", node.value):
-                        errors.append({
-                            "line": getattr(node, "lineno", 0),
-                            "rule": "sqlalchemy-vector-cast",
-                            "message": "SQL string uses `:param::vector` which breaks SQLAlchemy bind parsing. Use `CAST(:param AS vector)` instead.",
-                        })
+                errors.extend(self._check_call_node(node, known_signatures))
+            elif isinstance(node, ast.Constant):
+                errors.extend(self._check_sql_literal(node))
 
         # Step 4: Include security static findings
         for item in self._static_review(code, "python"):

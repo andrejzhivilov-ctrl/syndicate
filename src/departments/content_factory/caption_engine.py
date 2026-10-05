@@ -8,7 +8,7 @@ Renders natively in FFmpeg at 200+ FPS without frame-by-frame Python re-encoding
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -60,9 +60,10 @@ class CaptionEngine:
         }
     }
 
-    def __init__(self, output_dir: str = "media/captions"):
-        self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+    def __init__(self, output_dir: Optional[str] = None):
+        from src.data_paths import ensure_dir
+
+        self.output_dir = ensure_dir("captions", output_dir)
 
     def generate_word_timestamps(
         self,
@@ -114,6 +115,7 @@ class CaptionEngine:
     ) -> List[Dict[str, Any]]:
         """Group word timestamps into punchy, readable phrases (2-4 words per display)."""
         lines = []
+        words_per_line = max(1, int(words_per_line))
         for i in range(0, len(word_timestamps), words_per_line):
             chunk = word_timestamps[i:i + words_per_line]
             if not chunk:
@@ -139,14 +141,26 @@ class CaptionEngine:
         Build production-grade .ass subtitle file with karaoke color transitions.
         FFmpeg burns this directly with: -vf "ass=styled_captions.ass"
         """
-        out_path = self.output_dir / output_filename
-        style = self.STYLES.get(style_preset, self.STYLES["hormozi_cyan"])
+        # Only the bare filename is honoured: a caller-supplied path separator
+        # would write outside the captions directory.
+        out_path = self.output_dir / Path(output_filename).name
+        if style_preset in self.STYLES:
+            style = self.STYLES[style_preset]
+        else:
+            logger.warning("ass_unknown_style_preset", preset=style_preset, fallback="hormozi_cyan")
+            style = self.STYLES["hormozi_cyan"]
 
         def sec_to_ass_time(sec: float) -> str:
-            hrs = int(sec // 3600)
-            mins = int((sec % 3600) // 60)
-            secs = int(sec % 60)
-            centisecs = int(round((sec - int(sec)) * 100))
+            """Seconds -> ``H:MM:SS.cc``.
+
+            The old version computed the centiseconds from the fractional part
+            alone, so 1.999s rounded up to ``0:00:01.100`` — an invalid ASS
+            timestamp that libass/FFmpeg rejects.
+            """
+            total_cs = max(0, int(round(float(sec) * 100)))
+            hrs, rem = divmod(total_cs, 3_600_00)
+            mins, rem = divmod(rem, 6_000)
+            secs, centisecs = divmod(rem, 100)
             return f"{hrs:d}:{mins:02d}:{secs:02d}.{centisecs:02d}"
 
         # Header for 1080x1920 vertical canvas
@@ -166,7 +180,7 @@ Style: Default,{style['fontname']},{style['fontsize']},{style['primary_color']},
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
 
-        phrases = self.group_words_into_lines(word_timestamps, words_per_line=words_per_phrase)
+        phrases = self.group_words_into_lines(word_timestamps, words_per_line=max(1, int(words_per_phrase)))
         events = []
 
         for phrase in phrases:

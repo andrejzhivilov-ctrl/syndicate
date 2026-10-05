@@ -14,6 +14,7 @@ import importlib
 import inspect
 import json
 import pkgutil
+import re
 import sys
 from datetime import date, timedelta
 from pathlib import Path
@@ -164,6 +165,32 @@ class TestFinAgentHonesty:
             assert out["total_uah"] != 185400
             assert out["total_usd"] != 15000
 
+    def test_banking_client_does_not_inject_sandbox_balances(self):
+        """Root cause of the fabricated figures: BankingClient silently
+        substituted a hardcoded portfolio whenever no token was configured."""
+        from src.integrations.banking import BankingClient
+
+        out = _run(BankingClient().get_accounts_overview())
+        assert out["status"] == "unavailable"
+        assert out["accounts"] == []
+        assert out["totals"]["UAH"] == 0.0
+        assert out["totals"]["USD"] == 0.0
+
+    def test_sandbox_balances_are_opt_in_and_labelled(self, monkeypatch):
+        from src.integrations.banking import BankingClient
+
+        monkeypatch.setenv("EVA_BANKING_SANDBOX", "1")
+        out = _run(BankingClient().get_accounts_overview())
+        assert out["synthetic"] is True
+        assert out["accounts"]
+
+    def test_fin_never_reports_sandbox_money_as_ok(self):
+        out = _run(_fin()._sync_bank_data({}))
+        assert out["status"] == "unavailable"
+        assert out["total_uah"] != 185400
+        assert out["total_uah"] != 74200
+        assert out["total_usd"] != 15000
+
     def test_explicit_accounts_are_summed(self):
         out = _run(_fin()._sync_bank_data({
             "accounts": [
@@ -253,6 +280,25 @@ class TestSamJournalConstraints:
         constraints = _run(journal.negative_constraints("BTCUSDT"))
         assert constraints, "a rejected setup must record a negative constraint"
         assert any("ATR too wide" in c.get("summary", "") for c in constraints)
+
+    def test_symbol_filter_is_not_silently_ignored(self):
+        """`negative_constraints(symbol=...)` used to return the global set."""
+        journal = self._journal()
+        for sym in ("BTCUSDT", "ETHUSDT"):
+            entry = self._entry(sym, "long")
+            _run(journal.record_signal(entry))
+            _run(journal.record_decision(
+                entry.signal_id, "reject", reason=f"{sym} spread too wide",
+                symbol=sym, direction="long",
+            ))
+
+        all_constraints = _run(journal.negative_constraints())
+        assert len(all_constraints) == 2
+        btc = _run(journal.negative_constraints("BTCUSDT"))
+        assert len(btc) == 1
+        assert "BTCUSDT:long" in btc[0]["summary"]
+        assert _run(journal.negative_constraints("ETHUSDT"))[0]["summary"].startswith("ETHUSDT")
+        assert _run(journal.negative_constraints("SOLUSDT")) == []
 
     def test_gate_blocks_only_the_rejected_instrument(self):
         from src.agents.sam.agent import SamAgent
@@ -645,6 +691,355 @@ class TestGrowthAnalystHonesty:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Content Factory: no fabricated artefacts, no silent successes
+# ─────────────────────────────────────────────────────────────────────────────
+class TestContentFactoryHonesty:
+    @staticmethod
+    def _tmp_video(tmp_path) -> str:
+        video = tmp_path / "clip.mp4"
+        video.write_bytes(b"\x00" * 16)
+        return str(video)
+
+    def test_telegram_without_token_does_not_claim_success(self, monkeypatch, tmp_path):
+        monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+        from src.departments.content_factory.publisher import ContentPublisher
+
+        out = _run(ContentPublisher().publish_to_telegram(self._tmp_video(tmp_path), "hi"))
+        assert out["status"] == "not_published"
+        assert out["published"] is False
+
+    def test_youtube_without_credentials_does_not_claim_success(self, monkeypatch):
+        monkeypatch.setenv("YOUTUBE_CREDENTIALS_PATH", "/definitely/not/here.json")
+        from src.departments.content_factory.publisher import ContentPublisher
+
+        out = _run(ContentPublisher().schedule_youtube_short("v.mp4", "t", "d", ["#ai"]))
+        assert out["status"] == "not_published"
+        assert out["published"] is False
+        assert out["video_id"] if "video_id" in out else True
+
+    def test_campaign_reports_nothing_published_when_all_channels_are_unconfigured(
+        self, monkeypatch, tmp_path
+    ):
+        monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+        monkeypatch.setenv("YOUTUBE_CREDENTIALS_PATH", "/definitely/not/here.json")
+        from src.departments.content_factory.publisher import ContentPublisher
+
+        out = _run(ContentPublisher().dispatch_full_campaign(self._tmp_video(tmp_path), {}))
+        assert out["status"] == "not_published"
+        assert out["published_platforms"] == []
+        assert out["published"] is False
+
+    def test_missing_video_file_is_an_error(self, monkeypatch):
+        from src.departments.content_factory.publisher import ContentPublisher
+
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:abc")
+        out = _run(ContentPublisher().publish_to_telegram("/nope.mp4", "hi"))
+        assert out["status"] == "error"
+
+    def test_grok_writer_without_key_returns_no_posts(self, monkeypatch):
+        monkeypatch.delenv("XAI_API_KEY", raising=False)
+        monkeypatch.delenv("EVA_GROK_MOCK", raising=False)
+        from src.departments.content_factory.grok_writer import GrokWriter
+
+        out = _run(GrokWriter().generate_thread("topic"))
+        assert out["status"] == "unavailable"
+        assert out["posts"] == []
+
+        reply = _run(GrokWriter().generate_reply_snipe("post", "angle"))
+        assert reply["status"] == "unavailable"
+        assert reply["reply"] is None
+
+    def test_grok_demo_copy_is_opt_in_and_labelled(self, monkeypatch):
+        monkeypatch.delenv("XAI_API_KEY", raising=False)
+        monkeypatch.setenv("EVA_GROK_MOCK", "1")
+        from src.departments.content_factory.grok_writer import GrokWriter
+
+        out = _run(GrokWriter().generate_thread("topic"))
+        assert out["posts"]
+        assert out["synthetic"] is True
+        assert out["status"] == "unavailable"
+
+    def test_script_template_matches_the_requested_duration(self, monkeypatch):
+        monkeypatch.delenv("XAI_API_KEY", raising=False)
+        from src.departments.content_factory.script_director import ScriptDirector
+
+        for duration in (15, 30, 60):
+            out = _run(ScriptDirector().generate_short_script("AI", target_duration_sec=duration))
+            scenes = out["script"]["scenes"]
+            total = round(sum(sc["duration_sec"] for sc in scenes), 2)
+            assert abs(total - duration) < 0.5, f"{duration}s brief produced {total}s of scenes"
+            assert out["synthetic"] is True
+
+    def test_caption_timestamps_are_valid_ass(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
+        from src.departments.content_factory.caption_engine import CaptionEngine
+
+        engine = CaptionEngine()
+        words = engine.generate_word_timestamps("one two three four", 1.999)
+        path = engine.create_ass_karaoke_file(words, output_filename="c.ass")
+        text = Path(path).read_text(encoding="utf-8")
+        stamps = re.findall(r"Dialogue: 0,([^,]+),([^,]+),", text)
+        assert stamps, "no caption events generated"
+        for start, end in stamps:
+            for stamp in (start, end):
+                centis = int(stamp.split(".")[1])
+                assert 0 <= centis <= 99, f"invalid ASS centisecond field: {stamp}"
+
+    def test_caption_filename_cannot_escape_the_output_dir(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
+        from src.departments.content_factory.caption_engine import CaptionEngine
+
+        path = CaptionEngine().create_ass_karaoke_file(
+            [{"word": "a", "start": 0.0, "end": 1.0, "duration": 1.0}],
+            output_filename="../../escaped.ass",
+        )
+        assert Path(path).parent.name == "captions"
+
+    def test_mockup_from_missing_artwork_is_labelled(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
+        from src.departments.content_factory.mockup_studio import MockupStudio
+
+        out = MockupStudio().composite_artwork(str(tmp_path / "missing.png"))
+        assert out["synthetic"] is True
+        assert any("artwork_not_found" in w for w in out["warnings"])
+
+    def test_video_producer_rejects_missing_broll(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
+        from src.departments.content_factory.video_producer import VideoProducer
+
+        out = _run(VideoProducer().render_video("/nope.mp4", "text", "out.mp4"))
+        assert out["status"] == "error"
+        assert "broll_video not found" in out["message"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Orc adversarial verifier
+# ─────────────────────────────────────────────────────────────────────────────
+class _Skeptic:
+    def __init__(self, answer: str) -> None:
+        self._answer = answer
+
+    async def ainvoke(self, prompt: str):  # noqa: ARG002 - signature parity with an LLM
+        return type("Resp", (), {"content": self._answer})()
+
+
+class TestOrcVerifier:
+    @staticmethod
+    def _claim(statement="sky is blue", response="the sky is blue", **kwargs):
+        from src.verifier import Claim, Evidence
+
+        return Claim(
+            statement=statement,
+            author="tester",
+            evidence=Evidence(call={"action": "verify"}, response=response),
+            **kwargs,
+        )
+
+    def test_no_evidence_is_unproven(self):
+        from src.verifier import Claim, OrcVerifier
+
+        verdict = _run(OrcVerifier().verify(Claim(statement="x", author="t")))
+        assert verdict.status == "unproven"
+        assert verdict.reasons == ["no_evidence"]
+
+    def test_stale_evidence_is_unproven(self):
+        from src.verifier import OrcVerifier
+
+        claim = self._claim()
+        claim.evidence.timestamp -= 200_000
+        verdict = _run(OrcVerifier().verify(claim))
+        assert verdict.status == "unproven"
+        assert verdict.reasons == ["evidence_stale"]
+
+    def test_missing_and_forbidden_content_refute(self):
+        from src.verifier import OrcVerifier
+
+        verdict = _run(OrcVerifier().verify(self._claim(must_contain=["green"])))
+        assert verdict.status == "refuted"
+        assert verdict.reasons == ["evidence_missing:green"]
+
+        verdict = _run(OrcVerifier().verify(self._claim(must_not_contain=["blue"])))
+        assert verdict.status == "refuted"
+        assert verdict.reasons == ["evidence_contradicts:blue"]
+
+    def test_replay_mismatch_refutes(self):
+        from src.verifier import OrcVerifier
+
+        async def replayer(call):  # noqa: ARG001
+            return "the sky is green"
+
+        verdict = _run(OrcVerifier().verify(self._claim(), replayer))
+        assert verdict.status == "refuted"
+        assert verdict.replay_matched is False
+
+    def test_replay_failure_is_unproven_not_refuted(self):
+        from src.verifier import OrcVerifier
+
+        async def replayer(call):  # noqa: ARG001
+            raise RuntimeError("boom")
+
+        verdict = _run(OrcVerifier().verify(self._claim(), replayer))
+        assert verdict.status == "unproven"
+        assert verdict.reasons == ["replay_failed:RuntimeError"]
+        assert verdict.replay_matched is None
+
+    def test_clean_evidence_is_confirmed(self):
+        from src.verifier import OrcVerifier
+
+        async def replayer(call):  # noqa: ARG001
+            return "the sky is blue"
+
+        verdict = _run(OrcVerifier().verify(self._claim(), replayer))
+        assert verdict.status == "confirmed"
+        assert "replay_matched" in verdict.reasons
+
+    def test_skeptic_can_refute(self):
+        from src.verifier import OrcVerifier
+
+        assert _run(OrcVerifier(skeptic_llm=_Skeptic("REFUTED")).verify(self._claim())).status == "refuted"
+        assert _run(OrcVerifier(skeptic_llm=_Skeptic("HOLDS")).verify(self._claim())).status == "confirmed"
+
+    def test_skeptic_failure_does_not_refute(self):
+        from src.verifier import OrcVerifier
+
+        class Boom:
+            async def ainvoke(self, prompt):  # noqa: ARG002
+                raise RuntimeError("llm down")
+
+        assert _run(OrcVerifier(skeptic_llm=Boom()).verify(self._claim())).status == "confirmed"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PII redaction
+# ─────────────────────────────────────────────────────────────────────────────
+class TestPIIRedaction:
+    """A leak here goes straight to an external LLM, so it is asserted per pattern."""
+
+    def _redact(self, text: str) -> str:
+        from src.pii import PIIRedactor
+
+        redacted, _events = PIIRedactor().redact(text)
+        return redacted
+
+    def test_ukrainian_iban_is_masked(self):
+        """The old pattern spanned 27 chars — real UA IBANs are 29 and leaked whole."""
+        iban = "UA213223130000026007233566001"
+        assert len(iban) == 29
+        out = self._redact(f"pay to {iban} today")
+        assert iban not in out
+        assert "233566001" not in out
+        assert out.startswith("pay to UA21**...6001")
+
+    def test_every_pattern_masks_its_own_sample(self):
+        samples = {
+            "ukrainian_phone": ("call +380671234567 now", "+380671234567"),
+            "intl_phone": ("call +12025550143 now", "25550143"),
+            "email": ("mail andrii.test@example.com please", "andrii.test@"),
+            "credit_card": ("card 4111 1111 1111 1111", "4111 1111 1111"),
+            "ukrainian_ipn": ("ipn 1234567890", "234567890"),
+            "passport": ("passport AB123456", "123456"),
+            "iban": ("iban UA213223130000026007233566001", "3223130000026007233566"),
+            "api_key_ghp": ("key ghp_abcdefghijklmnopqrstuvwxyz012345", "ghp_abcdefghijklmnopqrstuvwxyz012345"),
+            "api_key_sk_ant": ("key sk-ant-abcdefghijklmnopqrstuv", "sk-ant-abcdefghijklmnopqrstuv"),
+            "api_key_gsk": ("key gsk_abcdefghijklmnopqrstuvwxyz01", "gsk_abcdefghijklmnopqrstuvwxyz01"),
+            "ipv4": ("host 192.168.100.200", "100.200"),
+        }
+        for name, (sample, secret) in samples.items():
+            out = self._redact(sample)
+            assert secret not in out, f"{name} leaked: {out}"
+
+    def test_events_are_recorded_for_audit(self):
+        from src.pii import PIIRedactor
+
+        redacted, events = PIIRedactor().redact("+380671234567")
+        assert [e.pattern_name for e in events] == ["ukrainian_phone"]
+        assert events[0].original_match == "+380671234567"
+
+    def test_non_strings_pass_through(self):
+        from src.pii import PIIRedactor
+
+        assert PIIRedactor().redact(42) == (42, [])
+        assert PIIRedactor().redact(None) == (None, [])
+
+    def test_dict_redaction_walks_nested_containers(self):
+        from src.pii import PIIRedactor
+
+        out = PIIRedactor().redact_dict(
+            {"a": {"b": "andrii.test@example.com"}, "l": ["+380671234567", 5, None]}
+        )
+        assert out == {"a": {"b": "a***@example.com"}, "l": ["+380***567", 5, None]}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Action dispatch tables (the long if/elif chains that were refactored away)
+# ─────────────────────────────────────────────────────────────────────────────
+def _dispatch_agents():
+    """Every agent whose ``execute()`` dispatches through ``_ACTION_MAP``."""
+    from src.agents.architect.agent import ArchitectAgent
+    from src.agents.doc import DocAgent
+    from src.agents.kira import KiraAgent
+    from src.agents.marshal import MarshalAgent
+    from src.agents.sam.agent import SamAgent
+    from src.departments.coordinator import Floor2Coordinator
+
+    built = []
+    for factory in (
+        lambda: ArchitectAgent(memory=None),
+        lambda: DocAgent(memory=None),
+        lambda: KiraAgent(memory=None),
+        lambda: MarshalAgent(),
+        lambda: SamAgent(memory=None),
+        Floor2Coordinator,
+    ):
+        agent = factory()
+        if hasattr(agent, "_ACTION_MAP"):
+            built.append(agent)
+    return built
+
+
+class TestActionDispatchTables:
+    def test_every_agent_exposes_a_populated_action_map(self):
+        agents = _dispatch_agents()
+        assert agents, "no agent exposes _ACTION_MAP — did the dispatchers regress?"
+        for agent in agents:
+            assert agent._ACTION_MAP, f"{type(agent).__name__} has an empty action map"
+
+    def test_every_handler_accepts_a_single_payload_argument(self):
+        """`capabilities()` takes no payload; it must be adapted, not bound raw."""
+        import inspect
+
+        for agent in _dispatch_agents():
+            for name, handler in agent._ACTION_MAP.items():
+                params = [
+                    p
+                    for p in inspect.signature(handler).parameters.values()
+                    if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
+                ]
+                assert len(params) == 1, (
+                    f"{type(agent).__name__}.{name} handler takes "
+                    f"{len(params)} positional args, execute() passes 1"
+                )
+
+    def test_unknown_action_is_an_error_not_a_silent_fallback(self):
+        """Marshal used to answer unknown actions with a full security audit."""
+        for agent in _dispatch_agents():
+            out = _run(agent.execute({"action": "definitely_not_an_action"}))
+            assert isinstance(out, dict), f"{type(agent).__name__}: {type(out)}"
+            assert out.get("status") == "error", f"{type(agent).__name__}: {out}"
+            assert "Unknown action" in out.get("error", "")
+            assert "available_actions" in out
+
+    def test_capabilities_still_dispatch(self):
+        for agent in _dispatch_agents():
+            for action in ("capabilities", "status"):
+                if action not in agent._ACTION_MAP:
+                    continue
+                out = _run(agent.execute({"action": action}))
+                assert isinstance(out, dict), f"{type(agent).__name__}.{action}: {type(out)}"
+                assert "error" not in out, f"{type(agent).__name__}.{action}: {out}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Kira dispatch
 # ─────────────────────────────────────────────────────────────────────────────
 class TestKiraDispatch:
@@ -661,6 +1056,120 @@ class TestKiraDispatch:
 
         out = _run(KiraAgent(memory=None).execute({"action": "academy_overview"}))
         assert out["status"] == "ok"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PostgreSQL schema: init.sql must be a complete single-pass schema
+# ─────────────────────────────────────────────────────────────────────────────
+def _sql_statements(text: str) -> list[str]:
+    return [s.strip() for s in text.split(";")]
+
+
+def _sql_names(text: str, kind: str) -> set[str]:
+    return set(re.findall(rf"CREATE {kind} IF NOT EXISTS\s+([\w\.]+)", text))
+
+
+def _sql_table_bodies(text: str) -> Dict[str, str]:
+    out: Dict[str, str] = {}
+    for stmt in _sql_statements(text):
+        m = re.search(r"CREATE TABLE IF NOT EXISTS\s+([\w\.]+)", stmt)
+        if m:
+            body = re.sub(r"--[^\n]*", "", stmt)
+            out[m.group(1)] = re.sub(r"\s+", " ", body).strip()
+    return out
+
+
+class TestPostgresSchemaConsistency:
+    init = (REPO_ROOT / "config" / "postgres" / "init.sql").read_text(encoding="utf-8")
+    migration = (REPO_ROOT / "config" / "postgres" / "migration_v4.sql").read_text(encoding="utf-8")
+
+    def test_init_covers_every_migration_object(self):
+        """A fresh database that only runs init.sql must end up with everything
+        the upgrade migration would have created."""
+        for kind in ("TABLE", "INDEX"):
+            missing = _sql_names(self.migration, kind) - _sql_names(self.init, kind)
+            assert not missing, f"init.sql is missing {kind.lower()}(s): {sorted(missing)}"
+
+    def test_no_duplicate_table_definitions(self):
+        for text, label in ((self.init, "init.sql"), (self.migration, "migration_v4.sql")):
+            tables = re.findall(r"CREATE TABLE IF NOT EXISTS\s+([\w\.]+)", text)
+            dupes = {t for t in tables if tables.count(t) > 1}
+            assert not dupes, f"{label} defines tables twice: {sorted(dupes)}"
+            indexes = re.findall(r"CREATE INDEX IF NOT EXISTS\s+([\w\.]+)", text)
+            dupes = {i for i in indexes if indexes.count(i) > 1}
+            assert not dupes, f"{label} defines indexes twice: {sorted(dupes)}"
+
+    def test_shared_table_definitions_do_not_drift(self):
+        a, b = _sql_table_bodies(self.init), _sql_table_bodies(self.migration)
+        shared = set(a) & set(b)
+        assert shared, "the two files are expected to share table definitions"
+        for table in sorted(shared):
+            assert a[table] == b[table], f"table definition drifted: {table}"
+
+    def test_future_tables_inherit_privileges(self):
+        """Without ALTER DEFAULT PRIVILEGES, tables added by a later migration
+        would be invisible to eva_agent."""
+        assert "ALTER DEFAULT PRIVILEGES" in self.init
+
+    def test_trigger_function_is_defined_before_use(self):
+        for text, label in ((self.init, "init.sql"), (self.migration, "migration_v4.sql")):
+            if "update_updated_at()" not in text:
+                continue
+            defined = text.find("CREATE OR REPLACE FUNCTION update_updated_at()")
+            used = min(
+                (m.start() for m in re.finditer(r"EXECUTE FUNCTION update_updated_at\(\)", text)),
+                default=-1,
+            )
+            if defined == -1:
+                assert label == "migration_v4.sql", "init.sql must define update_updated_at()"
+            elif used != -1:
+                assert defined < used, f"{label} uses the trigger before defining it"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Vault secret paths
+# ─────────────────────────────────────────────────────────────────────────────
+class TestVaultSecretPaths:
+    def test_single_convention(self):
+        from src import vault_paths
+
+        assert vault_paths.secret_path("database") == "secret/data/eva-syndicate/database"
+        assert vault_paths.secret_path("api-keys") == "secret/data/eva-syndicate/api-keys"
+        for service in ("database", "redis", "auth", "api-keys"):
+            assert vault_paths.secret_path(service).startswith("secret/data/eva-syndicate/")
+
+    def test_empty_service_is_rejected(self):
+        from src import vault_paths
+
+        with pytest.raises(ValueError):
+            vault_paths.secret_path("")
+
+    def test_no_legacy_mount_paths_in_source(self):
+        """The old `eva/<mount>/data/<key>` layout must be gone: vault_init.sh
+        never populated those mounts, so the agent 404'd on startup."""
+        offenders = []
+        for base in ("src", "deploy"):
+            for path in (REPO_ROOT / base).rglob("*.py"):
+                for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                    if re.search(r'"eva/(database|config|api-keys|agents)/data/', line):
+                        offenders.append(f"{path.relative_to(REPO_ROOT)}:{i}")
+        assert offenders == [], f"legacy Vault paths remain: {offenders}"
+
+    def test_vault_init_populates_every_path_agent_runner_reads(self):
+        runner = (REPO_ROOT / "deploy" / "runtime" / "agent_runner.py").read_text(encoding="utf-8")
+        script = (REPO_ROOT / "deploy" / "scripts" / "vault_init.sh").read_text(encoding="utf-8")
+        read = set(re.findall(r'secret_path\("([\w-]+)"\)', runner))
+        written = set(re.findall(r"/v1/secret/data/eva-syndicate/([\w-]+)", script))
+        assert read, "could not find any secret_path() call in agent_runner"
+        missing = read - written
+        assert not missing, f"vault_init.sh never writes these secrets: {sorted(missing)}"
+
+    def test_policy_grants_the_paths_the_code_reads(self):
+        from src import vault_paths
+
+        script = (REPO_ROOT / "deploy" / "scripts" / "vault_init.sh").read_text(encoding="utf-8")
+        for pattern in vault_paths.policy_paths():
+            assert pattern in script, f"eva-agent policy is missing `{pattern}`"
 
 
 # ─────────────────────────────────────────────────────────────────────────────

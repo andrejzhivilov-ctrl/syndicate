@@ -122,6 +122,11 @@ def _payloads(tmp_path: Path) -> Dict[str, Dict[str, Any]]:
         "proactive_morning": {},
         "proactive_evening": {},
         "render_short_video": {"action": "render_short_video", "topic": "x"},
+        "create_viral_short": {"action": "create_viral_short", "topic": "x"},
+        "direct_short_script": {"action": "direct_short_script", "topic": "x"},
+        "source_broll_batch": {"action": "source_broll_batch", "scenes": []},
+        "generate_karaoke_captions": {"action": "generate_karaoke_captions", "text": "hello world"},
+        "publish_content_campaign": {"action": "publish_content_campaign", "video_path": ""},
         "generate_viral_thread": {"action": "generate_viral_thread", "topic": "x"},
         "generate_pod_mockup": {
             "action": "generate_pod_mockup",

@@ -11,7 +11,7 @@ import asyncio
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 import structlog
 
 from src.departments.content_factory.broll_scout import BRollScout
@@ -32,20 +32,131 @@ class VideoEngineV2:
 
     def __init__(
         self,
-        output_dir: str = "media/videos",
-        broll_cache_dir: str = "media/broll_cache",
-        captions_dir: str = "media/captions",
+        output_dir: Optional[str] = None,
+        broll_cache_dir: Optional[str] = None,
+        captions_dir: Optional[str] = None,
         threads: int = 16
     ):
-        self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        from src.data_paths import data_dir, ensure_dir
+
+        self.output_dir = ensure_dir("videos", output_dir)
         self.threads = threads
         self.ffmpeg_bin = shutil.which("ffmpeg") or "ffmpeg"
         self.ffprobe_bin = shutil.which("ffprobe") or "ffprobe"
 
         self.director = ScriptDirector()
-        self.broll_scout = BRollScout(cache_dir=broll_cache_dir)
-        self.caption_engine = CaptionEngine(output_dir=captions_dir)
+        self.broll_scout = BRollScout(cache_dir=str(data_dir("broll_cache", broll_cache_dir)))
+        self.caption_engine = CaptionEngine(output_dir=str(data_dir("captions", captions_dir)))
+
+    async def _synthesize_voiceover(
+        self,
+        full_text: str,
+        voice: str,
+        temp_audio: Path,
+        default_duration: float,
+    ) -> "tuple[float, Optional[str]]":
+        """Step 2 — Edge-TTS voiceover.
+
+        Edge-TTS is a network service (speech.platform.bing.com). An unreachable
+        endpoint used to propagate out of Floor 2 and fail the whole pipeline;
+        fall back to a silent track so the render can continue without audio.
+        Returns ``(audio_duration, tts_error)``.
+        """
+        audio_duration = float(default_duration)
+        if not EDGE_TTS_AVAILABLE or not full_text.strip():
+            logger.warning("edge_tts_unavailable_mocking_audio")
+            self._create_dummy_audio(str(temp_audio), duration=audio_duration)
+            return audio_duration, "edge_tts_not_installed" if not EDGE_TTS_AVAILABLE else None
+        try:
+            communicate = edge_tts.Communicate(full_text, voice, rate="+4%")
+            await communicate.save(str(temp_audio))
+            audio_duration = self._get_audio_duration(str(temp_audio)) or audio_duration
+            return audio_duration, None
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "edge_tts_synthesis_unavailable",
+                voice=voice,
+                error=f"{type(exc).__name__}: {exc}",
+            )
+            self._create_dummy_audio(str(temp_audio), duration=audio_duration)
+            return audio_duration, f"{type(exc).__name__}: {exc}"
+
+    @staticmethod
+    def _write_concat_file(broll_clips: List[Dict[str, Any]], concat_list_file: Path) -> List[str]:
+        """Step 5 — build the FFmpeg concat list. Returns the warnings raised."""
+        warnings: List[str] = []
+        concat_lines = []
+        for b_item in broll_clips:
+            v_path = b_item.get("video_path")
+            if v_path and Path(v_path).exists():
+                # A literal quote in a path used to escape the concat line.
+                safe_path = str(v_path).replace("\\", "/").replace("'", "'\\''")
+                concat_lines.append(f"file '{safe_path}'")
+
+        if not concat_lines:
+            warnings.append("no_broll_footage")
+        concat_list_file.write_text("\n".join(concat_lines), encoding="utf-8")
+        return warnings
+
+    def _build_ffmpeg_cmd(
+        self,
+        concat_list_file: Path,
+        temp_audio: Path,
+        ass_path: str,
+        final_video_path: Path,
+        audio_duration: float,
+        bg_music: Optional[str],
+    ) -> List[str]:
+        """Step 6 — assemble the FFmpeg composite command."""
+        escaped_ass = str(ass_path).replace("\\", "/").replace(":", "\\:")
+        ffmpeg_cmd = [
+            self.ffmpeg_bin, "-y",
+            "-threads", str(self.threads),
+            "-f", "concat", "-safe", "0", "-i", str(concat_list_file),
+            "-i", str(temp_audio),
+        ]
+
+        if bg_music and Path(bg_music).exists():
+            ffmpeg_cmd.extend(["-stream_loop", "-1", "-i", str(bg_music)])
+            filter_complex = (
+                f"[0:v]scale=1080:1920:force_original_aspect_ratio=increase,"
+                f"crop=1080:1920,setsar=1,ass='{escaped_ass}'[v];"
+                f"[2:a]volume=0.14[bgm];"
+                f"[1:a][bgm]amix=inputs=2:duration=first:dropout_transition=2[a]"
+            )
+            ffmpeg_cmd.extend(["-filter_complex", filter_complex, "-map", "[v]", "-map", "[a]"])
+        else:
+            filter_str = (
+                f"scale=1080:1920:force_original_aspect_ratio=increase,"
+                f"crop=1080:1920,setsar=1,ass='{escaped_ass}'"
+            )
+            ffmpeg_cmd.extend(["-vf", filter_str, "-map", "0:v", "-map", "1:a"])
+
+        ffmpeg_cmd.extend([
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-crf", "22",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-t", str(audio_duration),
+            str(final_video_path),
+        ])
+        return ffmpeg_cmd
+
+    async def _run_ffmpeg(self, ffmpeg_cmd: List[str], warnings: List[str]) -> None:
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *ffmpeg_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            _stdout, stderr = await proc.communicate()
+            if proc.returncode != 0:
+                warnings.append(f"ffmpeg_exit_{proc.returncode}")
+                logger.warning("ffmpeg_render_finished_with_warnings", stderr=stderr.decode(errors="ignore")[:300])
+        except FileNotFoundError:
+            warnings.append("ffmpeg_not_installed")
+            logger.info("ffmpeg_dry_run_environment")
 
     async def render_complete_short(
         self,
@@ -83,14 +194,9 @@ class VideoEngineV2:
         full_text = script_data.get("full_narration", "")
 
         # --- STEP 2: Synthesize Voiceover ---
-        if EDGE_TTS_AVAILABLE:
-            communicate = edge_tts.Communicate(full_text, voice, rate="+4%")
-            await communicate.save(str(temp_audio))
-            audio_duration = self._get_audio_duration(str(temp_audio)) or float(duration_sec)
-        else:
-            logger.warning("edge_tts_unavailable_mocking_audio")
-            audio_duration = float(duration_sec)
-            self._create_dummy_audio(str(temp_audio), duration=audio_duration)
+        audio_duration, tts_error = await self._synthesize_voiceover(
+            full_text, voice, temp_audio, duration_sec
+        )
 
         # --- STEP 3: Generate Dynamic Word-Level Captions ---
         timed_words = self.caption_engine.generate_word_timestamps(full_text, audio_duration)
@@ -103,78 +209,41 @@ class VideoEngineV2:
         # --- STEP 4: Source Multi-Scene B-Roll Footage ---
         broll_clips = await self.broll_scout.fetch_broll_batch(scenes)
 
-        # --- STEP 5: Assemble Concat File for FFmpeg ---
-        concat_lines = []
-        for b_item in broll_clips:
-            v_path = b_item.get("video_path")
-            if v_path and Path(v_path).exists():
-                safe_path = str(v_path).replace("\\", "/")
-                concat_lines.append(f"file '{safe_path}'")
+        # --- STEP 5 + 6: Concat list and FFmpeg composite ---
+        warnings: List[str] = []
+        if tts_error:
+            warnings.append(f"voiceover_unavailable: {tts_error}")
+        warnings.extend(self._write_concat_file(broll_clips, concat_list_file))
 
-        if not concat_lines:
-            # Fallback to single loop
-            concat_lines.append("file 'media/templates/abstract_loop.mp4'")
-
-        concat_list_file.write_text("\n".join(concat_lines), encoding="utf-8")
-
-        # --- STEP 6: Execute Multi-Threaded FFmpeg Composite ---
-        escaped_ass = str(ass_path).replace("\\", "/").replace(":", "\\:")
-        ffmpeg_cmd = [
-            self.ffmpeg_bin, "-y",
-            "-threads", str(self.threads),
-            "-f", "concat", "-safe", "0", "-i", str(concat_list_file),
-            "-i", str(temp_audio),
-        ]
-
-        if bg_music and Path(bg_music).exists():
-            ffmpeg_cmd.extend(["-stream_loop", "-1", "-i", str(bg_music)])
-            filter_complex = (
-                f"[0:v]scale=1080:1920:force_original_aspect_ratio=increase,"
-                f"crop=1080:1920,setsar=1,ass='{escaped_ass}'[v];"
-                f"[2:a]volume=0.14[bgm];"
-                f"[1:a][bgm]amix=inputs=2:duration=first:dropout_transition=2[a]"
-            )
-            ffmpeg_cmd.extend(["-filter_complex", filter_complex, "-map", "[v]", "-map", "[a]"])
-        else:
-            filter_str = (
-                f"scale=1080:1920:force_original_aspect_ratio=increase,"
-                f"crop=1080:1920,setsar=1,ass='{escaped_ass}'"
-            )
-            ffmpeg_cmd.extend(["-vf", filter_str, "-map", "0:v", "-map", "1:a"])
-
-        ffmpeg_cmd.extend([
-            "-c:v", "libx264",
-            "-preset", "veryfast",
-            "-crf", "22",
-            "-c:a", "aac",
-            "-b:a", "192k",
-            "-t", str(audio_duration),
-            str(final_video_path)
-        ])
-
+        ffmpeg_cmd = self._build_ffmpeg_cmd(
+            concat_list_file, temp_audio, ass_path, final_video_path, audio_duration, bg_music
+        )
         logger.info("ffmpeg_assembly_launched", threads=self.threads, duration=audio_duration)
 
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                *ffmpeg_cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            stdout, stderr = await proc.communicate()
-            if proc.returncode != 0:
-                logger.warning("ffmpeg_render_finished_with_warnings", stderr=stderr.decode(errors="ignore")[:300])
-        except FileNotFoundError:
-            logger.info("ffmpeg_dry_run_environment")
+        # An empty concat list would make FFmpeg concatenate nothing and exit
+        # non-zero with a confusing error; skip straight to the honest status.
+        if concat_list_file.read_text(encoding="utf-8").strip():
+            await self._run_ffmpeg(ffmpeg_cmd, warnings)
+        else:
+            warnings.append("ffmpeg_skipped_no_input")
+
+        # Only claim success when the artefact really exists. The old code
+        # returned status "ok" even in a dry-run environment with no output.
+        rendered = final_video_path.exists() and final_video_path.stat().st_size > 0
+        if not rendered:
+            warnings.append("output_file_missing")
 
         return {
-            "status": "ok",
+            "status": "ok" if rendered else "error",
             "video_path": str(final_video_path),
             "audio_path": str(temp_audio),
             "captions_path": str(ass_path),
             "duration_sec": audio_duration,
             "scene_count": len(scenes),
             "script_title": script_data.get("title"),
-            "seo_metadata": script_data.get("seo", {})
+            "seo_metadata": script_data.get("seo", {}),
+            "warnings": warnings,
+            "message": None if rendered else ("Video was not produced: " + "; ".join(warnings)),
         }
 
     def _get_audio_duration(self, audio_file: str) -> Optional[float]:

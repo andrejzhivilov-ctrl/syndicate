@@ -275,6 +275,7 @@ services:
       - "443:443"
     volumes:
       - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./static:/usr/share/nginx/static:ro
       - /data/nginx-certs:/etc/nginx/certs
     command: >
       sh -c "if [ ! -f /etc/nginx/certs/live/default/fullchain.pem ]; then

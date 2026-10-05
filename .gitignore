@@ -44,6 +44,8 @@ Thumbs.db
 # EVA_DATA_DIR relocates these in production; locally they land in the tree.
 vault_md/
 media/videos/
+media/captions/
+media/broll_cache/
 media/mockups/
 !media/mockups/mockup_result.webp
 config/browser_profiles/

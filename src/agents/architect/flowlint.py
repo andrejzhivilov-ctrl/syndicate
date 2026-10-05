@@ -15,6 +15,7 @@ inside CI before a workflow is committed to ``/n8n_workflows/``.
 """
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
@@ -133,23 +134,9 @@ def _has_error_coverage(workflow: Dict[str, Any], node_name: str) -> bool:
     return False
 
 
-def lint_workflow(workflow: Dict[str, Any]) -> LintReport:
-    """Run all FlowLint rules over a parsed n8n workflow dict."""
+def _rule_nodes_are_core(nodes: List[Dict[str, Any]]) -> List[LintIssue]:
+    """Rule 1 — core nodes only, and nothing from FORBIDDEN_NODE_TYPES."""
     issues: List[LintIssue] = []
-    nodes = _iter_nodes(workflow)
-
-    if not nodes:
-        issues.append(LintIssue("error", "structure", "Workflow contains no nodes"))
-        return LintReport(passed=False, issues=issues, stats={"nodes": 0})
-
-    node_types = [_node_type(n) for n in nodes]
-    has_error_trigger = any("errorTrigger" in t.lower() for t in node_types)
-    has_error_workflow = bool(
-        (workflow.get("settings") or {}).get("errorWorkflow")
-    )
-    has_webhook_trigger = any("webhook" in t.lower() for t in node_types)
-
-    # Rule 1 — core nodes only & forbidden nodes check.
     for n in nodes:
         t = _node_type(n)
         if t in FORBIDDEN_NODE_TYPES:
@@ -169,65 +156,102 @@ def lint_workflow(workflow: Dict[str, Any]) -> LintReport:
                     node=n.get("name"),
                 )
             )
+    return issues
 
-    # Rule 2 — error handling on critical nodes (trigger nodes are exempt).
+
+def _rule_error_handling(
+    workflow: Dict[str, Any],
+    nodes: List[Dict[str, Any]],
+    has_error_trigger: bool,
+    has_error_workflow: bool,
+) -> List[LintIssue]:
+    """Rule 2 — critical nodes must have error coverage (triggers exempt)."""
+    issues: List[LintIssue] = []
     for n in nodes:
         if _is_trigger(_node_type(n)):
             continue
         short = _short_type(_node_type(n))
-        if any(short.startswith(r) or r in short for r in RISKY_NODES):
-            covered = (
-                _has_error_coverage(workflow, n.get("name", ""))
-                or bool(n.get("continueOnFail"))
-                or bool(n.get("onError"))
-                or has_error_trigger
-                or has_error_workflow
-            )
-            if not covered:
-                issues.append(
-                    LintIssue(
-                        "error", "error-handling",
-                        f"Critical node '{n.get('name')}' ({short}) has no OnError "
-                        "branch, continueOnFail, or global error workflow",
-                        node=n.get("name"),
-                    )
-                )
-
-    # Rule 3 — no hardcoded secrets.
-    import json as _json
-
-    for n in nodes:
-        params_blob = _json.dumps(n.get("parameters", {}), ensure_ascii=False)
-        for pat in SECRET_PATTERNS:
-            if pat.search(params_blob):
-                issues.append(
-                    LintIssue(
-                        "error", "no-hardcoded-secrets",
-                        f"Node '{n.get('name')}' appears to contain an inline secret; "
-                        "use n8n credentials or the Vault bridge instead",
-                        node=n.get("name"),
-                    )
-                )
-                break
-
-    # Rule 4 — idempotency for webhook-triggered workflows.
-    if has_webhook_trigger:
-        blob = _json.dumps(workflow, ensure_ascii=False).lower()
-        if not any(h in blob for h in DEDUP_HINTS):
+        if not any(short.startswith(r) or r in short for r in RISKY_NODES):
+            continue
+        covered = (
+            _has_error_coverage(workflow, n.get("name", ""))
+            or bool(n.get("continueOnFail"))
+            or bool(n.get("onError"))
+            or has_error_trigger
+            or has_error_workflow
+        )
+        if not covered:
             issues.append(
                 LintIssue(
-                    "warning", "idempotency",
-                    "Webhook-triggered workflow has no visible deduplication / "
-                    "idempotency guard (Redis SETNX or body-hash dedup recommended)",
+                    "error", "error-handling",
+                    f"Critical node '{n.get('name')}' ({short}) has no OnError "
+                    "branch, continueOnFail, or global error workflow",
+                    node=n.get("name"),
                 )
             )
+    return issues
 
-    # Info — naming hygiene.
-    unnamed = [i for i, n in enumerate(nodes) if not n.get("name")]
-    if unnamed:
-        issues.append(
-            LintIssue("warning", "naming", f"{len(unnamed)} node(s) have no name")
+
+def _rule_no_hardcoded_secrets(nodes: List[Dict[str, Any]]) -> List[LintIssue]:
+    """Rule 3 — API keys / tokens must come from credentials, not parameters."""
+    issues: List[LintIssue] = []
+    for n in nodes:
+        params_blob = json.dumps(n.get("parameters", {}), ensure_ascii=False)
+        if any(pat.search(params_blob) for pat in SECRET_PATTERNS):
+            issues.append(
+                LintIssue(
+                    "error", "no-hardcoded-secrets",
+                    f"Node '{n.get('name')}' appears to contain an inline secret; "
+                    "use n8n credentials or the Vault bridge instead",
+                    node=n.get("name"),
+                )
+            )
+    return issues
+
+
+def _rule_idempotency(workflow: Dict[str, Any], has_webhook_trigger: bool) -> List[LintIssue]:
+    """Rule 4 — webhook workflows need a deduplication guard."""
+    if not has_webhook_trigger:
+        return []
+    blob = json.dumps(workflow, ensure_ascii=False).lower()
+    if any(h in blob for h in DEDUP_HINTS):
+        return []
+    return [
+        LintIssue(
+            "warning", "idempotency",
+            "Webhook-triggered workflow has no visible deduplication / "
+            "idempotency guard (Redis SETNX or body-hash dedup recommended)",
         )
+    ]
+
+
+def _rule_naming(nodes: List[Dict[str, Any]]) -> List[LintIssue]:
+    """Info — naming hygiene."""
+    unnamed = [i for i, n in enumerate(nodes) if not n.get("name")]
+    if not unnamed:
+        return []
+    return [LintIssue("warning", "naming", f"{len(unnamed)} node(s) have no name")]
+
+
+def lint_workflow(workflow: Dict[str, Any]) -> LintReport:
+    """Run all FlowLint rules over a parsed n8n workflow dict."""
+    issues: List[LintIssue] = []
+    nodes = _iter_nodes(workflow)
+
+    if not nodes:
+        issues.append(LintIssue("error", "structure", "Workflow contains no nodes"))
+        return LintReport(passed=False, issues=issues, stats={"nodes": 0})
+
+    node_types = [_node_type(n) for n in nodes]
+    has_error_trigger = any("errorTrigger" in t.lower() for t in node_types)
+    has_error_workflow = bool((workflow.get("settings") or {}).get("errorWorkflow"))
+    has_webhook_trigger = any("webhook" in t.lower() for t in node_types)
+
+    issues.extend(_rule_nodes_are_core(nodes))
+    issues.extend(_rule_error_handling(workflow, nodes, has_error_trigger, has_error_workflow))
+    issues.extend(_rule_no_hardcoded_secrets(nodes))
+    issues.extend(_rule_idempotency(workflow, has_webhook_trigger))
+    issues.extend(_rule_naming(nodes))
 
     passed = not any(i.severity == "error" for i in issues)
     stats = {

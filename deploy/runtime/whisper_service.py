@@ -26,10 +26,10 @@ def health():
 async def transcribe(audio_file: UploadFile = File(...), language: str = "uk"):
     contents = await audio_file.read()
     audio_stream = io.BytesIO(contents)
-    
+
     segments, info = model.transcribe(audio_stream, language=language, beam_size=5)
     text = " ".join([segment.text for segment in segments]).strip()
-    
+
     return {"text": text, "language": info.language, "duration": info.duration}
 
 if __name__ == "__main__":

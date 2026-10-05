@@ -24,6 +24,8 @@ DIRS = {
     "vault": "vault_md",
     "videos": "media/videos",
     "mockups": "media/mockups",
+    "captions": "media/captions",
+    "broll_cache": "media/broll_cache",
     "browser_profiles": "config/browser_profiles",
     "reports": "media/reports",
 }

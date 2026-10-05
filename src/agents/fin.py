@@ -181,9 +181,45 @@ class FinAgent:
                 privatbank_password=self._config.get("privatbank_password"),
             )
             overview = await client.get_accounts_overview()
+            if overview.get("status") != "synced" or not overview.get("accounts"):
+                # No live data: never fall back to the synthetic portfolio.
+                logger.warning("banking_client_sync_unavailable", status=overview.get("status"))
+                return {
+                    "agent": self.AGENT_ID,
+                    "status": "unavailable",
+                    "synced_at": datetime.now().isoformat(),
+                    "accounts": [],
+                    "total_uah": 0.0,
+                    "total_usd": 0.0,
+                    "estimated_liquid_usd": 0.0,
+                    "error": "banking_sync_unavailable: no accounts were synced",
+                    "warning": (
+                        "No live bank data available. Balances are NOT estimated — "
+                        "supply 'accounts' in the payload or restore the banking integration."
+                    ),
+                }
+            if overview.get("synthetic"):
+                # BankingClient only returns synthetic balances when
+                # EVA_BANKING_SANDBOX=1. Label them so the CFO dossier can
+                # never present demo money as audited fact.
+                return {
+                    "agent": self.AGENT_ID,
+                    "status": "ok",
+                    "synthetic": True,
+                    "synced_at": overview["timestamp"],
+                    "accounts": overview["accounts"],
+                    "total_uah": overview["totals"]["UAH"],
+                    "total_usd": overview["totals"]["USD"],
+                    "estimated_liquid_usd": overview["totals"]["estimated_liquid_usd"],
+                    "warning": (
+                        "SYNTHETIC SANDBOX DATA — these balances are not real and "
+                        "must not be used for financial decisions."
+                    ),
+                }
             return {
                 "agent": self.AGENT_ID,
                 "status": "ok",
+                "synthetic": False,
                 "synced_at": overview["timestamp"],
                 "accounts": overview["accounts"],
                 "total_uah": overview["totals"]["UAH"],
@@ -244,7 +280,7 @@ class FinAgent:
     async def _generate_report(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         period = payload.get("period", "monthly")
         morning = await self._morning_data(payload)
-        
+
         report_text = (
             f"📊 ФІНАНСОВИЙ ЗВІТ ({period.upper()})\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"

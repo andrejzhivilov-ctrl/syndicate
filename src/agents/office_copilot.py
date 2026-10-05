@@ -7,7 +7,7 @@ and comprehensive Office Knowledge Base lookups.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -29,6 +29,30 @@ try:
 except ImportError:
     OPENPYXL_AVAILABLE = False
     logger.warning("openpyxl not installed. Excel workbook generation disabled.")
+
+
+#: Placeholder content used only when the caller supplies no data. It is always
+#: reported back as ``sample_data: True`` so a demo table can never be mistaken
+#: for real business metrics.
+SAMPLE_REPORT_ROWS = [
+    ["Affiliate SaaS", "MRR Commission", "$5,000", "$5,420", "+8.4%", "ACTIVE"],
+    ["POD Operations", "Net Margins", "$2,000", "$2,150", "+7.5%", "ACTIVE"],
+    ["Media YouTube", "Subscriber Rate", "10,000", "12,400", "+24.0%", "SCALING"],
+    ["Shopify Ecom", "ROAS", "3.5x", "4.1x", "+17.1%", "OPTIMIZED"],
+]
+
+SAMPLE_BRIEFING_SECTIONS = [
+    {
+        "heading": "1. Executive Summary",
+        "text": "SYNDIKAT represents an autonomous multi-agent holding orchestrating "
+               "operations, content, finance, and security under Eva (CEO).",
+    },
+    {
+        "heading": "2. Domain Isolation Policy",
+        "text": "Sam operates with 100% boundary isolation on Floor 3 (Quant Floor). "
+               "Sentinel strictly vetos unauthorized outbound calls.",
+    },
+]
 
 
 class OfficeKnowledgeBase:
@@ -183,8 +207,22 @@ class OfficeCopilotAgent:
     def __init__(self, memory=None, llm=None, config=None):
         self._memory = memory
         self._llm = llm
-        self._config = config or {}
+        self._config = dict(config or {})
         self.kb = OfficeKnowledgeBase()
+
+    @staticmethod
+    def _resolve_output(output_path: Optional[str], filename: str) -> Path:
+        """Put generated artefacts in a writable directory.
+
+        The container runs with a read-only root filesystem, so writing a bare
+        relative filename into the CWD fails outright; and a nested path used
+        to crash because the parent directory was never created.
+        """
+        from src.data_paths import data_dir
+
+        target = Path(output_path) if output_path else data_dir("reports") / filename
+        target.parent.mkdir(parents=True, exist_ok=True)
+        return target
 
     async def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Dispatch action for Office Copilot."""
@@ -292,13 +330,9 @@ class OfficeCopilotAgent:
 
         title = payload.get("title", "Financial & Operations Report")
         headers = payload.get("headers", ["Category", "Metric", "Target", "Actual", "Variance %", "Status"])
-        rows = payload.get("rows", [
-            ["Affiliate SaaS", "MRR Commission", "$5,000", "$5,420", "+8.4%", "ACTIVE"],
-            ["POD Operations", "Net Margins", "$2,000", "$2,150", "+7.5%", "ACTIVE"],
-            ["Media YouTube", "Subscriber Rate", "10,000", "12,400", "+24.0%", "SCALING"],
-            ["Shopify Ecom", "ROAS", "3.5x", "4.1x", "+17.1%", "OPTIMIZED"]
-        ])
-        output_path = payload.get("output_path", "syndikat_report.xlsx")
+        sample_data = "rows" not in payload
+        rows = payload.get("rows", SAMPLE_REPORT_ROWS)
+        output_path = self._resolve_output(payload.get("output_path"), "syndikat_report.xlsx")
 
         wb = openpyxl.Workbook()
         ws = wb.active
@@ -315,8 +349,11 @@ class OfficeCopilotAgent:
             bottom=Side(style="thin", color="CCCCCC")
         )
 
-        # Title block
-        ws.merge_cells("A1:F1")
+        # Title block — span exactly the header columns. The old code always
+        # merged A1:F1, which raised on a 3-column report and left a 10-column
+        # report half-unmerged.
+        if len(headers) > 1:
+            ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(headers))
         title_cell = ws["A1"]
         title_cell.value = f"SYNDIKAT HOLDING — {title.upper()}"
         title_cell.font = Font(name="Segoe UI", size=14, bold=True, color="0F172A")
@@ -354,7 +391,12 @@ class OfficeCopilotAgent:
             "status": "ok",
             "file_path": str(file_path),
             "rows_count": len(rows),
-            "columns": headers
+            "columns": headers,
+            "sample_data": sample_data,
+            "warning": (
+                "Filled with SAMPLE rows — supply 'rows' for a real report."
+                if sample_data else None
+            ),
         }
 
     def _create_word_document(self, payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -364,17 +406,9 @@ class OfficeCopilotAgent:
 
         title = payload.get("title", "SYNDIKAT Strategic Briefing")
         subtitle = payload.get("subtitle", "Autonomous Multi-Agent Enterprise Protocol")
-        sections = payload.get("sections", [
-            {
-                "heading": "1. Executive Summary",
-                "text": "SYNDIKAT represents an autonomous multi-agent holding orchestrating operations, content, finance, and security under Eva (CEO)."
-            },
-            {
-                "heading": "2. Domain Isolation Policy",
-                "text": "Sam operates with 100% boundary isolation on Floor 3 (Quant Floor). Sentinel strictly vetos unauthorized outbound calls."
-            }
-        ])
-        output_path = payload.get("output_path", "syndikat_briefing.docx")
+        sample_data = "sections" not in payload
+        sections = payload.get("sections", SAMPLE_BRIEFING_SECTIONS)
+        output_path = self._resolve_output(payload.get("output_path"), "syndikat_briefing.docx")
 
         doc = docx.Document()
 
@@ -411,5 +445,10 @@ class OfficeCopilotAgent:
         return {
             "status": "ok",
             "file_path": str(file_path),
-            "sections_count": len(sections)
+            "sections_count": len(sections),
+            "sample_data": sample_data,
+            "warning": (
+                "Filled with SAMPLE sections — supply 'sections' for a real briefing."
+                if sample_data else None
+            ),
         }

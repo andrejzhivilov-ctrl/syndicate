@@ -56,7 +56,7 @@ class AffiliateScout:
         offers = self.CURATED_SAAS_BENCHMARKS
         if category:
             offers = [o for o in offers if category.lower() in o["category"].lower()]
-        
+
         # Sort by avg_epc descending
         ranked = sorted(offers, key=lambda x: x["avg_epc"], reverse=True)
         logger.info("scouted_affiliate_offers", count=len(ranked))

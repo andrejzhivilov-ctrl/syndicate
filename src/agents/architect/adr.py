@@ -58,9 +58,12 @@ def build_adr_bundle(
     number: int, title: str, **kwargs: Any
 ) -> Dict[str, Any]:
     """Return the full artefact set for one architectural decision."""
+    # ``kind`` only affects the commit message, not the document body — pop it
+    # once, up front, so it can never leak into format_adr().
+    kind = kwargs.pop("kind", "feat")
     return {
         "number": number,
         "path": adr_filename(number, title),
-        "commit_message": commit_message(number, title, kind=kwargs.pop("kind", "feat")),
+        "commit_message": commit_message(number, title, kind=kind),
         "content": format_adr(number=number, title=title, **kwargs),
     }

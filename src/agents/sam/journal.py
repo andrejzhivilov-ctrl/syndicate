@@ -230,23 +230,59 @@ class TradeJournal:
             logger.warning("reflection_write_failed", error=str(exc))
             self._mem_reflections.append(row)
 
+    def _filter_constraints(
+        self,
+        rows: List[Dict[str, Any]],
+        symbol: Optional[str],
+        limit: int,
+    ) -> List[Dict[str, Any]]:
+        """Apply the symbol filter + limit consistently for both backends.
+
+        ``symbol`` used to be accepted and then silently ignored, so a
+        constraint learned on BTCUSDT gated ETHUSDT too (and the caller in
+        :meth:`SamAgent.evaluate_setup` believed it was symbol-scoped).
+        """
+        items = [r for r in rows if r.get("kind") == "negative_constraint"]
+        if symbol:
+            wanted = symbol.upper()
+            items = [r for r in items if self._constraint_symbol(r) == wanted]
+        return items[-limit:]
+
+    def _constraint_symbol(self, row: Dict[str, Any]) -> str:
+        """Resolve a reflection's instrument: detail -> journal entry -> SQL join."""
+        for candidate in (
+            (row.get("detail") or {}).get("symbol"),
+            row.get("symbol"),
+        ):
+            if candidate:
+                return str(candidate).upper()
+        entry = self._mem_entries.get(row.get("signal_id")) or {}
+        return str(entry.get("symbol") or "").upper()
+
     async def negative_constraints(self, symbol: Optional[str] = None, limit: int = 50) -> List[Dict[str, Any]]:
-        """Return active negative constraints to gate new proposals."""
+        """Return active negative constraints to gate new proposals.
+
+        When ``symbol`` is given only the constraints recorded for that symbol
+        are returned; pass ``None`` for the global set.
+        """
         pool = self._pool()
         if pool is None:
-            items = [r for r in self._mem_reflections if r["kind"] == "negative_constraint"]
-            return items[-limit:]
+            return self._filter_constraints(self._mem_reflections, symbol, limit)
         try:  # pragma: no cover - needs live DB
             async with pool.acquire() as conn:
                 rows = await conn.fetch(
                     """
-                    SELECT signal_id, kind, summary, detail, weight, created_at
-                    FROM agents.sam_reflections
-                    WHERE kind = 'negative_constraint'
-                    ORDER BY created_at DESC
+                    SELECT r.signal_id, r.kind, r.summary, r.detail, r.weight,
+                           r.created_at, j.symbol AS symbol
+                    FROM agents.sam_reflections r
+                    LEFT JOIN agents.sam_trade_journal j ON j.signal_id = r.signal_id
+                    WHERE r.kind = 'negative_constraint'
+                      AND ($2::text IS NULL OR j.symbol = $2)
+                    ORDER BY r.created_at DESC
                     LIMIT $1
                     """,
                     limit,
+                    symbol.upper() if symbol else None,
                 )
             return [dict(r) for r in rows]
         except Exception as exc:  # noqa: BLE001

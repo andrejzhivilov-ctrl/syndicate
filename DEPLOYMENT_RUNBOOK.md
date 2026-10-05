@@ -149,20 +149,33 @@ export VAULT_ADDR=http://127.0.0.1:8200
 export VAULT_TOKEN="<root-token>"
 source /opt/eva/.env
 
+> **Увага.** Усі секрети живуть в одному KV v2-mount `secret` з префіксом
+> `eva-syndicate` — єдине джерело правди: `src/vault_paths.py`. Старі шляхи
+> `eva/database`, `eva/config`, `eva/api-keys` більше не використовуються.
+
+```bash
 # Реальні креденшли БД
 curl -s -X POST -H "X-Vault-Token: $VAULT_TOKEN" \
   -d "{\"data\":{\"host\":\"postgres\",\"port\":\"5432\",\"name\":\"eva_syndicate\",\"user\":\"eva\",\"password\":\"${POSTGRES_PASSWORD}\"}}" \
-  "$VAULT_ADDR/v1/eva/database/data/postgres"
+  "$VAULT_ADDR/v1/secret/data/eva-syndicate/database"
 
-# Пароль Redis (шлях, який очікує agent_runner: eva/config/data/redis)
+# Пароль Redis
 curl -s -X POST -H "X-Vault-Token: $VAULT_TOKEN" \
   -d "{\"data\":{\"password\":\"${REDIS_PASSWORD}\"}}" \
-  "$VAULT_ADDR/v1/eva/config/data/redis"
+  "$VAULT_ADDR/v1/secret/data/eva-syndicate/redis"
 
 # Реальні LLM-ключі
 curl -s -X POST -H "X-Vault-Token: $VAULT_TOKEN" \
   -d '{"data":{"openai_api_key":"sk-...","anthropic_api_key":"sk-ant-...","embedding_model":"text-embedding-3-small"}}' \
-  "$VAULT_ADDR/v1/eva/api-keys/data/llm"
+  "$VAULT_ADDR/v1/secret/data/eva-syndicate/api-keys"
+
+# API-ключ агента та HMAC-секрет webhook'ів.
+# Без цього /execute повертає 401 "API authentication key not configured".
+API_KEY=$(openssl rand -hex 32)
+WEBHOOK_SECRET=$(openssl rand -hex 32)
+curl -s -X POST -H "X-Vault-Token: $VAULT_TOKEN" \
+  -d "{\"data\":{\"api_key\":\"${API_KEY}\",\"webhook_secret\":\"${WEBHOOK_SECRET}\"}}" \
+  "$VAULT_ADDR/v1/secret/data/eva-syndicate/auth"
 
 unset VAULT_TOKEN
 ```

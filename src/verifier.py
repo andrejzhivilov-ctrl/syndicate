@@ -94,6 +94,45 @@ class OrcVerifier:
             "replay_matched": verdict.replay_matched,
         }
 
+    @staticmethod
+    def _check_content(claim: Claim, body: str) -> List[str]:
+        """must_contain / must_not_contain checks against the normalised body."""
+        reasons: List[str] = []
+        for needle in claim.must_contain:
+            if _norm(needle) not in body:
+                reasons.append(f"evidence_missing:{needle}")
+        for needle in claim.must_not_contain:
+            if _norm(needle) in body:
+                reasons.append(f"evidence_contradicts:{needle}")
+        return reasons
+
+    @staticmethod
+    async def _replay(ev: Evidence, body: str, replayer: Replayer) -> tuple:
+        """Re-execute the original call. Returns ``(replay_matched, reasons)``."""
+        try:
+            fresh = await replayer(ev.call)
+        except Exception as exc:  # noqa: BLE001
+            return None, [f"replay_failed:{type(exc).__name__}"]
+        if _norm(fresh) != body:
+            return False, ["replay_differs_from_evidence"]
+        return True, []
+
+    async def _skeptic_refutes(self, claim: Claim, ev: Evidence) -> bool:
+        """Adversarial LLM pass. A failure here is never fatal to the pipeline."""
+        if self._skeptic is None:
+            return False
+        try:
+            resp = await self._skeptic.ainvoke(
+                f"Try to refute this claim using ONLY the evidence. Answer REFUTED or HOLDS.\n"
+                f"Claim: {claim.statement}\nEvidence: {ev.response!s:.1500}"
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("orc_skeptic_failed", error=str(exc))
+            return False
+        # Only the text before the first "HOLDS" counts as the verdict.
+        answer = str(getattr(resp, "content", resp)).upper().split("HOLDS")[0]
+        return "REFUTED" in answer
+
     async def verify(self, claim: Claim, replayer: Optional[Replayer] = None) -> Verdict:
         ev = claim.evidence
         if ev is None:
@@ -102,38 +141,25 @@ class OrcVerifier:
             return Verdict("unproven", ["evidence_stale"])
 
         body = _norm(ev.response)
-        reasons: List[str] = []
-        for needle in claim.must_contain:
-            if _norm(needle) not in body:
-                reasons.append(f"evidence_missing:{needle}")
-        for needle in claim.must_not_contain:
-            if _norm(needle) in body:
-                reasons.append(f"evidence_contradicts:{needle}")
+
+        reasons = self._check_content(claim, body)
         if reasons:
             return Verdict("refuted", reasons)
 
         replay_matched: Optional[bool] = None
         if replayer is not None:
-            try:
-                fresh = await replayer(ev.call)
-            except Exception as exc:  # noqa: BLE001
-                return Verdict("unproven", [f"replay_failed:{type(exc).__name__}"], replay_matched=None)
-            replay_matched = _norm(fresh) == body
-            if not replay_matched:
-                return Verdict("refuted", ["replay_differs_from_evidence"], replay_matched=False)
+            replay_matched, replay_reasons = await self._replay(ev, body, replayer)
+            if replay_reasons or not replay_matched:
+                return Verdict("unproven" if replay_matched is None else "refuted", replay_reasons, replay_matched)
 
-        if self._skeptic is not None:
-            try:
-                resp = await self._skeptic.ainvoke(
-                    f"Try to refute this claim using ONLY the evidence. Answer REFUTED or HOLDS.\n"
-                    f"Claim: {claim.statement}\nEvidence: {ev.response!s:.1500}"
-                )
-                if "REFUTED" in str(getattr(resp, "content", resp)).upper().split("HOLDS")[0]:
-                    return Verdict("refuted", ["skeptic_refuted"], replay_matched)
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("orc_skeptic_failed", error=str(exc))
+        if await self._skeptic_refutes(claim, ev):
+            return Verdict("refuted", ["skeptic_refuted"], replay_matched)
 
-        return Verdict("confirmed", ["evidence_ok"] + (["replay_matched"] if replay_matched else []), replay_matched)
+        return Verdict(
+            "confirmed",
+            ["evidence_ok"] + (["replay_matched"] if replay_matched else []),
+            replay_matched,
+        )
 
 
 @dataclass

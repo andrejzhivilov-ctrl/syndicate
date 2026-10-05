@@ -312,6 +312,119 @@ CREATE TABLE IF NOT EXISTS audit.outbound_vetoes (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+
+-- ============================================================
+
+
+CREATE INDEX IF NOT EXISTS idx_lessons_category ON memory.lessons (category, kind);
+
+CREATE INDEX IF NOT EXISTS idx_lessons_severity ON memory.lessons (severity, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_decisions_agent ON audit.decisions (agent_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_decisions_outcome ON audit.decisions (outcome, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_decisions_action ON audit.decisions (action, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_cache_expires ON memory.response_cache (expires_at)
+    WHERE expires_at IS NOT NULL;
+
+-- ============================================================
+-- MODULE 5: Eva Curator — Deadlines & Social Contacts
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS memory.deadlines (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title           VARCHAR(512) NOT NULL,
+    category        VARCHAR(128) DEFAULT 'general',
+    due_date        DATE NOT NULL,
+    remind_days_before INTEGER DEFAULT 7,
+    recurring       VARCHAR(32) CHECK (recurring IN ('none', 'weekly', 'monthly', 'quarterly', 'yearly')),
+    status          VARCHAR(16) DEFAULT 'active'
+                    CHECK (status IN ('active', 'completed', 'expired', 'cancelled')),
+    notes           TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    completed_at    TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_deadlines_due ON memory.deadlines (due_date, status);
+
+CREATE INDEX IF NOT EXISTS idx_deadlines_category ON memory.deadlines (category, due_date);
+
+CREATE TABLE IF NOT EXISTS memory.social_contacts (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name            VARCHAR(256) NOT NULL,
+    relationship    VARCHAR(128),
+    birthday        DATE,
+    phone           VARCHAR(32),
+    email           VARCHAR(256),
+    last_contact    DATE,
+    importance      VARCHAR(16) DEFAULT 'normal'
+                    CHECK (importance IN ('low', 'normal', 'high', 'critical')),
+    notes           TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_social_birthday ON memory.social_contacts (birthday);
+
+CREATE INDEX IF NOT EXISTS idx_social_last_contact ON memory.social_contacts (last_contact);
+
+-- Keep social_contacts.updated_at fresh (mirrors 02-migration_v4.sql).
+DROP TRIGGER IF EXISTS trg_social_contacts_updated ON memory.social_contacts;
+CREATE TRIGGER trg_social_contacts_updated
+    BEFORE UPDATE ON memory.social_contacts
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ============================================================
+-- MODULE 6: Doc Health — Biomarkers, Screening, Compliance
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS agents.doc_biomarkers (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    marker_name     VARCHAR(128) NOT NULL,
+    value           NUMERIC(12,4) NOT NULL,
+    unit            VARCHAR(32),
+    ref_range_low   NUMERIC(12,4),
+    ref_range_high  NUMERIC(12,4),
+    source          VARCHAR(128),
+    test_date       DATE NOT NULL,
+    notes           TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_biomarkers_name ON agents.doc_biomarkers (marker_name, test_date DESC);
+
+CREATE TABLE IF NOT EXISTS agents.doc_screenings (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    screening_type  VARCHAR(128) NOT NULL,
+    last_done       DATE,
+    next_due        DATE,
+    interval_months INTEGER DEFAULT 12,
+    status          VARCHAR(16) DEFAULT 'pending'
+                    CHECK (status IN ('pending', 'scheduled', 'completed', 'overdue')),
+    notes           TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_screenings_due ON agents.doc_screenings (next_due, status);
+
+CREATE TABLE IF NOT EXISTS agents.doc_compliance (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    item_name       VARCHAR(256) NOT NULL,
+    prescribed_freq VARCHAR(32) NOT NULL,
+    logged_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    completed       BOOLEAN DEFAULT true,
+    notes           TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_compliance_item ON agents.doc_compliance (item_name, logged_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_vetoes_agent ON audit.outbound_vetoes (agent_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_vetoes_blocked ON audit.outbound_vetoes (allowed, created_at DESC)
+    WHERE allowed = false;
+
 -- ============================================================
 -- PERMISSIONS (least privilege — NOLOGIN until Vault rotates password)
 -- ============================================================
@@ -330,4 +443,21 @@ GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA agents TO eva_agent;
 GRANT INSERT ON ALL TABLES IN SCHEMA audit TO eva_agent;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA memory TO eva_agent;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA agents TO eva_agent;
+
+-- Tables created later (e.g. by 02-migration_v4.sql on an upgrade) must
+-- inherit the same privileges, otherwise eva_agent silently loses access
+-- to anything added after this point.
+ALTER DEFAULT PRIVILEGES IN SCHEMA memory GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO eva_agent;
+ALTER DEFAULT PRIVILEGES IN SCHEMA agents GRANT SELECT, INSERT, UPDATE ON TABLES TO eva_agent;
+ALTER DEFAULT PRIVILEGES IN SCHEMA audit  GRANT INSERT ON TABLES TO eva_agent;
+ALTER DEFAULT PRIVILEGES IN SCHEMA memory GRANT USAGE ON SEQUENCES TO eva_agent;
+ALTER DEFAULT PRIVILEGES IN SCHEMA agents GRANT USAGE ON SEQUENCES TO eva_agent;
+
+-- Explicit grants so init.sql is a complete single-pass schema even if
+-- 02-migration_v4.sql is not applied.
+GRANT SELECT, INSERT, UPDATE, DELETE ON memory.deadlines TO eva_agent;
+GRANT SELECT, INSERT, UPDATE ON memory.social_contacts TO eva_agent;
+GRANT SELECT, INSERT, UPDATE ON agents.doc_biomarkers TO eva_agent;
+GRANT SELECT, INSERT, UPDATE ON agents.doc_screenings TO eva_agent;
+GRANT SELECT, INSERT ON agents.doc_compliance TO eva_agent;
 

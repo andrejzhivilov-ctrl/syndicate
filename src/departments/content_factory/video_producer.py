@@ -35,12 +35,18 @@ class VideoProducer:
         "de": "de-DE-ConradNeural",
     }
 
-    def __init__(self, output_dir: Optional[str] = None, font_path: Optional[str] = None):
+    def __init__(
+        self,
+        output_dir: Optional[str] = None,
+        font_path: Optional[str] = None,
+        threads: int = 16,
+    ):
         # ``EVA_DATA_DIR`` keeps renders writable when the container root fs is read-only.
         from src.data_paths import ensure_dir
 
         self.output_dir = ensure_dir("videos", output_dir)
         self.font_path = font_path
+        self.threads = threads
         self.ffmpeg_bin = shutil.which("ffmpeg") or "ffmpeg"
 
     async def generate_voiceover(
@@ -128,10 +134,14 @@ class VideoProducer:
         Construct optimal multi-threaded FFmpeg command for 9:16 vertical video.
         Uses 16 CPU threads for maximum throughput on Contabo VPS.
         """
-        width, height = target_resolution.split("x")
+        try:
+            width, height = str(target_resolution).lower().split("x")
+            int(width), int(height)
+        except (ValueError, AttributeError):
+            raise ValueError(f"invalid target_resolution: {target_resolution!r} (expected WxH)") from None
         cmd = [
             self.ffmpeg_bin, "-y",
-            "-threads", "16",
+            "-threads", str(self.threads),
             "-stream_loop", "-1",
             "-i", str(broll_video),
             "-i", str(voiceover_audio),
@@ -181,8 +191,16 @@ class VideoProducer:
         bg_music: Optional[str] = None
     ) -> Dict[str, Any]:
         """End-to-end video synthesis pipeline."""
-        output_mp4 = self.output_dir / output_filename
+        output_mp4 = self.output_dir / Path(output_filename).name
         temp_audio = self.output_dir / f"temp_vo_{output_mp4.stem}.mp3"
+
+        # 0. The B-roll must exist before we spend a TTS call on it.
+        if not broll_video or not Path(broll_video).exists():
+            return {
+                "status": "error",
+                "message": f"broll_video not found: {broll_video}",
+                "output_file": str(output_mp4),
+            }
 
         # 1. Synthesize voiceover
         vo_res = await self.generate_voiceover(script_text, str(temp_audio), voice=voice)
@@ -206,12 +224,12 @@ class VideoProducer:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
-            stdout, stderr = await process.communicate()
+            _stdout, stderr = await process.communicate()
             if process.returncode != 0:
                 logger.warning("ffmpeg_render_error", stderr=stderr.decode(errors="ignore")[:300])
                 return {
-                    "status": "warning",
-                    "message": "FFmpeg completed with errors or mock environment",
+                    "status": "error",
+                    "message": f"FFmpeg exited with code {process.returncode}",
                     "command": " ".join(cmd),
                     "output_file": str(output_mp4)
                 }
@@ -223,6 +241,17 @@ class VideoProducer:
                 "command": " ".join(cmd),
                 "audio_ready": str(temp_audio),
                 "output_file": str(output_mp4)
+            }
+
+        # Only report success once the artefact is really on disk — a zero exit
+        # code does not guarantee FFmpeg produced the file.
+        rendered = output_mp4.exists() and output_mp4.stat().st_size > 0
+        if not rendered:
+            return {
+                "status": "error",
+                "message": "FFmpeg exited 0 but produced no output file",
+                "command": " ".join(cmd),
+                "output_file": str(output_mp4),
             }
 
         return {

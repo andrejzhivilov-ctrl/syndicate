@@ -20,6 +20,8 @@ from typing import Any, Dict, Optional
 
 import structlog
 
+from src.vault_paths import secret_path
+
 try:
     import httpx
     _HTTPX_AVAILABLE = True
@@ -92,7 +94,7 @@ class BaseConnector(abc.ABC):
         value: Optional[str] = None
         if self._vault is not None:
             try:
-                path = f"secret/data/eva-syndicate/{self.SERVICE_NAME}"
+                path = secret_path(self.SERVICE_NAME)
                 secrets = await self._read_vault(path)
                 if secrets and key in secrets:
                     value = str(secrets[key])
@@ -105,15 +107,20 @@ class BaseConnector(abc.ABC):
                 )
 
         if value is None:
-            env_key = key.upper()
-            value = os.environ.get(env_key)
-            if value is not None:
-                logger.warning(
-                    "using_env_fallback_secret",
-                    service=self.SERVICE_NAME,
-                    env_key=env_key,
-                    hint="Production must serve this secret via Vault, not env.",
-                )
+            # Try the namespaced variable first (TELEGRAM_BOT_TOKEN) and then
+            # the bare one (BOT_TOKEN). The old code only checked the bare
+            # name, so the documented variables in .env.example were ignored.
+            for env_key in (f"{self.SERVICE_NAME.upper()}_{key.upper()}", key.upper()):
+                candidate = os.environ.get(env_key)
+                if candidate:
+                    value = candidate
+                    logger.warning(
+                        "using_env_fallback_secret",
+                        service=self.SERVICE_NAME,
+                        env_key=env_key,
+                        hint="Production must serve this secret via Vault, not env.",
+                    )
+                    break
 
         if value is None:
             raise ConnectorError(

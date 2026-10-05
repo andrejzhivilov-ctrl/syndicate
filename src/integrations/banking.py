@@ -46,7 +46,14 @@ class BankingClient:
     async def get_accounts_overview(self) -> Dict[str, Any]:
         """
         Fetch aggregated account balances across Monobank, PrivatBank,
-        and reserve cash. Falls back gracefully to verified sandbox mock data.
+        and reserve cash.
+
+        When no bank is configured or every provider fails we report
+        ``status: "unavailable"`` with zeroed totals. The previous behaviour
+        silently substituted a hardcoded "sandbox" portfolio (185 400 / 42 300
+        / 74 200 UAH + 15 000 USD), which Fin then published to the CFO dossier
+        as if it had been measured. Fake balances are now opt-in only and are
+        always labelled ``synthetic: True``.
         """
         accounts = []
 
@@ -58,9 +65,28 @@ class BankingClient:
         privat_accounts = await self._fetch_privatbank_accounts()
         accounts.extend(privat_accounts)
 
-        # If no external accounts configured, provide baseline operational reserve
+        synthetic = False
         if not accounts:
-            accounts = self._get_sandbox_mock_accounts()
+            if self._sandbox_enabled():
+                accounts = self._get_sandbox_mock_accounts()
+                synthetic = True
+                logger.warning(
+                    "banking_sandbox_accounts_in_use",
+                    hint="EVA_BANKING_SANDBOX=1 — these balances are NOT real.",
+                )
+            else:
+                return {
+                    "status": "unavailable",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "accounts_count": 0,
+                    "accounts": [],
+                    "synthetic": False,
+                    "totals": {"UAH": 0.0, "USD": 0.0, "EUR": 0.0, "estimated_liquid_usd": 0.0},
+                    "warning": (
+                        "No bank accounts could be synced (no credentials or every "
+                        "provider failed). Balances are NOT estimated."
+                    ),
+                }
 
         # Compute multi-currency totals
         total_uah = sum(a["balance"] for a in accounts if a["currency"] == "UAH")
@@ -75,6 +101,7 @@ class BankingClient:
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "accounts_count": len(accounts),
             "accounts": accounts,
+            "synthetic": synthetic,
             "totals": {
                 "UAH": round(total_uah, 2),
                 "USD": round(total_usd, 2),
@@ -130,8 +157,17 @@ class BankingClient:
         logger.info("privatbank_configured", merchant_id=self.privatbank_merchant_id[:4] + "***")
         return []
 
+    @staticmethod
+    def _sandbox_enabled() -> bool:
+        """Synthetic balances are opt-in and must never reach production.
+
+        Set ``EVA_BANKING_SANDBOX=1`` for local demos only. Any code path that
+        consumes these numbers must check the ``synthetic`` flag.
+        """
+        return os.getenv("EVA_BANKING_SANDBOX", "").strip().lower() in ("1", "true", "yes", "on")
+
     def _get_sandbox_mock_accounts(self) -> List[Dict[str, Any]]:
-        """Verified baseline mock accounts for sandbox testing."""
+        """Synthetic demo portfolio — NOT real money, opt-in only."""
         return [
             {"bank": "Monobank (FOP Corp)", "account_id": "mono_fop_01", "currency": "UAH", "balance": 185400.0, "type": "fop"},
             {"bank": "Monobank (Personal Black)", "account_id": "mono_pers_01", "currency": "UAH", "balance": 42300.0, "type": "card"},

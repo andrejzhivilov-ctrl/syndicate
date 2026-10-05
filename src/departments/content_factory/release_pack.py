@@ -101,6 +101,12 @@ class ReleasePackBuilder:
         verified: List[Dict[str, Any]] = []
         blocked: List[Dict[str, Any]] = []
         for c in claims or []:
+            if not isinstance(c, dict) or not c.get("statement"):
+                # A malformed claim used to raise KeyError and abort the whole
+                # release pack; record it as unverifiable instead.
+                blocked.append({"statement": c.get("statement") if isinstance(c, dict) else None,
+                                "verdict": "unproven", "reasons": ["malformed_claim"]})
+                continue
             ev = Evidence(call=c.get("call", {}), response=c.get("response"), timestamp=c.get("timestamp", time.time())) if "response" in c else None
             claim = Claim(c["statement"], author, ev, c.get("must_contain", []), c.get("must_not_contain", []))
             verdict = await self._orc.verify(claim, replayer)

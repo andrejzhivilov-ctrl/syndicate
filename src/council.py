@@ -135,6 +135,56 @@ class LLMCouncil:
         except Exception as exc:  # noqa: BLE001
             return ModelVote(name, error=f"{type(exc).__name__}: {exc}")
 
+    def _tally_options(self, good: List[ModelVote], options: List[str]) -> tuple:
+        """Majority vote over explicit options."""
+        for v in good:
+            v.option = _extract_option(v.answer, options)
+        tally: Dict[str, int] = {}
+        for v in good:
+            if v.option:
+                tally[v.option] = tally.get(v.option, 0) + 1
+        if not tally:
+            return "no_consensus", 0.0, [v.model for v in good]
+        decision, top = max(tally.items(), key=lambda kv: kv[1])
+        return decision, top / len(good), [v.model for v in good if v.option != decision]
+
+    def _decide_by_similarity(self, good: List[ModelVote]) -> tuple:
+        """No explicit options — pick the medoid answer and measure agreement."""
+        if len(good) == 1:
+            return good[0].answer, 1.0, []
+        sims = {v.model: 0.0 for v in good}
+        pair_scores = []
+        for a, b in combinations(good, 2):
+            s = _jaccard(a.answer, b.answer)
+            sims[a.model] += s
+            sims[b.model] += s
+            pair_scores.append(s)
+        medoid = max(good, key=lambda v: sims[v.model])
+        agreement = sum(pair_scores) / len(pair_scores)
+        dissent = [
+            v.model for v in good
+            if _jaccard(v.answer, medoid.answer) < self._threshold / 2
+        ]
+        return medoid.answer, agreement, dissent
+
+    async def _synthesize(self, question: str, good: List[ModelVote]) -> str:
+        """Optional arbiter pass — never fatal, always returns a string."""
+        if self._arbiter is None or not good:
+            return ""
+        joined = "\n\n".join(f"[{v.model}] {v.answer[:800]}" for v in good)
+        try:
+            resp = await asyncio.wait_for(
+                self._arbiter.ainvoke(
+                    f"Question: {question}\n\nModel answers:\n{joined}\n\n"
+                    "Synthesize the consensus; explicitly flag disagreements and uncertain claims."
+                ),
+                timeout=self._timeout,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("council_arbiter_failed", error=str(exc))
+            return ""
+        return self._text(resp)
+
     async def deliberate(
         self,
         question: str,
@@ -150,48 +200,13 @@ class LLMCouncil:
         quorum_met = len(good) >= self._quorum
 
         if options:
-            for v in good:
-                v.option = _extract_option(v.answer, options)
-            tally: Dict[str, int] = {}
-            for v in good:
-                if v.option:
-                    tally[v.option] = tally.get(v.option, 0) + 1
-            if tally:
-                decision, top = max(tally.items(), key=lambda kv: kv[1])
-                agreement = top / len(good)
-                dissent = [v.model for v in good if v.option != decision]
-            else:
-                decision, agreement, dissent = "no_consensus", 0.0, [v.model for v in good]
+            decision, agreement, dissent = self._tally_options(good, options)
         elif good:
-            if len(good) == 1:
-                decision, agreement, dissent = good[0].answer, 1.0, []
-            else:
-                sims = {v.model: 0.0 for v in good}
-                pair_scores = []
-                for a, b in combinations(good, 2):
-                    s = _jaccard(a.answer, b.answer)
-                    sims[a.model] += s
-                    sims[b.model] += s
-                    pair_scores.append(s)
-                medoid = max(good, key=lambda v: sims[v.model])
-                decision = medoid.answer
-                agreement = sum(pair_scores) / len(pair_scores)
-                dissent = [v.model for v in good if _jaccard(v.answer, medoid.answer) < self._threshold / 2]
+            decision, agreement, dissent = self._decide_by_similarity(good)
         else:
             decision, agreement, dissent = "no_consensus", 0.0, []
 
-        synthesis = ""
-        if self._arbiter is not None and good:
-            joined = "\n\n".join(f"[{v.model}] {v.answer[:800]}" for v in good)
-            try:
-                resp = await asyncio.wait_for(
-                    self._arbiter.ainvoke(f"Question: {question}\n\nModel answers:\n{joined}\n\n"
-                                          "Synthesize the consensus; explicitly flag disagreements and uncertain claims."),
-                    timeout=self._timeout,
-                )
-                synthesis = self._text(resp)
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("council_arbiter_failed", error=str(exc))
+        synthesis = await self._synthesize(question, good)
 
         requires_hitl = (not quorum_met) or agreement < self._threshold or decision == "no_consensus"
         logger.info("council_verdict", decision=decision[:60], agreement=round(agreement, 3), quorum=quorum_met)

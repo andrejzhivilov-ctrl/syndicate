@@ -18,9 +18,12 @@ class OpenAITTS(BaseTTSProvider):
     BASE = "https://api.openai.com/v1/audio/speech"
 
     async def synthesize(self, text: str, voice_id: Optional[str] = None, **opts: Any) -> VoiceResult:
-        api_key = await read_vault_secret(self._vault, "llm", "openai_api_key") or await read_vault_secret(
-            self._vault, "openai", "api_key"
-        )
+        # LLM provider keys live under the "api-keys" service in Vault — see
+        # deploy/scripts/vault_init.sh. The old call used service "llm", which
+        # no longer exists in the unified layout.
+        api_key = await read_vault_secret(
+            self._vault, "api-keys", "openai_api_key"
+        ) or await read_vault_secret(self._vault, "openai", "api_key")
         if not api_key:
             return VoiceResult(provider=self.PROVIDER_NAME, error="openai api_key missing")
 

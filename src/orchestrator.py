@@ -98,6 +98,11 @@ class EvaOrchestrator:
 
         # ─── Floor 2: Content Factory & Operations ──────────────────────────
         "render_short_video": "floor2",
+        "create_viral_short": "floor2",
+        "direct_short_script": "floor2",
+        "source_broll_batch": "floor2",
+        "generate_karaoke_captions": "floor2",
+        "publish_content_campaign": "floor2",
         "generate_viral_thread": "floor2",
         "generate_pod_mockup": "floor2",
         "scout_affiliate_offers": "floor2",
@@ -266,8 +271,8 @@ class EvaOrchestrator:
         self._orc_verifier = orc_verifier
         self._release_pack = release_pack_builder
 
-    async def initialize(self) -> None:
-        """Initialize tiered LLMs and compile the agent graph."""
+    def _init_llms(self) -> None:
+        """Tiered LLM setup. Every provider failure degrades, never raises."""
         anthropic_key = self._llm_config.get("anthropic_api_key", "")
         openai_key = self._llm_config.get("openai_api_key", "")
         reasoning_model = self._llm_config.get("reasoning_model", "o3-mini")
@@ -275,6 +280,7 @@ class EvaOrchestrator:
         if anthropic_key and anthropic_key != "PLACEHOLDER_UPDATE_ME":
             try:
                 from langchain_anthropic import ChatAnthropic
+
                 self._llm = ChatAnthropic(
                     api_key=anthropic_key,
                     model="claude-3-5-sonnet-20241022",
@@ -283,30 +289,38 @@ class EvaOrchestrator:
             except Exception as exc:  # noqa: BLE001
                 logger.warning("Failed to initialize ChatAnthropic", error=str(exc))
 
-        if openai_key and openai_key != "PLACEHOLDER_UPDATE_ME":
-            fast_llm = ChatOpenAI(
+        if not (openai_key and openai_key != "PLACEHOLDER_UPDATE_ME"):
+            return
+
+        try:
+            self._llm_fast = ChatOpenAI(
                 api_key=openai_key,
                 model="gpt-4o-mini",
                 temperature=0,
             )
-            self._llm_fast = fast_llm
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Failed to initialize fast LLM", error=str(exc))
+
+        try:
+            self._llm_reasoning = ChatOpenAI(
+                api_key=openai_key,
+                model=reasoning_model,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Failed to initialize reasoning LLM, falling back to primary LLM", error=str(exc))
+
+        if self._llm is None:
             try:
-                self._llm_reasoning = ChatOpenAI(
-                    api_key=openai_key,
-                    model=reasoning_model,
-                )
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("Failed to initialize reasoning LLM, falling back to primary LLM", error=str(exc))
-            if self._llm is None:
                 self._llm = ChatOpenAI(
                     api_key=openai_key,
                     model="gpt-4o",
                     temperature=0,
                 )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Failed to initialize primary LLM", error=str(exc))
 
-        if self._llm_reasoning is None and self._llm is not None:
-            self._llm_reasoning = self._llm
-
+    def _init_verification_stack(self) -> None:
+        """Council / Orc / release-pack are created once and reused."""
         if self._council is None:
             self._council = LLMCouncil(llm=self._llm, default_threshold=0.66)
         if self._orc_verifier is None:
@@ -318,6 +332,15 @@ class EvaOrchestrator:
                 verifier=self._orc_verifier,
                 cr_store=self._change_requests,
             )
+
+    async def initialize(self) -> None:
+        """Initialize tiered LLMs and compile the agent graph."""
+        self._init_llms()
+
+        if self._llm_reasoning is None and self._llm is not None:
+            self._llm_reasoning = self._llm
+
+        self._init_verification_stack()
 
         if LANGGRAPH_AVAILABLE:
             self._graph = self._build_graph()
