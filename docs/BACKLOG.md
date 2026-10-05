@@ -8,6 +8,21 @@
 
 ---
 
+## 🔴 Пріоритет 0 — підготовка бекенду під клієнтський додаток
+
+Це блокери для додатка (ПК + смартфон). Виявлено аудитом `deploy/runtime/agent_runner.py`.
+Деталі — у `docs/ANTIGRAVITY_BRIEF.md`. **Antigravity не може почати повноцінно, поки не
+зроблені пункти 0.1 і 0.3.**
+
+| # | Задача | Де | Хто |
+|---|---|---|---|
+| 0.1 | **Увімкнути OpenAPI і зафіксувати контракт.** Зараз `openapi_url=None` — схеми немає, клієнт мусить вгадувати поля. Згенерувати `apps/shared/api-contract.yaml` і комітити його | `deploy/runtime/agent_runner.py` | AA |
+| 0.2 | **CORS.** Зараз `allow_origins=[]` — усе закрито. Додати конфігурований allowlist (не `*`) | `deploy/runtime/agent_runner.py` | AA |
+| 0.3 | **Per-device токени.** Зараз один спільний `X-API-Key` — його **не можна** зашивати в мобільний додаток. Потрібен логін → короткоживучий токен + відкликання | новий модуль + Vault | AA → AG |
+| 0.4 | **Стрімінг для `/execute`.** Зараз запит/відповідь; агент думає 10–60 с і екран висить. SSE або WebSocket із проміжними станами | `deploy/runtime/agent_runner.py` | AA |
+| 0.5 | **HITL у додатку як першокласна поверхня.** Зараз підтвердження живе в Telegram. Потрібен пуш-канал + прив'язка до `/cr/review` | клієнт + сервер | AG + AA |
+| 0.6 | **Закрити `/cockpit` і `/floors`.** Зараз без авторизації. Якщо додаток дивиться в інтернет — за reverse proxy або за auth | nginx, `agent_runner.py` | AA |
+
 ## 🔴 Пріоритет 1 — без цього функція не існує
 
 | # | Задача | Де | Хто |
@@ -16,27 +31,28 @@
 | 2 | **Завантажити бекап собі.** `backup/full/` (73 МБ) живе в пісковиці, яка вже двічі відкочувалася. Скачати mirror/bundle/zip локально | — | 👤 |
 | 3 | **Ключі Pexels/Pixabay у Vault.** Без них `broll_scout` не може дістати B-roll, і рендер коротких відео деградує (порожній concat → `output_file_missing`) | `content_factory/broll_scout.py`, Vault | 👤 → AG |
 | 4 | **Заповнити реальні секрети у Vault** за шляхами з `src/vault_paths.py`: `database`, `redis`, `auth`, `api-keys`, `agents`. Зараз багато шляхів працює через env-фолбек і логує warning | Vault | 👤 |
+| 5 | **Клієнтський додаток (ПК + смартфон).** Каркас + перший екран (реєстр поверхів із `/floors`). Гілка `app/client`, усе в `apps/` | `apps/` | AG → AA |
 
 ## 🟠 Пріоритет 2 — якість й довіра
 
 | # | Задача | Де | Хто |
 |---|---|---|---|
-| 5 | **PostgreSQL + pgvector у CI.** Усі SQL-гілки мають `# pragma: no cover` і перевірені лише статично; у тестах працюють in-memory бекенди. Це найбільша «сліпа зона» репозиторію | `.github/workflows/`, `tests/` | AG → AA |
-| 6 | **Розширити `Humanizer`** — словники `CLICHES` і `REPLACEMENTS` короткі для продакшен-копірайтингу (uk/ru/en) | `content_factory/humanizer.py` | AG |
-| 7 | **Винести `base_url` у `GrokWriter` у конфігурацію.** Зараз `https://api.x.ai/v1` захардкоджений у двох модулях | `grok_writer.py`, `script_director.py` | AG |
-| 8 | **Реальний матчер Word-шаблонів у `office_copilot`.** Пошук по `{{placeholder}}` працює спрощено; для складних шаблонів варто обробляти поля й таблиці окремо | `agents/office_copilot.py` | AG |
-| 9 | **Метрики й алерти.** Жодного експорту в Prometheus; стан відділів видно тільки з логів | новий модуль | AG |
-| 10 | **Документація розгортання з нуля.** `DEPLOYMENT_RUNBOOK.md` існує, але не перевірявся на чистому VPS після всіх правок (read-only корінь, `EVA_DATA_DIR`, новий Dockerfile) | `DEPLOYMENT_RUNBOOK.md` | AG → AA |
+| 6 | **PostgreSQL + pgvector у CI.** Усі SQL-гілки мають `# pragma: no cover` і перевірені лише статично; у тестах працюють in-memory бекенди. Це найбільша «сліпа зона» репозиторію | `.github/workflows/`, `tests/` | AG → AA |
+| 7 | **Розширити `Humanizer`** — словники `CLICHES` і `REPLACEMENTS` короткі для продакшен-копірайтингу (uk/ru/en) | `content_factory/humanizer.py` | AG |
+| 8 | **Винести `base_url` у `GrokWriter` у конфігурацію.** Зараз `https://api.x.ai/v1` захардкоджений у двох модулях | `grok_writer.py`, `script_director.py` | AG |
+| 9 | **Реальний матчер Word-шаблонів у `office_copilot`.** Пошук по `{{placeholder}}` працює спрощено; для складних шаблонів варто обробляти поля й таблиці окремо | `agents/office_copilot.py` | AG |
+| 10 | **Метрики й алерти.** Жодного експорту в Prometheus; стан відділів видно тільки з логів | новий модуль | AG |
+| 11 | **Документація розгортання з нуля.** `DEPLOYMENT_RUNBOOK.md` існує, але не перевірявся на чистому VPS після всіх правок (read-only корінь, `EVA_DATA_DIR`, новий Dockerfile) | `DEPLOYMENT_RUNBOOK.md` | AG → AA |
 
 ## 🟡 Пріоритет 3 — гігієна
 
 | # | Задача | Де | Хто |
 |---|---|---|---|
-| 11 | **Git LFS для `docs/EVA_SYNDICATE_SYSTEM_PASSPORT.pdf`.** Файл знято з відстеження, але блоб 6,3 МБ лишився в історії. Або LFS, або регенерувати з Markdown-джерела | `docs/` | AG |
-| 12 | **Видалити гілку `arena/01a10abd-eva-syndicate`**, коли сесія завершиться. Вона ідентична `main` — нічого не втратиться (є тег `archive/eva-syndicate-2026-10-05`) | GitHub | AA |
-| 13 | **Вирішити долю `backup-stable-cockpit` (`7be2dda`).** Там 736 комітів, яких немає в `main` (стара розкладка cockpit v4.2). Варіанти: залишити архівом (зараз), винести в окремий read-only репозиторій, або перенести тільки потрібніAssets в `static/` | GitHub | 👤 |
-| 14 | **Розширити `tools/check.sh`**: перевірка на незакомічені зміни як помилка в CI, `pip-audit` на вразливості, перевірка що `init.sql` і `migration_v4.sql` не розійшлися | `tools/check.sh` | AA |
-| 15 | **Покрити тестами SQL-шляхи `TradeJournal`** — зараз перевірений тільки in-memory бекенд, а символ-фільтр у SQL-гілці додано без теста | `agents/sam/journal.py`, `tests/` | AA |
+| 12 | **Git LFS для `docs/EVA_SYNDICATE_SYSTEM_PASSPORT.pdf`.** Файл знято з відстеження, але блоб 6,3 МБ лишився в історії. Або LFS, або регенерувати з Markdown-джерела | `docs/` | AG |
+| 13 | **Видалити гілку `arena/01a10abd-eva-syndicate`**, коли сесія завершиться. Вона ідентична `main` — нічого не втратиться (є тег `archive/eva-syndicate-2026-10-05`) | GitHub | AA |
+| 14 | **Вирішити долю `backup-stable-cockpit` (`7be2dda`).** Там 736 комітів, яких немає в `main` (стара розкладка cockpit v4.2). Варіанти: залишити архівом (зараз), винести в окремий read-only репозиторій, або перенести тільки потрібніAssets в `static/` | GitHub | 👤 |
+| 15 | **Розширити `tools/check.sh`**: перевірка на незакомічені зміни як помилка в CI, `pip-audit` на вразливості, перевірка що `init.sql` і `migration_v4.sql` не розійшлися | `tools/check.sh` | AA |
+| 16 | **Покрити тестами SQL-шляхи `TradeJournal`** — зараз перевірений тільки in-memory бекенд, а символ-фільтр у SQL-гілці додано без теста | `agents/sam/journal.py`, `tests/` | AA |
 
 ---
 
