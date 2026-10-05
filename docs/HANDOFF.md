@@ -35,6 +35,7 @@
 | Наскрізні suite'и | 🏆 10/10 floors · 🏆 8/8 sandbox |
 | Лінтер | `ruff F,E9,B,C901,E,W` — чисто |
 | Жива БД у воротах | ✅ PostgreSQL 16 + pgvector 0.6.2 (локально `pgserver`, у CI — `pgvector/pgvector:pg16`) |
+| CI на GitHub | ✅ обидва job'и зелені (PR #3, run 37356237399) |
 
 ### Зроблено (backlog 6 + 16)
 - **Кожна SQL-гілка в `src/` мала `# pragma: no cover - needs live DB` і перевірялася лише
@@ -73,10 +74,12 @@
    Redis тепер опційний (`redis_url=""` → `redis_cache_disabled`, читання йде в БД).
 
 ### Чесно
-- **GitHub Actions у пісковиці запустити неможливо** — workflow написаний і вичитаний, але не
-  виконаний. Локально прогнано той самий набір кроків; у CI лишається неперевіреним, що образ
-  `pgvector/pgvector:pg16` має `uuid-ossp`/`pg_trgm` (тест вимагає нуль пропусків у повному
-  кластері — якщо ні, job упаде й це буде видно).
+- **CI виконано на GitHub і він зелений** (PR #3, run
+  [#37356237399](https://github.com/andrejzhivilov-ctrl/eva-syndicate/actions/runs/37356237399)):
+  job `Gates (no database)` — 1m19s, job `PostgreSQL + pgvector (live SQL paths)` — 1m39s.
+  Разом із прогоном додано строгий тест: коли `EVA_REQUIRE_LIVE_DB=1`, образ БД мусить мати **всі**
+  розширення, які просить `init.sql`. Оскільки job зелений, `pgvector/pgvector:pg16` справді має
+  `vector`, `uuid-ossp` і `pg_trgm` — жодного прихованого shim/skip у CI немає.
 - Вбудований `pgserver` містить лише `plpgsql`+`vector`: harness ставить сумісну
   `uuid_generate_v4()` поверх ядрової `gen_random_uuid()` і пропускає `pg_trgm` **із зазначенням
   причини**; кожен пропуск видимий у `skipped_statements`.
