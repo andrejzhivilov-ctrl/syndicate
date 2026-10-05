@@ -10,6 +10,8 @@ Fixes applied:
 from __future__ import annotations
 
 import asyncio
+import base64
+import binascii
 import contextlib
 import hmac
 import json
@@ -395,17 +397,54 @@ async def require_ready() -> AppState:
 def _presented_credential(
     x_api_key: Optional[str],
     authorization: Optional[str],
+    *,
+    allow_basic: bool = False,
 ) -> str:
-    """Read the credential from ``X-API-Key`` or ``Authorization: Bearer``."""
+    """Read credentials from API-key/Bearer headers, and optionally Basic.
+
+    Basic is only enabled for browser-facing read routes. Enter ``device`` as
+    the username and a read-scoped device token as the password; sensitive
+    API/HITL endpoints continue to require X-API-Key or Bearer explicitly.
+    """
     if x_api_key:
         return x_api_key.strip()
-    if authorization and authorization.lower().startswith("bearer "):
-        return authorization[7:].strip()
+    if not authorization:
+        return ""
+
+    scheme, separator, value = authorization.partition(" ")
+    if not separator:
+        return ""
+    if scheme.lower() == "bearer":
+        return value.strip()
+    if scheme.lower() != "basic" or not allow_basic:
+        return ""
+
+    try:
+        decoded = base64.b64decode(value.strip(), validate=True).decode("utf-8")
+    except (binascii.Error, UnicodeDecodeError, ValueError):
+        return ""
+    username, colon, password = decoded.partition(":")
+    if colon and hmac.compare_digest(username, "device"):
+        return password
     return ""
 
 
 def _client_host(request: Request) -> str:
     return (request.client.host if request.client else "") or "unknown"
+
+
+def _private_dev_access_allowed(request: Request) -> bool:
+    """Allow private-network fallback only on direct local/test connections.
+
+    A request forwarded by Nginx carries these headers; its socket peer is the
+    proxy's private container IP, not the original Internet client.
+    """
+    environment = (os.getenv("APP_ENV", "development") or "development").strip().lower()
+    if environment not in {"dev", "development", "local", "test"}:
+        return False
+    if request.headers.get("x-forwarded-for") or request.headers.get("x-real-ip"):
+        return False
+    return _is_private_client(_client_host(request))
 
 
 def _master_key_ok(provided: str, expected: Optional[str]) -> bool:
@@ -431,22 +470,17 @@ async def require_auth(
        and mobile clients. These are short-lived, scoped and individually
        revocable, so a leaked phone does not mean re-keying the whole system.
 
-    When no master key is configured (dev only), requests from loopback /
-    RFC1918 private ranges are still allowed, as before.
+    When no master key is configured, the private-range fallback is limited to
+    direct loopback/RFC1918 requests in local/test ``APP_ENV`` modes; forwarded
+    requests and production/staging environments fail closed.
     """
     expected = state.api_key
     provided = _presented_credential(x_api_key, authorization)
 
-    if not expected:
-        # If no key is configured (dev only), allow internal requests from
-        # loopback / RFC1918 private ranges. NOTE: "172." alone is NOT enough —
-        # only 172.16.0.0/12 is private; 172.32.x.x is public address space.
-        client_host = (request.client.host if request.client else "") or ""
-        if _is_private_client(client_host):
-            return state
-        raise HTTPException(status_code=401, detail="API authentication key not configured")
+    if not expected and _private_dev_access_allowed(request):
+        return state
 
-    if _master_key_ok(provided, expected):
+    if expected and _master_key_ok(provided, expected):
         return state
 
     # Second credential type: a per-device token. The client never sees the
@@ -461,7 +495,49 @@ async def require_auth(
             return state
 
     logger.warning("Unauthorized API access attempt", client=_client_host(request))
-    raise HTTPException(status_code=401, detail="Invalid or missing API key")
+    detail = "API authentication key not configured" if not expected else "Invalid or missing API key"
+    raise HTTPException(status_code=401, detail=detail)
+
+
+async def require_read(
+    request: Request,
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+    authorization: Optional[str] = Header(default=None, alias="Authorization"),
+    state: AppState = Depends(require_ready),
+) -> AppState:
+    """Protect read-only UI/registry routes with a master key or ``read`` token.
+
+    Unlike the development fallback in ``require_auth``, this surface fails
+    closed when no master key is configured. Behind a reverse proxy,
+    ``request.client.host`` is the proxy's private container address rather
+    than the Internet client, so using the private-range fallback here would
+    make an unauthenticated public request look trusted.
+    """
+    expected = state.api_key
+    provided = _presented_credential(x_api_key, authorization, allow_basic=True)
+
+    if expected and _master_key_ok(provided, expected):
+        return state
+
+    if provided and state.device_tokens is not None:
+        record = await state.device_tokens.verify(provided, required_scope="read")
+        if record is not None:
+            request.state.device_id = record.device_id
+            request.state.token_id = record.token_id
+            request.state.scopes = list(record.scopes)
+            return state
+
+    logger.warning("Unauthorized read-surface access attempt", client=_client_host(request))
+    detail = (
+        "API authentication key not configured"
+        if not expected
+        else "Read scope required: use a read-scoped device token"
+    )
+    raise HTTPException(
+        status_code=401,
+        detail=detail,
+        headers={"WWW-Authenticate": 'Basic realm="EVA Syndicate", charset="UTF-8"'},
+    )
 
 
 async def require_master_key(
@@ -479,9 +555,9 @@ async def require_master_key(
     provided = _presented_credential(x_api_key, authorization)
 
     if not expected:
-        client_host = (request.client.host if request.client else "") or ""
-        if _is_private_client(client_host):
-            return state
+        # Device administration must never fall back to a private-IP check:
+        # through Nginx every public caller appears to come from its private
+        # Docker address and could otherwise mint or revoke device tokens.
         raise HTTPException(status_code=401, detail="API authentication key not configured")
 
     if not _master_key_ok(provided, expected):
@@ -516,13 +592,10 @@ async def require_hitl(
     expected = state.api_key
     provided = _presented_credential(x_api_key, authorization)
 
-    if not expected:
-        client_host = (request.client.host if request.client else "") or ""
-        if _is_private_client(client_host):
-            return state
-        raise HTTPException(status_code=401, detail="API authentication key not configured")
+    if not expected and _private_dev_access_allowed(request):
+        return state
 
-    if _master_key_ok(provided, expected):
+    if expected and _master_key_ok(provided, expected):
         return state
 
     if provided and state.device_tokens is not None:
@@ -540,7 +613,7 @@ async def require_hitl(
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/cockpit", response_class=HTMLResponse)
-async def cockpit_interface():
+async def cockpit_interface(state: AppState = Depends(require_read)):  # noqa: ARG002
     """Serve the interactive SYNDIKAT Executive Cockpit interface."""
     # Ordered from the packaged layout (/app/cockpit.html, /app/runtime/cockpit.html)
     # to the source checkout (repository root). Earlier revisions probed a
@@ -588,7 +661,7 @@ async def health_check():
 class DeviceEnrollRequest(BaseModel):
     device_id: str = Field(..., min_length=1, max_length=128, description="Stable id chosen by the client")
     label: str = Field(default="", max_length=200, description="Human label, e.g. 'Andrii Pixel 8'")
-    scopes: list = Field(default_factory=list, description=f"Subset of {list(KNOWN_SCOPES)}; empty = inherit all")
+    scopes: list = Field(default_factory=list, description=f"Subset of {list(KNOWN_SCOPES)}; empty = no device scope")
     ttl_seconds: Optional[int] = Field(default=None, ge=60, le=365 * 24 * 3600)
 
 
@@ -903,8 +976,8 @@ async def webhook_handler(
 # ─── 10-Floor Specialized Endpoints ──────────────────────────────────────────
 
 @app.get("/floors")
-async def get_floors_registry(state: AppState = Depends(require_ready)):
-    """Return the single source of truth 10-floor syndicate layout."""
+async def get_floors_registry(state: AppState = Depends(require_read)):
+    """Return the 10-floor registry to the operator's read-authorized clients."""
     if state.orchestrator:
         return state.orchestrator.get_floors_registry()
     from src.floors import FLOORS, active_floors, reserved_floors

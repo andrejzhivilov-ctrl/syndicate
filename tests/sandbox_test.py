@@ -356,10 +356,12 @@ async def run_sandbox_suite():
     r_good_wh = client.post("/webhook/telegram", content=body_bytes, headers={"X-Webhook-Signature": valid_sig})
     assert r_good_wh.status_code == 200, f"Valid HMAC signature must be accepted, got {r_good_wh.status_code}"
 
-    # 6e. Cockpit UI (public GET)
-    r_cockpit = client.get("/cockpit")
+    # 6e. Cockpit UI requires a credential; the operator's master key works.
+    r_cockpit_unauth = client.get("/cockpit")
+    assert r_cockpit_unauth.status_code == 401
+    r_cockpit = client.get("/cockpit", headers={"X-API-Key": "sandbox-secret-api-key-2026"})
     assert r_cockpit.status_code == 200 and "SYNDIKAT" in r_cockpit.text
-    print("  ✅ FastAPI /health (200), /status (401 -> 200 with X-API-Key), /webhook HMAC (401 -> 200), /cockpit (200) verified!")
+    print("  ✅ FastAPI /health (200), /status + /cockpit read auth (401 -> 200), /webhook HMAC (401 -> 200) verified!")
 
     # ─── 7. Eva Office Copilot Test Suite ──────────────────────────────────────
     print("\n[7/8] Testing Eva MS Office Hub & Automation Engine (docx, xlsx, VBA, KB)...")

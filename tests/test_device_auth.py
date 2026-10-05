@@ -348,6 +348,86 @@ class TestOpenApiAndCors:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+class TestProtectedReadSurface:
+    """Optional backlog item 0.6: protect the UI and floor registry."""
+
+    @staticmethod
+    def _basic_headers(token: str) -> dict:
+        import base64
+
+        credentials = base64.b64encode(f"device:{token}".encode("utf-8")).decode("ascii")
+        return {"Authorization": f"Basic {credentials}"}
+
+    def test_floor_registry_requires_explicit_read_scope(self, runtime):
+        client, state = runtime
+        assert client.get("/floors").status_code == 401
+
+        execute_only = _run(state.device_tokens.enroll("worker", scopes=["execute"]))
+        denied = client.get("/floors", headers={"X-API-Key": execute_only["token"]})
+        assert denied.status_code == 401
+        assert "read" in denied.json()["detail"].lower()
+
+        # The fixture's orchestration stub is only for auth tests; use the
+        # real static registry fallback for this protected read endpoint.
+        state.orchestrator = None
+        read_token = _run(state.device_tokens.enroll("reader", scopes=["read"]))
+        allowed = client.get("/floors", headers={"Authorization": f"Bearer {read_token['token']}"})
+        assert allowed.status_code == 200 and "floors" in allowed.json()
+        assert client.get("/floors", headers={"X-API-Key": MASTER}).status_code == 200
+
+    def test_cockpit_and_root_require_read_authentication(self, runtime):
+        client, state = runtime
+        for path in ("/cockpit", "/"):
+            denied = client.get(path)
+            assert denied.status_code == 401
+            assert denied.headers["www-authenticate"].startswith("Basic realm=")
+
+        read_token = _run(state.device_tokens.enroll("browser", scopes=["read"]))
+        response = client.get("/cockpit", headers=self._basic_headers(read_token["token"]))
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/html")
+        assert "SYNDIKAT" in response.text
+
+    def test_basic_auth_is_limited_to_read_routes_and_read_scope(self, runtime):
+        client, state = runtime
+        execute_only = _run(state.device_tokens.enroll("worker", scopes=["execute"]))
+        denied = client.get("/cockpit", headers=self._basic_headers(execute_only["token"]))
+        assert denied.status_code == 401
+
+        read_token = _run(state.device_tokens.enroll("browser", scopes=["read"]))
+        assert client.get("/status", headers=self._basic_headers(read_token["token"])).status_code == 401
+
+    def test_proxy_and_admin_routes_fail_closed_without_master_key(self, runtime, monkeypatch):
+        client, state = runtime
+        state.api_key = None
+        monkeypatch.setenv("APP_ENV", "development")
+
+        # The development fallback stays available for a direct private
+        # connection, but a reverse-proxied public request must not inherit the
+        # proxy container's private socket address as trusted identity.
+        import agent_runner
+
+        monkeypatch.setattr(agent_runner, "_client_host", lambda _request: "127.0.0.1")
+        assert client.get("/status").status_code == 200
+        monkeypatch.setattr(agent_runner, "_client_host", lambda _request: "172.20.0.2")
+        proxy_headers = {"X-Real-IP": "203.0.113.5", "X-Forwarded-For": "203.0.113.5"}
+        assert client.get("/status", headers=proxy_headers).status_code == 401
+        assert client.get("/floors", headers=proxy_headers).status_code == 401
+        assert client.get("/cr/pending", headers=proxy_headers).status_code == 401
+
+        # Device-admin routes never rely on the private development fallback.
+        enroll = client.post("/auth/device/enroll", json={"device_id": "attacker"})
+        assert enroll.status_code == 401
+
+    def test_nginx_proxies_protected_pages_instead_of_serving_a_static_bypass(self):
+        config = (REPO_ROOT / "config" / "nginx" / "nginx.conf").read_text(encoding="utf-8")
+        assert "location = /cockpit {\n            proxy_pass http://eva_agent/cockpit;" in config
+        assert "location = /floors {\n            limit_req zone=api burst=10 nodelay;\n            proxy_pass http://eva_agent/floors;" in config
+        assert "location /cockpit/ {\n            return 404;" in config
+        assert "alias /usr/share/nginx/static/;" not in config
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 class TestExecuteStream:
     """0.4 — a 10-60 s run must not look like a dead connection."""
 

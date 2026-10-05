@@ -61,7 +61,7 @@ step "EVA SYNDICATE — перевірка перед комітом"
 echo "  python: $PY"
 
 step "Тести"
-run "pytest (210 регресійних + маршрутизація)" "$PY" -m pytest tests/ -q
+run "pytest (усі тести каталогу tests/)" "$PY" -m pytest tests/ -q
 run_suite "10 поверхів (наскрізний suite)" tests/test_10floors_architecture.py "ALL 10 SUITES"
 run_suite "Sandbox (наскрізний suite)"      tests/sandbox_test.py              "ALL 8 SANDBOX"
 
