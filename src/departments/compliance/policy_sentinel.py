@@ -7,7 +7,7 @@ and scans copy against social platform shadowban triggers.
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Tuple
+from typing import List, Tuple
 import structlog
 
 logger = structlog.get_logger(__name__)

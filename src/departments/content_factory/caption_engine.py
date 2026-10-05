@@ -7,10 +7,8 @@ Renders natively in FFmpeg at 200+ FPS without frame-by-frame Python re-encoding
 
 from __future__ import annotations
 
-import os
-import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -95,7 +93,7 @@ class CaptionEngine:
         timed_words = []
         current_time = 0.0
 
-        for w, weight in zip(words, weights):
+        for w, weight in zip(words, weights, strict=False):
             duration = weight * time_per_weight
             start_time = current_time
             end_time = current_time + (duration * 0.92)  # Slight gap between words

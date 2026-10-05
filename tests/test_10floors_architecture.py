@@ -13,8 +13,8 @@ Tests all 10 floors of the Syndicate architecture:
 
 from __future__ import annotations
 
-import asyncio
 import ast
+import asyncio
 import hashlib
 import hmac
 import json
@@ -22,13 +22,24 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 # Ensure UTF-8 output on Windows console
 if sys.platform == "win32":
     import codecs
     sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
     sys.stderr = codecs.getwriter("utf-8")(sys.stderr.detach())
+
+# Isolate every artefact the suite writes. Previously the tests wrote straight
+# into the tracked ``scratch/`` directory, so each run left the repository dirty
+# and successive runs were not idempotent (thoughts.md grew one line per run).
+import atexit
+import shutil
+import tempfile
+
+SANDBOX_DIR = Path(tempfile.mkdtemp(prefix="eva_10floors_"))
+atexit.register(lambda: shutil.rmtree(SANDBOX_DIR, ignore_errors=True))
+os.environ["EVA_DATA_DIR"] = str(SANDBOX_DIR / "data")
 
 # Locate repo root cleanly
 _this_file = Path(__file__).resolve()
@@ -43,6 +54,25 @@ else:
 
 sys.path.insert(0, str(REPO_PATH))
 sys.path.insert(0, str(REPO_PATH / "deploy" / "runtime"))
+
+# Directories that must never be scanned/imported by the suite (virtualenvs,
+# vendored dependencies, caches). Scanning them produced >10k third-party files
+# and crashed the suite on unrelated upstream syntax errors.
+_SKIP_DIRS = {
+    ".git", ".venv", "venv", "env", "node_modules", "__pycache__",
+    ".mypy_cache", ".pytest_cache", ".ruff_cache", ".tox", "site-packages",
+    "dist", "build", ".eggs",
+}
+
+
+def discover_python_files(root: Path) -> List[Path]:
+    """Return every first-party ``*.py`` file under ``root``."""
+    found: List[Path] = []
+    for path in root.rglob("*.py"):
+        if any(part in _SKIP_DIRS for part in path.relative_to(root).parts[:-1]):
+            continue
+        found.append(path)
+    return sorted(found)
 
 
 # ─── Mock Fixtures for Sandbox Isolation ─────────────────────────────────────
@@ -179,7 +209,8 @@ async def run_10floors_sandbox_suite():
     # ─────────────────────────────────────────────────────────────────────────
     # STEP 1: AST & Compilation Integrity across ALL Python files
     # ─────────────────────────────────────────────────────────────────────────
-    py_files = sorted(list(REPO_PATH.rglob("*.py")))
+    py_files = discover_python_files(REPO_PATH)
+    assert py_files, f"No first-party Python files discovered under {REPO_PATH}"
     print(f"\n[1/10] Checking AST syntax & compilation of all {len(py_files)} Python files...")
     for f in py_files:
         rel = f.relative_to(REPO_PATH)
@@ -257,8 +288,14 @@ async def run_10floors_sandbox_suite():
     assert any("30 7 * * *" in str(n.get("parameters", {})) for n in wf_briefing["nodes"])
     assert any("0 21 * * *" in str(n.get("parameters", {})) for n in wf_evening["nodes"])
 
+    # The error-handler template must actually route failures to the DLQ endpoint.
+    assert "nodes" in wf_error and "connections" in wf_error
+    assert any("errorTrigger" in n["type"] for n in wf_error["nodes"])
+    assert "/webhook/error" in json.dumps(wf_error)
+
     # 2f. ProactiveScheduler cron evaluation
     scheduler = ProactiveScheduler()
+    assert {j.name for j in scheduler.jobs} == {"morning_briefing", "evening_reflection", "weekly_review"}
     t_0730 = datetime(2026, 10, 4, 7, 30)
     t_2100 = datetime(2026, 10, 4, 21, 0)
     assert cron_matches("30 7 * * *", t_0730)
@@ -305,7 +342,7 @@ async def run_10floors_sandbox_suite():
     from src.change_requests import ChangeRequestStore
     from src.vault_md import MarkdownVault
 
-    test_vault = MarkdownVault(vault_root="scratch/test_vault")
+    test_vault = MarkdownVault(vault_root=str(SANDBOX_DIR / "test_vault"))
     cr_store = ChangeRequestStore(vault=test_vault)
     orc = OrcVerifier(llm=mock_llm)
 
@@ -332,7 +369,7 @@ async def run_10floors_sandbox_suite():
     coord = Floor2Coordinator()
     pod_res = await coord.execute({
         "action": "generate_pod_mockup",
-        "artwork_path": "scratch/sandbox_art.png",
+        "artwork_path": str(SANDBOX_DIR / "sandbox_art.png"),
         "preset": "tshirt_front",
     })
     assert pod_res["status"] == "ok"
@@ -350,7 +387,7 @@ async def run_10floors_sandbox_suite():
     # STEP 4: Floors 3-6 — Reserved Floors
     # ─────────────────────────────────────────────────────────────────────────
     print("\n[4/10] Testing Floors 3-6: Reserved Floors (Single Source of Truth & Graceful Routing)...")
-    from src.floors import FLOORS, active_floors, reserved_floors, floor_of
+    from src.floors import FLOORS, reserved_floors, floor_of
 
     assert reserved_floors() == [3, 4, 5, 6]
     assert all(FLOORS[f]["status"] == "reserved" for f in [3, 4, 5, 6])
@@ -536,7 +573,8 @@ async def run_10floors_sandbox_suite():
     assert orc_res["verdict"] in ("verified", "factual")
 
     # 8d. ChangeRequestStore (Company-as-Code governance)
-    vault_dir = Path("scratch/test_statute_vault")
+    vault_dir = SANDBOX_DIR / "test_statute_vault"
+    vault_dir.mkdir(parents=True, exist_ok=True)
     statute_vault = MarkdownVault(vault_root=str(vault_dir))
     cr_store = ChangeRequestStore(vault=statute_vault)
 
@@ -619,7 +657,7 @@ async def run_10floors_sandbox_suite():
         memory_manager=mem,
         sentinel=sentinel,
         llm_config={"openai_api_key": "test-key"},
-        config={"vault_root": "scratch/test_orch_vault"},
+        config={"vault_root": str(SANDBOX_DIR / "test_orch_vault")},
         lessons_store=lessons,
         confidence_budget=budget,
         pii_redactor=pii,

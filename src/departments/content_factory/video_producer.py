@@ -8,9 +8,7 @@ Runs at $0 marginal cost on Contabo 16-core VPS.
 from __future__ import annotations
 
 import asyncio
-import os
 import shutil
-import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 import structlog
@@ -37,9 +35,11 @@ class VideoProducer:
         "de": "de-DE-ConradNeural",
     }
 
-    def __init__(self, output_dir: str = "media/videos", font_path: Optional[str] = None):
-        self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+    def __init__(self, output_dir: Optional[str] = None, font_path: Optional[str] = None):
+        # ``EVA_DATA_DIR`` keeps renders writable when the container root fs is read-only.
+        from src.data_paths import ensure_dir
+
+        self.output_dir = ensure_dir("videos", output_dir)
         self.font_path = font_path
         self.ffmpeg_bin = shutil.which("ffmpeg") or "ffmpeg"
 
@@ -55,12 +55,30 @@ class VideoProducer:
         if not EDGE_TTS_AVAILABLE:
             return {"status": "error", "message": "edge-tts library not available"}
 
+        if not text or not text.strip():
+            return {"status": "error", "message": "Empty script: nothing to synthesise."}
+
         selected_voice = voice or self.DEFAULT_VOICES.get("uk", "uk-UA-PolinaNeural")
         audio_path = Path(output_audio_path)
         audio_path.parent.mkdir(parents=True, exist_ok=True)
 
-        communicate = edge_tts.Communicate(text, selected_voice, rate=rate, volume=volume)
-        await communicate.save(str(audio_path))
+        # Edge-TTS is a network service (speech.platform.bing.com). An unreachable
+        # endpoint used to propagate out of Floor 2 and fail the whole task;
+        # degrade to a structured error so the coordinator can fall back.
+        try:
+            communicate = edge_tts.Communicate(text, selected_voice, rate=rate, volume=volume)
+            await communicate.save(str(audio_path))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "voiceover_synthesis_failed",
+                path=str(audio_path),
+                voice=selected_voice,
+                error=f"{type(exc).__name__}: {exc}",
+            )
+            return {
+                "status": "error",
+                "message": f"Edge-TTS synthesis unavailable: {type(exc).__name__}: {exc}",
+            }
 
         logger.info("voiceover_generated", path=str(audio_path), voice=selected_voice, length=len(text))
         return {

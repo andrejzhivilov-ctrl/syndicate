@@ -1,0 +1,48 @@
+# EVA SYNDICATE — Agent runtime image.
+#
+# Referenced by ``deploy/docker-compose.yml`` (service ``eva-agent``); before
+# this file existed the compose stack could not be built at all.
+#
+# The container runs as UID 1001 with a read-only root filesystem, so the image
+# only needs the interpreter and the Python dependencies — the source tree and
+# the runtime package are bind-mounted read-only, and every writable artefact
+# lives under the ``eva_data`` volume (see ``EVA_DATA_DIR`` / ``src/data_paths.py``).
+
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# ffmpeg is required by the Content Factory (video compositing, silence
+# generation, duration probing).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg wget ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install dependencies first so the layer is cached across source changes.
+COPY requirements.txt /app/requirements.txt
+RUN python -m pip install --upgrade pip \
+    && python -m pip install -r /app/requirements.txt
+
+# Source and runtime are bind-mounted in docker-compose; COPY them as well so
+# the image is self-contained when it is built and run on its own.
+COPY src /app/src
+COPY deploy/runtime /app/runtime
+COPY static/cockpit.html /app/cockpit.html
+
+# Writable mount point for EVA_DATA_DIR (vault, media, browser profiles).
+RUN mkdir -p /data/eva \
+    && useradd --uid 1001 --create-home --shell /usr/sbin/nologin eva \
+    && chown -R 1001:1001 /data/eva /app
+
+USER 1001:1001
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD wget -qO- http://127.0.0.1:8000/health || exit 1
+
+CMD ["uvicorn", "runtime.agent_runner:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -9,8 +9,7 @@ from __future__ import annotations
 
 import json
 import os
-import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 import httpx
 import structlog
 
@@ -125,7 +124,7 @@ class ScriptDirector:
             {
                 "scene_id": 1,
                 "duration_sec": 3.0,
-                "narration": f"90% підприємців зливають гроші на непотрібний софт.",
+                "narration": "90% підприємців зливають гроші на непотрібний софт.",
                 "broll_keywords": ["money burning", "laptop stress person"],
                 "visual_action": "Rapid zoom on falling currency or frustrated founder",
                 "sfx": "whoosh",
@@ -134,7 +133,7 @@ class ScriptDirector:
             {
                 "scene_id": 2,
                 "duration_sec": 3.5,
-                "narration": f"Ось як наш автономний холдинг SYNDICATE закриває операційку в нуль витрат:",
+                "narration": "Ось як наш автономний холдинг SYNDICATE закриває операційку в нуль витрат:",
                 "broll_keywords": ["cyberpunk server", "data analytics"],
                 "visual_action": "Sleek dark server infrastructure with cyan neon lights",
                 "sfx": "sub_bass",
@@ -188,7 +187,7 @@ class ScriptDirector:
             "full_narration": full_narration,
             "cta": "Посилання на інфраструктурний шаблон у шапці профілю.",
             "seo": {
-                "youtube_title": f"Як AI-агенти замінюють 10 SaaS сервісів | Автономний Холдинг",
+                "youtube_title": "Як AI-агенти замінюють 10 SaaS сервісів | Автономний Холдинг",
                 "hashtags": ["#ai", "#автоматизація", "#syndicate", "#бізнес2026", "#saas", "#shorts"],
                 "description": (
                     f"Розбір архітектури автономного контент-заводу та AI-холдингу SYNDICATE.\n"

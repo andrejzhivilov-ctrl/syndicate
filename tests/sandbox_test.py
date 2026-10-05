@@ -1,16 +1,52 @@
-import asyncio
 import ast
+import asyncio
+import atexit
 import hashlib
 import hmac
 import json
 import os
+import shutil
 import sys
+import tempfile
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
-# Add repo_code to sys.path
-REPO_PATH = Path(__file__).resolve().parent.parent / "repo_code"
+# Locate the repository root (the directory that contains `src/`).
+_THIS_FILE = Path(__file__).resolve()
+for _candidate in (_THIS_FILE.parent.parent, _THIS_FILE.parent, Path.cwd()):
+    if (_candidate / "src").is_dir():
+        REPO_PATH = _candidate
+        break
+else:  # pragma: no cover - fallback keeps the old behaviour visible instead of silent
+    REPO_PATH = _THIS_FILE.parent.parent
+
 sys.path.insert(0, str(REPO_PATH))
+sys.path.insert(0, str(REPO_PATH / "deploy" / "runtime"))
+
+# Isolate every artefact the suite writes (.xlsx, .docx, mockups, browser
+# profiles) in a throw-away directory: the suite used to litter the tracked
+# ``scratch/`` tree, making runs non-idempotent and the working tree dirty.
+SANDBOX_DIR = Path(tempfile.mkdtemp(prefix="eva_sandbox_"))
+atexit.register(lambda: shutil.rmtree(SANDBOX_DIR, ignore_errors=True))
+os.environ["EVA_DATA_DIR"] = str(SANDBOX_DIR / "data")
+
+# Directories that must never be scanned/imported (virtualenvs, vendored
+# dependencies, caches). Scanning them pulled in >10k third-party files.
+_SKIP_DIRS = {
+    ".git", ".venv", "venv", "env", "node_modules", "__pycache__",
+    ".mypy_cache", ".pytest_cache", ".ruff_cache", ".tox", "site-packages",
+    "dist", "build", ".eggs",
+}
+
+
+def discover_python_files(root: Path) -> List[Path]:
+    """Return every first-party ``*.py`` file under ``root``."""
+    found: List[Path] = []
+    for path in root.rglob("*.py"):
+        if any(part in _SKIP_DIRS for part in path.relative_to(root).parts[:-1]):
+            continue
+        found.append(path)
+    return sorted(found)
 
 
 class MockResult:
@@ -113,7 +149,8 @@ async def run_sandbox_suite():
     # -------------------------------------------------------------------------
     # STEP 1: AST & Import Verification across ALL Python files
     # -------------------------------------------------------------------------
-    py_files = sorted(list(REPO_PATH.rglob("*.py")))
+    py_files = discover_python_files(REPO_PATH)
+    assert py_files, f"No first-party Python files discovered under {REPO_PATH}"
     print(f"\n[1/7] Checking AST & compilation of {len(py_files)} Python files...")
     for f in py_files:
         rel = f.relative_to(REPO_PATH)
@@ -317,6 +354,8 @@ async def run_sandbox_suite():
     assert r_bad_wh.status_code == 401, "Invalid HMAC signature must be rejected with 401!"
 
     r_good_wh = client.post("/webhook/telegram", content=body_bytes, headers={"X-Webhook-Signature": valid_sig})
+    assert r_good_wh.status_code == 200, f"Valid HMAC signature must be accepted, got {r_good_wh.status_code}"
+
     # 6e. Cockpit UI (public GET)
     r_cockpit = client.get("/cockpit")
     assert r_cockpit.status_code == 200 and "SYNDIKAT" in r_cockpit.text
@@ -339,7 +378,7 @@ async def run_sandbox_suite():
     xlsx_res = await office_agent.execute({
         "action": "create_excel_report",
         "title": "Sandbox ROI Audit",
-        "output_path": "scratch/test_report.xlsx"
+        "output_path": str(SANDBOX_DIR / "test_report.xlsx")
     })
     assert Path(xlsx_res["file_path"]).exists() and xlsx_res["rows_count"] > 0
 
@@ -347,7 +386,7 @@ async def run_sandbox_suite():
     docx_res = await office_agent.execute({
         "action": "create_word_document",
         "title": "Sandbox Strategy Briefing",
-        "output_path": "scratch/test_doc.docx"
+        "output_path": str(SANDBOX_DIR / "test_doc.docx")
     })
     assert Path(docx_res["file_path"]).exists() and docx_res["sections_count"] > 0
     print("  ✅ Word (.docx), Excel (.xlsx), VBA macros, and Knowledge Base verified!")
@@ -364,7 +403,7 @@ async def run_sandbox_suite():
     # 8b. POD mockup generation with Pillow
     mockup_res = await coord.execute({
         "action": "generate_pod_mockup",
-        "artwork_path": "scratch/sandbox_art.png",
+        "artwork_path": str(SANDBOX_DIR / "sandbox_art.png"),
         "preset": "tshirt_front"
     })
     assert mockup_res["status"] == "ok" and Path(mockup_res["mockup_path"]).exists()

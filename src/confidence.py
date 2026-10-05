@@ -35,6 +35,19 @@ class ConfidenceBudget:
     """
     Confidence Budget & Escalation Protocol. Unified trust system for all agents.
     """
+
+    # Actions that can move or destroy capital/data. They are NEVER escalated to
+    # ``ACT`` regardless of how confident the model claims to be — a perfect
+    # 1.0 self-reported confidence is not evidence. Without this guard Sam's
+    # ``act_threshold=1.0`` still let ``confidence == 1.0`` auto-authorise a trade.
+    NEVER_AUTO_ACT = frozenset({
+        "trade_execute",
+        "trade_decision",
+        "place_order",
+        "delete_data",
+        "financial_transaction",
+        "emergency_lockdown",
+    })
     def __init__(
         self,
         default_config: Optional[ConfidenceConfig] = None,
@@ -98,8 +111,15 @@ class ConfidenceBudget:
         reason = "Confidence below ask threshold."
         
         if confidence >= adjusted_act_threshold:
-            level = EscalationLevel.ACT
-            reason = "Confidence exceeds act threshold."
+            if action_type in self.NEVER_AUTO_ACT:
+                level = EscalationLevel.ASK
+                reason = (
+                    f"Confidence exceeds act threshold, but '{action_type}' is a "
+                    "capital/destructive action: mandatory human approval."
+                )
+            else:
+                level = EscalationLevel.ACT
+                reason = "Confidence exceeds act threshold."
         elif confidence >= adjusted_ask_threshold:
             level = EscalationLevel.ASK
             reason = "Confidence within ask threshold range."

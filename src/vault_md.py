@@ -64,7 +64,13 @@ class VaultError(Exception):
 
 class MarkdownVault:
     def __init__(self, root: Optional[Path | str] = None, vault_root: Optional[Path | str] = None) -> None:
-        target = root if root is not None else (vault_root if vault_root is not None else "vault_md")
+        target = root if root is not None else (vault_root if vault_root is not None else None)
+        if target is None:
+            # Honour EVA_DATA_DIR so the read-only production container can mount
+            # a single writable volume instead of failing to create ./vault_md.
+            from src.data_paths import data_dir
+
+            target = data_dir("vault")
         self.root = Path(target).resolve()
         self.ensure_layout()
 
@@ -80,6 +86,15 @@ class MarkdownVault:
         if p.suffix.lower() != ".md":
             raise VaultError(f"only_markdown_allowed:{rel}")
         return p
+
+    def validate_path(self, rel: str) -> Path:
+        """Public counterpart of :meth:`_resolve`.
+
+        Callers outside this module (e.g. ``ChangeRequestStore``) used to reach
+        into the private ``_resolve`` to reject path traversal / non-Markdown
+        targets before creating a change request.
+        """
+        return self._resolve(rel)
 
     @staticmethod
     def is_protected(rel: str) -> bool:

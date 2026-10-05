@@ -70,10 +70,10 @@ class ChangeRequestStore:
         for ch in changes:
             if "path" not in ch or "content" not in ch:
                 raise ChangeRequestError("change_requires_path_and_content")
-            if not self._vault.exists(ch["path"]) and self._vault.is_protected(ch["path"]) is False:
-                pass  # new files outside protected dirs are fine
-            # validate path early (raises VaultError on traversal / non-md)
-            self._vault._resolve(ch["path"])
+            # Creating a file that does not exist yet is fine (also outside the
+            # protected dirs); the path itself still has to be valid Markdown
+            # inside the vault. Raises VaultError on traversal / non-md.
+            self._vault.validate_path(ch["path"])
         cr = {
             "id": f"CR-{uuid.uuid4().hex[:8]}",
             "author": author, "title": title, "rationale": rationale,
@@ -92,14 +92,23 @@ class ChangeRequestStore:
         items = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(self._dir.glob("CR-*.json"))]
         return [c for c in items if status is None or c["status"] == status]
 
-    def approve(self, cr_id: str, approver: str) -> Dict[str, Any]:
-        cr = self._load(cr_id)
-        if cr["status"] != "pending":
+    def _guard(self, cr: Dict[str, Any], actor: str) -> None:
+        """Reject self-approval and unauthorised approvers.
+
+        This is the single gate for every state transition. ``review``/``apply``
+        used to do ``self._approvers.add(reviewer)`` first, which let *anyone* —
+        including the request's own author — grant themselves approval rights.
+        """
+        if cr["status"] not in ("pending", "approved"):
             raise ChangeRequestError(f"not_pending:{cr['status']}")
-        if approver == cr["author"]:
+        if actor == cr["author"]:
             raise ChangeRequestError("author_cannot_approve_own_request")
-        if approver not in self._approvers:
-            raise ChangeRequestError(f"approver_not_authorized:{approver}")
+        if actor not in self._approvers:
+            raise ChangeRequestError(f"approver_not_authorized:{actor}")
+
+    def _write_changes(self, cr: Dict[str, Any], approver: str) -> Dict[str, Any]:
+        if self._vault is None:
+            raise ChangeRequestError("store_has_no_vault:changes_cannot_be_applied")
         applied = []
         try:
             for ch in cr["changes"]:
@@ -111,12 +120,17 @@ class ChangeRequestStore:
             raise ChangeRequestError(f"apply_failed:{exc}") from exc
         cr.update(status="applied", decided_by=approver, decided_at=time.time(), applied=applied)
         self._save(cr)
-        logger.info("change_request_applied", cr_id=cr_id, approver=approver, files=len(applied))
+        logger.info("change_request_applied", cr_id=cr["id"], approver=approver, files=len(applied))
         return cr
+
+    def approve(self, cr_id: str, approver: str) -> Dict[str, Any]:
+        cr = self._load(cr_id)
+        self._guard(cr, approver)
+        return self._write_changes(cr, approver)
 
     def reject(self, cr_id: str, approver: str, reason: str = "") -> Dict[str, Any]:
         cr = self._load(cr_id)
-        if cr["status"] != "pending":
+        if cr["status"] not in ("pending", "approved"):
             raise ChangeRequestError(f"not_pending:{cr['status']}")
         if approver not in self._approvers:
             raise ChangeRequestError(f"approver_not_authorized:{approver}")
@@ -150,10 +164,14 @@ class ChangeRequestStore:
         reviewer: str = "operator",
         comment: str = "",
     ) -> Dict[str, Any]:
-        """Convenience method to review a Change Request."""
-        self._approvers.add(reviewer)
+        """Convenience method to review a Change Request.
+
+        Approval authority is granted by configuration only — the reviewer is
+        *not* added to ``self._approvers`` any more, and the author is refused.
+        """
+        cr = self._load(cr_id)
         if decision.lower() in ("approve", "approved", "ok"):
-            cr = self._load(cr_id)
+            self._guard(cr, reviewer)
             cr["status"] = "approved"
             cr["reviewer"] = reviewer
             cr["comment"] = comment
@@ -165,11 +183,10 @@ class ChangeRequestStore:
 
     def apply(self, cr_id: str, approver: str = "operator") -> Dict[str, Any]:
         """Convenience method to apply an approved Change Request."""
-        self._approvers.add(approver)
         cr = self._load(cr_id)
-        if cr["status"] == "approved":
-            cr["status"] = "pending"
-            self._save(cr)
+        self._guard(cr, approver)
+        cr["status"] = "pending"
+        self._save(cr)
         applied_cr = self.approve(cr_id, approver=approver)
         return {"status": "applied", "cr_id": cr_id, "applied_files": applied_cr.get("applied", [])}
 

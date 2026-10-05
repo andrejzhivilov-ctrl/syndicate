@@ -14,7 +14,7 @@ import io
 import json
 import re
 import zipfile
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 import structlog

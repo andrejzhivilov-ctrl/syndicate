@@ -7,7 +7,7 @@ delegated and submitted directly to Fin (CFO).
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict
 import structlog
 
 logger = structlog.get_logger(__name__)

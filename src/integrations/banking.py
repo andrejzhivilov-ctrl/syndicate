@@ -8,10 +8,8 @@ and multi-currency normalization (UAH, USD, EUR) with safe mock fallbacks.
 
 from __future__ import annotations
 
-import asyncio
 import os
-import time
-from datetime import datetime, date, timedelta
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 import structlog
 
@@ -74,7 +72,7 @@ class BankingClient:
 
         return {
             "status": "synced",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "accounts_count": len(accounts),
             "accounts": accounts,
             "totals": {

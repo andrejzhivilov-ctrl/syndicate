@@ -16,7 +16,6 @@ import uuid
 from typing import Any, Dict, List, Optional, TypedDict
 
 import structlog
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from src.lessons import LessonsStore
@@ -24,13 +23,13 @@ from src.confidence import ConfidenceBudget, EscalationLevel
 from src.pii import PIIRedactor
 from src.memory import MemoryManager
 from src.agents.sentinel import SentinelAgent
-from src.floors import FLOORS, active_floors, reserved_floors, floor_of
+from src.floors import FLOORS, active_floors, reserved_floors
 from src.sensory import SensoryRouter
 from src.error_collector import ErrorCollector
-from src.vault_md import MarkdownVault
+from src.vault_md import MarkdownVault, VaultError
 from src.council import LLMCouncil
-from src.verifier import OrcVerifier, SwarmBoard
-from src.change_requests import ChangeRequestStore
+from src.verifier import OrcVerifier
+from src.change_requests import ChangeRequestError, ChangeRequestStore
 from src.tool_contracts import ToolRegistry
 from src.memory_commands import parse_command, execute_command
 from src.agents.kira_socratic import SocraticTutor
@@ -41,7 +40,6 @@ from src.proactive import ProactiveScheduler
 
 try:
     from langgraph.graph import StateGraph, END
-    from langgraph.checkpoint.base import BaseCheckpointSaver
     LANGGRAPH_AVAILABLE = True
 except ImportError:
     LANGGRAPH_AVAILABLE = False
@@ -245,7 +243,9 @@ class EvaOrchestrator:
         self._pii = pii_redactor
 
         # ─── 10-Floor Integrated Subsystems ─────────────────────────────────
-        vault_root = self._config.get("vault_root", "vault_md")
+        # ``None`` lets MarkdownVault fall back to EVA_DATA_DIR-aware resolution;
+        # hardcoding "vault_md" here made the read-only container fail to boot.
+        vault_root = self._config.get("vault_root")
         self._vault = markdown_vault or MarkdownVault(vault_root=vault_root)
         self._error_collector = error_collector or ErrorCollector(lessons_store=self._lessons)
         self._tool_registry = tool_registry or ToolRegistry()
@@ -495,7 +495,23 @@ class EvaOrchestrator:
                 payload.get("audio_bytes", b""),
                 filename=payload.get("filename", "audio.ogg"),
             )
-            state["result"] = {"status": "ok", "chunks_count": len(chunks), "chunks": chunks}
+            # Raw audio bytes are NOT JSON serializable: returning them here made
+            # every /execute response blow up with "Object of type bytes is not
+            # JSON serializable". Emit metadata only; callers that really need
+            # the bytes can ask for them explicitly (they are in-process anyway).
+            state["result"] = {
+                "status": "ok",
+                "chunks_count": len(chunks),
+                "chunks": [
+                    {
+                        "index": c["index"],
+                        "filename": c["filename"],
+                        "size": c["size"],
+                        "bytes_included": False,
+                    }
+                    for c in chunks
+                ],
+            }
         elif task_type == "sensory_extract_doc":
             text, meta = self._sensory.extract_document(
                 payload.get("file_bytes", b""),
@@ -648,8 +664,11 @@ class EvaOrchestrator:
         from src.agents.kira import KiraAgent
         agent = KiraAgent(memory=self._memory, llm=self._llm, config=self._config.get("kira", self._config))
         payload = dict(state["payload"])
-        if "action" not in payload:
-            payload["action"] = state["task_type"]
+        # ``mentor_code_review`` used to fall through to Kira's default handler
+        # (socratic_dialogue), silently answering a code-review request with a
+        # dialogue. Map routed task types onto Kira's real action names.
+        action_map = {"mentor_code_review": "code_review"}
+        payload.setdefault("action", action_map.get(state["task_type"], state["task_type"]))
         result = await agent.execute(payload)
         state["result"] = result
         state["status"] = "completed"
@@ -684,8 +703,14 @@ class EvaOrchestrator:
         from src.agents.doc import DocAgent
         agent = DocAgent(memory=self._memory, llm=self._llm, config=self._config.get("doc", self._config))
         payload = dict(state["payload"])
-        if "action" not in payload:
-            payload["action"] = state["task_type"]
+        # Task types routed here do not always match DocAgent's action names
+        # (e.g. ``morning_data_doc``), so translate them explicitly.
+        action_map = {
+            "analyze_document": "summarize",
+            "morning_data_doc": "morning_data",
+            "swarm_research_doc": "swarm_research",
+        }
+        payload.setdefault("action", action_map.get(state["task_type"], state["task_type"]))
         result = await agent.execute(payload)
         state["result"] = result
         state["status"] = "completed"
@@ -849,28 +874,38 @@ class EvaOrchestrator:
     async def _change_requests_handler(self, state: AgentState) -> AgentState:
         task_type = state["task_type"]
         payload = state["payload"]
-        if task_type == "submit_change_request":
-            res = self._change_requests.submit(
-                title=payload.get("title", "Untitled CR"),
-                description=payload.get("description", ""),
-                target_path=payload.get("target_path", "statutes/statute.md"),
-                proposed_content=payload.get("proposed_content", ""),
-                author=payload.get("author", "operator"),
-            )
-            state["result"] = res
-        elif task_type == "review_change_request":
-            res = self._change_requests.review(
-                cr_id=payload.get("cr_id", ""),
-                decision=payload.get("decision", "approve"),
-                reviewer=payload.get("reviewer", "operator"),
-                comment=payload.get("comment", ""),
-            )
-            state["result"] = res
-        elif task_type == "apply_change_request":
-            res = self._change_requests.apply(cr_id=payload.get("cr_id", ""))
-            state["result"] = res
-        else:
-            state["result"] = {"status": "error", "error": f"Unknown CR task: {task_type}"}
+        try:
+            if task_type == "submit_change_request":
+                state["result"] = self._change_requests.submit(
+                    title=payload.get("title", "Untitled CR"),
+                    description=payload.get("description", ""),
+                    target_path=payload.get("target_path", "statutes/statute.md"),
+                    proposed_content=payload.get("proposed_content", ""),
+                    # Default to an unprivileged ``agent`` identity: if the CR
+                    # defaulted to ``operator`` — the same identity ``review``
+                    # and ``apply`` default to — every default round-trip was
+                    # refused as self-approval once the guard was enforced.
+                    author=payload.get("author", "agent"),
+                )
+            elif task_type == "review_change_request":
+                state["result"] = self._change_requests.review(
+                    cr_id=payload.get("cr_id", ""),
+                    decision=payload.get("decision", "approve"),
+                    reviewer=payload.get("reviewer", "operator"),
+                    comment=payload.get("comment", ""),
+                )
+            elif task_type == "apply_change_request":
+                state["result"] = self._change_requests.apply(cr_id=payload.get("cr_id", ""))
+            else:
+                state["result"] = {"status": "error", "error": f"Unknown CR task: {task_type}"}
+        except ChangeRequestError as exc:
+            # A missing / already-decided CR is an expected condition, not a crash:
+            # surface it as a normal error result so HTTP callers get 200 + error.
+            logger.warning("change_request_rejected", reason=str(exc))
+            state["result"] = {"status": "error", "error": str(exc)}
+        except VaultError as exc:
+            logger.warning("change_request_vault_error", reason=str(exc))
+            state["result"] = {"status": "error", "error": str(exc)}
         state["status"] = "completed"
         return state
 
@@ -891,7 +926,12 @@ class EvaOrchestrator:
         if task_type == "vault_write_ground_truth":
             rel_path = payload.get("path", "wiki/general.md")
             content = payload.get("content", "")
-            self._vault.write(rel_path, content)
+            try:
+                self._vault.write(rel_path, content)
+            except VaultError as exc:
+                state["result"] = {"status": "error", "path": rel_path, "error": str(exc)}
+                state["status"] = "completed"
+                return state
             state["result"] = {"status": "ok", "path": rel_path}
         elif task_type == "vault_read_ground_truth":
             rel_path = payload.get("path", "wiki/general.md")
@@ -899,12 +939,33 @@ class EvaOrchestrator:
             content = self._vault.read(rel_path) if exists else None
             state["result"] = {"status": "ok" if exists else "not_found", "path": rel_path, "content": content}
         elif task_type == "vault_reindex":
-            count = self._vault.reindex()
-            state["result"] = {"status": "ok", "reindexed_count": count}
+            state["result"] = await self._reindex_vault(payload)
         else:
             state["result"] = {"status": "error", "error": f"Unknown vault task: {task_type}"}
         state["status"] = "completed"
         return state
+
+    async def _reindex_vault(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Rebuild the pgvector index from the Markdown ground truth.
+
+        ``MarkdownVault.reindex`` needs an ``embed`` and an ``upsert`` callable.
+        The previous implementation called it with no arguments (and never
+        awaited the coroutine), so ``vault_reindex`` always blew up with a
+        ``TypeError``. Without an embedder wired we now refuse cleanly instead.
+        """
+        embed = payload.get("embed")
+        upsert = payload.get("upsert")
+        if embed is None or upsert is None:
+            return {
+                "status": "error",
+                "error": (
+                    "vault_reindex requires an 'embed' and an 'upsert' callable "
+                    "(vector index is a rebuildable copy of the Markdown source)"
+                ),
+                "files": self._vault.list_files(),
+            }
+        stats = await self._vault.reindex(embed=embed, upsert=upsert)
+        return {"status": "ok", **stats}
 
     async def _floor_registry_handler(self, state: AgentState) -> AgentState:
         state["result"] = {

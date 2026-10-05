@@ -98,9 +98,22 @@ class TradeJournal:
             self._mem_entries[entry.signal_id] = entry.to_dict()
 
     async def record_decision(
-        self, signal_id: str, decision: str, by: str = "andrii", reason: str = ""
+        self,
+        signal_id: str,
+        decision: str,
+        by: str = "andrii",
+        reason: str = "",
+        *,
+        symbol: Optional[str] = None,
+        direction: Optional[str] = None,
     ) -> None:
-        """Persist a HITL approve/reject and, on reject, a negative constraint."""
+        """Persist a HITL approve/reject and, on reject, a negative constraint.
+
+        ``symbol``/``direction`` are embedded into the constraint summary because
+        :meth:`SamAgent._match_constraint` matches on that text. Without them a
+        rejected signal never blocked a repeat proposal for the same instrument,
+        which made the whole negative-constraint gate a no-op.
+        """
         status = "approved" if decision == "approve" else "rejected"
         pool = self._pool()
         if pool is None:
@@ -124,11 +137,34 @@ class TradeJournal:
                 logger.warning("journal_decision_write_failed", error=str(exc))
 
         if decision == "reject":
+            where = f"{symbol or '?'}:{direction or '?'}"
+            base = reason or "Signal rejected by human — pattern flagged for review"
             await self.add_reflection(
                 signal_id=signal_id,
                 kind="negative_constraint",
-                summary=reason or "Signal rejected by human — pattern flagged for review",
+                summary=f"{where} — {base}",
+                detail={"symbol": symbol, "direction": direction},
             )
+
+    async def get_signal(self, signal_id: str) -> Optional[Dict[str, Any]]:
+        """Return a recorded signal (or ``None``) so callers can enrich decisions."""
+        pool = self._pool()
+        if pool is None:
+            return self._mem_entries.get(signal_id)
+        try:  # pragma: no cover - needs live DB
+            async with pool.acquire() as conn:
+                row = await conn.fetchrow(
+                    """
+                    SELECT signal_id, symbol, direction, status
+                    FROM agents.sam_trade_journal
+                    WHERE signal_id = $1
+                    """,
+                    signal_id,
+                )
+            return dict(row) if row else None
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("journal_signal_read_failed", error=str(exc))
+            return None
 
     async def record_outcome(
         self, signal_id: str, outcome: str, realized_r: Optional[float] = None

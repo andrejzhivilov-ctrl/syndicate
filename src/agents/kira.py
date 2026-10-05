@@ -15,8 +15,8 @@ Zero cross-domain distractions. Kira focuses exclusively on 5 core disciplines:
 from __future__ import annotations
 
 import json
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
+from typing import Any, Dict, Optional
 
 import structlog
 from langchain_core.messages import HumanMessage
@@ -100,7 +100,7 @@ class KiraAgent:
                 agent_id=self.AGENT_ID,
                 role="mentor",
                 content=json.dumps(data, ensure_ascii=False),
-                metadata={"category": category, "floor": self.FLOOR, "timestamp": datetime.utcnow().isoformat()},
+                metadata={"category": category, "floor": self.FLOOR, "timestamp": datetime.now(timezone.utc).isoformat()},
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning("kira_memory_save_failed", error=str(exc))
@@ -210,7 +210,7 @@ class KiraAgent:
             "discipline": discipline,
             "goal": goal,
             "curriculum": response,
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "floor": self.FLOOR,
         }
 

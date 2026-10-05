@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 import redis.asyncio as aioredis
@@ -164,7 +164,7 @@ class MemoryManager:
                 "role": valid_role,
                 "content": str(content),
                 "metadata": meta,
-                "created_at": datetime.utcnow().isoformat(),
+                "created_at": datetime.now(timezone.utc).isoformat(),
             }))
             await self._redis.ltrim(cache_key, 0, 49)
             await self._redis.expire(cache_key, 3600)

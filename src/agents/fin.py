@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, date
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 import structlog
 from src.memory import MemoryManager
 
@@ -68,13 +68,21 @@ class FinAgent:
             monthly_burn = daily_burn * 30.0
 
         if monthly_burn > 0:
-            runway_months = round(total_balance / monthly_burn, 1)
-            runway_days = int((total_balance / monthly_burn) * 30.4)
+            runway_months: Optional[float] = round(total_balance / monthly_burn, 1)
+            runway_days: Optional[int] = int((total_balance / monthly_burn) * 30.4)
+            status = (
+                "healthy" if runway_months >= 6.0
+                else "warning" if runway_months >= 3.0
+                else "critical"
+            )
+            alert = "Low runway buffer: less than 3 months!" if status == "critical" else None
         else:
-            runway_months = 999.0
-            runway_days = 9999
-
-        status = "healthy" if runway_months >= 6.0 else "warning" if runway_months >= 3.0 else "critical"
+            # Previously reported 999 months / 9999 days — a fabricated
+            # "infinite runway". Report the gap honestly instead.
+            runway_months = None
+            runway_days = None
+            status = "unknown"
+            alert = "Runway not computable: monthly_burn must be greater than 0."
 
         return {
             "agent": self.AGENT_ID,
@@ -83,7 +91,7 @@ class FinAgent:
             "runway_months": runway_months,
             "runway_days": runway_days,
             "status": status,
-            "alert": "Low runway buffer: less than 3 months!" if status == "critical" else None,
+            "alert": alert,
         }
 
     async def _check_budget(self, payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -150,16 +158,21 @@ class FinAgent:
         """
         if "accounts" in payload:
             accounts = payload["accounts"]
-            total_uah = sum(a["balance"] for a in accounts if a.get("currency") == "UAH")
-            total_usd = sum(a["balance"] for a in accounts if a.get("currency") == "USD")
+            total_uah = sum(float(a.get("balance", 0.0)) for a in accounts if a.get("currency") == "UAH")
+            total_usd = sum(float(a.get("balance", 0.0)) for a in accounts if a.get("currency") == "USD")
             return {
                 "agent": self.AGENT_ID,
-                "synced_at": datetime.utcnow().isoformat(),
+                "status": "ok",
+                "synced_at": datetime.now().isoformat(),
                 "accounts": accounts,
                 "total_uah": total_uah,
                 "total_usd": total_usd,
             }
 
+        # SAFETY RULE (mirrors Doc's "never fabricate medical data"):
+        # when the banking integration is unreachable we MUST NOT invent account
+        # balances — the CFO dossier and the runway figure would be built on
+        # fabricated numbers. Report the failure explicitly instead.
         try:
             from src.integrations.banking import BankingClient
             client = BankingClient(
@@ -170,6 +183,7 @@ class FinAgent:
             overview = await client.get_accounts_overview()
             return {
                 "agent": self.AGENT_ID,
+                "status": "ok",
                 "synced_at": overview["timestamp"],
                 "accounts": overview["accounts"],
                 "total_uah": overview["totals"]["UAH"],
@@ -177,18 +191,20 @@ class FinAgent:
                 "estimated_liquid_usd": overview["totals"]["estimated_liquid_usd"],
             }
         except Exception as exc:  # noqa: BLE001
-            logger.warning("banking_client_sync_fallback", error=str(exc))
-            accounts = [
-                {"bank": "Monobank (FOP)", "balance": 185400.0, "currency": "UAH"},
-                {"bank": "PrivatBank", "balance": 74200.0, "currency": "UAH"},
-                {"bank": "Reserve Vault", "balance": 15000.0, "currency": "USD"},
-            ]
+            logger.warning("banking_client_sync_unavailable", error=str(exc))
             return {
                 "agent": self.AGENT_ID,
-                "synced_at": datetime.utcnow().isoformat(),
-                "accounts": accounts,
-                "total_uah": sum(a["balance"] for a in accounts if a["currency"] == "UAH"),
-                "total_usd": sum(a["balance"] for a in accounts if a["currency"] == "USD"),
+                "status": "unavailable",
+                "synced_at": datetime.now().isoformat(),
+                "accounts": [],
+                "total_uah": 0.0,
+                "total_usd": 0.0,
+                "estimated_liquid_usd": 0.0,
+                "error": f"banking_sync_unavailable: {exc}",
+                "warning": (
+                    "No live bank data available. Balances are NOT estimated — "
+                    "supply 'accounts' in the payload or restore the banking integration."
+                ),
             }
 
     async def _morning_data(self, payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -202,12 +218,14 @@ class FinAgent:
 
         return {
             "agent": self.AGENT_ID,
+            "status": "ok" if bank_data.get("status", "ok") == "ok" else "degraded",
             "balance_uah": bank_data["total_uah"],
             "balance_usd": bank_data["total_usd"],
             "runway_days": runway_data["runway_days"],
             "runway_months": runway_data["runway_months"],
             "tax_alerts_count": len(tax_data["upcoming_taxes"]),
             "urgent_tax": tax_data["urgent"],
+            **({"warning": bank_data["warning"]} if bank_data.get("warning") else {}),
         }
 
     async def _analyze(self, data: Dict[str, Any]) -> Dict[str, Any]:

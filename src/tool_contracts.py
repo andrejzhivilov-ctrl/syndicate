@@ -12,7 +12,7 @@ from __future__ import annotations
 import inspect
 import time
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence
 
 import structlog
 

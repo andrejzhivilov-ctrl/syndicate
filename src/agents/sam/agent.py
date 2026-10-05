@@ -62,6 +62,19 @@ class SamAgent:
         self._engine = ConfluenceEngine(weights=weights, threshold=threshold)
         self._journal = TradeJournal(memory=memory)
 
+        # ``runtime_config.build_runtime_config()`` publishes fractional values
+        # (``risk_per_trade: 0.01``, ``daily_stop_out: 0.03``) and the Telegram
+        # chat id as ``telegram_chat_id``. Normalize them onto the keys the risk
+        # engine and the HITL notifier actually read, otherwise operator-set risk
+        # limits were silently ignored and signal delivery always reported
+        # "not delivered".
+        if "risk_per_trade" in self._config and "risk_pct" not in self._config:
+            self._config["risk_pct"] = float(self._config["risk_per_trade"]) * 100.0
+        if "daily_stop_out" in self._config and "daily_stop_pct" not in self._config:
+            self._config["daily_stop_pct"] = float(self._config["daily_stop_out"]) * 100.0
+        if "telegram_chat_id" in self._config and "sam_chat_id" not in self._config:
+            self._config["sam_chat_id"] = self._config["telegram_chat_id"]
+
     # ------------------------------------------------------------------ #
     # Orchestrator entry point.
     # ------------------------------------------------------------------ #
@@ -82,6 +95,11 @@ class SamAgent:
                 return await self.check_portfolio_risk(payload)
             if action in ("swarm_research", "macro_swarm", "market_swarm"):
                 return await self.swarm_research(payload)
+            if action in ("morning_data", "briefing"):
+                # Eva's 07:30 briefing calls ``morning_data_sam``; without this
+                # branch Sam answered "Unknown action" and the briefing silently
+                # lost the whole market section.
+                return self.build_digest(payload)
             if action in ("capabilities", "status"):
                 return self.capabilities()
             return {"error": f"Unknown action: {action}", "agent": self.AGENT_ID}
@@ -269,7 +287,17 @@ class SamAgent:
             return {"agent": self.AGENT_ID, "error": "unrecognised decision callback"}
 
         decision = "approve" if action in ("approve", "halfrisk") else "reject"
-        await self._journal.record_decision(proposal_id, decision, by=by, reason=reason)
+        # Resolve the original proposal so a rejection records a *usable*
+        # negative constraint (symbol + direction), not an anonymous one.
+        recorded = await self._journal.get_signal(proposal_id)
+        await self._journal.record_decision(
+            proposal_id,
+            decision,
+            by=by,
+            reason=reason,
+            symbol=(recorded or {}).get("symbol") or payload.get("symbol"),
+            direction=(recorded or {}).get("direction") or payload.get("direction"),
+        )
 
         # NOTE: even an "approve" here only *unlocks* execution — the actual
         # order placement is delegated to the broker executor skill under

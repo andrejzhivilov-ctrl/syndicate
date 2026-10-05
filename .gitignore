@@ -39,3 +39,11 @@ Thumbs.db
 # Generated document previews (not source)
 *.pdf
 *.docx
+
+# Writable runtime artefacts produced by agents (see src/data_paths.py).
+# EVA_DATA_DIR relocates these in production; locally they land in the tree.
+vault_md/
+media/videos/
+media/mockups/
+!media/mockups/mockup_result.webp
+config/browser_profiles/

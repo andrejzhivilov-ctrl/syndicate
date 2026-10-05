@@ -289,15 +289,31 @@ class DocAgent:
         last_checkups = payload.get("last_checkups", {})
 
         annual = ["blood_pressure", "dental", "vision", "comprehensive_blood_panel"]
-        overdue = [t for t in annual if t not in last_checkups]
-        upcoming = [t for t in annual if t in last_checkups]
+        today = date.today()
+        # NOTE: the previous implementation had these two lists swapped — items
+        # that were never done were reported as "overdue" under that name while
+        # completed ones were called "upcoming". A screening that has no entry in
+        # ``last_checkups`` is simply *due*; only a screening whose recorded date
+        # has passed its interval is genuinely overdue.
+        completed = [t for t in annual if t in last_checkups]
+        due = [t for t in annual if t not in last_checkups]
+
+        overdue: List[str] = []
+        for name, last_done in last_checkups.items():
+            try:
+                last_dt = date.fromisoformat(str(last_done))
+            except (TypeError, ValueError):
+                continue
+            if (today - last_dt).days > 365:
+                overdue.append(name)
 
         if age >= 45 and "colonoscopy" not in last_checkups:
-            overdue.append("colonoscopy")
+            due.append("colonoscopy")
 
         result = {
             "agent": self.AGENT_ID,
-            "upcoming": upcoming,
+            "completed": completed,
+            "due": due,
             "overdue": overdue,
             "schedule_12_months": ["Annual Blood Panel (Q1)", "Dental Checkup (Q2)", "Cardio/ECG Check (Q3)"],
         }

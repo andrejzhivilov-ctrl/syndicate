@@ -8,8 +8,7 @@ from __future__ import annotations
 
 import json
 import random
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -31,9 +30,10 @@ class AntiDetectProfileManager:
         {"vendor": "Google Inc. (AMD)", "renderer": "ANGLE (AMD, AMD Radeon RX 6700 XT Direct3D11 vs_5_0 ps_5_0)"}
     ]
 
-    def __init__(self, profiles_dir: str = "config/browser_profiles"):
-        self.profiles_dir = Path(profiles_dir)
-        self.profiles_dir.mkdir(parents=True, exist_ok=True)
+    def __init__(self, profiles_dir: Optional[str] = None):
+        from src.data_paths import ensure_dir
+
+        self.profiles_dir = ensure_dir("browser_profiles", profiles_dir)
 
     def create_isolated_profile(
         self,

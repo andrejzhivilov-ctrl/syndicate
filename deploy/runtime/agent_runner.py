@@ -10,10 +10,10 @@ Fixes applied:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import hmac
 import logging
 import os
-import signal
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -73,6 +73,7 @@ class AppState:
     webhook_secret: Optional[str] = None
     start_time: float = time.time()
     ready: bool = False
+    vault_renewal_task: Optional[Any] = None
 
 
 app_state = AppState()
@@ -160,8 +161,11 @@ async def lifespan(app: FastAPI):
         await app_state.orchestrator.initialize()
         logger.info("EVA orchestrator v4.1 initialized")
 
-        # 8. Start token renewal background task
-        asyncio.create_task(app_state.vault_client.start_token_renewal())
+        # 8. Start token renewal background task (keep a reference: a bare
+        #    create_task() result can be garbage-collected mid-flight).
+        app_state.vault_renewal_task = asyncio.create_task(
+            app_state.vault_client.start_token_renewal()
+        )
 
         app_state.ready = True
         logger.info("EVA SYNDICATE agent ready", uptime=0)
@@ -174,6 +178,11 @@ async def lifespan(app: FastAPI):
     finally:
         logger.info("EVA SYNDICATE agent shutting down...")
         app_state.ready = False
+        if app_state.vault_renewal_task is not None:
+            app_state.vault_renewal_task.cancel()
+            with contextlib.suppress(BaseException):
+                await app_state.vault_renewal_task
+            app_state.vault_renewal_task = None
         if app_state.memory_manager:
             await app_state.memory_manager.close()
         if app_state.vault_client:
@@ -202,6 +211,39 @@ app.add_middleware(
 )
 
 
+# ─── JSON sanitization ───────────────────────────────────────────────────────
+
+_MAX_STR = 20_000
+
+
+def _json_safe(value: Any, _depth: int = 0) -> Any:
+    """Convert an arbitrary agent result into something ``json.dumps`` accepts.
+
+    Agent handlers occasionally return bytes, datetimes, sets or dataclasses.
+    Those turned a successful task into a 500 at serialization time, so coerce
+    them here instead of letting the error escape the endpoint.
+    """
+    if _depth > 12:
+        return str(value)
+    if value is None or isinstance(value, (bool, int, float, str)):
+        if isinstance(value, float) and (value != value or value in (float("inf"), float("-inf"))):
+            return str(value)
+        if isinstance(value, str) and len(value) > _MAX_STR:
+            return value[:_MAX_STR] + "…[truncated]"
+        return value
+    if isinstance(value, (bytes, bytearray)):
+        return f"<{len(value)} bytes>"
+    if isinstance(value, dict):
+        return {str(k): _json_safe(v, _depth + 1) for k, v in value.items()}
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return [_json_safe(v, _depth + 1) for v in value]
+    if hasattr(value, "to_dict") and callable(value.to_dict):
+        return _json_safe(value.to_dict(), _depth + 1)
+    if hasattr(value, "__dict__"):
+        return _json_safe(vars(value), _depth + 1)
+    return str(value)
+
+
 # ─── Request/Response Models ─────────────────────────────────────────────────
 
 class ExecuteRequest(BaseModel):
@@ -214,7 +256,11 @@ class ExecuteRequest(BaseModel):
 class ExecuteResponse(BaseModel):
     task_id: str
     status: str
-    result: Optional[Dict[str, Any]] = None
+    # Handlers legitimately return lists/scalars (e.g. ``sensory.*`` chunk lists)
+    # and previously raw ``bytes`` leaked in and made json.dumps blow up with a
+    # 500 after the task had already succeeded. Keep it permissive and sanitize
+    # non-JSON-serialisable payloads at the edge instead of failing the request.
+    result: Optional[Any] = None
     message: Optional[str] = None
 
 
@@ -227,6 +273,28 @@ class HealthResponse(BaseModel):
 
 
 # ─── Dependencies: Ready State & Authentication ─────────────────────────────
+
+def _is_private_client(host: str) -> bool:
+    """Loopback / RFC1918 / IPv6 ULA check for the unauthenticated dev fallback."""
+    host = (host or "").strip().lower()
+    if not host:
+        return False
+    if host in ("::1", "::ffff:127.0.0.1", "localhost"):
+        return True
+    if host.startswith("127.") or host.startswith("::ffff:127."):
+        return True
+    if host.startswith("10.") or host.startswith("192.168."):
+        return True
+    if host.startswith("172."):
+        try:
+            second = int(host.split(".")[1])
+        except (IndexError, ValueError):
+            return False
+        return 16 <= second <= 31          # 172.16.0.0/12 only
+    if host.startswith("fd") or host.startswith("fc"):
+        return True                        # IPv6 unique local addresses
+    return False
+
 
 async def require_ready() -> AppState:
     if not app_state.ready:
@@ -243,9 +311,11 @@ async def require_auth(
     """Verify API Key or Bearer token on protected endpoints."""
     expected = state.api_key
     if not expected:
-        # If no key configured in dev, allow internal requests from private subnets only
-        client_host = request.client.host if request.client else ""
-        if client_host.startswith(("127.", "10.", "172.", "192.168.")):
+        # If no key is configured (dev only), allow internal requests from
+        # loopback / RFC1918 private ranges. NOTE: "172." alone is NOT enough —
+        # only 172.16.0.0/12 is private; 172.32.x.x is public address space.
+        client_host = (request.client.host if request.client else "") or ""
+        if _is_private_client(client_host):
             return state
         raise HTTPException(status_code=401, detail="API authentication key not configured")
 
@@ -266,14 +336,18 @@ async def require_auth(
 @app.get("/cockpit", response_class=HTMLResponse)
 async def cockpit_interface():
     """Serve the interactive SYNDIKAT Executive Cockpit interface."""
+    # Ordered from the packaged layout (/app/cockpit.html, /app/runtime/cockpit.html)
+    # to the source checkout (repository root). Earlier revisions probed a
+    # directory layout that no longer exists in this repository.
+    here = Path(__file__).resolve().parent
     candidates = [
-        Path(__file__).parents[2] / "syndikat_cockpit.html",
-        Path(__file__).parents[2] / "cockpit.html",
-        Path(__file__).parents[2] / "static" / "cockpit.html",
-        Path(__file__).parent / "static" / "cockpit.html",
-        Path("repo_code/syndikat_cockpit.html"),
-        Path("repo_code/cockpit.html"),
-        Path("syndikat_cockpit.html"),
+        here / "cockpit.html",
+        here.parent / "cockpit.html",
+        here.parent / "static" / "cockpit.html",
+        here.parents[1] / "cockpit.html",
+        here.parents[1] / "syndikat_cockpit.html",
+        here.parents[1] / "static" / "cockpit.html",
+        Path("cockpit.html"),
     ]
     for p in candidates:
         if p.exists():
@@ -285,7 +359,6 @@ async def cockpit_interface():
 
 
 @app.get("/health", response_model=HealthResponse)
-
 async def health_check():
     """Liveness/readiness probe."""
     return HealthResponse(
@@ -343,7 +416,7 @@ async def execute_task(
         return ExecuteResponse(
             task_id=result["task_id"],
             status=result["status"],
-            result=result.get("result"),
+            result=_json_safe(result.get("result")),
         )
 
     except HTTPException:
@@ -475,14 +548,11 @@ async def apply_cr(request: Request, state: AppState = Depends(require_auth)):
 
 
 # ─── Graceful Shutdown ───────────────────────────────────────────────────────
-
-def _signal_handler(sig, frame):
-    logger.info("Shutdown signal received", signal=sig)
-
-
-signal.signal(signal.SIGTERM, _signal_handler)
-signal.signal(signal.SIGINT, _signal_handler)
-
+# NOTE: this module previously installed its own SIGTERM/SIGINT handler that only
+# logged the signal and returned. Handlers registered at import time override the
+# server's own ones, so the process never actually stopped on SIGTERM and had to
+# be SIGKILLed (10s docker stop timeout, dropped in-flight requests). Signal
+# handling is left to uvicorn, which shuts the ASGI app down gracefully.
 
 if __name__ == "__main__":
     uvicorn.run(

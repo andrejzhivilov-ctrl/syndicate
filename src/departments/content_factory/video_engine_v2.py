@@ -8,11 +8,10 @@ Optimized for 16 vCPU threads on Contabo VPS with zero external SaaS fees.
 from __future__ import annotations
 
 import asyncio
-import os
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 import structlog
 
 from src.departments.content_factory.broll_scout import BRollScout
@@ -114,7 +113,7 @@ class VideoEngineV2:
 
         if not concat_lines:
             # Fallback to single loop
-            concat_lines.append(f"file 'media/templates/abstract_loop.mp4'")
+            concat_lines.append("file 'media/templates/abstract_loop.mp4'")
 
         concat_list_file.write_text("\n".join(concat_lines), encoding="utf-8")
 

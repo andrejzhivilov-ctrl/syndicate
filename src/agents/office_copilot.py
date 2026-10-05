@@ -6,9 +6,8 @@ and comprehensive Office Knowledge Base lookups.
 
 from __future__ import annotations
 
-import io
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -16,10 +15,7 @@ logger = structlog.get_logger(__name__)
 # Try importing python-docx and openpyxl
 try:
     import docx
-    from docx.shared import Inches, Pt, RGBColor
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
-    from docx.oxml import OxmlElement
-    from docx.oxml.ns import qn
+    from docx.shared import Pt, RGBColor
     DOCX_AVAILABLE = True
 except ImportError:
     DOCX_AVAILABLE = False
@@ -220,12 +216,24 @@ class OfficeCopilotAgent:
         tool = payload.get("tool", "all").lower()  # "word", "excel", "macro", "all"
         query = payload.get("query", "").strip().lower()
 
-        results = {
-            "excel_shortcuts": self.kb.EXCEL_SHORTCUTS,
-            "word_shortcuts": self.kb.WORD_SHORTCUTS,
-            "formulas": self.kb.EXCEL_FORMULAS,
-            "macros": {k: v["title"] for k, v in self.kb.VBA_MACRO_TEMPLATES.items()}
-        }
+        # The ``tool`` selector used to be read and then ignored: every lookup
+        # returned the whole knowledge base regardless of the requested tool.
+        if tool == "word":
+            results = {"word_shortcuts": self.kb.WORD_SHORTCUTS}
+        elif tool == "excel":
+            results = {
+                "excel_shortcuts": self.kb.EXCEL_SHORTCUTS,
+                "formulas": self.kb.EXCEL_FORMULAS,
+            }
+        elif tool == "macro":
+            results = {"macros": {k: v["title"] for k, v in self.kb.VBA_MACRO_TEMPLATES.items()}}
+        else:
+            results = {
+                "excel_shortcuts": self.kb.EXCEL_SHORTCUTS,
+                "word_shortcuts": self.kb.WORD_SHORTCUTS,
+                "formulas": self.kb.EXCEL_FORMULAS,
+                "macros": {k: v["title"] for k, v in self.kb.VBA_MACRO_TEMPLATES.items()},
+            }
 
         if query:
             filtered_formulas = {
@@ -234,7 +242,7 @@ class OfficeCopilotAgent:
             }
             results["matched_formulas"] = filtered_formulas
 
-        return {"status": "ok", "data": results}
+        return {"status": "ok", "tool": tool, "data": results}
 
     def _generate_macro(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Generate VBA macro code according to user request."""

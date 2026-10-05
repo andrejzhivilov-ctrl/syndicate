@@ -7,9 +7,9 @@ using local Pillow (PIL) pipeline at $0 software cost.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 import structlog
-from PIL import Image, ImageEnhance, ImageFilter, ImageOps
+from PIL import Image, ImageEnhance
 
 logger = structlog.get_logger(__name__)
 
@@ -25,9 +25,10 @@ class MockupStudio:
         "mug_wrap": (300, 350, 400, 400),
     }
 
-    def __init__(self, output_dir: str = "media/mockups"):
-        self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+    def __init__(self, output_dir: Optional[str] = None):
+        from src.data_paths import ensure_dir
+
+        self.output_dir = ensure_dir("mockups", output_dir)
 
     def composite_artwork(
         self,

@@ -12,12 +12,11 @@ deterministic, zero-token Python algorithms (0 LLM tokens burned).
 from __future__ import annotations
 
 import re
-import time
 import json
 import hmac
 import hashlib
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set
 import structlog
 
@@ -258,7 +257,7 @@ class MarshalAgent:
             return res
 
         if rule == "hitl_required":
-            res = ValidationResult(allowed=True, reason=f"Marshal Gate: Action requires human operator approval", risk_score=0.9, metadata={"requires_hitl": True})
+            res = ValidationResult(allowed=True, reason="Marshal Gate: Action requires human operator approval", risk_score=0.9, metadata={"requires_hitl": True})
             self._audit({"agent_id": agent_id, "action": action}, res)
             return res
 
@@ -363,7 +362,7 @@ class MarshalAgent:
         res = {
             "agent": self.AGENT_ID,
             "role": self.ROLE,
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "protocol_status": "Marshal Zero-Trust Active (Sentinel Protocol - Direct Zero-Token Defense)",
             "monitored_floors": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
             "security_shields": {
@@ -448,7 +447,7 @@ class MarshalAgent:
         if not result.allowed:
             logger.warning("Task blocked by Marshal", reason=result.reason, risk_score=result.risk_score, task_type=task.get("task_type", "unknown"))
             self._incident_log.append({
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "reason": result.reason,
                 "risk_score": result.risk_score,
                 "task_type": task.get("task_type", "unknown"),

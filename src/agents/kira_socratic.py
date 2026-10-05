@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Tuple
 
 ANSWER_REQUEST = re.compile(
     r"(дай|напиши|скажи|покажи|просто)\s+(мені\s+)?(готов\w+\s+)?(відповідь|ответ|код|рішення|решение)|"
@@ -30,6 +30,7 @@ MIN_ATTEMPTS_FOR_REVEAL = 3
 class TutorSession:
     student: str
     topic: str
+    session_id: str = ""
     attempts: int = 0
     level: int = 1
     history: list = field(default_factory=list)
@@ -37,14 +38,34 @@ class TutorSession:
 
 
 class SocraticTutor:
+    """Socratic hint ladder.
+
+    Sessions are keyed by ``(session_id, student, topic)``. The previous
+    implementation keyed only on ``(student, topic)``, so two different
+    conversations (``session_id``) working on the same problem silently shared
+    attempt counters and hint level — a learner could be pushed to the "reveal"
+    rung by someone else's attempts.
+    """
+
+    MAX_SESSIONS = 1000
+
     def __init__(self) -> None:
-        self._sessions: Dict[Tuple[str, str], TutorSession] = {}
+        self._sessions: Dict[Tuple[str, str, str], TutorSession] = {}
 
-    def _session(self, student: str, topic: str) -> TutorSession:
-        return self._sessions.setdefault((student, topic), TutorSession(student, topic))
+    def _session(self, student: str, topic: str, session_id: str = "") -> TutorSession:
+        key = (session_id, student, topic)
+        sess = self._sessions.get(key)
+        if sess is None:
+            # Bound the in-memory map so long-running processes cannot grow it
+            # without limit (old sessions are dropped FIFO).
+            if len(self._sessions) >= self.MAX_SESSIONS:
+                self._sessions.pop(next(iter(self._sessions)), None)
+            sess = TutorSession(student, topic, session_id)
+            self._sessions[key] = sess
+        return sess
 
-    def reset(self, student: str, topic: str) -> None:
-        self._sessions.pop((student, topic), None)
+    def reset(self, student: str, topic: str, session_id: str = "") -> None:
+        self._sessions.pop((session_id, student, topic), None)
 
     @staticmethod
     def wants_answer(message: str) -> bool:
@@ -65,8 +86,9 @@ class SocraticTutor:
         scaffold: str = "",
         answer: str = "",
         confirm_reveal: bool = False,
+        session_id: str = "",
     ) -> Dict[str, Any]:
-        s = self._session(student, topic)
+        s = self._session(student, topic, session_id)
         asked_for_answer = self.wants_answer(message)
         if self._is_real_attempt(message) and not asked_for_answer:
             s.attempts += 1
@@ -134,6 +156,7 @@ class SocraticTutor:
             concept=kwargs.get("concept", ""),
             scaffold=kwargs.get("scaffold", ""),
             answer=solution,
+            session_id=session_id,
         )
         return {
             "status": "ok",
@@ -154,7 +177,7 @@ class SocraticTutor:
         student: str = "student",
     ) -> Dict[str, Any]:
         """Fast-forward to solve stage."""
-        s = self._session(student, problem_statement or session_id)
+        s = self._session(student, problem_statement or session_id, session_id)
         s.attempts = MIN_ATTEMPTS_FOR_REVEAL + 1
         s.level = 4
         s.revealed = True
@@ -164,6 +187,7 @@ class SocraticTutor:
             message="Show me the full solution now please.",
             answer=solution,
             confirm_reveal=True,
+            session_id=session_id,
         )
         return {
             "status": "solved",

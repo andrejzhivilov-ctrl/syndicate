@@ -14,8 +14,7 @@ Integrates EvaCurator for life review, decision loop, deadlines, and social puls
 
 from __future__ import annotations
 
-import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 import structlog
 from langchain_core.messages import SystemMessage, HumanMessage
 

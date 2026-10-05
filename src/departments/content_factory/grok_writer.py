@@ -7,7 +7,7 @@ Utilizes Grok's real-time platform awareness and native cultural tone.
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 import httpx
 import structlog
 
@@ -55,10 +55,10 @@ class GrokWriter:
             return {
                 "status": "mock",
                 "posts": [
-                    f"🔥 Most people waste 80% of their budget on bloated software.",
-                    f"Here is the exact lean stack our holding uses to generate passive commissions without ad spend:",
-                    f"1. AI lead scraping with automated filtering\n2. Free multi-threaded server workers\n3. Local media compositing",
-                    f"The secret isn't more money. It's eliminating recurring SaaS fees and owning your pipeline.",
+                    "🔥 Most people waste 80% of their budget on bloated software.",
+                    "Here is the exact lean stack our holding uses to generate passive commissions without ad spend:",
+                    "1. AI lead scraping with automated filtering\n2. Free multi-threaded server workers\n3. Local media compositing",
+                    "The secret isn't more money. It's eliminating recurring SaaS fees and owning your pipeline.",
                     f"Bookmark this. We drop the full setup guide here: {target_cta or 'Link in bio'} 🚀"
                 ],
                 "model": "grok-mock-local"
@@ -99,6 +99,6 @@ class GrokWriter:
         """Generate high-engagement, insightful reply to top viral threads."""
         return {
             "status": "ok",
-            "reply": f"The biggest bottleneck here isn't the tooling, it's the operational drag. Once you automate the data flow locally, margins 3x instantly.",
+            "reply": "The biggest bottleneck here isn't the tooling, it's the operational drag. Once you automate the data flow locally, margins 3x instantly.",
             "angle": product_angle
         }

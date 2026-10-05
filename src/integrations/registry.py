@@ -54,7 +54,7 @@ class ConnectorRegistry:
             return_exceptions=True,
         )
         out: Dict[str, Any] = {}
-        for name, res in zip(self._connectors, results):
+        for name, res in zip(self._connectors, results, strict=True):
             out[name] = res if not isinstance(res, Exception) else {
                 "service": name, "healthy": False, "detail": str(res),
             }
