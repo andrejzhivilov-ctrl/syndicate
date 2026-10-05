@@ -70,6 +70,9 @@ run "ruff F,E9,B (логіка й безпека)" "$RUFF" check --select F,E9,B
 run "ruff E,W    (стиль/пробіли)"    "$RUFF" check --select E,W   --ignore E501             src deploy tests tools
 run "ruff C901   (складність)"       "$RUFF" check --select C901                           src deploy tests tools
 
+step "Контракт API (клієнтська частина)"
+run "api-contract.yaml відповідає коду" "$PY" tools/export_openapi.py --check
+
 step "Гігієна репозиторію"
 if [ -f docker-compose.yml ] && [ -f deploy/docker-compose.yml ]; then
     if cmp -s docker-compose.yml deploy/docker-compose.yml; then

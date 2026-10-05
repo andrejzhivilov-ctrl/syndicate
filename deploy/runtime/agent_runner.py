@@ -9,8 +9,10 @@ Fixes applied:
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import hmac
+import json
 import logging
 import os
 import time
@@ -22,12 +24,13 @@ import structlog
 import uvicorn
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 
 from pydantic import BaseModel, Field
 
 from src.agents.sentinel import SentinelAgent
 from src.confidence import ConfidenceBudget
+from src.device_auth import DEFAULT_TTL_SECONDS, DeviceTokenStore, KNOWN_SCOPES
 from src.integrations import build_default_registry
 from src.lessons import LessonsStore
 from src.memory import MemoryManager
@@ -71,6 +74,10 @@ class AppState:
     voice_manager: Optional[Any] = None
     api_key: Optional[str] = None
     webhook_secret: Optional[str] = None
+    # Per-device tokens for PC/mobile clients. Never expose the master
+    # api_key to a client binary — hand out these instead.
+    device_tokens: Optional[DeviceTokenStore] = None
+    device_purge_task: Optional[Any] = None
     start_time: float = time.time()
     ready: bool = False
     vault_renewal_task: Optional[Any] = None
@@ -80,6 +87,26 @@ app_state = AppState()
 
 
 # ─── Lifespan ───────────────────────────────────────────────────────────────
+
+@asynccontextmanager
+async def _purge_device_tokens(interval_seconds: int = 3600) -> None:
+    """Background sweep: drop device tokens that died long ago.
+
+    Module-level (not a closure inside ``lifespan``) to keep the startup
+    function's cyclomatic complexity under the C901 gate.
+    """
+    while True:
+        try:
+            await asyncio.sleep(interval_seconds)
+            if app_state.device_tokens is not None:
+                removed = await app_state.device_tokens.purge_expired()
+                if removed:
+                    logger.info("device_tokens_purged", removed=removed)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("device_token_purge_failed", error=str(exc))
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -147,6 +174,16 @@ async def lifespan(app: FastAPI):
         app_state.api_key = auth_secrets.get("api_key") or os.getenv("EVA_API_KEY") or os.getenv("MCP_SIGNING_KEY")
         app_state.webhook_secret = auth_secrets.get("webhook_secret") or os.getenv("WEBHOOK_SECRET") or os.getenv("MCP_SIGNING_KEY")
 
+        # 6b. Per-device token store (PC/mobile clients). The master key above
+        #     is never handed to a client binary; devices get their own
+        #     short-lived, revocable tokens instead.
+        app_state.device_tokens = DeviceTokenStore(
+            memory=app_state.memory_manager,
+            default_ttl_seconds=int(os.getenv("EVAS_DEVICE_TOKEN_TTL", DEFAULT_TTL_SECONDS)),
+            max_tokens_per_device=int(os.getenv("EVAS_MAX_TOKENS_PER_DEVICE", "10")),
+        )
+        logger.info("Device token store initialized")
+
         # 7. Initialize Orchestrator with all v4 components wired
         llm_secrets = await app_state.vault_client.get_secret(secret_path("api-keys"))
         app_state.orchestrator = EvaOrchestrator(
@@ -167,6 +204,9 @@ async def lifespan(app: FastAPI):
         #    create_task() result can be garbage-collected mid-flight).
         app_state.vault_renewal_task = app_state.vault_client.ensure_token_renewal()
 
+        # 8b. Sweep long-dead device tokens once an hour.
+        app_state.device_purge_task = asyncio.create_task(_purge_device_tokens())
+
         app_state.ready = True
         logger.info("EVA SYNDICATE agent ready", uptime=0)
 
@@ -182,6 +222,10 @@ async def lifespan(app: FastAPI):
             app_state.vault_renewal_task.cancel()
             with contextlib.suppress(BaseException):
                 await app_state.vault_renewal_task
+        if app_state.device_purge_task is not None:
+            app_state.device_purge_task.cancel()
+            with contextlib.suppress(BaseException):
+                await app_state.device_purge_task
             app_state.vault_renewal_task = None
         if app_state.memory_manager:
             await app_state.memory_manager.close()
@@ -193,21 +237,36 @@ async def lifespan(app: FastAPI):
 
 # ─── FastAPI App ─────────────────────────────────────────────────────────────
 
+def _cors_origins() -> list:
+    """Origins allowed to call this API from a browser.
+
+    ``EVAS_CORS_ORIGINS`` is a comma-separated allowlist. It is empty by
+    default: a desktop/mobile client that talks to the agent directly does not
+    need CORS at all, and an open ``*`` policy would let any website the
+    operator visits drive the agent with the browser's own credentials.
+    """
+    raw = os.getenv("EVAS_CORS_ORIGINS", "") or ""
+    return [o.strip() for o in raw.split(",") if o.strip()]
+
+
 app = FastAPI(
     title="EVA SYNDICATE Agent",
     description="Autonomous multi-agent orchestration system",
     version="4.1.0",
-    docs_url=None,
+    # OpenAPI stays on: it is the source of truth for the generated client
+    # contract (apps/shared/api-contract.yaml). Serve it only when a key is
+    # configured or the caller is on a private range.
+    docs_url="/docs",
     redoc_url=None,
-    openapi_url=None,
+    openapi_url="/openapi.json",
     lifespan=lifespan,
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[],
-    allow_methods=["POST", "GET"],
-    allow_headers=["*"],
+    allow_origins=_cors_origins(),
+    allow_methods=["POST", "GET", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-API-Key"],
 )
 
 
@@ -242,6 +301,19 @@ def _json_safe(value: Any, _depth: int = 0) -> Any:
     if hasattr(value, "__dict__"):
         return _json_safe(vars(value), _depth + 1)
     return str(value)
+
+
+def _sse(event: str, data: Any) -> str:
+    """Format one Server-Sent Event frame.
+
+    ``data`` is run through ``_json_safe`` first, so a datetime or bytes from
+    an agent result cannot crash serialization mid-stream (which would kill
+    the response after the client already committed to reading it).
+    """
+    payload = json.dumps(_json_safe(data), ensure_ascii=False, default=str)
+    # A literal newline inside data would terminate the frame early.
+    payload = payload.replace("\n", "\\n")
+    return f"event: {event}\ndata: {payload}\n\n"
 
 
 # ─── Request/Response Models ─────────────────────────────────────────────────
@@ -302,14 +374,51 @@ async def require_ready() -> AppState:
     return app_state
 
 
+def _presented_credential(
+    x_api_key: Optional[str],
+    authorization: Optional[str],
+) -> str:
+    """Read the credential from ``X-API-Key`` or ``Authorization: Bearer``."""
+    if x_api_key:
+        return x_api_key.strip()
+    if authorization and authorization.lower().startswith("bearer "):
+        return authorization[7:].strip()
+    return ""
+
+
+def _client_host(request: Request) -> str:
+    return (request.client.host if request.client else "") or "unknown"
+
+
+def _master_key_ok(provided: str, expected: Optional[str]) -> bool:
+    """Constant-time compare against the shared master key."""
+    if not provided or not expected:
+        return False
+    return hmac.compare_digest(provided.encode("utf-8"), expected.encode("utf-8"))
+
+
 async def require_auth(
     request: Request,
     x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
     authorization: Optional[str] = Header(default=None, alias="Authorization"),
     state: AppState = Depends(require_ready),
 ) -> AppState:
-    """Verify API Key or Bearer token on protected endpoints."""
+    """Verify a credential on protected endpoints.
+
+    Two credential types are accepted:
+
+    1. the **master key** (``EVA_API_KEY`` / Vault ``auth.api_key``) — for
+       server-to-server calls and operator automation;
+    2. a **per-device token** issued by ``POST /auth/device/enroll`` — for PC
+       and mobile clients. These are short-lived, scoped and individually
+       revocable, so a leaked phone does not mean re-keying the whole system.
+
+    When no master key is configured (dev only), requests from loopback /
+    RFC1918 private ranges are still allowed, as before.
+    """
     expected = state.api_key
+    provided = _presented_credential(x_api_key, authorization)
+
     if not expected:
         # If no key is configured (dev only), allow internal requests from
         # loopback / RFC1918 private ranges. NOTE: "172." alone is NOT enough —
@@ -319,13 +428,55 @@ async def require_auth(
             return state
         raise HTTPException(status_code=401, detail="API authentication key not configured")
 
-    provided = x_api_key
-    if not provided and authorization and authorization.lower().startswith("bearer "):
-        provided = authorization[7:].strip()
+    if _master_key_ok(provided, expected):
+        return state
 
-    if not provided or not hmac.compare_digest(provided.encode("utf-8"), expected.encode("utf-8")):
-        logger.warning("Unauthorized API access attempt", client=request.client.host if request.client else "unknown")
-        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+    # Second credential type: a per-device token. The client never sees the
+    # master key, so this is the only safe thing to compile into an app.
+    if provided and state.device_tokens is not None:
+        record = await state.device_tokens.verify(provided)
+        if record is not None:
+            # Expose to the endpoint so audit logs can name the device.
+            request.state.device_id = record.device_id
+            request.state.token_id = record.token_id
+            request.state.scopes = list(record.scopes)
+            return state
+
+    logger.warning("Unauthorized API access attempt", client=_client_host(request))
+    raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
+
+async def require_master_key(
+    request: Request,
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+    authorization: Optional[str] = Header(default=None, alias="Authorization"),
+    state: AppState = Depends(require_ready),
+) -> AppState:
+    """Administrative endpoints: the master key only.
+
+    Device tokens must NOT be able to mint, list or revoke other devices'
+    tokens — otherwise a stolen phone could replace the whole fleet.
+    """
+    expected = state.api_key
+    provided = _presented_credential(x_api_key, authorization)
+
+    if not expected:
+        client_host = (request.client.host if request.client else "") or ""
+        if _is_private_client(client_host):
+            return state
+        raise HTTPException(status_code=401, detail="API authentication key not configured")
+
+    if not _master_key_ok(provided, expected):
+        logger.warning(
+            "Unauthorized admin access attempt",
+            client=_client_host(request),
+        )
+        if not provided:
+            raise HTTPException(status_code=401, detail="Invalid or missing API key")
+        # 403, not 401: the caller sent *a* credential, just not an
+        # administrative one. Clients can tell "log in again" from
+        # "you may not do this".
+        raise HTTPException(status_code=403, detail="Master API key required for device administration")
 
     return state
 
@@ -368,6 +519,113 @@ async def health_check():
         memory_ready=app_state.memory_manager is not None and app_state.memory_manager.is_ready,
         orchestrator_ready=app_state.orchestrator is not None,
     )
+
+
+# ─── Device tokens (PC / mobile clients) ─────────────────────────────────────
+#
+# A client binary must never embed the master ``EVA_API_KEY``: anything shipped
+# in an APK/IPA/desktop build can be extracted, and the master key cannot be
+# revoked per device. Instead a device enrols once (using the master key, from
+# the operator's own machine) and receives a short-lived, scoped token that it
+# can rotate and that can be revoked individually.
+
+
+class DeviceEnrollRequest(BaseModel):
+    device_id: str = Field(..., min_length=1, max_length=128, description="Stable id chosen by the client")
+    label: str = Field(default="", max_length=200, description="Human label, e.g. 'Andrii Pixel 8'")
+    scopes: list = Field(default_factory=list, description=f"Subset of {list(KNOWN_SCOPES)}; empty = inherit all")
+    ttl_seconds: Optional[int] = Field(default=None, ge=60, le=365 * 24 * 3600)
+
+
+class DeviceTokenRequest(BaseModel):
+    token: str = Field(..., min_length=1, description="The device token to rotate")
+
+
+class DeviceRevokeRequest(BaseModel):
+    token_id: str = Field(..., min_length=1, max_length=32)
+
+
+@app.post("/auth/device/enroll")
+async def enroll_device(
+    payload: DeviceEnrollRequest,
+    state: AppState = Depends(require_master_key),
+) -> Dict[str, Any]:
+    """Issue a new per-device token. Returns the plaintext token exactly once."""
+    if state.device_tokens is None:
+        raise HTTPException(status_code=503, detail="Device token store not initialized")
+    try:
+        issued = await state.device_tokens.enroll(
+            device_id=payload.device_id,
+            label=payload.label,
+            scopes=list(payload.scopes or []),
+            ttl_seconds=payload.ttl_seconds,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    logger.info("device_enrolled", device_id=payload.device_id, token_id=issued["token_id"])
+    return issued
+
+
+@app.post("/auth/device/refresh")
+async def refresh_device(
+    payload: DeviceTokenRequest,
+    state: AppState = Depends(require_ready),
+) -> Dict[str, Any]:
+    """Rotate a device token: revoke the presented one, issue a fresh one.
+
+    Authenticated by the token **in the body**, not by a header: this is the
+    refresh call, so requiring a still-valid credential in a header would make
+    rotation impossible exactly when it is needed. The token is 32 bytes of
+    CSPRNG output, so the endpoint is not a practical guessing oracle.
+    """
+    if state.device_tokens is None:
+        raise HTTPException(status_code=503, detail="Device token store not initialized")
+    rotated = await state.device_tokens.refresh(payload.token)
+    if rotated is None:
+        raise HTTPException(status_code=401, detail="Invalid, expired or revoked device token")
+    return rotated
+
+
+@app.post("/auth/device/revoke")
+async def revoke_device(
+    payload: DeviceRevokeRequest,
+    state: AppState = Depends(require_master_key),
+) -> Dict[str, Any]:
+    """Revoke one device's token. Master key only — a token may not revoke others."""
+    if state.device_tokens is None:
+        raise HTTPException(status_code=503, detail="Device token store not initialized")
+    revoked = await state.device_tokens.revoke(payload.token_id)
+    return {"token_id": payload.token_id, "revoked": bool(revoked)}
+
+
+@app.get("/auth/devices")
+async def list_devices(state: AppState = Depends(require_master_key)) -> Dict[str, Any]:
+    """List issued device tokens (never includes secrets or hashes)."""
+    if state.device_tokens is None:
+        raise HTTPException(status_code=503, detail="Device token store not initialized")
+    devices = await state.device_tokens.list_devices()
+    return {"devices": devices, "count": len(devices)}
+
+
+@app.get("/auth/device/whoami")
+async def device_whoami(
+    request: Request,
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+    authorization: Optional[str] = Header(default=None, alias="Authorization"),
+    state: AppState = Depends(require_auth),
+) -> Dict[str, Any]:
+    """What credential am I using? Lets a client verify its token before relying on it."""
+    presented = _presented_credential(x_api_key, authorization)
+    if _master_key_ok(presented, state.api_key):
+        return {"credential": "master_key", "scopes": list(KNOWN_SCOPES)}
+    return {
+        "credential": "device_token",
+        "device_id": getattr(request.state, "device_id", None),
+        "token_id": getattr(request.state, "token_id", None),
+        "scopes": getattr(request.state, "scopes", []),
+    }
 
 
 @app.get("/status")
@@ -424,6 +682,119 @@ async def execute_task(
     except Exception as exc:
         logger.error("Task execution failed", error=str(exc), exc_info=True)
         raise HTTPException(status_code=500, detail="Internal execution error")
+
+
+@app.post("/execute/stream")
+async def execute_task_stream(
+    request: ExecuteRequest,
+    state: AppState = Depends(require_auth),
+) -> StreamingResponse:
+    """Execute an agent task, streaming progress as Server-Sent Events.
+
+    ``POST /execute`` blocks for the whole run (10-60 s is normal). A mobile
+    client on a flaky connection sees nothing during that time — no progress,
+    no proof the server is alive, and proxies may time out. This endpoint
+    streams instead:
+
+        event: accepted   -> {"task_id": ...}            (immediately)
+        event: heartbeat  -> {"elapsed_seconds": N}      (every ~15 s)
+        event: progress   -> interim state               (not yet available)
+        event: result     -> final payload               (terminal)
+        event: error      -> {"detail": ...}             (terminal)
+        event: done       -> {"status": ...}             (always last)
+
+    Honest limitation: the orchestrator exposes only ``ainvoke`` (one
+    ``await`` for the entire graph), so there is no interim state to emit yet.
+    Heartbeats are therefore **liveness only** — they prove the server is
+    still working, they do not report agent progress. No synthetic progress
+    events are invented. Once the graph is switched to ``astream_events``,
+    ``event: progress`` will carry real per-node updates without any change
+    to this wire format.
+
+    Requires the client to send ``POST``; browsers' ``EventSource`` is GET-only,
+    so JS callers use ``fetch`` + a stream reader. Native clients (Flutter,
+    Swift, Kotlin) read the chunked body directly.
+    """
+    # Sentinel runs *before* the stream opens so that a blocked or unauthorised
+    # task still returns a normal JSON error, not a 200 SSE stream.
+    try:
+        validation = await state.sentinel.validate_task(request.model_dump())
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Sentinel validation failed", error=str(exc))
+        raise HTTPException(status_code=500, detail="Internal validation error")
+    if not validation.allowed:
+        logger.warning("Task blocked by Sentinel", reason=validation.reason)
+        raise HTTPException(status_code=403, detail=f"Task blocked: {validation.reason}")
+
+    heartbeat = max(1, int(os.getenv("EVAS_SSE_HEARTBEAT", "15")))
+
+    async def _event_stream():
+        started = time.time()
+        task: Optional[asyncio.Task] = None
+        try:
+            yield _sse("accepted", {
+                "task_type": request.task_type,
+                "heartbeat_seconds": heartbeat,
+                "note": "heartbeats are liveness only; interim agent state is not yet streamed",
+            })
+
+            task = asyncio.create_task(state.orchestrator.execute(
+                task_type=request.task_type,
+                payload=request.payload,
+                session_id=request.session_id,
+            ))
+
+            while not task.done():
+                try:
+                    # shield(): a heartbeat timeout must never cancel the run.
+                    await asyncio.wait_for(asyncio.shield(task), timeout=heartbeat)
+                except asyncio.TimeoutError:
+                    yield _sse("heartbeat", {"elapsed_seconds": round(time.time() - started, 1)})
+
+            try:
+                result = task.result()
+            except Exception as exc:  # noqa: BLE001
+                logger.error("Streamed task execution failed", error=str(exc), exc_info=True)
+                yield _sse("error", {"detail": "Internal execution error", "status": "error"})
+                yield _sse("done", {"status": "error", "elapsed_seconds": round(time.time() - started, 1)})
+                return
+
+            yield _sse("result", {
+                "task_id": result.get("task_id"),
+                "status": result.get("status"),
+                "result": _json_safe(result.get("result")),
+            })
+            yield _sse("done", {
+                "status": result.get("status"),
+                "elapsed_seconds": round(time.time() - started, 1),
+            })
+
+        except asyncio.CancelledError:
+            # Client hung up. We deliberately do NOT cancel the orchestrator
+            # task: killing a LangGraph run mid-graph can leave persisted
+            # checkpoint state half-written. It finishes detached and its
+            # result is simply discarded.
+            logger.info("execute_stream_client_disconnected", task_type=request.task_type)
+            raise
+        except GeneratorExit:
+            logger.info("execute_stream_closed", task_type=request.task_type)
+            raise
+        except Exception as exc:  # noqa: BLE001
+            logger.error("execute_stream_failed", error=str(exc), exc_info=True)
+            yield _sse("error", {"detail": "Internal execution error"})
+            yield _sse("done", {"status": "error"})
+
+    return StreamingResponse(
+        _event_stream(),
+        media_type="text/event-stream; charset=utf-8",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            # nginx buffers proxied responses by default, which would defeat
+            # the entire point of streaming.
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @app.post("/webhook/error")

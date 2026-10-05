@@ -1062,7 +1062,11 @@ class TestKiraDispatch:
 # PostgreSQL schema: init.sql must be a complete single-pass schema
 # ─────────────────────────────────────────────────────────────────────────────
 def _sql_statements(text: str) -> list[str]:
-    return [s.strip() for s in text.split(";")]
+    # Strip line comments BEFORE splitting on ";". A "--" comment containing a
+    # semicolon (e.g. "-- e.g. foo; bar") would otherwise split a statement in
+    # two and make the drift check below compare garbage.
+    no_comments = re.sub(r"--[^\n]*", "", text)
+    return [s.strip() for s in no_comments.split(";")]
 
 
 def _sql_names(text: str, kind: str) -> set[str]:
@@ -1110,6 +1114,18 @@ class TestPostgresSchemaConsistency:
         """Without ALTER DEFAULT PRIVILEGES, tables added by a later migration
         would be invisible to eva_agent."""
         assert "ALTER DEFAULT PRIVILEGES" in self.init
+
+    def test_semicolon_inside_comment_does_not_split_a_statement(self):
+        """`_sql_statements` splits on ';'. A comment containing ';' must not
+        be mistaken for a statement boundary, or the drift check silently
+        compares halves of two different tables."""
+        text = (
+            "-- NOTE: legacy; do not reuse\n"
+            "CREATE TABLE IF NOT EXISTS auth.demo (id TEXT PRIMARY KEY);\n"
+        )
+        bodies = _sql_table_bodies(text)
+        assert set(bodies) == {"auth.demo"}
+        assert bodies["auth.demo"].startswith("CREATE TABLE")
 
     def test_trigger_function_is_defined_before_use(self):
         for text, label in ((self.init, "init.sql"), (self.migration, "migration_v4.sql")):

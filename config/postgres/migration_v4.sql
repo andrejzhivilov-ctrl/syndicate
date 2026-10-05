@@ -204,3 +204,29 @@ GRANT SELECT, INSERT, UPDATE ON agents.doc_screenings TO eva_agent;
 GRANT SELECT, INSERT ON agents.doc_compliance TO eva_agent;
 GRANT INSERT ON audit.decisions TO eva_agent;
 GRANT INSERT ON audit.outbound_vetoes TO eva_agent;
+
+-- ============================================================
+-- MODULE 8: Per-device client tokens (mobile / desktop apps)
+-- A shared master API key must never be compiled into a client
+-- binary — these are issued per device, stored only as a hash,
+-- short-lived and individually revocable.
+-- ============================================================
+
+CREATE SCHEMA IF NOT EXISTS auth;
+
+CREATE TABLE IF NOT EXISTS auth.device_tokens (
+    token_id      VARCHAR(32) PRIMARY KEY,
+    secret_hash   VARCHAR(64) NOT NULL,          -- sha256 of the secret half
+    device_id     VARCHAR(128) NOT NULL,         -- client-chosen stable id
+    label         TEXT,                          -- "Andrii Pixel 8", etc.
+    scopes        JSONB NOT NULL DEFAULT '[]',   -- [] == inherit everything
+    issued_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at    TIMESTAMPTZ NOT NULL,
+    revoked_at    TIMESTAMPTZ,
+    last_seen_at  TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_device_tokens_device ON auth.device_tokens (device_id, issued_at DESC);
+CREATE INDEX IF NOT EXISTS idx_device_tokens_expires ON auth.device_tokens (expires_at);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON auth.device_tokens TO eva_agent;

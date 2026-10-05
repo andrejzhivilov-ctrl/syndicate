@@ -16,6 +16,7 @@ CREATE DATABASE n8n;
 CREATE SCHEMA IF NOT EXISTS memory;
 CREATE SCHEMA IF NOT EXISTS agents;
 CREATE SCHEMA IF NOT EXISTS audit;
+CREATE SCHEMA IF NOT EXISTS auth;
 
 -- ============================================================
 -- TABLE: Episodic Memory (conversation history + agent events)
@@ -218,6 +219,28 @@ CREATE TABLE IF NOT EXISTS agents.sam_reflections (
 );
 
 CREATE INDEX IF NOT EXISTS idx_sam_reflections_kind ON agents.sam_reflections (kind, created_at DESC);
+
+-- ============================================================
+-- Per-device client tokens (mobile / desktop apps).
+-- A shared master API key must never be compiled into a client
+-- binary — these are issued per device, stored only as a SHA-256
+-- hash, short-lived and individually revocable.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS auth.device_tokens (
+    token_id      VARCHAR(32) PRIMARY KEY,
+    secret_hash   VARCHAR(64) NOT NULL,          -- sha256 of the secret half
+    device_id     VARCHAR(128) NOT NULL,         -- client-chosen stable id
+    label         TEXT,                          -- "Andrii Pixel 8", etc.
+    scopes        JSONB NOT NULL DEFAULT '[]',   -- [] == inherit everything
+    issued_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at    TIMESTAMPTZ NOT NULL,
+    revoked_at    TIMESTAMPTZ,
+    last_seen_at  TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_device_tokens_device ON auth.device_tokens (device_id, issued_at DESC);
+CREATE INDEX IF NOT EXISTS idx_device_tokens_expires ON auth.device_tokens (expires_at);
 
 -- ============================================================
 -- FUNCTION: Updated timestamp trigger
@@ -460,4 +483,7 @@ GRANT SELECT, INSERT, UPDATE ON memory.social_contacts TO eva_agent;
 GRANT SELECT, INSERT, UPDATE ON agents.doc_biomarkers TO eva_agent;
 GRANT SELECT, INSERT, UPDATE ON agents.doc_screenings TO eva_agent;
 GRANT SELECT, INSERT ON agents.doc_compliance TO eva_agent;
+
+-- Device tokens: the runtime issues, verifies, rotates and revokes them.
+GRANT SELECT, INSERT, UPDATE, DELETE ON auth.device_tokens TO eva_agent;
 
