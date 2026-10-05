@@ -254,6 +254,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- DROP + CREATE (not CREATE OR REPLACE TRIGGER, which needs PostgreSQL 14+)
+-- so the bootstrap script can be replayed on an existing database and so
+-- 02-migration_v4.sql can be applied on top of it without "already exists".
+DROP TRIGGER IF EXISTS trg_episodes_updated ON memory.episodes;
 CREATE TRIGGER trg_episodes_updated
     BEFORE UPDATE ON memory.episodes
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
