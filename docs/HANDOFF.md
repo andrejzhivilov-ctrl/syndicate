@@ -27,7 +27,7 @@
 
 ## 2026-10-05 — Arena Agent (сесія 6): захист cockpit і реєстру поверхів
 
-**Гілка:** `arena/01a10d25-eva-syndicate` · **Ворота:** ✅ (`tools/check.sh`)
+**Гілка:** `arena/01a10d25-eva-syndicate` · **PR:** [#1](https://github.com/andrejzhivilov-ctrl/eva-syndicate/pull/1) · **Ворота:** ✅ (`tools/check.sh`)
 
 ### Зроблено (backlog 0.6)
 - `GET /`, `/cockpit` і `/floors` тепер потребують мастер-ключ або device-токен зі
