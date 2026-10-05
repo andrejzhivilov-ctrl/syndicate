@@ -7,9 +7,9 @@
 # Verify in CI with: python tools/export_openapi.py --check
 # ============================================================
 #
-# contract_sha256: 388f20c93e30d7a45b3afdc5c398465ae9b44074870e364deba68c5722f2da0d
+# contract_sha256: f3c4cad03dd64e8980a280e807f94ff392b0f5a35b16bb6889427d816659882a
 # api_version:     4.1.0
-# paths:           22
+# paths:           26
 #
 ---
 components:
@@ -428,7 +428,7 @@ paths:
       summary: Deliberate Council
   /cr/apply:
     post:
-      description: Apply approved Change Request to vault (Floor 10).
+      description: Apply approved Change Request to vault (Floor 10). HITL-scoped.
       operationId: apply_cr_cr_apply_post
       parameters:
       - in: header
@@ -460,9 +460,90 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Apply Cr
+  /cr/list:
+    get:
+      description: All change requests, optionally filtered by status (pending/approved/rejected/applied).
+      operationId: cr_list_cr_list_get
+      parameters:
+      - in: query
+        name: status
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Status
+      - in: header
+        name: X-API-Key
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Api-Key
+      - in: header
+        name: Authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                title: Response Cr List Cr List Get
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Cr List
+  /cr/pending:
+    get:
+      description: 'The operator''s approval inbox: every change request awaiting
+        a decision.'
+      operationId: cr_pending_cr_pending_get
+      parameters:
+      - in: header
+        name: X-API-Key
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Api-Key
+      - in: header
+        name: Authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                title: Response Cr Pending Cr Pending Get
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Cr Pending
   /cr/review:
     post:
-      description: Review Change Request (approve/reject) (Floor 10).
+      description: Review Change Request (approve/reject) (Floor 10). HITL-scoped.
       operationId: review_cr_cr_review_post
       parameters:
       - in: header
@@ -494,6 +575,52 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Review Cr
+  /cr/stream:
+    get:
+      description: 'Server-Sent Events: push a frame whenever a change request needs
+        a human.
+
+
+        This is the in-process half of HITL push. A real OS-level notification
+
+        (FCM/APNs) is a separate client-side integration that registers a device
+
+        push token with a gateway; this endpoint covers the case where the app is
+
+        open and connected to this backend instance. On each event the client
+
+        re-fetches ``GET /cr/pending`` for the authoritative list.'
+      operationId: cr_stream_cr_stream_get
+      parameters:
+      - in: header
+        name: X-API-Key
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Api-Key
+      - in: header
+        name: Authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Cr Stream
   /cr/submit:
     post:
       description: Submit Change Request for protected statutes / dossiers (Floor
@@ -529,6 +656,49 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Submit Cr
+  /cr/{cr_id}:
+    get:
+      description: Full detail of one change request, including proposed content to
+        review.
+      operationId: cr_detail_cr__cr_id__get
+      parameters:
+      - in: path
+        name: cr_id
+        required: true
+        schema:
+          title: Cr Id
+          type: string
+      - in: header
+        name: X-API-Key
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Api-Key
+      - in: header
+        name: Authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                title: Response Cr Detail Cr  Cr Id  Get
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Cr Detail
   /execute:
     post:
       description: Execute an agent task via the orchestrator (authenticated).

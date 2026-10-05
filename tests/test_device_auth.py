@@ -196,14 +196,25 @@ class TestRevocationAndRotation:
 
 
 class TestScopes:
-    def test_empty_scopes_inherit_everything(self, store):
+    def test_empty_scopes_satisfy_no_required_scope(self, store):
+        """Least privilege: a token with no scopes cannot satisfy *any*
+        required scope. The master key is the only credential that implicitly
+        grants everything."""
         issued = _run(store.enroll("pixel-8"))
+        assert _run(store.verify(issued["token"], required_scope="execute")) is None
+        assert _run(store.verify(issued["token"], required_scope="hitl")) is None
+
+    def test_explicit_scopes_satisfy_only_those(self, store):
+        issued = _run(store.enroll("pixel-8", scopes=["read", "execute", "hitl"]))
+        assert _run(store.verify(issued["token"], required_scope="read")) is not None
         assert _run(store.verify(issued["token"], required_scope="execute")) is not None
+        assert _run(store.verify(issued["token"], required_scope="hitl")) is not None
 
     def test_scope_restricts(self, store):
         issued = _run(store.enroll("pixel-8", scopes=["read"]))
         assert _run(store.verify(issued["token"], required_scope="read")) is not None
         assert _run(store.verify(issued["token"], required_scope="execute")) is None
+        assert _run(store.verify(issued["token"], required_scope="hitl")) is None
 
 
 # ─────────────────────────────────────────────────────────────────────────────

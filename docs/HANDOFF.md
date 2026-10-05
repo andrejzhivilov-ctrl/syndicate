@@ -64,6 +64,39 @@
 
 ---
 
+## 2026-10-05 — Arena Agent (сесія 5): HITL як поверхня підтвердження в додатку
+
+**Гілка:** `arena/01a10abd-eva-syndicate` → `main` · **Ворота:** ✅ (271 тест: 210 базових + 41 device-auth + 20 hitl; 10/10, 8/8, ruff чисто, контракт узгоджений)
+
+### Зроблено (блокер 0.5)
+- **`src/change_requests.py`:** додано `ChangeRequestNotifier` (in-process pub/sub) і в'язання
+  в `ChangeRequestStore` — `create()` публікує подію `pending_cr` (no-op без нотифаєра).
+- **`deploy/runtime/agent_runner.py`:** inbox-ендпоінти `GET /cr/pending`, `GET /cr/list`,
+  `GET /cr/{cr_id}`, SSE-пуш `GET /cr/stream`; `POST /cr/review` і `POST /cr/apply` тепер
+  вимагають скоуп `hitl` (нова залежність `require_hitl`). Статичні HITL-роути оголошені
+  **перед** `/cr/{cr_id}`, інакше Starlette з'їдає `/cr/stream`.
+- **Скоуп-модель:** least-privilege — порожній список скоупів = НЕ успадковує все; явний
+  скоуп обов'язковий. Загальний токен (`read`/`execute`) не може підтверджувати.
+- **`tests/test_hitl_surface.py`** (новий, 20 тестів): inbox, detail, скоуп-енфорсмент,
+  SSE-генератор (детерміновано, без live-socket — TestClient SSE зависає), OpenAPI.
+- Контракт `apps/shared/api-contract.yaml` перегенеровано (26 paths, `--check` у CI).
+
+### Чесні застереження
+- **SSE — in-process.** Реальний OS-пуш (FCM/APNs) — окрема клієнтська інтеграція.
+- Стрім видавав `heartbeat` кожні 30 с як liveness; прогрес агента поки не стрімиться.
+- Уникнув вигаданих подій прогресу.
+
+### Наступне
+- 0.6: закрити `/cockpit`, `/floors` за reverse proxy (опційно).
+- Antigravity: гілка `app/client`, каркас Flutter + екран inbox HITL (підписатися на `/cr/stream`,
+  рендерити `/cr/pending`, кнопки Схвалити/Відхилити → `/cr/review`).
+
+### Ризики
+- Спочатку SSE-тести через `client.stream` **зависали** (Starlette TestClient + StreamingResponse).
+  Переписав на пряме драйвінг генератора `_cr_event_stream` — детерміновано й швидко.
+
+---
+
 ## Поточний стан (станом на 2026-10-05)
 
 | | |
@@ -71,7 +104,7 @@
 | Основна гілка | `main` = `19521ee` |
 | Інші гілки | `arena/01a10abd-eva-syndicate` (= main, сесійна), `backup-stable-cockpit` (`7be2dda`, існувала до аудиту) |
 | Теги | 6, включно з `archive/pre-audit-main-5c85712`, `archive/cockpit-stable-7be2dda`, `archive/eva-syndicate-2026-10-05` |
-| Тести | 210 (100 регресійних + 110 маршрутизації) |
+| Тести | 271 (210 базових + 41 device-auth + 20 hitl) |
 | Наскрізні suite'и | 🏆 10/10 floors · 🏆 8/8 sandbox |
 | Лінтер | `ruff F,E9,B,C901,E,W` — чисто |
 | Типи задач без помилки | 108 / 108 |

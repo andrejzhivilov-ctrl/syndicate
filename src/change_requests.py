@@ -8,6 +8,7 @@ approve its own request. Approval applies the change to the Markdown vault.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import time
@@ -29,8 +30,46 @@ class ChangeRequestError(Exception):
     pass
 
 
+class ChangeRequestNotifier:
+    """In-process pub/sub so a connected client can be told "a CR needs you".
+
+    This is the HITL *push* half of the client surface. It is deliberately not
+    FCM/APNs: those need a device push token registered with an external
+    gateway, which the client side owns. SSE over this notifier covers the case
+    the operator actually cares about — the app is open and connected to this
+    backend instance — and wakes it to re-fetch the authoritative pending queue.
+
+    Subscribers each get their own queue; publishing is non-blocking so a slow
+    or dead subscriber never stalls CR creation.
+    """
+
+    def __init__(self) -> None:
+        self._subscribers: set = set()
+
+    async def subscribe(self) -> asyncio.Queue:
+        queue: asyncio.Queue = asyncio.Queue()
+        self._subscribers.add(queue)
+        return queue
+
+    def unsubscribe(self, queue: asyncio.Queue) -> None:
+        self._subscribers.discard(queue)
+
+    def publish(self, event: Dict[str, Any]) -> None:
+        for queue in list(self._subscribers):
+            try:
+                queue.put_nowait(event)
+            except asyncio.QueueFull:  # pragma: no cover - defensive
+                logger.warning("cr_notifier_queue_full", subscribers=len(self._subscribers))
+
+
 class ChangeRequestStore:
-    def __init__(self, root: Optional[Path | str] = None, vault: Optional[MarkdownVault] = None, approvers: Sequence[str] = ("operator", "Marshal", "Architect", "eva")) -> None:
+    def __init__(
+        self,
+        root: Optional[Path | str] = None,
+        vault: Optional[MarkdownVault] = None,
+        approvers: Sequence[str] = ("operator", "Marshal", "Architect", "eva"),
+        notifier: Optional[ChangeRequestNotifier] = None,
+    ) -> None:
         if vault is not None and root is None:
             root = vault.root
         elif root is None:
@@ -39,6 +78,21 @@ class ChangeRequestStore:
         self._dir.mkdir(parents=True, exist_ok=True)
         self._vault = vault
         self._approvers = set(approvers)
+        # Optional push channel for the client HITL surface. ``None`` (the
+        # default) is a no-op so existing callers and tests are unaffected.
+        self._notifier = notifier
+
+    def _notify(self, event_type: str, cr: Dict[str, Any]) -> None:
+        if self._notifier is None:
+            return
+        self._notifier.publish({
+            "type": event_type,
+            "cr_id": cr["id"],
+            "risk": cr["risk"],
+            "title": cr["title"],
+            "author": cr["author"],
+            "created_at": cr["created_at"],
+        })
 
     def _path(self, cr_id: str) -> Path:
         if not _ID_RE.match(cr_id):
@@ -83,6 +137,9 @@ class ChangeRequestStore:
         }
         self._save(cr)
         logger.info("change_request_created", cr_id=cr["id"], author=author, risk=cr["risk"])
+        # Wake any connected client HITL surface (SSE). The operator's phone
+        # should see this the moment an agent proposes a protected change.
+        self._notify("pending_cr", cr)
         return cr
 
     def get(self, cr_id: str) -> Dict[str, Any]:

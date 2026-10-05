@@ -30,6 +30,7 @@ from pydantic import BaseModel, Field
 
 from src.agents.sentinel import SentinelAgent
 from src.confidence import ConfidenceBudget
+from src.change_requests import ChangeRequestError
 from src.device_auth import DEFAULT_TTL_SECONDS, DeviceTokenStore, KNOWN_SCOPES
 from src.integrations import build_default_registry
 from src.lessons import LessonsStore
@@ -78,6 +79,9 @@ class AppState:
     # api_key to a client binary — hand out these instead.
     device_tokens: Optional[DeviceTokenStore] = None
     device_purge_task: Optional[Any] = None
+    # HITL surface: pending change-requests + an in-process push channel.
+    change_request_store: Optional[Any] = None
+    change_request_notifier: Optional[Any] = None
     start_time: float = time.time()
     ready: bool = False
     vault_renewal_task: Optional[Any] = None
@@ -206,6 +210,20 @@ async def lifespan(app: FastAPI):
 
         # 8b. Sweep long-dead device tokens once an hour.
         app_state.device_purge_task = asyncio.create_task(_purge_device_tokens())
+
+        # 8c. HITL surface: expose the orchestrator's change-request store and
+        #     wire an in-process notifier so the client can be pushed when an
+        #     agent proposes a protected change. The store is created inside the
+        #     orchestrator, so we inject the notifier afterwards.
+        from src.change_requests import ChangeRequestNotifier
+
+        notifier = ChangeRequestNotifier()
+        store = getattr(app_state.orchestrator, "_change_requests", None)
+        if store is not None:
+            store._notifier = notifier
+        app_state.change_request_store = store
+        app_state.change_request_notifier = notifier
+        logger.info("HITL surface initialized", change_requests=store is not None)
 
         app_state.ready = True
         logger.info("EVA SYNDICATE agent ready", uptime=0)
@@ -479,6 +497,43 @@ async def require_master_key(
         raise HTTPException(status_code=403, detail="Master API key required for device administration")
 
     return state
+
+
+async def require_hitl(
+    request: Request,
+    x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
+    authorization: Optional[str] = Header(default=None, alias="Authorization"),
+    state: AppState = Depends(require_ready),
+) -> AppState:
+    """HITL surface: master key, or a device token carrying the ``hitl`` scope.
+
+    Approving a change request is a sensitive action, so a general-purpose
+    device token (``read`` / ``execute``) must NOT be able to do it. Only a
+    token minted with ``scopes: ["hitl"]`` — or the master key — reaches these
+    endpoints. This is what turns the phone into a deliberate "approve / reject"
+    surface rather than a second, unconstrained control plane.
+    """
+    expected = state.api_key
+    provided = _presented_credential(x_api_key, authorization)
+
+    if not expected:
+        client_host = (request.client.host if request.client else "") or ""
+        if _is_private_client(client_host):
+            return state
+        raise HTTPException(status_code=401, detail="API authentication key not configured")
+
+    if _master_key_ok(provided, expected):
+        return state
+
+    if provided and state.device_tokens is not None:
+        record = await state.device_tokens.verify(provided, required_scope="hitl")
+        if record is not None:
+            request.state.device_id = record.device_id
+            request.state.token_id = record.token_id
+            return state
+
+    logger.warning("Unauthorized HITL access attempt", client=_client_host(request))
+    raise HTTPException(status_code=401, detail="HITL scope required: approve with a hitl-scoped token")
 
 
 # ─── Endpoints ───────────────────────────────────────────────────────────────
@@ -902,17 +957,148 @@ async def submit_cr(request: Request, state: AppState = Depends(require_auth)):
     return result
 
 
+# ─── HITL surface (PC / mobile approval inbox) ───────────────────────────────
+#
+# The operator used to approve protected changes only from Telegram. These
+# endpoints make the client app a first-class approval surface: it can list the
+# pending inbox, open a change for review, approve/reject, and — via SSE — be
+# pushed the moment an agent proposes something that needs a human.
+
+
+def _cr_summary(cr: Dict[str, Any]) -> Dict[str, Any]:
+    """Compact view for list/inbox endpoints (no full proposed content)."""
+    return {
+        "id": cr["id"],
+        "title": cr.get("title"),
+        "rationale": cr.get("rationale"),
+        "risk": cr.get("risk"),
+        "status": cr.get("status"),
+        "author": cr.get("author"),
+        "created_at": cr.get("created_at"),
+        "paths": [ch.get("path") for ch in cr.get("changes", [])],
+        "tests_passed": cr.get("tests_passed", []),
+    }
+
+
+def _cr_detail(cr: Dict[str, Any]) -> Dict[str, Any]:
+    """Full view for the detail endpoint (includes proposed content)."""
+    detail = dict(cr)
+    # created_at is a unix float — give the client an ISO string too, but never
+    # invent a timezone or a status it does not have.
+    raw = cr.get("created_at")
+    if isinstance(raw, (int, float)):
+        try:
+            from datetime import datetime, timezone
+
+            detail["created_at_iso"] = datetime.fromtimestamp(raw, tz=timezone.utc).isoformat()
+        except (OverflowError, OSError, ValueError):
+            detail["created_at_iso"] = None
+    return detail
+
+
+@app.get("/cr/pending")
+async def cr_pending(state: AppState = Depends(require_hitl)) -> Dict[str, Any]:
+    """The operator's approval inbox: every change request awaiting a decision."""
+    if state.change_request_store is None:
+        raise HTTPException(status_code=503, detail="Change-request store not initialized")
+    pending = sorted(
+        state.change_request_store.list("pending"),
+        key=lambda c: c.get("created_at", 0),
+        reverse=True,
+    )
+    return {"pending": [_cr_summary(c) for c in pending], "count": len(pending)}
+
+
+@app.get("/cr/list")
+async def cr_list(status: Optional[str] = None, state: AppState = Depends(require_hitl)) -> Dict[str, Any]:
+    """All change requests, optionally filtered by status (pending/approved/rejected/applied)."""
+    if state.change_request_store is None:
+        raise HTTPException(status_code=503, detail="Change-request store not initialized")
+    items = state.change_request_store.list(status)
+    items = sorted(items, key=lambda c: c.get("created_at", 0), reverse=True)
+    return {"items": [_cr_summary(c) for c in items], "count": len(items)}
+
+
+# NOTE: the static HITL routes (/cr/pending, /cr/list, /cr/stream) MUST be
+# declared before the /cr/{cr_id} catch-all. Starlette matches the first
+# registered route whose pattern fits, so a later /cr/stream would otherwise be
+# swallowed by /cr/{cr_id}.
+@app.get("/cr/stream")
+async def cr_stream(state: AppState = Depends(require_hitl)) -> StreamingResponse:
+    """Server-Sent Events: push a frame whenever a change request needs a human.
+
+    This is the in-process half of HITL push. A real OS-level notification
+    (FCM/APNs) is a separate client-side integration that registers a device
+    push token with a gateway; this endpoint covers the case where the app is
+    open and connected to this backend instance. On each event the client
+    re-fetches ``GET /cr/pending`` for the authoritative list.
+    """
+    if state.change_request_notifier is None:
+        raise HTTPException(status_code=503, detail="HITL notifier not initialized")
+    return StreamingResponse(
+        _cr_event_stream(state.change_request_notifier),
+        media_type="text/event-stream; charset=utf-8",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+async def _cr_event_stream(notifier) -> None:
+    """Yield SSE frames for pending change requests.
+
+    Extracted from the endpoint so it can be driven deterministically in tests
+    (Starlette's TestClient streaming blocks unpredictably). Emits ``connected``
+    on subscribe, then ``pending_cr`` for each notification, and ``heartbeat``
+    every 30s to prove liveness. Never emits a synthetic progress frame.
+    """
+    try:
+        queue = await notifier.subscribe()
+    except RuntimeError:
+        # No event loop — cannot stream. The client should use polling.
+        yield _sse("error", {"detail": "no event loop for streaming"})
+        return
+    try:
+        yield _sse("connected", {"note": "subscribed to change-request events; re-fetch /cr/pending on each event"})
+        while True:
+            try:
+                event = await asyncio.wait_for(queue.get(), timeout=30)
+                yield _sse("pending_cr", event)
+            except asyncio.TimeoutError:
+                yield _sse("heartbeat", {"note": "HITL channel alive"})
+    except asyncio.CancelledError:
+        notifier.unsubscribe(queue)
+        raise
+    except GeneratorExit:
+        notifier.unsubscribe(queue)
+        raise
+
+
+@app.get("/cr/{cr_id}")
+async def cr_detail(cr_id: str, state: AppState = Depends(require_hitl)) -> Dict[str, Any]:
+    """Full detail of one change request, including proposed content to review."""
+    if state.change_request_store is None:
+        raise HTTPException(status_code=503, detail="Change-request store not initialized")
+    try:
+        cr = state.change_request_store.get(cr_id)
+    except ChangeRequestError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return _cr_detail(cr)
+
+
 @app.post("/cr/review")
-async def review_cr(request: Request, state: AppState = Depends(require_auth)):
-    """Review Change Request (approve/reject) (Floor 10)."""
+async def review_cr(request: Request, state: AppState = Depends(require_hitl)):
+    """Review Change Request (approve/reject) (Floor 10). HITL-scoped."""
     body = await request.json()
     result = await state.orchestrator.execute("review_change_request", body)
     return result
 
 
 @app.post("/cr/apply")
-async def apply_cr(request: Request, state: AppState = Depends(require_auth)):
-    """Apply approved Change Request to vault (Floor 10)."""
+async def apply_cr(request: Request, state: AppState = Depends(require_hitl)):
+    """Apply approved Change Request to vault (Floor 10). HITL-scoped."""
     body = await request.json()
     result = await state.orchestrator.execute("apply_change_request", body)
     return result

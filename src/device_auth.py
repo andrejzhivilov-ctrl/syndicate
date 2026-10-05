@@ -46,7 +46,8 @@ MIN_TTL_SECONDS = 60
 MAX_TTL_SECONDS = 365 * 24 * 3600
 MAX_TOKENS_PER_DEVICE = 10
 
-# Scopes a client can be limited to. Empty list == inherits everything the
+# Scopes a client can be limited to. An empty list grants NO scope beyond
+# general authentication — a token must list a scope explicitly to use it.
 # master key can do; a non-empty list restricts the token to those prefixes.
 SCOPE_EXECUTE = "execute"
 SCOPE_READ = "read"
@@ -290,7 +291,11 @@ class DeviceTokenStore:
         if not hmac.compare_digest(record.secret_hash, self._hash_secret(secret)):
             logger.warning("device_token_secret_mismatch", token_id=token_id)
             return None
-        if required_scope and record.scopes and required_scope not in record.scopes:
+        # Least privilege: a scope must be *explicitly* granted. An empty scope
+        # list does NOT inherit everything — otherwise a token minted with no
+        # scopes could approve financial changes. The master key is the only
+        # credential that implicitly grants all scopes.
+        if required_scope and required_scope not in record.scopes:
             logger.warning(
                 "device_token_scope_denied",
                 token_id=token_id, required=required_scope, granted=record.scopes,
