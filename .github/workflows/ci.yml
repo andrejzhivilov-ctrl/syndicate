@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  gates:
+    name: Gates (no database)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Gates (tests, suites, ruff, API contract)
+        run: bash tools/check.sh
+
+      - name: Working tree must stay clean
+        run: |
+          # tools/check.sh regenerates the OpenAPI contract with --check; if it
+          # leaves files behind, a generated artefact was not committed.
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::the gates left the working tree dirty — commit generated files"
+            git status --porcelain
+            git --no-pager diff
+            exit 1
+          fi
+
+  postgres:
+    name: PostgreSQL + pgvector (live SQL paths)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: eva_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d eva_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # tests/live_pg.py applies config/postgres/init.sql to this database.
+      EVA_TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/eva_test
+      # Never let a missing database turn into a green run of skipped tests.
+      EVA_REQUIRE_LIVE_DB: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Gates with a live database
+        run: bash tools/check.sh
+
+      - name: Confirm the SQL-path tests ran (never skipped)
+        run: .venv/bin/python -m pytest tests/test_postgres_paths.py -q -p no:cacheprovider -rs
+
+      - name: Working tree must stay clean
+        if: always()
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::the gates left the working tree dirty — commit generated files"
+            git status --porcelain
+            git --no-pager diff
+            exit 1
+          fi

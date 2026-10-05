@@ -1,0 +1,18 @@
+# EVA SYNDICATE — dev/test-only dependencies.
+#
+# The runtime image installs requirements.txt only; this file is for local work
+# and CI:
+#
+#     python -m venv .venv
+#     .venv/bin/pip install -r requirements.txt -r requirements-dev.txt
+#     bash tools/check.sh
+
+# Test runner + linter used by tools/check.sh
+pytest>=8.0
+ruff>=0.6
+
+# Bundled PostgreSQL 16 + pgvector binaries. They let the live SQL-path tests
+# (tests/test_postgres_paths.py) run on a machine without Docker, which is the
+# only way those branches can be exercised locally. CI does not need this — it
+# uses the pgvector/pgvector:pg16 service container via EVA_TEST_DATABASE_URL.
+pgserver>=0.1.4
