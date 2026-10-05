@@ -14,6 +14,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+import asyncpg
 import redis.asyncio as aioredis
 import structlog
 from sqlalchemy import text
@@ -47,22 +48,48 @@ def _ensure_dict(val: Any) -> Dict[str, Any]:
 
 
 class MemoryManager:
-    """Unified memory interface for EVA agents."""
+    """Unified memory interface for EVA agents.
 
-    def __init__(self, postgres_dsn: str, redis_url: str) -> None:
+    Owns two connection pools to the same PostgreSQL database:
+
+    * ``_engine`` / ``_session_factory`` — SQLAlchemy+asyncpg, used by the
+      vector/JSONB code paths (episodes, semantic search, lessons).
+    * ``pool`` — a raw ``asyncpg`` pool, used by the v4 components that speak
+      libpq SQL with ``$1`` placeholders and probe ``memory.pool`` /
+      ``memory._pool`` / ``memory.db_pool`` (Sam's ``TradeJournal`` and the
+      per-device ``DeviceTokenStore``). Before this pool existed both silently
+      fell back to volatile in-memory storage, so ``agents.sam_trade_journal``
+      and ``auth.device_tokens`` stayed empty in production and every restart
+      lost the data.
+    """
+
+    def __init__(self, postgres_dsn: str, redis_url: str = "") -> None:
         self._postgres_dsn = postgres_dsn
-        self._redis_url = redis_url
+        self._redis_url = redis_url or ""
         self._engine = None
         self._session_factory = None
         self._redis: Optional[aioredis.Redis] = None
         self._ready = False
+        # Raw asyncpg pool for the ``$1``-style SQL components (see class docstring).
+        self.pool: Optional[asyncpg.Pool] = None
 
     @property
     def is_ready(self) -> bool:
         return self._ready
 
+    def _libpq_dsn(self) -> str:
+        """Strip SQLAlchemy driver suffixes — ``asyncpg`` only understands libpq DSNs."""
+        return self._postgres_dsn.replace("postgresql+asyncpg://", "postgresql://").replace(
+            "postgres+asyncpg://", "postgresql://"
+        )
+
     async def initialize(self) -> None:
-        """Initialize database and Redis connections."""
+        """Initialize database and Redis connections.
+
+        Redis is optional: without ``redis_url`` the cache layer is disabled and
+        every read goes to PostgreSQL (slower but always correct). This keeps the
+        agent usable when only the database is provisioned.
+        """
         self._engine = create_async_engine(
             self._postgres_dsn,
             echo=False,
@@ -78,17 +105,36 @@ class MemoryManager:
             self._engine, class_=AsyncSession, expire_on_commit=False
         )
 
-        self._redis = await aioredis.from_url(
-            self._redis_url,
-            encoding="utf-8",
-            decode_responses=True,
-        )
-        await self._redis.ping()
+        # A failure here must not be silent: without the pool the journal and
+        # device tokens degrade to memory-only storage.
+        try:
+            self.pool = await asyncpg.create_pool(self._libpq_dsn(), min_size=1, max_size=5)
+        except Exception as exc:  # noqa: BLE001
+            self.pool = None
+            logger.warning(
+                "asyncpg_pool_unavailable",
+                error=str(exc),
+                impact="trade journal and device tokens fall back to memory-only storage",
+            )
+
+        if self._redis_url:
+            self._redis = await aioredis.from_url(
+                self._redis_url,
+                encoding="utf-8",
+                decode_responses=True,
+            )
+            await self._redis.ping()
+        else:
+            self._redis = None
+            logger.warning("redis_cache_disabled", reason="no redis_url configured")
 
         self._ready = True
         logger.info("Memory manager initialized")
 
     async def close(self) -> None:
+        if self.pool:
+            await self.pool.close()
+            self.pool = None
         if self._engine:
             await self._engine.dispose()
         if self._redis:
@@ -232,7 +278,12 @@ class MemoryManager:
                        1 - (content_vector <=> CAST(:embedding AS vector)) AS similarity
                 FROM memory.episodes
                 WHERE content_vector IS NOT NULL
-                  AND (:agent_id IS NULL OR agent_id = :agent_id)
+                  -- CAST(:agent_id AS text) is required: bare "(:agent_id IS NULL)"
+                  -- makes asyncpg raise AmbiguousParameterError ("could not
+                  -- determine data type of parameter $2") whenever a caller
+                  -- passes agent_id=..., i.e. semantic search was broken
+                  -- against a real database.
+                  AND (CAST(:agent_id AS text) IS NULL OR agent_id = :agent_id)
                   AND 1 - (content_vector <=> CAST(:embedding AS vector)) >= :min_similarity
                 ORDER BY content_vector <=> CAST(:embedding AS vector)
                 LIMIT :limit
@@ -342,7 +393,9 @@ class MemoryManager:
                        1 - (query_vector <=> CAST(:embedding AS vector)) AS similarity
                 FROM memory.response_cache
                 WHERE query_vector IS NOT NULL
-                  AND (:agent_id IS NULL OR agent_id = :agent_id)
+                  -- Same asyncpg inference trap as in semantic_search():
+                  -- a bare "(:agent_id IS NULL)" raises AmbiguousParameterError.
+                  AND (CAST(:agent_id AS text) IS NULL OR agent_id = :agent_id)
                   AND (expires_at IS NULL OR expires_at > NOW())
                   AND 1 - (query_vector <=> CAST(:embedding AS vector)) >= :threshold
                 ORDER BY query_vector <=> CAST(:embedding AS vector)

@@ -77,7 +77,7 @@ class TradeJournal:
             logger.info("journal_signal_recorded", signal_id=entry.signal_id, backend="memory")
             return
         try:
-            async with pool.acquire() as conn:  # pragma: no cover - needs live DB
+            async with pool.acquire() as conn:
                 await conn.execute(
                     """
                     INSERT INTO agents.sam_trade_journal
@@ -123,7 +123,7 @@ class TradeJournal:
                 e["hitl_decision"] = decision
                 e["hitl_by"] = by
         else:
-            try:  # pragma: no cover - needs live DB
+            try:
                 async with pool.acquire() as conn:
                     await conn.execute(
                         """
@@ -151,7 +151,7 @@ class TradeJournal:
         pool = self._pool()
         if pool is None:
             return self._mem_entries.get(signal_id)
-        try:  # pragma: no cover - needs live DB
+        try:
             async with pool.acquire() as conn:
                 row = await conn.fetchrow(
                     """
@@ -177,7 +177,7 @@ class TradeJournal:
                 e["realized_r"] = realized_r
                 e["status"] = "closed"
             return
-        try:  # pragma: no cover - needs live DB
+        try:
             async with pool.acquire() as conn:
                 await conn.execute(
                     """
@@ -215,7 +215,7 @@ class TradeJournal:
             self._mem_reflections.append(row)
             logger.info("reflection_added", kind=kind, backend="memory")
             return
-        try:  # pragma: no cover - needs live DB
+        try:
             async with pool.acquire() as conn:
                 await conn.execute(
                     """
@@ -268,7 +268,7 @@ class TradeJournal:
         pool = self._pool()
         if pool is None:
             return self._filter_constraints(self._mem_reflections, symbol, limit)
-        try:  # pragma: no cover - needs live DB
+        try:
             async with pool.acquire() as conn:
                 rows = await conn.fetch(
                     """
@@ -304,7 +304,7 @@ class TradeJournal:
         if pool is None:
             entries = [e for e in self._mem_entries.values() if e.get("outcome")]
         else:
-            try:  # pragma: no cover - needs live DB
+            try:
                 async with pool.acquire() as conn:
                     rows = await conn.fetch(
                         """

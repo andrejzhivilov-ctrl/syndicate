@@ -7,6 +7,8 @@
 #
 # Вихід 0 = усе зелене. Будь-який інший код = не коміть.
 #
+# Залежності:  pip install -r requirements.txt -r requirements-dev.txt
+#
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -72,6 +74,20 @@ run "ruff C901   (складність)"       "$RUFF" check --select C901      
 
 step "Контракт API (клієнтська частина)"
 run "api-contract.yaml відповідає коду" "$PY" tools/export_openapi.py --check
+
+step "PostgreSQL (жива схема й SQL-шляхи)"
+# SQL-гілки в src/ позначені "needs live DB": без справжньої бази вони не
+# перевіряються взагалі. CI піднімає pgvector/pgvector:pg16 і задає
+# EVA_TEST_DATABASE_URL (+ EVA_REQUIRE_LIVE_DB=1, щоб skip став помилкою).
+# Локально ту саму роль виконує pgserver з requirements-dev.txt.
+if [ -n "${EVA_TEST_DATABASE_URL:-}" ]; then
+    run "жива схема + SQL-шляхи (EVA_TEST_DATABASE_URL)" "$PY" -m pytest tests/test_postgres_paths.py -q
+elif "$PY" -c "import pgserver" >/dev/null 2>&1; then
+    run "жива схема + SQL-шляхи (вбудований pgserver)" "$PY" -m pytest tests/test_postgres_paths.py -q
+else
+    printf '  \033[33mℹ️  INFO\033[0m  живого PostgreSQL немає (ані EVA_TEST_DATABASE_URL, ані pgserver)\n'
+    printf '        SQL-шляхи в цій сесії не перевірено. CI: pgvector/pgvector:pg16 + EVA_REQUIRE_LIVE_DB=1\n'
+fi
 
 step "Гігієна репозиторію"
 if [ -f docker-compose.yml ] && [ -f deploy/docker-compose.yml ]; then

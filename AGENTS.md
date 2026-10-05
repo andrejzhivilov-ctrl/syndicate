@@ -83,7 +83,17 @@ bash tools/check.sh
 .venv/bin/python tests/sandbox_test.py                    # 8/8 suite'ів
 .venv/bin/ruff check --select F,E9,B --ignore E501,B008,B904 src deploy tests tools
 .venv/bin/ruff check --select C901 src deploy tests tools
+.venv/bin/python -m pytest tests/test_postgres_paths.py -q   # живі SQL-шляхи (потрібна БД)
 ```
+
+**SQL-гілки не приймаються «за кодом».** Усе, що виконується в PostgreSQL, перевіряється на
+справжньому сервері: `tests/live_pg.py` піднімає `pgserver` (вбудований PostgreSQL 16 + pgvector,
+`requirements-dev.txt`) або бере `EVA_TEST_DATABASE_URL` (у CI — сервіс `pgvector/pgvector:pg16`).
+Без бази тести друкують явний skip; у CI `EVA_REQUIRE_LIVE_DB=1` робить skip помилкою, тож
+зелений прогін без БД неможливий. Ставити інструменти: `pip install -r requirements-dev.txt`.
+
+Схема `config/postgres/*.sql` мусить бути **ідемпотентною**: `init.sql` застосовується повторно, а
+`migration_v4.sql` — поверх нього (саме тому тригери створюються через `DROP TRIGGER IF EXISTS`).
 
 Усі мають бути зеленими. **Заборонено** «лагодити» тест під себе — тест фіксує реальний
 дефект, який уже виправлено. Якщо тест заважає — значить ти відновлюєш стару помилку.
@@ -161,7 +171,11 @@ src/pii.py               маскування PII перед зовнішнім 
 src/data_paths.py        ЄДИНЕ джерело шляхів для записуваних даних
 src/vault_paths.py       ЄДИНЕ джерело шляхів секретів Vault
 tests/                   pytest-тести + 2 наскрізні suite'и
+tests/live_pg.py         підйом справжнього PostgreSQL+pgvector для тестів
+tests/test_postgres_paths.py  живі SQL-шляхи (схема, pgvector, журнал, device-токени)
+requirements-dev.txt     pytest/ruff/pgserver — тільки для розробки й CI
 tools/check.sh           всі ворота однією командою
+.github/workflows/ci.yml CI: ворота + job із сервісом pgvector
 docs/HANDOFF.md          журнал передачі між агентами ← починай звідси
 docs/BACKLOG.md          що робити далі
 docs/FIX_REPORT.md       звіт про аудит 2026-10-05 (українською)

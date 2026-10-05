@@ -1141,6 +1141,65 @@ class TestPostgresSchemaConsistency:
             elif used != -1:
                 assert defined < used, f"{label} uses the trigger before defining it"
 
+    def test_every_trigger_creation_is_replayable(self):
+        """``CREATE TRIGGER`` has no ``IF NOT EXISTS``. Without a preceding
+        ``DROP TRIGGER IF EXISTS`` the bootstrap script cannot be replayed and
+        02-migration_v4.sql cannot be applied on top of init.sql — both failed
+        with ``DuplicateObject`` until a live database ran them."""
+        for path in (REPO_ROOT / "config/postgres/init.sql", REPO_ROOT / "config/postgres/migration_v4.sql"):
+            text = path.read_text(encoding="utf-8")
+            for match in re.finditer(r"CREATE TRIGGER\s+([\w]+)", text):
+                drop = f"DROP TRIGGER IF EXISTS {match.group(1)}"
+                assert drop in text[: match.start()], (
+                    f"{path.name}: CREATE TRIGGER {match.group(1)} has no preceding {drop}"
+                )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MemoryManager must expose the asyncpg pool the $1-SQL components probe
+# ─────────────────────────────────────────────────────────────────────────────
+class TestMemoryPoolContract:
+    """``TradeJournal`` and ``DeviceTokenStore`` resolve their backend by
+    probing ``memory.pool`` / ``memory._pool`` / ``memory.db_pool``.
+    ``MemoryManager`` used to expose only a SQLAlchemy session factory, so both
+    silently degraded to volatile in-memory storage: ``agents.sam_trade_journal``
+    and ``auth.device_tokens`` stayed empty in production and every restart lost
+    the data. The live-DB side of this contract is in
+    ``tests/test_postgres_paths.py::TestMemoryManagerLiveSql``.
+    """
+
+    PROBE_ATTRS = ("pool", "_pool", "db_pool")
+
+    def test_memory_manager_declares_a_pool_attribute(self):
+        from src.memory import MemoryManager
+
+        manager = MemoryManager(postgres_dsn="postgresql+asyncpg://localhost/none", redis_url="")
+        assert hasattr(manager, "pool"), f"nothing for the consumers to find among {self.PROBE_ATTRS}"
+
+    def test_consumers_still_probe_the_declared_attributes(self):
+        from src.agents.sam.journal import TradeJournal
+        from src.device_auth import DeviceTokenStore
+
+        for cls in (TradeJournal, DeviceTokenStore):
+            source = inspect.getsource(cls._pool)
+            assert any(attr in source for attr in self.PROBE_ATTRS), (
+                f"{cls.__name__} stopped probing the pool attributes the manager exposes"
+            )
+
+    def test_sqlalchemy_driver_suffix_is_stripped_for_asyncpg(self):
+        """asyncpg rejects the SQLAlchemy ``+asyncpg`` dialect suffix."""
+        from src.memory import MemoryManager
+
+        manager = MemoryManager(postgres_dsn="postgresql+asyncpg://u:p@db:5432/eva", redis_url="")
+        assert manager._libpq_dsn() == "postgresql://u:p@db:5432/eva"
+
+    def test_redis_is_optional_and_reported_honestly(self):
+        """Without a Redis URL the cache is disabled — not silently "ready"."""
+        import src.memory as memory_module
+
+        source = inspect.getsource(memory_module.MemoryManager.initialize)
+        assert "redis_cache_disabled" in source, "a missing Redis must be logged, not hidden"
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Vault secret paths

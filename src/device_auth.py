@@ -182,7 +182,7 @@ class DeviceTokenStore:
             self._mem_tokens[token_id] = record
             self._enforce_limit(device_id)
             logger.info("device_token_issued", token_id=token_id, device_id=device_id, backend="memory")
-        else:  # pragma: no cover - needs live DB
+        else:
             try:
                 async with pool.acquire() as conn:
                     await conn.execute(
@@ -225,7 +225,7 @@ class DeviceTokenStore:
         pool = self._pool()
         if pool is None:
             return self._mem_tokens.get(token_id)
-        try:  # pragma: no cover - needs live DB
+        try:
             async with pool.acquire() as conn:
                 row = await conn.fetchrow(
                     """
@@ -267,7 +267,7 @@ class DeviceTokenStore:
             if record is not None:
                 record.last_seen_at = _iso(now)
             return
-        try:  # pragma: no cover - needs live DB
+        try:
             async with pool.acquire() as conn:
                 await conn.execute(
                     "UPDATE auth.device_tokens SET last_seen_at=$2 WHERE token_id=$1",
@@ -328,7 +328,7 @@ class DeviceTokenStore:
             record.revoked_at = _iso(_utcnow())
             logger.info("device_token_revoked", token_id=token_id, backend="memory")
             return True
-        try:  # pragma: no cover - needs live DB
+        try:
             async with pool.acquire() as conn:
                 result = await conn.execute(
                     "UPDATE auth.device_tokens SET revoked_at=NOW() WHERE token_id=$1 AND revoked_at IS NULL",
@@ -345,7 +345,7 @@ class DeviceTokenStore:
         pool = self._pool()
         if pool is None:
             records = list(self._mem_tokens.values())
-        else:  # pragma: no cover - needs live DB
+        else:
             try:
                 async with pool.acquire() as conn:
                     rows = await conn.fetch(
@@ -389,7 +389,7 @@ class DeviceTokenStore:
             for tid in dead:
                 self._mem_tokens.pop(tid, None)
             return len(dead)
-        try:  # pragma: no cover - needs live DB
+        try:
             async with pool.acquire() as conn:
                 result = await conn.execute(
                     "DELETE FROM auth.device_tokens WHERE expires_at < $1", cutoff,

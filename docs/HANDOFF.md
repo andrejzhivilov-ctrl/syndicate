@@ -25,7 +25,12 @@
 
 ---
 
-## 2026-10-05 — Arena Agent (сесія 8): аудит працездатності + вигадані оцінки в confluence Sam
+> **Примітка:** сесії 8 (гілка `arena/01a10d46-eva-syndicate`) і 9 (гілка
+> `arena/01a10d4e-eva-syndicate`) виконувались **паралельно** і не бачили одна одну.
+> Обидві спершу назвались «сесія 8»; запис нижче перенумеровано на 9, щоб журнал був
+> однозначним. Порядок — newest first.
+
+## 2026-10-05 — Arena Agent (сесія 9): аудит працездатності + вигадані оцінки в confluence Sam
 
 **Гілка:** `arena/01a10d4e-eva-syndicate` · **Ворота:** ✅ (`tools/check.sh`, 299 тестів:
 279 базових + 20 нових) · **База:** `main` на `20ce936`
@@ -112,6 +117,83 @@
   замовника є виклик, який свідомо означав «подій немає», його треба оновити на
   `news_calendar_checked: True` — інакше такий сетап більше не набере балів. Це безпечний
   напрямок (fail-closed), але про це треба сказати Antigravity, якщо вона будує UI поверх цього.
+## 2026-10-05 — Arena Agent (сесія 8): живий PostgreSQL+pgvector замість статичної перевірки схеми
+
+**Гілка:** `arena/01a10d46-eva-syndicate` · **Ворота:** ✅ (`tools/check.sh`, включно з новим кроком «жива схема + SQL-шляхи»)
+
+| | |
+|---|---|
+| Тести | **309** (284 без БД + **25 живих SQL**) |
+| Наскрізні suite'и | 🏆 10/10 floors · 🏆 8/8 sandbox |
+| Лінтер | `ruff F,E9,B,C901,E,W` — чисто |
+| Жива БД у воротах | ✅ PostgreSQL 16 + pgvector 0.6.2 (локально `pgserver`, у CI — `pgvector/pgvector:pg16`) |
+| CI на GitHub | ✅ обидва job'и зелені (PR #3, run 37356237399) |
+
+### Зроблено (backlog 6 + 16)
+- **Кожна SQL-гілка в `src/` мала `# pragma: no cover - needs live DB` і перевірялася лише
+  статично проти `init.sql`. Тепер вони виконуються на справжньому сервері.**
+  `tests/live_pg.py` піднімає PostgreSQL+pgvector: у CI — сервіс-контейнер
+  `pgvector/pgvector:pg16` через `EVA_TEST_DATABASE_URL`, локально — вбудовані бінарники
+  `pgserver` (`requirements-dev.txt`, тому їх немає в рантайм-образі). `EVA_REQUIRE_LIVE_DB=1`
+  перетворює skip на помилку — CI не може «пройти» на пропущених SQL-тестах.
+- `tests/conftest.py` — session-фікстура `live_pg` (схема застосовується один раз; тести
+  використовують унікальні ідентифікатори, нічого не чистячи у спільних таблицях).
+- `tests/test_postgres_paths.py` — **25 тестів**: схема на живої БД (усі таблиці й індекси з
+  `init.sql` реально існують), pgvector+HNSW, least-privilege роль `eva_agent` (INSERT без
+  DELETE на журналі, write-only `audit.outbound_vetoes`), MemoryManager (епізоди з UUID5-
+  нормалізацією, semantic search, response cache, чекпоїнти, LessonsStore), TradeJournal
+  (запис сигналу, HITL-рішення, outcome, **фільтр negative constraints за символом — backlog 16**),
+  DeviceTokenStore (enroll/verify/scope/touch/refresh/revoke/list/purge; у БД лише хеш).
+- `.github/workflows/ci.yml` — job `gates` (без БД) + job `postgres` (сервіс pgvector,
+  `EVA_REQUIRE_LIVE_DB=1`) + в обох перевірка «робоче дерево чисте після воріт».
+- `tools/check.sh` — окремий крок PostgreSQL; без бази й без `pgserver` друкує INFO
+  (чесно: «SQL-шляхи в цій сесії не перевірено»), а не мовчки пропускає.
+
+### Знайдено живою базою (усе виправлено)
+1. 🔴 **`MemoryManager.semantic_search` був повністю зламаний на справжній БД**: `(:agent_id IS NULL OR …)`
+   → asyncpg `AmbiguousParameterError: could not determine data type of parameter $2`.
+   Фікс: `CAST(:agent_id AS text) IS NULL` (тест ловить регресію).
+2. 🔴 **`check_response_cache` — та сама помилка** (кеш відповідей / економія токенів не працював).
+3. 🟠 **Схема не була replay-safe**: `init.sql` падав на повторному запуску
+   (`DuplicateObject: trg_episodes_updated`), а `migration_v4.sql` не можна було застосувати
+   поверх нього (`trg_social_contacts_updated`). Додано `DROP TRIGGER IF EXISTS` в обидва
+   файли; перевірено на живої БД: повторний init (88 statements) і міграція поверх (44) — OK.
+4. 🔴 **`MemoryManager` не мав `asyncpg`-пулу, який шукають `TradeJournal` і `DeviceTokenStore`**
+   (`memory.pool`/`_pool`/`db_pool`). У продакшені обидва **тихо** писали в пам'ять:
+   `auth.device_tokens` лишався порожнім (усі device-токени зникали після перезапуску, а це
+   основа авторизації клієнтського додатка), журнал угод Сема не потрапляв у PostgreSQL.
+   Додано пул; якщо його не вдалося створити — голосний warning із зазначенням наслідків.
+   Redis тепер опційний (`redis_url=""` → `redis_cache_disabled`, читання йде в БД).
+
+### Чесно
+- **CI виконано на GitHub і він зелений** (PR #3, run
+  [#37356237399](https://github.com/andrejzhivilov-ctrl/eva-syndicate/actions/runs/37356237399)):
+  job `Gates (no database)` — 1m19s, job `PostgreSQL + pgvector (live SQL paths)` — 1m39s.
+  Разом із прогоном додано строгий тест: коли `EVA_REQUIRE_LIVE_DB=1`, образ БД мусить мати **всі**
+  розширення, які просить `init.sql`. Оскільки job зелений, `pgvector/pgvector:pg16` справді має
+  `vector`, `uuid-ossp` і `pg_trgm` — жодного прихованого shim/skip у CI немає.
+- Вбудований `pgserver` містить лише `plpgsql`+`vector`: harness ставить сумісну
+  `uuid_generate_v4()` поверх ядрової `gen_random_uuid()` і пропускає `pg_trgm` **із зазначенням
+  причини**; кожен пропуск видимий у `skipped_statements`.
+- Прибрано 13 застарілих `# pragma: no cover - needs live DB` (`journal.py`, `device_auth.py`) —
+  шляхи тепер реально покриті, а не позначені як «неможливі для тестування».
+- Не робив: `pip-audit` (backlog 15), resumable-завантаження YouTube (P1), перевірку runbook на
+  чистому VPS (потрібне залізо).
+
+### Наступне
+1. Antigravity — клієнт у `apps/` (бекенд-блокери 0.1–0.6 готові; контракт —
+   `apps/shared/api-contract.yaml`).
+2. AA — `pip-audit` у CI; новий пункт у backlog: `audit.decisions`/`audit.outbound_vetoes`
+   ніхто не пише (аудит-слід Маршала живе лише в structlog, не в PostgreSQL).
+3. 👤 — перевірити runbook на чистому VPS.
+
+### Ризики й спостереження
+- Другий пул з'єднань (`asyncpg` поруч із SQLAlchemy, `min_size=1`) — свідомо: `$1`-SQL
+  компоненти не переписувати на SQLAlchemy в цій сесії.
+- Тести піднімають тимчасовий кластер у `/tmp` на всю сесію pytest (у CI — сервіс-контейнер);
+  `pgserver` тягне ~30 МБ бінарників, тому він тільки в `requirements-dev.txt`.
+- Порядок тестів у `test_postgres_paths.py` не важливий (унікальні id), але `init.sql` та
+  `migration_v4.sql` тепер ідемпотентні — повторний прогін не ламає спільну БД.
 
 ---
 

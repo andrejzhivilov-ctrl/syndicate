@@ -123,6 +123,7 @@ CREATE TABLE IF NOT EXISTS memory.social_contacts (
 CREATE INDEX IF NOT EXISTS idx_social_birthday ON memory.social_contacts (birthday);
 CREATE INDEX IF NOT EXISTS idx_social_last_contact ON memory.social_contacts (last_contact);
 
+DROP TRIGGER IF EXISTS trg_social_contacts_updated ON memory.social_contacts;
 CREATE TRIGGER trg_social_contacts_updated
     BEFORE UPDATE ON memory.social_contacts
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();

@@ -46,7 +46,7 @@
 
 | # | Задача | Де | Хто |
 |---|---|---|---|
-| 6 | **PostgreSQL + pgvector у CI.** Усі SQL-гілки мають `# pragma: no cover` і перевірені лише статично; у тестах працюють in-memory бекенди. Це найбільша «сліпа зона» репозиторію | `.github/workflows/`, `tests/` | AG → AA |
+| 6 | **PostgreSQL + pgvector у CI.** SQL-гілки більше не «сліпа зона»: `tests/live_pg.py` + `tests/test_postgres_paths.py` (25 тестів), job `postgres` у `.github/workflows/ci.yml`, крок у `tools/check.sh` | ✅ зроблено (сесія 8) | AA |
 | 7 | **Розширити `Humanizer`** — словники `CLICHES` і `REPLACEMENTS` короткі для продакшен-копірайтингу (uk/ru/en) | `content_factory/humanizer.py` | AG |
 | 8 | **Винести `base_url` у `GrokWriter` у конфігурацію.** Зараз `https://api.x.ai/v1` захардкоджений у двох модулях | `grok_writer.py`, `script_director.py` | AG |
 | 9 | **Реальний матчер Word-шаблонів у `office_copilot`.** Пошук по `{{placeholder}}` працює спрощено; для складних шаблонів варто обробляти поля й таблиці окремо | `agents/office_copilot.py` | AG |
@@ -60,23 +60,39 @@
 | 12 | **Git LFS для `docs/EVA_SYNDICATE_SYSTEM_PASSPORT.pdf`.** Файл знято з відстеження, але блоб 6,3 МБ лишився в історії. Або LFS, або регенерувати з Markdown-джерела | `docs/` | AG |
 | 13 | **Видалити гілку `arena/01a10abd-eva-syndicate`**, коли сесія завершиться. Вона ідентична `main` — нічого не втратиться (є тег `archive/eva-syndicate-2026-10-05`) | GitHub | AA |
 | 14 | **Вирішити долю `backup-stable-cockpit` (`7be2dda`).** Там 736 комітів, яких немає в `main` (стара розкладка cockpit v4.2). Варіанти: залишити архівом (зараз), винести в окремий read-only репозиторій, або перенести тільки потрібніAssets в `static/` | GitHub | 👤 |
-| 15 | **Розширити `tools/check.sh`**: `pip-audit` на вразливості, перевірка що `init.sql` і `migration_v4.sql` не розійшлися. (Перевірка `device_tokens` на ідентичність уже є в `tests/test_regressions.py::TestPostgresSchemaConsistency`.) **Головне:** CI як такий відсутній — див. 17 | `tools/check.sh` | AA |
-| 16 | **Покрити тестами SQL-шляхи `TradeJournal`** — зараз перевірений тільки in-memory бекенд, а символ-фільтр у SQL-гілці додано без теста | `agents/sam/journal.py`, `tests/` | AA |
-| 17 | 🔴 **Створити CI (`.github/workflows/check.yml`).** Його немає взагалі, хоч доки посилаються на «у CI» і `tools/check.sh` описаний як крок CI. Зараз «main завжди зелений» тримається лише на пам'яті людини: будь-який агент може запушити гілку з червоними воротами, і ніхто цього не помітить. Треба: `python -m venv`, `pip install -r requirements.txt pytest ruff`, `bash tools/check.sh` на push/PR. Без PostgreSQL-сервісу (SQL-гілки — 6) | `.github/workflows/` | AA |
-| 18 | 🟠 **`python deploy/runtime/agent_runner.py` падає** — `ModuleNotFoundError: No module named 'src'`. Блок `if __name__ == "__main__"` не додає корінь репозиторію в `sys.path`, тому локальний запуск без `PYTHONPATH` неможливий (у контейнері все гаразд, тому ворота цього не ловлять) | `deploy/runtime/agent_runner.py` | AA |
-| 19 | 🟡 **`VAULT_ADDR` без значення дає `KeyError: 'VAULT_ADDR'`** замість зрозумілого повідомлення; `python-dotenv` є в залежностях, але `.env` на старті не читається — оператор бачить криптичний трейсбек | `deploy/runtime/agent_runner.py` | AA |
+| 15 | **Розширити `tools/check.sh`** — частково: крок живої БД і перевірка «робоче дерево чисте» в CI вже є (сесія 8); лишилося `pip-audit` на вразливості | `tools/check.sh` | AA |
+| 16 | **Покрити тестами SQL-шляхи `TradeJournal`** (разом із символ-фільтром) | ✅ зроблено (сесія 8, `tests/test_postgres_paths.py`) | AA |
+| 17 | **Хтось має писати `audit.decisions` / `audit.outbound_vetoes`.** Схема й права є (INSERT-only для `eva_agent`), але жоден модуль туди не пише — аудит-слід Маршала живе лише в structlog. Для Zero-Trust потрібен durable слід рішень у PostgreSQL | `src/agents/marshal.py`, новий модуль | AG → AA |
+| 18 | **Один пул з'єднань замість двох.** `MemoryManager` тепер тримає SQLAlchemy-двигун і `asyncpg`-пул для `$1`-SQL компонентів (`TradeJournal`, `DeviceTokenStore`). Працює, але два пули до однієї БД — зайве; варто уніфікувати на SQLAlchemy-сесії | `src/memory.py`, `agents/sam/journal.py`, `src/device_auth.py` | AG → AA |
+| 19 | **Сумісність розширень у тестовій БД.** Вбудований `pgserver` має лише `vector`; CI — повний набір. Поки що harness чесно пропускає `pg_trgm` із причиною; якщо з'явиться код, що реально використовує `pg_trgm`/`uuid-ossp`, знадобиться образ із contrib і для локальних прогонів | `tests/live_pg.py` | AA |
+| 20 | 🟠 **`python deploy/runtime/agent_runner.py` падає** — `ModuleNotFoundError: No module named 'src'`. Блок `if __name__ == "__main__"` не додає корінь репозиторію в `sys.path`, тому локальний запуск без `PYTHONPATH` неможливий (у контейнері все гаразд, тому ворота цього не ловлять) | `deploy/runtime/agent_runner.py` | AA |
+| 21 | 🟡 **`VAULT_ADDR` без значення дає `KeyError: 'VAULT_ADDR'`** замість зрозумілого повідомлення; `python-dotenv` є в залежностях, але `.env` на старті не читається — оператор бачить криптичний трейсбек | `deploy/runtime/agent_runner.py` | AA |
+
+> **Нумерація:** пункти 17–19 прийшли від сесії 8 (PostgreSQL + CI), 20–21 — від сесії 9
+> (вигадані оцінки в confluence Sam). Сесії виконувались паралельно, тому номери
+> довелося перерозподілити під час злиття. Спершу сесія 9 пропонувала CI як пункт 17 —
+> його закрила сесія 8, тому пункт зник, а 20–21 зсунулись.
 
 ---
 
-## ✅ Закрито в сесії 8 (2026-10-05) — вигадані оцінки в confluence Sam
+## ✅ Закрито в сесії 9 (2026-10-05) — вигадані оцінки в confluence Sam
 
 Знайдено й виправлено **п'ять** шарів, які перетворювали відсутність даних на числову
 оцінку (порушення §1 `AGENTS.md`). Гірший — `news_shield` відмовляв **у бік дозволу**
 (80/100 без veto) при невідомому економічному календарі. Деталі — у `docs/HANDOFF.md`
-(сесія 8) і `tests/test_regressions.py::TestConfluenceAbsenceIsNotAnObservation`.
+(сесія 9) і `tests/test_regressions.py::TestConfluenceAbsenceIsNotAnObservation`.
 
 Тепер «не змогли прочитати» = `unavailable` (0 внеску, `missing: True`), а «перевірили
 й нічого не знайшли» = справжній бал. Наслідок: сетап без реальних даних дає 0.0, а не ~40.
+
+---
+
+## ✅ Закрито в сесії 8 (2026-10-05) — CI та живі SQL-шляхи
+
+`.github/workflows/ci.yml` (два job'и: ворота без БД + PostgreSQL 16 із pgvector),
+`tests/live_pg.py` + `tests/test_postgres_paths.py` (25 живих SQL-тестів),
+`EVA_REQUIRE_LIVE_DB=1` не дає skip'ам перетворитись на «зелений» прогін. Пункти 6 і 16
+закриті, 15 — частково. Деталі — у `docs/HANDOFF.md` (сесія 8).
 
 ---
 
