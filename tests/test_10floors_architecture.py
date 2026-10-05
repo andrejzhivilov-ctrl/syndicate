@@ -744,11 +744,12 @@ async def run_10floors_sandbox_suite():
     r_health = client.get("/health")
     assert r_health.status_code == 200 and r_health.json()["status"] == "healthy"
 
-    # 10b. Cockpit UI (public GET) — MUST return 200 and contain SYNDIKAT
-    r_cockpit = client.get("/cockpit")
+    # 10b. Cockpit UI requires a credential; the operator's master key works.
+    assert client.get("/cockpit").status_code == 401
+    r_cockpit = client.get("/cockpit", headers={"X-API-Key": "sandbox-secret-api-key-2026"})
     assert r_cockpit.status_code == 200
     assert "SYNDIKAT" in r_cockpit.text or "SYNDICATE" in r_cockpit.text
-    print("  ✓ /cockpit interface verified (200 OK)")
+    print("  ✓ /cockpit read authentication verified (401 without key -> 200 with X-API-Key)")
 
     # 10c. Authentication check on /status
     r_unauth = client.get("/status")
@@ -767,9 +768,10 @@ async def run_10floors_sandbox_suite():
     assert r_good_hmac.status_code == 200 and r_good_hmac.json()["ok"] is True
     print("  ✓ /webhook/telegram HMAC authentication verified (401 on bad HMAC -> 200 on valid)")
 
-    # 10e. Specialized 10-floor endpoints
+    # 10e. Specialized 10-floor endpoints; registry is read-scope protected.
     # /floors
-    r_floors = client.get("/floors")
+    assert client.get("/floors").status_code == 401
+    r_floors = client.get("/floors", headers={"X-API-Key": "sandbox-secret-api-key-2026"})
     assert r_floors.status_code == 200
     floors_data = r_floors.json()
     assert len(floors_data["active"]) == 6 and len(floors_data["reserved"]) == 4

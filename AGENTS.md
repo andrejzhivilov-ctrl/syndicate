@@ -26,7 +26,7 @@ bash tools/check.sh     # усі ворота мають бути зеленим
 
 ## 1. Найголовніше правило: НІКОЛИ НЕ ВИГАДУЙ ДАНІ
 
-Це причина, чому в репозиторії існує 210 регресійних тестів. Агент, який повертає
+Це причина, чому в репозиторії є розгалужене покриття регресійними тестами. Агент, який повертає
 «правдоподібну цифру» замість реальної, — це не дрібна помилка, це отруєння всієї системи:
 такі значення потрапляють у фінансові, медичні й маркетингові звіти людини.
 
@@ -78,7 +78,7 @@ bash tools/check.sh
 Це те саме, що:
 
 ```bash
-.venv/bin/python -m pytest tests/ -q                      # 210 тестів
+.venv/bin/python -m pytest tests/ -q                      # усі pytest-тести
 .venv/bin/python tests/test_10floors_architecture.py      # 10/10 suite'ів
 .venv/bin/python tests/sandbox_test.py                    # 8/8 suite'ів
 .venv/bin/ruff check --select F,E9,B --ignore E501,B008,B904 src deploy tests tools
@@ -160,7 +160,7 @@ src/confidence.py        бюджет довіри + HITL-гейт
 src/pii.py               маскування PII перед зовнішнім LLM
 src/data_paths.py        ЄДИНЕ джерело шляхів для записуваних даних
 src/vault_paths.py       ЄДИНЕ джерело шляхів секретів Vault
-tests/                   210 тестів + 2 наскрізні suite'и
+tests/                   pytest-тести + 2 наскрізні suite'и
 tools/check.sh           всі ворота однією командою
 docs/HANDOFF.md          журнал передачі між агентами ← починай звідси
 docs/BACKLOG.md          що робити далі

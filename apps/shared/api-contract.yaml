@@ -7,7 +7,7 @@
 # Verify in CI with: python tools/export_openapi.py --check
 # ============================================================
 #
-# contract_sha256: f3c4cad03dd64e8980a280e807f94ff392b0f5a35b16bb6889427d816659882a
+# contract_sha256: b526dd789d3f2de164251971cc78a7f3f02a5e1ec7fbbef61fb237e4bc52d94c
 # api_version:     4.1.0
 # paths:           26
 #
@@ -29,7 +29,7 @@ components:
           title: Label
           type: string
         scopes:
-          description: Subset of ['execute', 'read', 'hitl']; empty = inherit all
+          description: Subset of ['execute', 'read', 'hitl']; empty = no device scope
           items: {}
           title: Scopes
           type: array
@@ -178,6 +178,23 @@ paths:
     get:
       description: Serve the interactive SYNDIKAT Executive Cockpit interface.
       operationId: cockpit_interface__get
+      parameters:
+      - in: header
+        name: X-API-Key
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Api-Key
+      - in: header
+        name: Authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       responses:
         '200':
           content:
@@ -185,6 +202,12 @@ paths:
               schema:
                 type: string
           description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
       summary: Cockpit Interface
   /auth/device/enroll:
     post:
@@ -384,6 +407,23 @@ paths:
     get:
       description: Serve the interactive SYNDIKAT Executive Cockpit interface.
       operationId: cockpit_interface_cockpit_get
+      parameters:
+      - in: header
+        name: X-API-Key
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Api-Key
+      - in: header
+        name: Authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       responses:
         '200':
           content:
@@ -391,6 +431,12 @@ paths:
               schema:
                 type: string
           description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
       summary: Cockpit Interface
   /council:
     post:
@@ -800,14 +846,38 @@ paths:
       summary: Execute Task Stream
   /floors:
     get:
-      description: Return the single source of truth 10-floor syndicate layout.
+      description: Return the 10-floor registry to the operator's read-authorized
+        clients.
       operationId: get_floors_registry_floors_get
+      parameters:
+      - in: header
+        name: X-API-Key
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Api-Key
+      - in: header
+        name: Authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       responses:
         '200':
           content:
             application/json:
               schema: {}
           description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
       summary: Get Floors Registry
   /health:
     get:
