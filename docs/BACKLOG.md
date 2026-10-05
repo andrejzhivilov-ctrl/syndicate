@@ -58,8 +58,8 @@
 | # | Задача | Де | Хто |
 |---|---|---|---|
 | 12 | **Git LFS для `docs/EVA_SYNDICATE_SYSTEM_PASSPORT.pdf`.** Файл знято з відстеження, але блоб 6,3 МБ лишився в історії. Або LFS, або регенерувати з Markdown-джерела | `docs/` | AG |
-| 13 | **Видалити гілку `arena/01a10abd-eva-syndicate`**, коли сесія завершиться. Вона ідентична `main` — нічого не втратиться (є тег `archive/eva-syndicate-2026-10-05`) | GitHub | AA |
-| 14 | **Вирішити долю `backup-stable-cockpit` (`7be2dda`).** Там 736 комітів, яких немає в `main` (стара розкладка cockpit v4.2). Варіанти: залишити архівом (зараз), винести в окремий read-only репозиторій, або перенести тільки потрібніAssets в `static/` | GitHub | 👤 |
+| 13 | **Видалити гілку `arena/01a10abd-eva-syndicate`** | ✅ гілки вже немає на GitHub (сесія 9 перевірила `git ls-remote --heads`). Пункт закрито | — |
+| 14 | **Доля `backup-stable-cockpit` (`7be2dda`)** | ✅ remote-гілку видалено ще в сесії 7. Важливе уточнення: оцінка «736 комітів, яких немає в `main`» була **помилковою** (наслідок shallow-клону) — `7be2dda` давно в історії `main`. Вміст збережено тегами `archive/cockpit-stable-7be2dda` і `v4.2-cockpit-halo-stable` | — |
 | 15 | **Розширити `tools/check.sh`** — частково: крок живої БД і перевірка «робоче дерево чисте» в CI вже є (сесія 8); лишилося `pip-audit` на вразливості | `tools/check.sh` | AA |
 | 16 | **Покрити тестами SQL-шляхи `TradeJournal`** (разом із символ-фільтром) | ✅ зроблено (сесія 8, `tests/test_postgres_paths.py`) | AA |
 | 17 | **Хтось має писати `audit.decisions` / `audit.outbound_vetoes`.** Схема й права є (INSERT-only для `eva_agent`), але жоден модуль туди не пише — аудит-слід Маршала живе лише в structlog. Для Zero-Trust потрібен durable слід рішень у PostgreSQL | `src/agents/marshal.py`, новий модуль | AG → AA |
