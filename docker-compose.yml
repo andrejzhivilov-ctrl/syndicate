@@ -1,7 +1,7 @@
 # EVA SYNDICATE — Production Docker Compose (v4.1 Verified)
 # Fixes applied:
 # - Separated db_net (internal: true for Postgres & Redis isolation) from backend (egress-enabled for API/Vault/Whisper)
-# - Mounted both 01-init.sql and 02-migration_v4.sql into Postgres initialization
+# - Mounted 01-init.sql, 02-migration_v4.sql and 03-migration_v5 (embedding dimension) into Postgres initialization
 # - Pinned n8n image (1.68.0), set N8N_PATH=/n8n/, disabled executeCommand/ssh nodes
 # - Unified Nginx certificate mount (/data/nginx-certs:/etc/nginx/certs) with automatic self-signed bootstrap
 
@@ -55,6 +55,13 @@ volumes:
       type: none
       o: bind
       device: /data/whisper
+  embeddings_data:
+    # Model weights (~2 GB) are downloaded once and survive restarts.
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/embeddings
   eva_data:
     driver: local
     driver_opts:
@@ -73,6 +80,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./config/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
       - ./config/postgres/migration_v4.sql:/docker-entrypoint-initdb.d/02-migration_v4.sql:ro
+      - ./config/postgres/migration_v5_embeddings_1024.sql:/docker-entrypoint-initdb.d/03-migration_v5.sql:ro
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-eva_syndicate}
       POSTGRES_USER: ${POSTGRES_USER:-eva}
@@ -98,12 +106,21 @@ services:
     user: "999:999"
     networks:
       - db_net
+    environment:
+      # Injected here and consumed by the command below. The password is never
+      # written into config/redis/redis.conf: no placeholder to "sync", no
+      # secret at rest in the repository, and no way for the file and .env to
+      # drift apart. Compose refuses to start if it is unset.
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set in .env}
     volumes:
       - redis_data:/data
       - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
-    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    command:
+      - sh
+      - -c
+      - exec redis-server /usr/local/etc/redis/redis.conf --requirepass "$$REDIS_PASSWORD"
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -136,8 +153,55 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+    # Drop everything, then hand back only IPC_LOCK: Vault needs mlock so its
+    # memory is never swapped to disk. The previous version kept the whole
+    # default capability set, unlike every other service in this file.
+    cap_drop:
+      - ALL
     security_opt:
       - no-new-privileges:true
+
+  embeddings:
+    # Self-hosted vector model (BGE-M3, 1024 dims) so memory text never leaves
+    # the server. Deliberately NOT in eva-agent's depends_on: vector search is an
+    # enhancement, and a cold model must not block the agent from starting.
+    build:
+      context: .
+      dockerfile: deploy/docker/embeddings.Dockerfile
+    restart: unless-stopped
+    user: "1001:1001"
+    networks:
+      - backend
+    volumes:
+      - embeddings_data:/app/model_cache
+    environment:
+      EMBEDDINGS_MODEL: ${EMBEDDINGS_MODEL:-BAAI/bge-m3}
+      EMBEDDINGS_EXPECTED_DIM: "1024"
+      EMBEDDINGS_TOKEN: ${EMBEDDINGS_TOKEN:-}
+      EMBEDDINGS_MAX_BATCH: "64"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      # No curl/wget in the slim image, so the check runs in Python. Reports
+      # unhealthy while the model is still loading — which is the truth.
+      test:
+        - CMD
+        - python
+        - -c
+        - |
+          import urllib.request
+          try:
+              ok = urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=10).status == 200
+          except Exception:
+              ok = False
+          raise SystemExit(0 if ok else 1)
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      # Generous: the first start downloads the weights.
+      start_period: 300s
 
   eva-agent:
     build:
@@ -171,6 +235,12 @@ services:
       # The container root filesystem is read-only; every writable artefact
       # (Markdown vault, rendered media, browser profiles) lives under EVA_DATA_DIR.
       EVA_DATA_DIR: /data/eva
+      # Vector search. Unset EMBEDDINGS_URL disables semantic search cleanly —
+      # episodic memory keeps working, which is a supported mode, not a failure.
+      EMBEDDINGS_URL: ${EMBEDDINGS_URL:-http://embeddings:8000}
+      EMBEDDINGS_MODEL: ${EMBEDDINGS_MODEL:-bge-m3}
+      EMBEDDINGS_DIM: "1024"
+      EMBEDDINGS_TOKEN: ${EMBEDDINGS_TOKEN:-}
     read_only: true
     tmpfs:
       - /tmp:size=128m,uid=1001,gid=1001
@@ -227,6 +297,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    cap_drop:
+      - ALL
     security_opt:
       - no-new-privileges:true
 

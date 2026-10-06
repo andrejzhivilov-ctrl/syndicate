@@ -30,6 +30,7 @@ from src.vault_md import MarkdownVault, VaultError
 from src.council import LLMCouncil
 from src.verifier import OrcVerifier
 from src.change_requests import ChangeRequestError, ChangeRequestStore
+from src.skill_store import SkillStore
 from src.tool_contracts import ToolRegistry
 from src.memory_commands import parse_command, execute_command
 from src.agents.kira_socratic import SocraticTutor
@@ -252,6 +253,7 @@ class EvaOrchestrator:
         # hardcoding "vault_md" here made the read-only container fail to boot.
         vault_root = self._config.get("vault_root")
         self._vault = markdown_vault or MarkdownVault(vault_root=vault_root)
+        self._skill_store = SkillStore(vault=self._vault)
         self._error_collector = error_collector or ErrorCollector(lessons_store=self._lessons)
         self._tool_registry = tool_registry or ToolRegistry()
         self._sensory = sensory_router or SensoryRouter()
@@ -470,13 +472,49 @@ class EvaOrchestrator:
         return state.get("current_agent", "eva")
 
     async def _lessons_check(self, state: AgentState) -> AgentState:
+        payload = state.get("payload") or {}
+        # Never accept the reusable-procedure channel from caller input; populate
+        # it exclusively from the local, repeated-success SkillStore below.
+        payload.pop("prior_skills", None)
+        state["payload"] = payload
+        # The action text is what a past lesson or verified skill has to match;
+        # without it the vector branch was unreachable and skill lookup had no
+        # useful filter.
+        user_text = (
+            payload.get("query")
+            or payload.get("message")
+            or payload.get("text")
+            or payload.get("topic")
+            or payload.get("goal")
+            or payload.get("action")
+            or ""
+        )
+        task_text = str(state.get("task_type", "")).replace("_", " ").strip()
+        lookup_text = " ".join(part for part in (task_text, str(user_text).strip()) if part)[:1200]
+        agent_id = state.get("current_agent", "eva")
         if self._lessons:
             lessons = await self._lessons.check_before_action(
-                agent_id=state.get("current_agent", "eva"),
+                agent_id=agent_id,
                 action_embedding=None,
+                action_text=lookup_text or None,
             )
             if lessons:
-                state["payload"]["prior_lessons"] = lessons
+                payload["prior_lessons"] = lessons
+
+        # Only the educational agent consumes learned procedures today.
+        # Health, finance, trading, and security decisions stay isolated until
+        # their own skill-specific review policy exists.
+        if str(agent_id) == "kira":
+            try:
+                skills = self._skill_store.find_relevant(
+                    agent_id=str(agent_id),
+                    query=lookup_text,
+                    limit=3,
+                )
+                if skills:
+                    payload["prior_skills"] = skills
+            except Exception as exc:  # noqa: BLE001 - learning must not block task execution
+                logger.warning("skill_lookup_failed", agent_id=agent_id, error=str(exc))
         return state
 
     async def _confidence_gate(self, state: AgentState) -> AgentState:
@@ -824,6 +862,7 @@ class EvaOrchestrator:
             llm=self._llm_reasoning or self._llm,
             config=self._config.get("architect", self._config),
             registry=self._registry,
+            change_request_store=self._change_requests,
         )
         payload = dict(state["payload"])
         action_map = {
@@ -842,6 +881,9 @@ class EvaOrchestrator:
         payload.setdefault("action", action_map.get(state["task_type"], "capabilities"))
         result = await agent.execute(payload)
         state["result"] = result
+        if result.get("requires_hitl"):
+            state["requires_hitl"] = True
+            state["hitl_reason"] = result.get("hitl_reason") or "Architect workflow proposal requires operator approval"
         state["status"] = "completed"
         return state
 
@@ -1017,6 +1059,34 @@ class EvaOrchestrator:
         elif hasattr(result, "__dict__") and not isinstance(result, (dict, list, str, int, float, bool, type(None))):
             result = getattr(result, "__dict__", str(result))
 
+        if isinstance(result, dict) and "skill_candidate" in result:
+            candidate = result.pop("skill_candidate")
+            result_status = str(result.get("status", "")).lower()
+            succeeded = (
+                state.get("status") == "completed"
+                and not result.get("error")
+                and not result.get("refused")
+                and not result.get("blocked")
+                and not result.get("blocked_actions")
+                and not result.get("requires_hitl")
+                and result.get("verified") is not False
+                and result_status not in {"error", "failed", "unavailable"}
+                and not result_status.startswith("blocked")
+            )
+            try:
+                capture = self._skill_store.record_success(
+                    agent_id=str(state.get("current_agent", "eva")),
+                    task_type=str(state.get("task_type", "unknown")),
+                    task_id=str(state.get("task_id", "unknown")),
+                    candidate=candidate,
+                    success=succeeded,
+                )
+            except Exception as exc:  # noqa: BLE001 - skill storage must never fail a task
+                logger.warning("skill_capture_failed", error=str(exc))
+                capture = {"status": "error", "reason": str(exc)}
+            result["skill_capture"] = capture
+            state["result"] = result
+
         await self._memory.save_checkpoint(
             thread_id=state["session_id"],
             checkpoint_id=state["task_id"],
@@ -1035,13 +1105,24 @@ class EvaOrchestrator:
     ) -> Dict[str, Any]:
         """Execute a task through the orchestration graph across any of the 10 floors."""
         task_id = str(uuid.uuid4())
-        session_id = session_id or str(uuid.uuid4())
+        provided_session_id = (
+            session_id.strip()
+            if isinstance(session_id, str) and session_id.strip()
+            else None
+        )
+        session_id = provided_session_id or str(uuid.uuid4())
+        task_payload = dict(payload or {})
+        if provided_session_id:
+            # The explicit conversation ID is authoritative so domain agents
+            # pair recall with writes on the same thread even if the payload
+            # contains a stale or conflicting session_id.
+            task_payload["session_id"] = provided_session_id
 
         initial_state: AgentState = {
             "session_id": session_id,
             "task_id": task_id,
             "task_type": task_type,
-            "payload": payload,
+            "payload": task_payload,
             "messages": [],
             "current_agent": None,
             "result": None,
@@ -1142,11 +1223,11 @@ class EvaOrchestrator:
         """Called by n8n cron at 21:00. Evening reflection & recovery protocol."""
         results = {}
         try:
+            # No invented biometrics: the scheduler has no wearable feed, so Doc
+            # is asked without metrics and answers with a non-personalised
+            # protocol instead of "measuring" a heart rate nobody reported.
             doc_rec = await self.execute("nervous_system", {
                 "action": "nervous_system",
-                "hrv_ms": 62,
-                "stress_score": 35,
-                "sleep_quality": 85,
             })
             results["doc_recovery"] = doc_rec.get("result", {})
         except Exception as exc:  # noqa: BLE001

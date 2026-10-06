@@ -36,7 +36,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from live_pg import INIT_SQL, MIGRATION_SQL, split_sql_statements, sql_tables  # noqa: E402
 
-VEC = 1536  # OpenAI text-embedding-3-small, the column dimension in init.sql
+from src.embeddings import EMBEDDING_DIM as _EMBEDDING_DIM, EmbeddingUnavailable  # noqa: E402
+from src.lessons import LessonsStore  # noqa: E402
+from src.memory import MemoryManager  # noqa: E402
+
+VEC = _EMBEDDING_DIM  # BGE-M3, produced by src/embeddings.py and declared in init.sql
 
 
 def _run(coro):
@@ -541,3 +545,350 @@ class TestDeviceTokenStoreLiveSql:
         assert live_pg.scalar(
             "SELECT count(*) FROM auth.device_tokens WHERE token_id = %s", (issued["token_id"],)
         ) == 1, "a live token must survive the sweep"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# The memory loop end-to-end: what Eva learns survives a restart
+# ─────────────────────────────────────────────────────────────────────────────
+class _CapturingLLM:
+    """Records the exact prompt it was asked to answer."""
+
+    def __init__(self, reply: str = "Гаразд."):
+        self.prompts = []
+        self._reply = reply
+
+    async def ainvoke(self, messages):
+        self.prompts.append(messages)
+        return type("_Reply", (), {"content": self._reply})()
+
+
+class TestEvaRemembersAcrossRestart:
+    """The acceptance criterion from the operator's first request: the agent
+    must remember, instead of re-reading the dialogue, and must still remember
+    after a restart. ``save_episode`` alone never delivered that — nothing read
+    the episodes back."""
+
+    def test_second_instance_recalls_the_first_conversation(self, live_pg):
+        session = _tag("eva-session")
+
+        async def scenario():
+            memory = await _memory(live_pg)
+            try:
+                from src.agents.eva import EvaAgent
+
+                first_llm = _CapturingLLM("Запам'ятав: тебе звати Андрій.")
+                first = EvaAgent(memory=memory, llm=first_llm)
+                await first.execute({
+                    "action": "chat",
+                    "message": "Запам'ятай: мене звати Андрій.",
+                    "session_id": session,
+                })
+
+                # A restart: brand-new agent and LLM, same database, no context
+                # carried over in Python.
+                second_llm = _CapturingLLM("Так, Андрію.")
+                second = EvaAgent(memory=memory, llm=second_llm)
+                result = await second.execute({
+                    "action": "chat",
+                    "message": "Як мене звати?",
+                    "session_id": session,
+                })
+                return second_llm.prompts[0][0].content, result
+            finally:
+                await memory.close()
+
+        system_prompt, result = _run(scenario())
+
+        assert "мене звати Андрій" in system_prompt, (
+            "the restarted agent must recall the earlier conversation from the database"
+        )
+        assert result["memory"]["status"] == "ok"
+        assert result["memory"]["episodes_used"] >= 2  # the user turn and the reply
+
+    def test_context_is_bounded_even_with_a_long_history(self, live_pg):
+        """Token economy: recall is a budgeted slice, never the whole transcript."""
+        session = _tag("eva-budget")
+        agent_id = _tag("eva-budget-agent")
+
+        async def scenario():
+            memory = await _memory(live_pg)
+            try:
+                for i in range(40):
+                    await memory.save_episode(
+                        session_id=session, agent_id=agent_id, role="user",
+                        content=f"епізод номер {i} " + "деталі " * 60,
+                    )
+                return await memory.build_memory_context(
+                    agent_id=agent_id, session_id=session, max_chars=1200
+                )
+            finally:
+                await memory.close()
+
+        block = _run(scenario())
+
+        assert block["status"] == "ok"
+        assert len(block["text"]) <= 1200
+        assert block["truncated"] is True and block["dropped"] > 0
+
+
+class TestRedisIsOptional:
+    """``initialize()`` pinged Redis without a guard, so an unreachable or
+    wrong-password Redis — exactly what the shipped ``requirepass`` placeholder
+    produces — aborted the entire startup through ``lifespan``. Redis is
+    declared optional: a cache outage must cost latency, never availability."""
+
+    def test_unreachable_redis_degrades_instead_of_failing_startup(self, live_pg):
+        from src.memory import MemoryManager
+
+        async def scenario():
+            manager = MemoryManager(
+                postgres_dsn=live_pg.sqlalchemy_dsn,
+                # Port 1 is closed: connection refused, the same failure mode as
+                # a password mismatch against a real Redis.
+                redis_url="redis://:wrong-password@127.0.0.1:1/0",
+            )
+            await manager.initialize()
+            try:
+                return manager.is_ready, manager.cache_enabled
+            finally:
+                await manager.close()
+
+        ready, cache_enabled = _run(scenario())
+
+        assert ready is True, "an optional cache must not decide whether the agent starts"
+        assert cache_enabled is False, "the failing cache must be disabled, not half-alive"
+
+    def test_cache_failure_midflight_does_not_break_episodes(self, live_pg):
+        """A cache that dies *after* startup must not take reads or writes with
+        it — the episode is already committed to PostgreSQL."""
+        agent_id, session = _tag("cb"), _tag("cb-session")
+
+        async def scenario():
+            memory = await _memory(live_pg)
+
+            class _FailingCache:
+                async def lpush(self, *args, **kwargs):
+                    raise ConnectionError("redis went away")
+
+                async def lrange(self, *args, **kwargs):
+                    raise ConnectionError("redis went away")
+
+            memory._redis = _FailingCache()  # simulate a cache that dies mid-flight
+            try:
+                episode_id = await memory.save_episode(
+                    session_id=session, agent_id=agent_id, role="user", content="вижити"
+                )
+                rows = await memory.get_recent_episodes(session_id=session, agent_id=agent_id)
+                return episode_id, rows, memory.cache_enabled
+            finally:
+                await memory.close()
+
+        episode_id, rows, cache_enabled = _run(scenario())
+
+        assert episode_id and rows and rows[0]["content"] == "вижити"
+        assert cache_enabled is False, "the circuit-breaker must drop the dead cache"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Embeddings: the vector layer actually reaching PostgreSQL
+# ─────────────────────────────────────────────────────────────────────────────
+class _DeterministicEmbedder:
+    """A stand-in for the BGE-M3 service bound to a *live* database.
+
+    The real model cannot run in CI, but everything downstream of it can: the
+    exact vector width, the SQL column, the HNSW index and the similarity query.
+    Each text maps to a unit vector on an axis derived from its hash, so two
+    identical texts are identical vectors (similarity 1.0) and the test is
+    deterministic without a model.
+    """
+
+    name = "stub-bge-m3"
+    dimensions = VEC
+
+    def _vector(self, text: str) -> list:
+        axis = int(hashlib.md5(str(text).encode("utf-8")).hexdigest(), 16) % VEC
+        values = [0.0] * VEC
+        values[axis] = 1.0
+        return values
+
+    async def embed_one(self, text: str) -> list:
+        return self._vector(text)
+
+    async def embed(self, texts) -> list:
+        return [self._vector(text) for text in texts]
+
+    async def health(self) -> dict:
+        return {"status": "ok", "value": None, "provider": self.name, "warning": None}
+
+
+class _BrokenEmbedder:
+    """What the provider looks like when the model is not loaded."""
+
+    name = "broken"
+    dimensions = VEC
+
+    async def embed_one(self, text: str) -> list:
+        raise EmbeddingUnavailable("model not loaded")
+
+    async def embed(self, texts) -> list:
+        raise EmbeddingUnavailable("model not loaded")
+
+    async def health(self) -> dict:
+        return {"status": "unavailable", "value": None, "provider": self.name, "warning": "model not loaded"}
+
+
+class TestVectorSchemaLive:
+    def test_every_vector_column_matches_the_provider_dimension(self, live_pg):
+        """A mismatch here is silent at runtime: cosine distances simply stop
+        meaning anything while searches keep returning rows."""
+        rows = live_pg.fetch(
+            "SELECT n.nspname || '.' || c.relname, a.attname, format_type(a.atttypid, a.atttypmod) "
+            "FROM pg_attribute a "
+            "JOIN pg_class c ON c.oid = a.attrelid "
+            "JOIN pg_namespace n ON n.oid = c.relnamespace "
+            "WHERE a.attnum > 0 AND NOT a.attisdropped AND format_type(a.atttypid, a.atttypmod) LIKE 'vector%%'"
+        )
+        assert rows, "no vector columns found — the schema lost the pgvector layer"
+        for table, column, declared in rows:
+            assert declared == f"vector({VEC})", (
+                f"{table}.{column} is {declared}, but the embedding provider produces {VEC}"
+            )
+
+    def test_migration_v5_replays_cleanly_on_the_migrated_schema(self, live_pg):
+        """Idempotency: the migration is mounted into the Postgres init directory,
+        so it runs again on every fresh volume and must be a no-op."""
+        migration = INIT_SQL.parent / "migration_v5_embeddings_1024.sql"
+        applied = live_pg.apply_sql_file(migration)  # must not raise
+        assert applied, "the migration produced no statements"
+        dimensions = {
+            row[0]
+            for row in live_pg.fetch(
+                "SELECT format_type(a.atttypid, a.atttypmod) FROM pg_attribute a "
+                "JOIN pg_class c ON c.oid = a.attrelid "
+                "WHERE a.attnum > 0 AND NOT a.attisdropped "
+                "AND format_type(a.atttypid, a.atttypmod) LIKE 'vector%%'"
+            )
+        }
+        assert dimensions == {f"vector({VEC})"}, f"migration left dimensions {dimensions}"
+
+
+class TestVectorMemoryLive:
+    def test_saved_episode_gets_a_vector_and_is_found_semantically(self, live_pg):
+        """The end of the loop the operator asked for: what Eva writes can be
+        found by meaning, not only by recency."""
+        session, agent_id = _tag("vec-session"), _tag("vec-agent")
+        text = "Унікальний маркер: Андрій домовився про зустріч щодо нерухомості"
+
+        async def scenario():
+            memory = MemoryManager(
+                postgres_dsn=live_pg.sqlalchemy_dsn, redis_url="", embedder=_DeterministicEmbedder()
+            )
+            await memory.initialize()
+            try:
+                await memory.save_episode(
+                    session_id=session, agent_id=agent_id, role="user", content=text
+                )
+                stored = live_pg.scalar(
+                    "SELECT count(*) FROM memory.episodes "
+                    "WHERE agent_id = %s AND content_vector IS NOT NULL",
+                    (agent_id,),
+                )
+                found = await memory.semantic_search(
+                    query_embedding=await _DeterministicEmbedder().embed_one(text),
+                    agent_id=agent_id,
+                    min_similarity=0.9,
+                )
+                return stored, found
+            finally:
+                await memory.close()
+
+        stored, found = _run(scenario())
+        assert stored == 1, "the episode was stored without a vector"
+        assert found and found[0]["agent_id"] == agent_id
+        assert found[0]["similarity"] > 0.9
+
+    def test_lesson_is_matchable_by_a_later_action(self, live_pg):
+        """``check_before_action`` used to be called with ``action_embedding=None``
+        everywhere, so the vector branch never ran."""
+        agent_id = _tag("lesson-agent")
+        summary = "Не публікувати контент без перевірки авторських прав"
+
+        async def scenario():
+            memory = MemoryManager(
+                postgres_dsn=live_pg.sqlalchemy_dsn, redis_url="", embedder=_DeterministicEmbedder()
+            )
+            await memory.initialize()
+            try:
+                store = LessonsStore(
+                    session_factory=memory._session_factory, redis=None, embedder=_DeterministicEmbedder()
+                )
+                lesson_id = await store.record_lesson(
+                    agent_id=agent_id, kind="lesson", summary=summary, severity="high"
+                )
+                with_vector = live_pg.scalar(
+                    "SELECT count(*) FROM memory.lessons WHERE id = %s AND lesson_vector IS NOT NULL",
+                    (lesson_id,),
+                )
+                matched = await store.check_before_action(
+                    agent_id=agent_id, action_text=f"lesson: {summary}"
+                )
+                return with_vector, matched
+            finally:
+                await memory.close()
+
+        with_vector, matched = _run(scenario())
+        assert with_vector == 1, "the lesson was recorded without a vector"
+        assert matched and matched[0]["summary"] == summary
+
+    def test_episode_survives_a_dead_embedder_without_a_vector(self, live_pg):
+        """Vector search is an enhancement. Losing it must never lose the episode
+        — and the failure must be visible, not silent."""
+        session, agent_id = _tag("dead-embed"), _tag("dead-embed-agent")
+
+        async def scenario():
+            memory = MemoryManager(
+                postgres_dsn=live_pg.sqlalchemy_dsn, redis_url="", embedder=_BrokenEmbedder()
+            )
+            await memory.initialize()
+            try:
+                episode_id = await memory.save_episode(
+                    session_id=session, agent_id=agent_id, role="user", content="текст важливіший за вектор"
+                )
+                row = await memory.get_recent_episodes(session_id=session, agent_id=agent_id)
+                status = await memory.embedding_status()
+                return episode_id, row, memory.embedding_failures, status
+            finally:
+                await memory.close()
+
+        episode_id, rows, failures, status = _run(scenario())
+        assert episode_id and rows and rows[0]["content"] == "текст важливіший за вектор"
+        assert rows[0]["metadata"] is not None
+        assert failures == 1, "a failed embedding must be counted, not swallowed"
+        assert status["status"] == "unavailable"
+
+    def test_recall_still_works_when_the_query_cannot_be_embedded(self, live_pg):
+        """Episodic recall and semantic recall are independent: the agent keeps its
+        recent memory even when the vector half is down, and says which half failed."""
+        session, agent_id = _tag("half"), _tag("half-agent")
+
+        async def scenario():
+            memory = MemoryManager(
+                postgres_dsn=live_pg.sqlalchemy_dsn, redis_url="", embedder=_DeterministicEmbedder()
+            )
+            await memory.initialize()
+            try:
+                await memory.save_episode(
+                    session_id=session, agent_id=agent_id, role="user", content="звичайний спогад"
+                )
+                memory._embedder = _BrokenEmbedder()  # provider dies between calls
+                return await memory.build_memory_context(
+                    agent_id=agent_id, session_id=session, query_text="що я казав?"
+                )
+            finally:
+                await memory.close()
+
+        block = _run(scenario())
+        assert block["status"] == "ok", "episodic memory is unaffected by the vector half"
+        assert "звичайний спогад" in block["text"]
+        assert block["semantic"]["status"] == "unavailable"
+        assert "model not loaded" in block["semantic"]["warning"]

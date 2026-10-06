@@ -170,6 +170,8 @@ src/confidence.py        бюджет довіри + HITL-гейт
 src/pii.py               маскування PII перед зовнішнім LLM
 src/data_paths.py        ЄДИНЕ джерело шляхів для записуваних даних
 src/vault_paths.py       ЄДИНЕ джерело шляхів секретів Vault
+src/embeddings.py        ЄДИНЕ джерело векторів для пам'яті (BGE-M3, 1024 вим.)
+deploy/runtime/embeddings_server.py  локальний сервіс ембеддингів (окремий контейнер)
 tests/                   pytest-тести + 2 наскрізні suite'и
 tests/live_pg.py         підйом справжнього PostgreSQL+pgvector для тестів
 tests/test_postgres_paths.py  живі SQL-шляхи (схема, pgvector, журнал, device-токени)

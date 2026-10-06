@@ -18,9 +18,11 @@ configured — matching the spec's "0 tokens at rest" principle.
 from __future__ import annotations
 
 import ast
+import hashlib
 import inspect
 import json
 import re
+import uuid
 from typing import Any, Dict, List, Optional
 
 import structlog
@@ -44,11 +46,13 @@ class ArchitectAgent:
         *,
         config: Optional[Dict[str, Any]] = None,
         registry: Optional[Any] = None,
+        change_request_store: Optional[Any] = None,
     ) -> None:
         self._memory = memory
         self._llm = llm
         self._config = dict(config or {})
         self._registry = registry
+        self._change_requests = change_request_store
         # Action -> handler (was an 11-branch if/elif chain). execute() awaits
         # only when the handler returned an awaitable.
         self._ACTION_MAP: Dict[str, Any] = {}
@@ -87,25 +91,141 @@ class ArchitectAgent:
 
     # ------------------------------------------------------------------ #
     def design_workflow(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        name = str(payload.get("name", "generated_workflow"))[:120]
         wf = n8n_builder.build_workflow(
-            name=payload.get("name", "generated_workflow"),
+            name=name,
             trigger=payload.get("trigger", "webhook"),
             steps=payload.get("steps"),
             add_idempotency=payload.get("add_idempotency"),
             error_notify=payload.get("error_notify", True),
         )
+        # Generation is always a proposal. This does not activate an n8n
+        # workflow, and no generated definition may be released by GitOps until
+        # its matching, operator-approved Change Request has been applied.
+        wf["active"] = False
         report = lint_workflow(wf)
-        return {
+        workflow_json = json.dumps(wf, ensure_ascii=False, indent=2)
+        result = {
             "agent": self.AGENT_ID,
             "workflow": wf,
-            "workflow_json": json.dumps(wf, ensure_ascii=False, indent=2),
+            "workflow_json": workflow_json,
             "flowlint": report.to_dict(),
             "ready": report.passed,
+            "approved": False,
+            "activation_blocked": True,
+            "requires_hitl": True,
+            "hitl_reason": "n8n workflow activation requires an explicit human approval",
             "note": (
                 "Generated with core nodes only, OnError branch and idempotency "
-                "guard. Deploy only after Andrii's approval (7-step regimen)."
+                "guard. It remains inactive; review and apply the approval request "
+                "before GitOps release or manual activation."
             ),
         }
+        if not report.passed:
+            result.update(status="blocked_lint", requires_hitl=False)
+            return result
+
+        approval = self._submit_workflow_approval(name, wf, workflow_json)
+        result.update(approval)
+        return result
+
+    @staticmethod
+    def _workflow_slug(name: str) -> str:
+        """Build a safe, short filename/branch component from an operator label."""
+        slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:64]
+        return slug or "workflow"
+
+    @staticmethod
+    def _canonical_workflow(value: Any) -> Optional[Dict[str, Any]]:
+        """Normalize a workflow object/string without accepting non-object JSON."""
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except json.JSONDecodeError:
+                return None
+        return value if isinstance(value, dict) else None
+
+    @staticmethod
+    def _workflow_fingerprint(workflow: Dict[str, Any]) -> str:
+        canonical = json.dumps(workflow, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+    def _submit_workflow_approval(
+        self, name: str, workflow: Dict[str, Any], workflow_json: str
+    ) -> Dict[str, Any]:
+        if self._change_requests is None:
+            return {"approval_status": "approval_store_unavailable"}
+
+        slug = self._workflow_slug(name)
+        approval_path = f"n8n/workflows/{slug}-{uuid.uuid4().hex[:8]}.md"
+        fingerprint = self._workflow_fingerprint(workflow)
+        safe_name = name.replace("\n", " ").replace("\r", " ")
+        proposal = (
+            f"# n8n workflow approval: {safe_name}\n\n"
+            "Status: pending human approval. This workflow is inactive by default.\n\n"
+            f"<!-- workflow-sha256: {fingerprint} -->\n\n"
+            "```json\n"
+            f"{workflow_json}\n"
+            "```\n"
+        )
+        try:
+            cr = self._change_requests.create(
+                author="Architect",
+                title=f"Approve n8n workflow: {safe_name}",
+                rationale=(
+                    "Review the generated workflow and its FlowLint report. "
+                    "The workflow remains inactive until this request is approved and applied."
+                ),
+                changes=[{"path": approval_path, "content": proposal}],
+                tests_passed=["FlowLint passed", "workflow active=false"],
+                risk="high",
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("n8n_workflow_approval_request_failed", error=str(exc))
+            return {"approval_status": "approval_request_failed"}
+
+        return {
+            "approval_status": "pending",
+            "approval_cr_id": cr.get("id"),
+        }
+
+    def _approved_workflow(self, approval_cr_id: str, workflow_input: Any) -> Dict[str, Any]:
+        """Fail closed unless an applied CR contains this exact inactive workflow."""
+        if self._change_requests is None:
+            return {"status": "blocked_approval_store_unavailable"}
+        try:
+            cr = self._change_requests.get(approval_cr_id)
+        except Exception as exc:  # noqa: BLE001
+            return {"status": "blocked_approval_not_found", "error": str(exc)}
+        approval_status = cr.get("status")
+        if approval_status != "applied":
+            blocked_status = (
+                "blocked_approval_pending" if approval_status == "pending"
+                else "blocked_approval_rejected" if approval_status == "rejected"
+                else "blocked_approval_not_applied"
+            )
+            return {"status": blocked_status, "approval_status": approval_status}
+
+        supplied = self._canonical_workflow(workflow_input)
+        if supplied is None or supplied.get("active") is not False:
+            return {"status": "blocked_workflow_must_remain_inactive"}
+
+        changes = cr.get("changes") or []
+        approved_text = next(
+            (change.get("content", "") for change in changes if str(change.get("path", "")).startswith("n8n/workflows/")),
+            "",
+        )
+        match = re.search(r"```json\s*\n(.*?)\n```", approved_text, flags=re.DOTALL)
+        if match is None:
+            return {"status": "blocked_approval_payload_missing"}
+        approved = self._canonical_workflow(match.group(1))
+        if approved is None or self._workflow_fingerprint(approved) != self._workflow_fingerprint(supplied):
+            return {"status": "blocked_approval_payload_mismatch"}
+
+        report = lint_workflow(supplied)
+        if not report.passed:
+            return {"status": "blocked_lint", "flowlint": report.to_dict()}
+        return {"status": "approved", "workflow": supplied, "approval_cr": cr}
 
     def lint(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         wf = payload.get("workflow")
@@ -425,39 +545,66 @@ class ArchitectAgent:
         }
 
     async def gitops_sync(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """GitOps synchronization loop:
-        Prepares a pull request bundle with workflow JSON, ADR, and deployment manifest.
-        """
-        workflow_name = payload.get("workflow_name", "unnamed_workflow")
-        workflow_json = payload.get("workflow_json", {})
-        adr_bundle = payload.get("adr", {})
+        """Prepare a GitOps bundle only for the exact, applied workflow proposal."""
+        approval_cr_id = str(payload.get("approval_cr_id") or "")
+        if not approval_cr_id:
+            return {
+                "agent": self.AGENT_ID,
+                "action": "gitops_sync",
+                "status": "blocked_approval_required",
+                "requires_hitl": True,
+                "hitl_reason": "An operator must review and apply an n8n workflow approval Change Request.",
+                "error": "An applied n8n workflow approval CR is required before GitOps release.",
+            }
 
+        approval = self._approved_workflow(approval_cr_id, payload.get("workflow_json"))
+        if approval.get("status") != "approved":
+            approval_status = approval.get("approval_status")
+            requires_human = approval_status in {"pending", "approved"}
+            result = {
+                "agent": self.AGENT_ID,
+                "action": "gitops_sync",
+                "status": approval.get("status", "blocked_approval"),
+                "approval_status": approval_status,
+                "requires_hitl": requires_human,
+                "error": approval.get("error"),
+            }
+            if requires_human:
+                result["hitl_reason"] = "Operator approval must be applied before GitOps release."
+            return result
+
+        workflow_name = str(payload.get("workflow_name", "unnamed_workflow"))[:120]
+        slug = self._workflow_slug(workflow_name)
+        workflow = approval["workflow"]
+        workflow_export = json.dumps(workflow, ensure_ascii=False, indent=2)
+        adr_bundle = payload.get("adr") if isinstance(payload.get("adr"), dict) else {}
         pr_title = f"feat(n8n): deploy workflow {workflow_name}"
         pr_body = (
-            f"## Automated Workflow Deployment: {workflow_name}\n\n"
-            f"### Context & Architectural Decision\n"
-            f"- Generated via Architect Agent 7-step regimen\n"
+            f"## Workflow proposal: {workflow_name}\n\n"
+            f"- Approval CR: `{approval_cr_id}` (applied by an authorized operator)\n"
             f"- FlowLint status: PASSED\n"
-            f"- ADR reference: #{adr_bundle.get('number', 1)} {adr_bundle.get('title', '')}\n\n"
-            f"### Safety Guarantees\n"
-            f"- Core nodes only\n"
-            f"- Mandatory OnError branch attached\n"
-            f"- Idempotency guard enabled\n"
+            f"- ADR reference: #{adr_bundle.get('number', 1)} {adr_bundle.get('title', '')}\n"
+            "- Core nodes only; error handling and idempotency checks passed\n"
+            "- Export is forced inactive. n8n activation remains a separate manual operator action.\n"
         )
         return {
             "agent": self.AGENT_ID,
             "action": "gitops_sync",
             "workflow_name": workflow_name,
+            "approval_cr_id": approval_cr_id,
+            "approval_status": "approved",
+            "activation_status": "inactive_until_operator_activates",
+            "requires_hitl": False,
             "pr_bundle": {
                 "title": pr_title,
                 "body": pr_body,
-                "branch": f"feature/n8n-{workflow_name.lower().replace('_', '-')}",
+                "branch": f"feature/n8n-{slug}",
                 "files": [
-                    {"path": f"workflows/{workflow_name}.json", "content": workflow_json},
-                    {"path": f"docs/adr/{workflow_name}_adr.md", "content": adr_bundle.get("markdown", "")},
+                    {"path": f"workflows/{slug}.json", "content": workflow_export},
+                    {"path": f"docs/adr/{slug}_adr.md", "content": adr_bundle.get("markdown", "")},
                 ],
             },
-            "status": "pr_bundle_ready_pending_approval",
+            "status": "pr_bundle_ready_pending_operator_activation",
         }
 
     async def drift_detect(self, payload: Dict[str, Any]) -> Dict[str, Any]:

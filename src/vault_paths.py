@@ -26,6 +26,8 @@ Everything now lives under one KV v2 mount (``secret/``) and one prefix
 
 from __future__ import annotations
 
+from typing import Dict, List, Tuple
+
 #: KV v2 mount point. Vault exposes data at ``<mount>/data/<path>``.
 MOUNT = "secret"
 
@@ -37,7 +39,35 @@ DATABASE = "database"      # Postgres: user, password
 REDIS = "redis"            # Redis: password
 AUTH = "auth"              # Agent API: api_key, webhook_secret
 API_KEYS = "api-keys"      # LLM provider keys
-AGENTS = "agents"          # Per-agent connector secrets (see integrations/base.py)
+AGENTS = "agents"          # Per-agent secrets: agents/<agent_id>/<name>
+
+#: Secrets every process needs just to boot (runtime + any future per-agent
+#: container). ``auth`` is deliberately **not** here: that is the server's own
+#: API key, and an agent container has no business reading it.
+INFRA_SERVICES: Tuple[str, ...] = (DATABASE, REDIS, API_KEYS)
+
+#: Secrets read by connector plugins (``src/integrations/*``).
+CONNECTOR_SERVICES: Tuple[str, ...] = ("google_workspace", "mcp", "telegram")
+
+#: Secrets read by voice providers (``src/voice/*``).
+VOICE_SERVICES: Tuple[str, ...] = ("elevenlabs", "groq", "openai", "xai")
+
+#: Canonical agent ids (``src/floors.py`` holds the floor mapping).
+AGENTS_IDS: Tuple[str, ...] = ("eva", "marshal", "architect", "fin", "doc", "kira", "sam")
+
+#: Which *extra* services each agent may read, on top of ``INFRA_SERVICES`` and
+#: its own ``agents/<id>/*`` subtree. Default deny: an agent without an entry
+#: here gets infrastructure and its own subtree, nothing else. This is the map
+#: that makes one compromised agent unable to read another's provider keys.
+AGENT_SERVICES: Dict[str, Tuple[str, ...]] = {
+    "eva": CONNECTOR_SERVICES + VOICE_SERVICES,
+    "marshal": ("mcp", "telegram"),
+    "architect": ("mcp",),
+    "fin": ("google_workspace",),
+    "doc": (),
+    "kira": (),
+    "sam": (),
+}
 
 
 def secret_path(service: str) -> str:
@@ -52,14 +82,74 @@ def secret_path(service: str) -> str:
     return f"{MOUNT}/data/{PREFIX}/{service}"
 
 
+def agent_secret_path(agent_id: str, name: str = "") -> str:
+    """Return the path of one agent's own secret, e.g. Sam's broker keys.
+
+    >>> agent_secret_path("sam", "broker")
+    'secret/data/eva-syndicate/agents/sam/broker'
+    """
+    agent_id = (agent_id or "").strip().strip("/")
+    if not agent_id:
+        raise ValueError("agent_secret_path() requires a non-empty agent id")
+    parts = [MOUNT, "data", PREFIX, AGENTS, agent_id]
+    if name:
+        parts.append(name.strip().strip("/"))
+    return "/".join(parts)
+
+
+def metadata_path(service: str) -> str:
+    """Return the KV v2 metadata path (needed for ``list``/``read`` grants).
+
+    >>> metadata_path("database")
+    'secret/metadata/eva-syndicate/database'
+    """
+    return secret_path(service).replace(f"{MOUNT}/data/", f"{MOUNT}/metadata/", 1)
+
+
+def policy_paths_for_service(service: str) -> List[str]:
+    """Data + metadata paths a policy must grant to read one service."""
+    return [secret_path(service), metadata_path(service)]
+
+
+def agent_prefix(agent_id: str) -> str:
+    """Return the glob covering one agent's own subtree."""
+    agent_id = (agent_id or "").strip().strip("/")
+    if not agent_id:
+        raise ValueError("agent_prefix() requires a non-empty agent id")
+    return f"{MOUNT}/data/{PREFIX}/{AGENTS}/{agent_id}/*"
+
+
 def mount_path() -> str:
     """Return the KV v2 mount path used by :func:`secret_path`."""
     return MOUNT
 
 
-def policy_paths() -> list[str]:
-    """Glob patterns the ``eva-agent`` Vault policy must grant read access to."""
-    return [
-        f"{MOUNT}/data/{PREFIX}/*",
-        f"{MOUNT}/metadata/{PREFIX}/*",
-    ]
+def policy_paths() -> List[str]:
+    """Read globs for the **runtime** policy (the container that exists today).
+
+    The runtime hosts every floor in one process, so its policy is the union of
+    everything the running code reads. It is deliberately explicit per secret
+    instead of ``secret/data/eva-syndicate/*``: a wildcard would also grant any
+    secret added later, including other agents' provider keys.
+    """
+    grants: List[str] = []
+    for service in INFRA_SERVICES + (AUTH,) + CONNECTOR_SERVICES + VOICE_SERVICES:
+        grants.extend(policy_paths_for_service(service))
+    # Per-agent subtrees: connectors read ``agents/<id>/<name>`` when a floor
+    # keeps its keys under its own name. The runtime sees all of them because
+    # all floors share this process; per-agent containers do not (see
+    # ``agent_policy_paths``).
+    grants.append(f"{MOUNT}/data/{PREFIX}/{AGENTS}/*")
+    grants.append(f"{MOUNT}/metadata/{PREFIX}/{AGENTS}/*")
+    return grants
+
+
+def agent_policy_paths(agent_id: str) -> List[str]:
+    """Read globs for one agent's policy (future per-agent container)."""
+    services = INFRA_SERVICES + AGENT_SERVICES.get(agent_id, ())
+    grants: List[str] = []
+    for service in services:
+        grants.extend(policy_paths_for_service(service))
+    grants.append(agent_prefix(agent_id))
+    grants.append(f"{MOUNT}/metadata/{PREFIX}/{AGENTS}/{agent_id}/*")
+    return grants

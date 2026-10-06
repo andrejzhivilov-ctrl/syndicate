@@ -27,6 +27,8 @@ from __future__ import annotations
 import os
 from typing import Any, Dict, List, Optional
 
+from src.embeddings import EMBEDDING_DIM
+
 # Friendly ``.env`` alias -> canonical provider registry key.
 _TTS_ALIASES = {
     "xai": "xai_grok",
@@ -242,6 +244,19 @@ def build_runtime_config(env: Optional[Dict[str, str]] = None) -> Dict[str, Any]
             "readiness_yellow_threshold": _to_float(get("DOC_READINESS_YELLOW"), 65.0),
             "deload_trigger_days": int(get("DOC_DELOAD_TRIGGER_DAYS") or "3"),
             "water_target_ml": int(get("DOC_WATER_TARGET_ML") or "2500"),
+        },
+
+        # ═══════════════════════════════════════════════════════════════
+        # Semantic memory: self-hosted embeddings (BGE-M3, 1024 dims)
+        # An empty EMBEDDINGS_URL disables vector search deliberately — episodic
+        # memory keeps working, so this is a mode, not a misconfiguration.
+        # ═══════════════════════════════════════════════════════════════
+        "embeddings": {
+            "url": (get("EMBEDDINGS_URL") or "").strip(),
+            "model": (get("EMBEDDINGS_MODEL") or "bge-m3").strip(),
+            "dimensions": int(get("EMBEDDINGS_DIM") or str(EMBEDDING_DIM)),
+            "timeout": _to_float(get("EMBEDDINGS_TIMEOUT"), 30.0),
+            "enabled": bool((get("EMBEDDINGS_URL") or "").strip()),
         },
 
         # ═══════════════════════════════════════════════════════════════

@@ -43,6 +43,11 @@ class EvaAgent:
     Chief Executive Officer (CEO) and Supreme Coordinator agent for EVA SYNDICATE.
     """
     AGENT_ID = "eva"
+    DEFAULT_SESSION_ID = "eva_executive_chat"
+    # Recall budget: 20 episodes / ~4000 characters ≈ 1000 tokens, which is the
+    # token-economy answer to "remember everything without re-reading dialogue".
+    MEMORY_CONTEXT_LIMIT = 20
+    MEMORY_CONTEXT_CHARS = 4000
 
     def __init__(
         self,
@@ -94,8 +99,15 @@ class EvaAgent:
             return {"error": str(exc), "agent": self.AGENT_ID, "action": action}
 
     async def _chat(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle executive conversation with user."""
+        """Handle executive conversation with user.
+
+        Recalls recent episodes **before** answering. Eva used to write every
+        turn with ``save_episode`` and never read anything back, so each
+        conversation started from zero while the stored episodes cost tokens and
+        storage for nothing. See ``MemoryManager.build_memory_context``.
+        """
         user_message = payload.get("message") or payload.get("text") or str(payload)
+        session_id = payload.get("session_id") or self.DEFAULT_SESSION_ID
 
         if not self._llm:
             return {
@@ -105,31 +117,90 @@ class EvaAgent:
                 "mode": "deterministic",
             }
 
+        memory = await self._recall(payload, session_id, query_text=user_message)
+        system_prompt = EVA_SYSTEM_PROMPT
+        if memory["text"]:
+            system_prompt = f"{EVA_SYSTEM_PROMPT}\n\n{memory['text']}"
+
         messages = [
-            SystemMessage(content=EVA_SYSTEM_PROMPT),
+            SystemMessage(content=system_prompt),
             HumanMessage(content=user_message),
         ]
         resp = await self._llm.ainvoke(messages)
         content = getattr(resp, "content", str(resp))
 
-        # Save episode to memory if available
-        if self._memory and hasattr(self._memory, "save_episode"):
-            try:
-                await self._memory.save_episode(
-                    session_id=payload.get("session_id", "eva_executive_chat"),
-                    agent_id=self.AGENT_ID,
-                    role="assistant",
-                    content=content,
-                    metadata={"action": "chat"},
-                )
-            except Exception as e:
-                logger.warning("eva_memory_save_failed", error=str(e))
+        await self._remember(session_id, "user", user_message, {"action": "chat"})
+        await self._remember(session_id, "assistant", content, {"action": "chat"})
 
         return {
             "agent": self.AGENT_ID,
             "response": content,
             "status": "completed",
+            "memory": {
+                "status": memory["status"],
+                "episodes_used": memory["episodes_used"],
+                "episodes_available": memory["episodes_available"],
+                "truncated": memory["truncated"],
+                "warning": memory["warning"],
+                # Whether the vector half contributed, and why not if it did not.
+                "semantic": memory.get("semantic"),
+            },
         }
+
+    async def _recall(
+        self, payload: Dict[str, Any], session_id: str, query_text: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Read this session's recent episodes. Never raises, never invents data.
+
+        Returns the ``build_memory_context`` contract; a missing or broken
+        backend yields ``status="unavailable"`` so the caller can pass the truth
+        on instead of claiming it remembered something.
+        """
+        unavailable: Dict[str, Any] = {
+            "status": "unavailable",
+            "text": "",
+            "episodes_used": 0,
+            "episodes_available": 0,
+            "truncated": False,
+            "warning": None,
+            "semantic": {"status": "unavailable", "warning": None},
+        }
+        if not self._memory or not hasattr(self._memory, "build_memory_context"):
+            return {**unavailable, "warning": "memory backend does not expose build_memory_context"}
+
+        try:
+            block = await self._memory.build_memory_context(
+                agent_id=self.AGENT_ID,
+                session_id=session_id,
+                # The current question drives semantic recall, so episodes that
+                # fell out of the recent slice can still be found.
+                query_embedding=payload.get("query_embedding"),
+                query_text=query_text,
+                limit=int(self._config.get("memory_context_limit", self.MEMORY_CONTEXT_LIMIT)),
+                max_chars=int(self._config.get("memory_context_chars", self.MEMORY_CONTEXT_CHARS)),
+            )
+        except Exception as exc:  # noqa: BLE001
+            # An agent must answer even when its memory is unreachable — but it
+            # must say so rather than silently answer without context.
+            logger.warning("eva_memory_recall_failed", error=str(exc))
+            return {**unavailable, "warning": f"memory read failed: {exc}"}
+
+        return {**unavailable, **dict(block or {})}
+
+    async def _remember(self, session_id: str, role: str, content: str, metadata: Dict[str, Any]) -> None:
+        """Persist one turn of the conversation; a memory failure is not fatal."""
+        if not self._memory or not hasattr(self._memory, "save_episode"):
+            return
+        try:
+            await self._memory.save_episode(
+                session_id=session_id,
+                agent_id=self.AGENT_ID,
+                role=role,
+                content=content,
+                metadata=dict(metadata),
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("eva_memory_save_failed", role=role, error=str(exc))
 
     async def _compose_briefing(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -142,18 +213,54 @@ class EvaAgent:
         marshal_data = agent_data.get("marshal", {})
         kira_data = agent_data.get("kira", {})
 
-        # Deterministic summary base
-        readiness = doc_data.get("readiness_score", 85)
-        zone = doc_data.get("zone", "green")
-        runway = fin_data.get("runway_months", 12.0)
+        # Deterministic summary base. No defaults: absent metrics used to become
+        # "readiness 85/100, zone green, runway 12 months" in a briefing the
+        # operator reads as measured fact (AGENTS.md §1 — never fabricate).
+        readiness = doc_data.get("readiness_score")
+        zone = doc_data.get("zone")
+        runway = fin_data.get("runway_months")
+        marshal_status = marshal_data.get("status")
+        kira_focus = kira_data.get("focus")
+
+        missing = [
+            name
+            for name, value in (
+                ("doc.readiness_score", readiness),
+                ("fin.runway_months", runway),
+                ("marshal.status", marshal_status),
+                ("kira.focus", kira_focus),
+            )
+            if value is None
+        ]
+        warnings = (
+            ["missing inputs: " + ", ".join(missing) + " — reported as unavailable, not estimated"]
+            if missing
+            else []
+        )
+
+        health_line = (
+            f"готовність {readiness}/100 (зона {zone if zone is not None else 'невідома'})"
+            if readiness is not None
+            else "дані про готовність відсутні"
+        )
+        finance_line = f"грошовий ранвей {runway} міс." if runway is not None else "дані про ранвей відсутні"
+        ops_line = f"статус фабрики контенту: {marshal_status}" if marshal_status else "статус операцій невідомий"
+        academy_line = f"навчальний фокус: {kira_focus}" if kira_focus else "навчальний фокус не задано"
 
         prompt = (
             f"Сформуй ранковий бриф (07:30) для оператора Синдикату на основі зібраних даних:\n"
-            f"- Здоров'я (Док): готовність {readiness}/100 (зона {zone})\n"
-            f"- Фінанси (Фін): грошовий ранвей {runway} міс.\n"
-            f"- Операції (Маршал): статус фабрики контенту: {marshal_data.get('status', 'активно')}\n"
-            f"- Академія (Кіра): навчальний фокус: {kira_data.get('focus', 'системна інженерія')}\n\n"
+            f"- Здоров'я (Док): {health_line}\n"
+            f"- Фінанси (Фін): {finance_line}\n"
+            f"- Операції (Маршал): {ops_line}\n"
+            f"- Академія (Кіра): {academy_line}\n\n"
+            f"Якщо показник відсутній — так і напиши («дані відсутні»), не вигадуй чисел.\n"
             f"Формат: чітко, структуровано, по-діловому, до 150 слів. Додай коротке мотиваційне напуття."
+        )
+
+        fallback_text = (
+            "Доброго ранку, операторе! "
+            f"Здоров'я: {health_line}. Фінанси: {finance_line}. "
+            f"Операції: {ops_line}. Академія: {academy_line}."
         )
 
         if self._llm:
@@ -162,24 +269,22 @@ class EvaAgent:
                 summary_text = getattr(resp, "content", str(resp))
             except Exception as exc:  # noqa: BLE001
                 logger.warning("eva_briefing_llm_failed", error=str(exc))
-                summary_text = (
-                    f"Доброго ранку, операторе! Готовність організму: {readiness}/100 ({zone}). "
-                    f"Фінансовий резерв: {runway} міс. Всі 10 поверхів Синдикату у штатному режимі."
-                )
+                summary_text = fallback_text
         else:
-            summary_text = (
-                f"Доброго ранку, операторе! Готовність організму: {readiness}/100 ({zone}). "
-                f"Фінансовий резерв: {runway} міс. Всі 10 поверхів Синдикату у штатному режимі."
-            )
+            summary_text = fallback_text
 
         return {
             "agent": self.AGENT_ID,
+            # Every source missing means the briefing itself has nothing to
+            # report, so its status is unavailable rather than a cheerful "ok".
+            "status": "unavailable" if len(missing) == 4 else "completed",
             "response": summary_text,
             "briefing": summary_text,
             "agent_data": agent_data,
             "readiness_score": readiness,
             "runway_months": runway,
-            "status": "completed",
+            "missing_inputs": missing,
+            "warnings": warnings,
         }
 
     async def _compose_reflection(self, payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -190,12 +295,33 @@ class EvaAgent:
         doc_data = evening_data.get("doc", {})
         kira_data = evening_data.get("kira", {})
 
+        # A canned "the day went well" belongs to nobody's data. If neither Doc
+        # nor Kira reported anything, say so instead of inventing a good day.
+        missing = [name for name, value in (("doc", doc_data), ("kira", kira_data)) if not value]
+        warnings = (
+            ["missing inputs: " + ", ".join(missing) + " — reflection reports absence, not a verdict"]
+            if missing
+            else []
+        )
+
         prompt = (
             f"Сформуй підсумкову вечірню рефлексію (21:00) для оператора:\n"
-            f"- Відновлення та вегетативна система (Док): {doc_data}\n"
-            f"- Мікро-квіз дня (Кіра): {kira_data.get('quiz', 'тест пройдено')}\n\n"
+            f"- Відновлення та вегетативна система (Док): {doc_data if doc_data else 'дані відсутні'}\n"
+            f"- Мікро-квіз дня (Кіра): {kira_data.get('quiz', 'тест пройдено') if kira_data else 'дані відсутні'}\n\n"
+            f"Якщо даних немає — прямо скажи, що їх немає, і не оцінюй день.\n"
             f"Склади коротке, заспокійливе резюме дня, порадивши перехід до фази відпочинку."
         )
+
+        if missing:
+            fallback_text = (
+                "Вечірня рефлексія: даних про відновлення та навчання за сьогодні немає "
+                f"(немає: {', '.join(missing)}). Рекомендовано знизити екранний час і перейти до сну."
+            )
+        else:
+            fallback_text = (
+                "Вечірня рефлексія: день завершено за наявними даними. "
+                "Рекомендовано знизити екранний час та перейти до сну."
+            )
 
         if self._llm:
             try:
@@ -203,16 +329,18 @@ class EvaAgent:
                 reflection_text = getattr(resp, "content", str(resp))
             except Exception as exc:  # noqa: BLE001
                 logger.warning("eva_reflection_llm_failed", error=str(exc))
-                reflection_text = "Вечірня рефлексія: день успішно завершено. Рекомендовано знизити екранний час та перейти до сну."
+                reflection_text = fallback_text
         else:
-            reflection_text = "Вечірня рефлексія: день успішно завершено. Рекомендовано знизити екранний час та перейти до сну."
+            reflection_text = fallback_text
 
         return {
             "agent": self.AGENT_ID,
+            "status": "unavailable" if len(missing) == 2 else "completed",
             "response": reflection_text,
             "reflection": reflection_text,
             "evening_data": evening_data,
-            "status": "completed",
+            "missing_inputs": missing,
+            "warnings": warnings,
         }
 
     async def _delegate_intent(self, payload: Dict[str, Any]) -> Dict[str, Any]:

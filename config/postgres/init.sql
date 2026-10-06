@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS memory.episodes (
     agent_id        VARCHAR(64) NOT NULL,
     role            VARCHAR(16) NOT NULL CHECK (role IN ('user', 'assistant', 'system', 'tool')),
     content         TEXT NOT NULL,
-    content_vector  vector(1536),  -- OpenAI text-embedding-3-small dimensions
+    content_vector  vector(1024),  -- BAAI/bge-m3 dense (self-hosted, see src/embeddings.py)
     metadata        JSONB DEFAULT '{}',
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS memory.semantic (
     agent_id    VARCHAR(64) NOT NULL,
     category    VARCHAR(128) NOT NULL,
     content     TEXT NOT NULL,
-    content_vector vector(1536),
+    content_vector vector(1024),
     confidence  FLOAT DEFAULT 1.0,
     source      VARCHAR(256),
     metadata    JSONB DEFAULT '{}',
@@ -213,7 +213,7 @@ CREATE TABLE IF NOT EXISTS agents.sam_reflections (
                    CHECK (kind IN ('lesson', 'negative_constraint', 'pattern', 'calibration')),
     summary        TEXT NOT NULL,
     detail         JSONB DEFAULT '{}',
-    embedding      vector(1536),              -- for RAG retrieval of past lessons
+    embedding      vector(1024),              -- for RAG retrieval of past lessons
     weight         NUMERIC(5,2) DEFAULT 1.0,  -- salience of this lesson
     created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -276,7 +276,7 @@ CREATE TABLE IF NOT EXISTS memory.lessons (
     context         TEXT,
     severity        VARCHAR(16) DEFAULT 'medium'
                     CHECK (severity IN ('low', 'medium', 'high', 'critical')),
-    lesson_vector   vector(1536),
+    lesson_vector   vector(1024),
     times_matched   INTEGER DEFAULT 0,
     do_not_compress BOOLEAN DEFAULT false,
     expires_at      TIMESTAMPTZ,
@@ -292,7 +292,7 @@ CREATE TABLE IF NOT EXISTS memory.response_cache (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     agent_id        VARCHAR(64) NOT NULL,
     query_text      TEXT NOT NULL,
-    query_vector    vector(1536),
+    query_vector    vector(1024),
     response_text   TEXT NOT NULL,
     model_used      VARCHAR(64),
     tokens_saved    INTEGER DEFAULT 0,
