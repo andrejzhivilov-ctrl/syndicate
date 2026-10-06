@@ -25,6 +25,65 @@
 
 ---
 
+## 2026-10-06 — Arena Agent: нейтральний каркас платформи SYNDICATE (фаза 1)
+
+**Гілка:** `arena/0f6034ef-eva-syndicate` · **Коміт:** delivery commit цього запису · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+
+- Додано `src/agent_platform/`: Hermes-only `AgentProfile` без бізнес-ролей і default grants;
+  immutable registry з унікальними Hermes profiles та memory namespaces; host-authored access
+  requests; fail-closed `AgentPolicy`; runtime/service adapter protocols; dispatcher для вузла
+  зовнішнього LangGraph.
+- Policy вимагає точний ресурсний scope для memory/service/location; власний memory namespace
+  відокремлений; wildcard заборонений. Фінансові/деструктивні/security/deploy/зовнішні дії,
+  зміни прав/політик, нові сервіси/ресурси та location повертають `approval_required` і не
+  викликають runtime.
+- Заблоковано capability для email send, входу до Дії/Армія+/BankID, fingerprint-spoofing і
+  residential-proxy rotation. Ніяких профілів окремих агентів або прав поки не оголошено.
+- `MemoryManagerAdapter` прив’язаний до одного namespace/session і окремо вимагає `memory.read`
+  / `memory.write`; перед записом маскує PII у тексті, а metadata пропускає лише за allowlist.
+  `MemoryManagerAuditSink` повторно використовує privacy-minimized append-only `audit.decisions`.
+- Hermes transport/runtime та service connections не інстальовані й не підключені. Офіційні
+  Hermes integration docs/source перевірені; через Python 3.14 runtime-vs-3.11 SYNDICATE mismatch
+  не додавався Hermes до поточного process/dependencies. Висновки та наступні кроки —
+  `docs/SYNDICATE_PLATFORM_BASE.md`.
+- `docs/NEW_CHAT_PROMPT.md` оновлено для нового напрямку та безпечного branch/dependency/test/
+  delivery процесу; простий `git apply` заборонений, записаний 3-way/`--theirs` рецепт.
+- `tests/test_agent_platform.py`: **28 нових тестів**. Повний `bash tools/check.sh` зелений.
+
+### Не дороблено / свідомо залишено
+
+- Жодного live Hermes adapter/API, locked Hermes tag, container, model, profile, agent-role,
+  permission grants, service adapter чи LangGraph wiring до існуючого production request path.
+- Не реалізовано затвердження/re-entry path після `approval_required`; такі дії залишаються
+  зупиненими, без side effect. Evening-report proposal pipeline — наступна окрема інтеграція.
+- `ServiceAdapter` наразі лише контракт; поточний `ToolRegistry` автоматично не викликає нову
+  `AgentPolicy`. З’єднати їх і тестувати кожну операцію треба до видачі Hermes tools.
+- `apps/` не змінювався; deployment не виконувався.
+
+### Наступне
+
+1. Андрій обирає разом із нами Hermes version/commit і transport/process boundary після перевірки
+   upstream toolset, sandbox, approval pauses, profile/data isolation і версії Python.
+2. Реалізувати тільки контрольований tool bridge: кожен Hermes tool call → host-owned tool
+   contract → capability/action/resource policy → existing HITL/audit; інші built-ins disabled.
+3. Після цього — один майбутній agent profile за раз, тільки з погодженими роллю/моделлю/skills/
+   integrations/scopes. NotebookLM, Obsidian і Google Drive залишаються майбутніми adapters.
+4. Production deployment — окрема фаза з прямим дозволом користувача.
+
+### Ризики й спостереження
+
+- Новий dispatcher не є runtime security boundary, поки Hermes internal tool calls не проходять
+  через tool bridge. Не відкривати API server із широкими Hermes built-in tools і не додавати його
+  до Compose до завершення цього етапу.
+- Audit writer у наявному `MemoryManager` є best-effort; перевірка коду не заміняє моніторинг
+  persisted rows на сервері.
+- Нагадати Андрію відкликати PAT у публічному `EVA_SYNDICATE_FULL_DIALOGUE.txt`; значення не
+  використовувати/копіювати. Долю публічного файлу вирішує Андрій.
+
+---
+
 > **Примітка:** сесії 8 (гілка `arena/01a10d46-eva-syndicate`) і 9 (гілка
 > `arena/01a10d4e-eva-syndicate`) виконувались **паралельно** і не бачили одна одну.
 > Обидві спершу назвались «сесія 8»; запис нижче перенумеровано на 9, щоб журнал був
