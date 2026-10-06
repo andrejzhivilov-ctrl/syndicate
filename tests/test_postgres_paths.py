@@ -176,13 +176,15 @@ class TestSchemaOnLivePostgres:
 
         # The runtime writes these tables…
         for table in ("auth.device_tokens", "agents.sam_trade_journal", "memory.episodes",
-                      "agents.checkpoints", "memory.lessons"):
+                      "agents.checkpoints", "memory.lessons", "audit.decisions",
+                      "audit.outbound_vetoes"):
             assert privilege(table, "INSERT"), f"eva_agent needs INSERT on {table}"
         assert privilege("auth.device_tokens", "UPDATE")
         assert privilege("agents.sam_trade_journal", "UPDATE")
         # …but not beyond what it needs.
-        assert not privilege("audit.outbound_vetoes", "SELECT"), "vetoes are write-only for the agent"
-        assert not privilege("audit.decisions", "DELETE")
+        for table in ("audit.decisions", "audit.outbound_vetoes"):
+            for priv in ("SELECT", "UPDATE", "DELETE"):
+                assert not privilege(table, priv), f"{table} must be INSERT-only for eva_agent (unexpected {priv})"
         assert not privilege("agents.sam_trade_journal", "DELETE"), "journal history must be append-only"
         assert not live_pg.scalar("SELECT has_schema_privilege('eva_agent', 'memory', 'CREATE')")
 
@@ -282,6 +284,67 @@ class TestMemoryManagerLiveSql:
         exact, latest = _run(scenario())
         assert exact == {"step": 2}, "ON CONFLICT … DO UPDATE must overwrite the checkpoint"
         assert latest == {"step": 2}
+
+    def test_durable_audit_decisions_and_vetoes_round_trip_without_payload_pii(self, live_pg):
+        agent_id, task_id = _tag("audit"), _tag("task")
+
+        async def scenario():
+            memory = await _memory(live_pg)
+            try:
+                decision_ok = await memory.write_audit_decision(
+                    agent_id=agent_id,
+                    action="send_email",
+                    task_type="send_email",
+                    confidence=0.94,
+                    escalation="ask",
+                    facts_used=["risk_classification", "owner@example.com"],
+                    lessons_checked=["lesson-1"],
+                    input_hash="not-a-valid-hash",
+                    outcome="blocked",
+                    hitl_override=False,
+                    details={
+                        "task_id": task_id,
+                        "result_status": "blocked",
+                        "requires_hitl": True,
+                        "raw_payload": "owner@example.com",
+                    },
+                )
+                veto_ok = await memory.write_outbound_veto(
+                    agent_id=agent_id,
+                    action_type="send_email",
+                    policy_rule="blocked",
+                    allowed=False,
+                    reason="outbound_blocked",
+                    risk_level="critical",
+                    details={
+                        "task_id": task_id,
+                        "requires_hitl": True,
+                        "risk_score": 0.97,
+                        "raw_payload": "owner@example.com",
+                    },
+                )
+                return decision_ok, veto_ok
+            finally:
+                await memory.close()
+
+        assert _run(scenario()) == (True, True)
+        decision = live_pg.fetch(
+            """SELECT action, outcome, confidence::text, facts_used::text, details::text
+               FROM audit.decisions WHERE agent_id = %s AND details->>'task_id' = %s""",
+            (agent_id, task_id),
+        )
+        veto = live_pg.fetch(
+            """SELECT action_type, policy_rule, allowed, reason, risk_level, details::text
+               FROM audit.outbound_vetoes WHERE agent_id = %s AND details->>'task_id' = %s""",
+            (agent_id, task_id),
+        )
+        assert len(decision) == 1 and len(veto) == 1
+        assert decision[0][:3] == ("send_email", "blocked", "0.940")
+        assert "owner@example.com" not in " ".join(decision[0][3:])
+        assert decision[0][4].find('"requires_hitl": true') >= 0
+        assert veto[0][:5] == ("send_email", "blocked", False, "outbound_blocked", "critical")
+        assert "owner@example.com" not in veto[0][5]
+        assert '"risk_score": 0.97' in veto[0][5]
 
     def test_pool_is_exposed_for_dollar_placeholder_components(self, live_pg):
         """TradeJournal/DeviceTokenStore probe ``memory.pool``/``_pool``/``db_pool``.

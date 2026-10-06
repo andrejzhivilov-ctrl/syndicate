@@ -10,6 +10,7 @@ v4.1 Verified:
 from __future__ import annotations
 
 import json
+import math
 import re
 import uuid
 from datetime import datetime, timezone
@@ -22,8 +23,74 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 from src.embeddings import EMBEDDING_DIM, EmbeddingUnavailable  # noqa: F401  (re-exported)
+from src.pii import PIIRedactor
 
 logger = structlog.get_logger(__name__)
+_AUDIT_REDACTOR = PIIRedactor()
+
+_AUDIT_LABEL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]*$")
+_AUDIT_HASH_RE = re.compile(r"^[a-fA-F0-9]{64}$")
+_AUDIT_OUTCOMES = {"pending", "success", "failure", "overridden", "blocked", "refused"}
+_AUDIT_ESCALATIONS = {"act", "ask", "refuse"}
+_AUDIT_RISK_LEVELS = {"low", "medium", "high", "critical", "unknown"}
+
+
+def _audit_label(value: Any, *, limit: int, default: str = "unknown") -> str:
+    """Keep only bounded identifier labels, never partially retain free-form input."""
+    label = str(value or "").strip()
+    if not label or not _AUDIT_LABEL_RE.fullmatch(label):
+        return default
+    redacted, _events = _AUDIT_REDACTOR.redact(label)
+    if redacted != label:
+        return default
+    return label[:limit]
+
+
+def _audit_labels(values: Any, *, limit: int = 32) -> List[str]:
+    """Keep only bounded identifier labels for JSONB audit columns."""
+    if not isinstance(values, (list, tuple, set)):
+        return []
+    safe = []
+    for item in list(values)[:limit]:
+        if isinstance(item, str) and len(item) <= 128:
+            label = _audit_label(item, limit=128, default="")
+            if label:
+                safe.append(label)
+    return safe
+
+
+def _audit_count(value: Any) -> Optional[int]:
+    try:
+        return max(0, min(10000, int(value)))
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def _audit_score(value: Any) -> Optional[float]:
+    try:
+        score = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return round(min(1.0, max(0.0, score)), 3) if math.isfinite(score) else None
+
+
+def _audit_details(details: Any) -> Dict[str, Any]:
+    """Allow only low-risk correlation/status fields in the durable audit row."""
+    if not isinstance(details, dict):
+        return {}
+    safe: Dict[str, Any] = {}
+    for key in ("task_id", "result_status", "skill_capture_status"):
+        if details.get(key) is not None:
+            safe[key] = _audit_label(details[key], limit=128)
+    for key in ("requires_hitl", "hitl_override", "allowed"):
+        if isinstance(details.get(key), bool):
+            safe[key] = details[key]
+    for key in ("prior_lessons_count", "blocked_actions_count"):
+        if key in details and (count := _audit_count(details[key])) is not None:
+            safe[key] = count
+    if "risk_score" in details and (score := _audit_score(details["risk_score"])) is not None:
+        safe["risk_score"] = score
+    return safe
 
 """Module-level alias kept for callers that imported it from here."""
 
@@ -634,6 +701,128 @@ class MemoryManager:
         stamp = stamp[5:] if stamp else "—"
         role = self.ROLE_LABELS.get(str(episode.get("role")), str(episode.get("role") or "?"))
         return f"[{stamp}] {role}: {content}"
+
+    # ─── Durable audit writes (append-only tables) ─────────────────────────
+
+    async def _write_audit_sql(
+        self, *, event: str, statement: str, params: Dict[str, Any]
+    ) -> bool:
+        """Best-effort append; an audit outage must not change the task result."""
+        if self._session_factory is None:
+            logger.warning("durable_audit_unavailable", audit_kind=event, reason="database_not_initialized")
+            return False
+        try:
+            async with self._session_factory() as session:
+                await session.execute(text(statement), params)
+                await session.commit()
+            return True
+        except Exception as exc:  # noqa: BLE001 - audit failure must never fail agent work
+            # Do not log SQL params, action payloads, or exception text that may
+            # contain user-controlled values. The exception type is sufficient
+            # to diagnose a broken persistence path without copying PII.
+            logger.warning("durable_audit_write_failed", audit_kind=event, error_type=type(exc).__name__)
+            return False
+
+    async def write_audit_decision(
+        self,
+        *,
+        agent_id: str,
+        action: str,
+        task_type: Optional[str] = None,
+        confidence: Optional[float] = None,
+        escalation: Optional[str] = None,
+        facts_used: Any = None,
+        lessons_checked: Any = None,
+        model_used: Optional[str] = None,
+        input_hash: Optional[str] = None,
+        outcome: str = "pending",
+        hitl_override: bool = False,
+        details: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        """Append a privacy-minimized decision row to ``audit.decisions``."""
+        safe_confidence = None
+        if confidence is not None:
+            try:
+                value = float(confidence)
+                if math.isfinite(value):
+                    safe_confidence = round(min(1.0, max(0.0, value)), 3)
+            except (TypeError, ValueError, OverflowError):
+                pass
+        safe_escalation = (
+            escalation
+            if isinstance(escalation, str) and escalation in _AUDIT_ESCALATIONS
+            else None
+        )
+        safe_outcome = (
+            outcome
+            if isinstance(outcome, str) and outcome in _AUDIT_OUTCOMES
+            else "failure"
+        )
+        safe_hash = str(input_hash) if input_hash and _AUDIT_HASH_RE.fullmatch(str(input_hash)) else None
+
+        statement = """
+            INSERT INTO audit.decisions
+                (agent_id, action, task_type, confidence, escalation, facts_used,
+                 lessons_checked, model_used, input_hash, outcome, hitl_override, details)
+            VALUES
+                (:agent_id, :action, :task_type, :confidence, :escalation,
+                 CAST(:facts_used AS jsonb), CAST(:lessons_checked AS jsonb),
+                 :model_used, :input_hash, :outcome, :hitl_override, CAST(:details AS jsonb))
+        """
+        params = {
+            "agent_id": _audit_label(agent_id, limit=64),
+            "action": _audit_label(action, limit=128),
+            "task_type": _audit_label(task_type, limit=128) if task_type else None,
+            "confidence": safe_confidence,
+            "escalation": safe_escalation,
+            "facts_used": json.dumps(_audit_labels(facts_used), ensure_ascii=False),
+            "lessons_checked": json.dumps(_audit_labels(lessons_checked), ensure_ascii=False),
+            "model_used": _audit_label(model_used, limit=64) if model_used else None,
+            "input_hash": safe_hash,
+            "outcome": safe_outcome,
+            "hitl_override": hitl_override is True,
+            "details": json.dumps(_audit_details(details), ensure_ascii=False, sort_keys=True),
+        }
+        return await self._write_audit_sql(event="decision", statement=statement, params=params)
+
+    async def write_outbound_veto(
+        self,
+        *,
+        agent_id: str,
+        action_type: str,
+        policy_rule: str,
+        allowed: bool,
+        reason: Optional[str] = None,
+        risk_level: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        """Append a privacy-minimized outbound decision to ``audit.outbound_vetoes``."""
+        # Persist only the fixed reason vocabulary used by the orchestrator;
+        # ignore arbitrary/free-form strings, even if a redactor could mask known PII.
+        safe_reasons = {"outbound_allowed", "outbound_blocked", "approval_required"}
+        safe_reason = reason if isinstance(reason, str) and reason in safe_reasons else None
+        safe_risk = (
+            risk_level
+            if isinstance(risk_level, str) and risk_level in _AUDIT_RISK_LEVELS
+            else "unknown"
+        )
+        statement = """
+            INSERT INTO audit.outbound_vetoes
+                (agent_id, action_type, policy_rule, allowed, reason, risk_level, details)
+            VALUES
+                (:agent_id, :action_type, :policy_rule, :allowed, :reason, :risk_level,
+                 CAST(:details AS jsonb))
+        """
+        params = {
+            "agent_id": _audit_label(agent_id, limit=64),
+            "action_type": _audit_label(action_type, limit=128),
+            "policy_rule": _audit_label(policy_rule, limit=32),
+            "allowed": allowed is True,
+            "reason": safe_reason,
+            "risk_level": safe_risk,
+            "details": json.dumps(_audit_details(details), ensure_ascii=False, sort_keys=True),
+        }
+        return await self._write_audit_sql(event="outbound_veto", statement=statement, params=params)
 
     # ─── Agent Checkpoints (LangGraph) ──────────────────────────────────────
 

@@ -30,6 +30,45 @@
 > Обидві спершу назвались «сесія 8»; запис нижче перенумеровано на 9, щоб журнал був
 > однозначним. Порядок — newest first.
 
+## 2026-10-06 — Arena Agent: durable audit trail (беклог #17)
+
+**Гілка:** `arena/0f6034ef-eva-syndicate` · **Коміт:** delivery commit цієї гілки · **Ворота:** ✅
+
+### Зроблено
+
+* `MemoryManager.write_audit_decision()` і `write_outbound_veto()` додають append-only записи до
+  `audit.decisions` / `audit.outbound_vetoes`; без `UPDATE`/`DELETE` і без читання цих таблиць.
+* Оркестратор пише одне рішення на фіналізовану задачу та окремо кожну outbound-перевірку.
+  Marshal `allowed=false` стає `blocked`, потрібний HITL — `pending` з ескалацією `ask`,
+  відмова — `refused`; risk score і безпечні ознаки зберігаються як bounded metadata.
+  Outbound gate також передає `requires_hitl` далі в HITL-гейт.
+* Payload, тексти відповіді та вільні reason-повідомлення не потрапляють до audit-таблиць.
+  Запис дозволяє лише allowlist ідентифікаторів/статусів/лічильників; reason для outbound —
+  лише фіксований код. DB-помилка best-effort: не змінює результат задачі й не логує SQL params.
+* Додані unit і live PostgreSQL тести на INSERT/round-trip, приватність через allowlist,
+  graceful DB failure та INSERT-only least-privilege права. `pytest tests/`:
+  **455 passed, 1 skipped**; `bash tools/check.sh` — усі ворота зелені.
+
+### Не дороблено / свідомо залишено
+
+* `hitl_override` лишається `false`: цей флоу фіксує рішення `pending`, але факт людського
+  override/approval поки не надходить як подія в `audit.decisions`.
+* Жодних змін у `apps/`; живу БД перевірено локальним PostgreSQL harness, не production-сервером.
+
+### Наступне
+
+1. Перевірити audit inserts у серверному середовищі після розгортання; Mem0 залишається окремим
+   рішенням користувача.
+2. Людині відкликати PAT із публічного `EVA_SYNDICATE_FULL_DIALOGUE.txt` та вирішити долю файла.
+
+### Ризики й спостереження
+
+* Якщо таблиці/права/БД недоступні, task продовжується без durable рядка; логи показують лише
+  тип помилки. Для Zero-Trust deployment варто моніторити такі `durable_audit_write_failed`
+  події й алертити на деградацію аудиту.
+
+---
+
 ## 2026-10-06 — Arena Agent: пам'ять агентів, N8N HITL і SKILL.md
 
 **Гілка:** `arena/0f6034ef-eva-syndicate` · **Коміт:** delivery commit цієї гілки · **Ворота:** ✅ `bash tools/check.sh`

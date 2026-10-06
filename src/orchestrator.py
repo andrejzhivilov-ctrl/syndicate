@@ -535,11 +535,53 @@ class EvaOrchestrator:
                 state["hitl_reason"] = f"Confidence gate: {escalation.reason}"
         return state
 
+    async def _persist_outbound_audit(self, state: AgentState, action: Dict[str, Any], veto: Any) -> None:
+        writer = getattr(self._memory, "write_outbound_veto", None)
+        if not callable(writer):
+            return
+        score = getattr(veto, "risk_score", None)
+        try:
+            score_value = float(score) if score is not None else 0.0
+        except (TypeError, ValueError, OverflowError):
+            score_value = 0.0
+        requires_hitl = bool(getattr(veto, "requires_hitl", False))
+        policy_rule = "hitl_required" if requires_hitl else "blocked" if not veto.allowed else "allowed"
+        risk_level = (
+            "critical" if score_value >= 0.9
+            else "high" if score_value >= 0.7
+            else "medium" if score_value >= 0.4
+            else "low"
+        )
+        try:
+            await writer(
+                agent_id=str(state.get("current_agent", "eva")),
+                action_type=str(action.get("type", action.get("action", "unknown"))),
+                policy_rule=policy_rule,
+                allowed=bool(veto.allowed),
+                reason=(
+                    "approval_required" if requires_hitl
+                    else "outbound_blocked" if not veto.allowed
+                    else "outbound_allowed"
+                ),
+                risk_level=risk_level,
+                details={
+                    "task_id": state.get("task_id"),
+                    "requires_hitl": requires_hitl,
+                    "risk_score": score_value,
+                },
+            )
+        except Exception as exc:  # noqa: BLE001 - audit outage must not change veto behavior
+            logger.warning("outbound_audit_write_failed", error_type=type(exc).__name__)
+
     async def _outbound_veto(self, state: AgentState) -> AgentState:
         if state.get("result", {}).get("outbound_actions"):
             blocked = []
             for action in state["result"]["outbound_actions"]:
                 veto = await self._sentinel.veto_outbound_action(state.get("current_agent", "eva"), action)
+                await self._persist_outbound_audit(state, action, veto)
+                if getattr(veto, "requires_hitl", False):
+                    state["requires_hitl"] = True
+                    state["hitl_reason"] = "An outbound action requires operator approval"
                 if not veto.allowed:
                     blocked.append({**action, "veto_reason": veto.reason})
             if blocked:
@@ -1052,6 +1094,71 @@ class EvaOrchestrator:
             state["requires_hitl"] = False
         return state
 
+    @staticmethod
+    def _task_audit_outcome(state: AgentState, result: Dict[str, Any]) -> str:
+        result_status = str(result.get("status", "")).lower()
+        if result.get("refused") or result_status == "refused":
+            return "refused"
+        if (
+            result.get("blocked")
+            or result.get("allowed") is False
+            or result.get("blocked_actions")
+            or result_status.startswith("blocked")
+        ):
+            return "blocked"
+        if (
+            state.get("status") != "completed"
+            or result.get("error")
+            or result_status in {"error", "failed", "unavailable"}
+        ):
+            return "failure"
+        if state.get("requires_hitl") or result.get("requires_hitl") or result.get("required_hitl"):
+            return "pending"
+        return "success"
+
+    async def _persist_task_audit(self, state: AgentState, result: Any) -> None:
+        writer = getattr(self._memory, "write_audit_decision", None)
+        if not callable(writer):
+            return
+        result_data = result if isinstance(result, dict) else {}
+        outcome = self._task_audit_outcome(state, result_data)
+        requires_hitl = bool(
+            state.get("requires_hitl")
+            or result_data.get("requires_hitl")
+            or result_data.get("required_hitl")
+        )
+        capture = result_data.get("skill_capture")
+        capture_status = capture.get("status") if isinstance(capture, dict) else None
+        payload = state.get("payload")
+        if not isinstance(payload, dict):
+            payload = {}
+        prior_lessons = payload.get("prior_lessons")
+        details = {
+            "task_id": state.get("task_id"),
+            "result_status": result_data.get("status", state.get("status")),
+            "requires_hitl": requires_hitl,
+            "allowed": result_data.get("allowed"),
+            "risk_score": result_data.get("risk_score"),
+            "prior_lessons_count": len(prior_lessons) if isinstance(prior_lessons, list) else 0,
+            "blocked_actions_count": len(result_data.get("blocked_actions") or []),
+            "skill_capture_status": capture_status,
+        }
+        try:
+            await writer(
+                agent_id=str(state.get("current_agent", "eva")),
+                action=str(state.get("task_type", "unknown")),
+                task_type=str(state.get("task_type", "unknown")),
+                confidence=result_data.get("confidence"),
+                escalation="refuse" if outcome in {"refused", "blocked"} else "ask" if requires_hitl else "act",
+                facts_used=[],
+                lessons_checked=[],
+                outcome=outcome,
+                hitl_override=False,
+                details=details,
+            )
+        except Exception as exc:  # noqa: BLE001 - audit outage must not change task result
+            logger.warning("decision_audit_write_failed", error_type=type(exc).__name__)
+
     async def _finalize(self, state: AgentState) -> AgentState:
         result = state.get("result")
         if hasattr(result, "to_dict"):
@@ -1087,6 +1194,7 @@ class EvaOrchestrator:
             result["skill_capture"] = capture
             state["result"] = result
 
+        await self._persist_task_audit(state, result)
         await self._memory.save_checkpoint(
             thread_id=state["session_id"],
             checkpoint_id=state["task_id"],

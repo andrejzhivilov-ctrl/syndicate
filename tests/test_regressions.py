@@ -2520,7 +2520,8 @@ class TestSkillStore:
                 return None
 
         class OrchestratorStub:
-            pass
+            async def _persist_task_audit(self, _state, _result):
+                return None
 
         store = SkillStore(vault=MarkdownVault(vault_root=tmp_path / "vault"))
         orchestrator = OrchestratorStub()
@@ -2564,6 +2565,217 @@ class TestSkillStore:
         assert "current system, safety, and user instructions" in prompt
         assert context["status"] == "unavailable"  # skill notes do not mask a failed memory backend
         assert context["skills_used"] == 1
+
+
+class TestDurableAuditWrites:
+    def test_memory_audit_writes_are_append_only_and_privacy_minimized(self):
+        from src.memory import MemoryManager
+
+        class Session:
+            def __init__(self):
+                self.executions = []
+                self.commits = 0
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_args):
+                return False
+
+            async def execute(self, statement, params):
+                self.executions.append((str(statement), params))
+
+            async def commit(self):
+                self.commits += 1
+
+        session = Session()
+        memory = MemoryManager(postgres_dsn="", redis_url="")
+        memory._session_factory = lambda: session
+
+        async def scenario():
+            decision_ok = await memory.write_audit_decision(
+                agent_id="marshal",
+                action="send_email",
+                task_type="send_email",
+                confidence=1.2,
+                escalation="ask",
+                facts_used=["balance", "owner@example.com", "4111111111111111"],
+                lessons_checked=["lesson-7", "+380501234567"],
+                input_hash="owner@example.com",
+                outcome="unknown-outcome",
+                details={
+                    "task_id": "task-7",
+                    "result_status": "blocked",
+                    "requires_hitl": True,
+                    "payload": "owner@example.com",
+                    "message": "private body",
+                },
+            )
+            veto_ok = await memory.write_outbound_veto(
+                agent_id="marshal",
+                action_type="send_email",
+                policy_rule="blocked",
+                allowed=False,
+                reason="Private body for owner@example.com",
+                risk_level="high",
+                details={"task_id": "task-7", "payload": "private body", "risk_score": 1.4},
+            )
+            return decision_ok, veto_ok
+
+        assert _run(scenario()) == (True, True)
+        assert session.commits == 2
+        decision_sql, decision = session.executions[0]
+        veto_sql, veto = session.executions[1]
+        assert "INSERT INTO audit.decisions" in decision_sql
+        assert "UPDATE" not in decision_sql.upper() and "DELETE" not in decision_sql.upper()
+        assert decision["facts_used"] == '["balance"]'
+        assert decision["lessons_checked"] == '["lesson-7"]'
+        assert decision["confidence"] == 1.0
+        assert decision["input_hash"] is None
+        assert decision["outcome"] == "failure"
+        assert json.loads(decision["details"]) == {
+            "requires_hitl": True,
+            "result_status": "blocked",
+            "task_id": "task-7",
+        }
+        assert "INSERT INTO audit.outbound_vetoes" in veto_sql
+        assert veto["reason"] is None, "free-form reasons must not reach the durable audit table"
+        assert json.loads(veto["details"]) == {"risk_score": 1.0, "task_id": "task-7"}
+        serialized = json.dumps([decision, veto])
+        assert "owner@example.com" not in serialized and "+380501234567" not in serialized
+        assert "4111111111111111" not in serialized
+        assert "private body" not in serialized
+
+    def test_audit_database_failure_is_nonfatal(self):
+        from src.memory import MemoryManager
+
+        class BrokenSession:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_args):
+                return False
+
+            async def execute(self, *_args):
+                raise RuntimeError("must not leak this message into logs")
+
+        memory = MemoryManager(postgres_dsn="", redis_url="")
+        memory._session_factory = BrokenSession
+        ok = _run(memory.write_audit_decision(
+            agent_id="marshal", action="send_email", outcome="blocked"
+        ))
+        assert ok is False
+
+    def test_orchestrator_audits_decisions_and_outbound_vetoes_without_payloads(self):
+        from types import SimpleNamespace
+
+        from src.orchestrator import EvaOrchestrator
+
+        class MemoryStub:
+            def __init__(self):
+                self.decisions = []
+                self.vetoes = []
+
+            async def write_audit_decision(self, **record):
+                self.decisions.append(record)
+                return True
+
+            async def write_outbound_veto(self, **record):
+                self.vetoes.append(record)
+                return True
+
+            async def save_checkpoint(self, **_kwargs):
+                return None
+
+        class SentinelStub:
+            async def veto_outbound_action(self, _agent_id, _action):
+                return SimpleNamespace(
+                    allowed=False,
+                    reason="Private body for owner@example.com",
+                    risk_score=1.0,
+                    requires_hitl=False,
+                )
+
+        memory = MemoryStub()
+        orchestrator = object.__new__(EvaOrchestrator)
+        orchestrator._memory = memory
+        orchestrator._sentinel = SentinelStub()
+        state = {
+            "session_id": "thread-7",
+            "task_id": "task-7",
+            "task_type": "send_email",
+            "current_agent": "marshal",
+            "status": "completed",
+            "payload": {"email": "owner@example.com", "body": "private body", "prior_lessons": []},
+            "result": {
+                "status": "blocked",
+                "blocked_actions": [{"type": "send_email", "to": "owner@example.com"}],
+                "message": "Private body for owner@example.com",
+            },
+        }
+
+        _run(EvaOrchestrator._finalize(orchestrator, state))
+        assert memory.decisions[0]["outcome"] == "blocked"
+        assert memory.decisions[0]["action"] == "send_email"
+        assert memory.decisions[0]["details"]["blocked_actions_count"] == 1
+        assert "owner@example.com" not in json.dumps(memory.decisions)
+        assert "private body" not in json.dumps(memory.decisions)
+
+        pending_state = {
+            "session_id": "thread-8",
+            "task_id": "task-pending",
+            "task_type": "send_email",
+            "current_agent": "marshal",
+            "status": "completed",
+            "payload": {},
+            "result": {"status": "ok", "required_hitl": True},
+        }
+        _run(EvaOrchestrator._finalize(orchestrator, pending_state))
+        assert memory.decisions[-1]["outcome"] == "pending"
+        assert memory.decisions[-1]["escalation"] == "ask"
+
+        marshal_state = {
+            "session_id": "thread-9",
+            "task_id": "task-marshal-blocked",
+            "task_type": "security_audit",
+            "current_agent": "marshal",
+            "status": "completed",
+            "payload": {},
+            "result": {"allowed": False, "risk_score": 0.85, "requires_hitl": False},
+        }
+        _run(EvaOrchestrator._finalize(orchestrator, marshal_state))
+        assert memory.decisions[-1]["outcome"] == "blocked"
+        assert memory.decisions[-1]["escalation"] == "refuse"
+        assert memory.decisions[-1]["details"]["risk_score"] == 0.85
+        assert memory.decisions[-1]["details"]["allowed"] is False
+
+        state["result"] = {"outbound_actions": [{"type": "send_email", "to": "owner@example.com", "body": "private body"}]}
+        _run(EvaOrchestrator._outbound_veto(orchestrator, state))
+        assert memory.vetoes[0]["allowed"] is False
+        assert memory.vetoes[0]["reason"] == "outbound_blocked"
+        assert memory.vetoes[0]["details"]["task_id"] == "task-7"
+        assert "owner@example.com" not in json.dumps(memory.vetoes)
+        assert "private body" not in json.dumps(memory.vetoes)
+        assert state["result"]["blocked_actions"][0]["veto_reason"].startswith("Private body")
+
+        class ApprovalSentinel:
+            async def veto_outbound_action(self, _agent_id, _action):
+                return SimpleNamespace(
+                    allowed=True,
+                    reason="approval required",
+                    risk_score=0.9,
+                    requires_hitl=True,
+                )
+
+        orchestrator._sentinel = ApprovalSentinel()
+        approval_state = {
+            "task_id": "task-8",
+            "current_agent": "marshal",
+            "result": {"outbound_actions": [{"type": "send_email"}]},
+        }
+        _run(EvaOrchestrator._outbound_veto(orchestrator, approval_state))
+        assert approval_state["requires_hitl"] is True
+        assert memory.vetoes[-1]["reason"] == "approval_required"
 
 
 class TestMemoryContextBlock:
