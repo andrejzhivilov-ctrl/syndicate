@@ -25,6 +25,22 @@
 
 ---
 
+## 2026-10-09 — Arena Agent: розбір досьє Marshal (ідентичність ≠ grants)
+
+**Гілка:** `arena/41a10104-syndicate` · **Ворота:** `bash tools/check.sh` · **PR #7 не злито**
+
+### Зроблено
+
+- Досьє CSO v4.0 розібране в `marshal_core/MARSHAL_DOSSIER_REVIEW.md`: архетип/голос/кредо — в ідентичність; 9 рівнів, cron, бот, Tetragon, veto, Haiku/Sonnet — не в профіль.
+- Persona і runtime prompt v0.2: сталевий рапорт, підпорядкування Андрію, чесний `DENIED` замість вигаданого `SECURE`.
+- Grants, Telegram, host_control лишаються порожніми/false. Абсолютне вето не видане.
+
+### Не робити далі без окремого «так»
+
+- Модель, `@marshal_security_bot`, Dispatcher, Tetragon, lockdown, читання пам’яті Єви, `policy.veto`.
+
+---
+
 ## 2026-10-09 — Arena Agent: ідентичність Marshal (без активних grants)
 
 **Гілка:** `arena/41a10104-syndicate` · **Ворота:** `bash tools/check.sh` · **PR #7 не злито**
@@ -32,7 +48,7 @@
 ### Зроблено (тільки Marshal)
 
 - Профіль: `prepared_not_enabled`, `role_status=identity_draft`, порожні `capabilities` / `resource_scopes` / `services_enabled`.
-- Ідентичність: опис і статичні межі, не CSO 24/7. `MARSHAL_FULL_SPEC.md` не скопійовано в права.
+- Ідентичність (початково вузька, далі розширена розбором досьє). `MARSHAL_FULL_SPEC.md` не скопійовано в права.
 - Telegram inbound вимкнений; `live_modes.host_control` / `emergency_lockdown` / `telegram_bot` = false.
 - Оркестраторний `emergency_lockdown` fail-closed (`host_control_not_granted`). `MarshalAgent` і Sentinel-маршрути не підключені до Dispatcher і не вмикались.
 - Sentinel виключений; Tetragon/eBPF лишаються Фазою 2.

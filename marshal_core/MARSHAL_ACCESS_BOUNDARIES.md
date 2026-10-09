@@ -1,7 +1,8 @@
-# Marshal — запропоновані межі доступу v0.1
+# Marshal — запропоновані межі доступу v0.2
 
 **Статус:** чернетка. Це **не** активні grants.
 **Профіль:** `prepared_not_enabled`, порожні `capabilities` / `resource_scopes` / `services_enabled`.
+**Розбір досьє:** `MARSHAL_DOSSIER_REVIEW.md`.
 
 Жоден рядок не записується в активний grant, доки Андрій не погодить точний id **і** маршрути Marshal не проходитимуть через `AgentDispatcher`.
 
@@ -9,12 +10,15 @@
 
 | Кандидат | Межа |
 |---|---|
-| `memory.read` / `memory.write` | лише `agents/marshal` |
-| cross-agent memory | deny |
-| host control / `emergency_lockdown` | deny, доки немає окремого scope |
-| Telegram `@marshal_security_bot` | не підключати; порожній allowlist = deny |
-| MCP | не копіювати з Vault-мапи в `services_enabled` |
-| Sentinel / Council / Tetragon | out of scope |
+| `memory.read` / `memory.write` | лише `agents/marshal`; аудити не пишуться автоматично |
+| cross-agent memory (Єва 03:00, rollback чужих фактів) | deny |
+| `policy.veto` / скасування дій Єви | не пропонувати в профіль, доки немає окремого рішення Андрія |
+| host control / `emergency_lockdown` / network sever | deny |
+| Telegram `@marshal_security_bot` | не підключати; порожній allowlist = deny; bot_id не вигадувати |
+| MCP / HoneyMCP / SkillSpector | не копіювати з Vault-мапи в `services_enabled` |
+| Sentinel / Sentyr / Council / Tetragon | out of scope / Фаза 2 |
+| читання секретів Vault, `.env`, робочих текстів агентів | deny |
+| зміна `EVA_CORE_PERSONA.md` / власного коду Marshal | deny |
 
 ## Блокери
 

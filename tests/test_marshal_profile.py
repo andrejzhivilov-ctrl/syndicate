@@ -46,7 +46,8 @@ def test_marshal_manifest_is_prepared_not_enabled_and_has_no_grants() -> None:
     assert prompt_path.is_file()
     prompt = prompt_path.read_text(encoding="utf-8")
     assert "Ніколи не проси вставити" in prompt
-    assert "не автономний CSO" in prompt
+    assert "не автономний CSO у runtime" in prompt
+    assert "Підпорядковуєшся лише Андрію" in prompt
 
 
 def test_marshal_manifest_does_not_select_model_or_integrations() -> None:

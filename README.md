@@ -75,7 +75,7 @@ n8n — виконання workflow та інтеграцій; не control plan
 
 ### Межі профілю Marshal
 
-`config/agents/marshal.profile.json` — `prepared_not_enabled`, `role_status=identity_draft`: ідентичність обмежена описом і статичними межами, не автономний CSO. Grants порожні, модель не вибрана, host control і Telegram-бот вимкнені. Історичний `MARSHAL_FULL_SPEC.md` не є правами. Sentinel виключений; Tetragon/eBPF — Фаза 2. Профіль не активований.
+`config/agents/marshal.profile.json` — `prepared_not_enabled`, `role_status=identity_draft`: CSO-архетип (голос, кредо, підпорядкування Андрію), не live enforcement. Grants порожні, модель не вибрана, host control і Telegram-бот вимкнені. Досьє v4.0 і `MARSHAL_FULL_SPEC.md` не є правами. Sentinel виключений; Tetragon/eBPF — Фаза 2. Профіль не активований.
 
 ### Інші підготовлені маніфести (ще не сформовані)
 
