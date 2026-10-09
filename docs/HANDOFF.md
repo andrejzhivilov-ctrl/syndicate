@@ -25,6 +25,12 @@
 
 ---
 
+## 2026-10-09 — Arena Agent: каталог кандидатів Marshal (не install)
+
+Огляд GitHub у `marshal_core/MARSHAL_CANDIDATE_CATALOG.md`. Перша черга (окреме «так»): NVIDIA SkillSpector `--no-llm`, Gitleaks, OWASP як SOURCES. Не ставити: archived protectai/llm-guard, оптові skill-packs, live red-team payload. Профіль `skills: []`.
+
+---
+
 ## 2026-10-09 — Arena Agent: Marshal observe-only на інтернет за командою Андрія
 
 **Гілка:** `arena/41a10104-syndicate` · **PR #7 не злито**

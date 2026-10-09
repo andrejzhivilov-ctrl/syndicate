@@ -40,6 +40,9 @@ def test_marshal_manifest_is_prepared_not_enabled_and_has_no_grants() -> None:
     assert profile.resource_scopes == frozenset()
     assert manifest["services_enabled"] == []
     assert manifest["skills"] == []
+    catalog = (ROOT / "marshal_core/MARSHAL_CANDIDATE_CATALOG.md").read_text(encoding="utf-8")
+    assert "Нічого з цього не встановлено" in catalog
+    assert "NVIDIA/SkillSpector" in catalog
     assert not hasattr(profile, "role")
 
     prompt_path = ROOT / manifest["prompt_file"]
