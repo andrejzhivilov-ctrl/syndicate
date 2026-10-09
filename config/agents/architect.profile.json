@@ -14,6 +14,11 @@
   "services_enabled": [],
   "skills": [],
   "memory_policy_file": "architect_core/ARCHITECT_MEMORY_POLICY.md",
+  "task_source": "andrii_only",
+  "reports": {
+    "daily_brief_to_eva": "payload_only",
+    "eva_can_assign": false
+  },
   "n8n": {
     "control_plane": false,
     "permission_source": false,

@@ -25,6 +25,14 @@
 
 ---
 
+## 2026-10-09 — Arena Agent: Architect identity v0.2 (Єва не ставить задач)
+
+Досьє CTO розібране: архетип/антикостилі/Blueprint — ідентичність; live n8n, бот, GitOps, моделі — ні.
+**Корекція Андрія:** задачі лише він; Архітектор → Єва тільки звіт у payload.
+Код: `architect_access`, `architect_blueprint`, `architect_report`, `architect_ready`. Grants порожні. PR не злито.
+
+---
+
 ## 2026-10-09 — Arena Agent: Marshal prepared-пакет + install SkillSpector
 
 Код observe/HITL/brief/ready в `src/agents/marshal_*.py`. Ранбук `MARSHAL_DEPLOYMENT_RUNBOOK.md`.

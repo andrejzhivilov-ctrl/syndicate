@@ -55,7 +55,10 @@ def test_architect_manifest_is_prepared_not_enabled_and_has_no_grants() -> None:
 
     prompt_path = ROOT / manifest["prompt_file"]
     assert prompt_path.is_file()
-    assert "Ніколи не проси вставити" in prompt_path.read_text(encoding="utf-8")
+    prompt = prompt_path.read_text(encoding="utf-8")
+    assert "Ніколи не проси вставити" in prompt
+    assert "лише від Андрія" in prompt
+    assert "Єва не ставить тобі завдань" in prompt
 
 
 def test_architect_manifest_does_not_select_model_or_integrations() -> None:
@@ -68,6 +71,9 @@ def test_architect_manifest_does_not_select_model_or_integrations() -> None:
     assert manifest["n8n"]["activation"] == "not_enabled"
     assert manifest["n8n"]["live_api"] is False
     assert manifest["n8n"]["credentials_managed_in_profile"] is False
+    assert manifest["task_source"] == "andrii_only"
+    assert manifest["reports"]["eva_can_assign"] is False
+    assert manifest["reports"]["daily_brief_to_eva"] == "payload_only"
     assert manifest["live_modes"]["telegram_bot"] is False
     assert manifest["live_modes"]["gitops_push"] is False
     assert manifest["live_modes"]["n8n_editor"] is False

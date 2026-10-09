@@ -1,85 +1,12 @@
-# Архітектор — межі (ідентичність-чернетка, не grant)
+# Архітектор — межі v0.2 (ідентичність, не grant)
 
-**Статус:** профіль підтверджено; ідентичність — чернетки n8n. Capability, модель, сервіси **не видані**.
-**Профіль:** `config/agents/architect.profile.json` → `activation=prepared_not_enabled`, `role_status=identity_draft`.
-**Користувач, який єдиний може розширити scope:** Андрій.
+**Профіль:** `prepared_not_enabled`, `role_status=identity_draft`, порожні grants.
+**Задачі:** лише Андрій. Єва не призначає роботу. Звіт Єві — payload.
 
-Цей документ **не** робить Архітектора CTO, черговим 24/7, монтажником live n8n чи GitOps-оператором. Історичні `ARCHITECT_CTO_SPEC.md` та `ARCHITECT_N8N_SPEC.md` тут не діють як права.
+Історичні CTO/n8n спеки не є правами. n8n не control plane.
 
-## 1. Що зафіксовано без розширення прав
+Заборонено без окремого scope: Hermes, memory R/W, live n8n, git push, Docker/host, Telegram, MCP з Vault, Sentinel/Council, само-grant.
 
-- Ідентифікатор майбутнього профілю: `architect`.
-- Цільовий runtime, коли його окремо дозволять: Hermes-профіль `architect`, ізольований від `eva`.
-- Memory namespace (зарезервований, не підключений): `agents/architect`.
-- Порожні `capabilities`, `resource_scopes`, `services_enabled`, `skills`.
-- n8n не є control plane і не може видати або змінити ці grants.
+HITL лишається на фінанси, delete, security, production, зовнішню комунікацію, зміну прав.
 
-Наявність рядка в оркестраторі, Vault-мапі чи специфікації **не** створює права.
-
-## 2. Заборонено цьому профілю, доки немає окремого точного scope
-
-Профіль не може:
-
-- викликати Hermes чи будь-який інший runtime;
-- читати або писати пам’ять (навіть власний namespace) — `memory.read` / `memory.write` не видані;
-- підключати сервіси, зберігати чи читати секрети, credentials n8n, Vault-токени;
-- активувати, публікувати, імпортувати чи змінювати live n8n workflow;
-- пушити в git, відкривати PR, комітити, керувати GitHub;
-- керувати Docker/host, rollback, restart, сканувати контейнери;
-- надсилати Telegram/email (email send і так заборонений платформою);
-- призначати задачі Єві чи іншим агентам;
-- змінювати власні чи чужі capability/policy/scope;
-- вмикати Sentinel, Council, геолокацію, браузер, голос, камеру.
-
-Модель, системний prompt і вхідний payload не можуть обійти цей список.
-
-## 3. Дії, які навіть після майбутніх grants лишаються HITL
-
-Згідно з `AgentPolicy`, без людського підтвердження не виконуються:
-
-- фінансові операції;
-- видалення даних/пам’яті;
-- security-зміни;
-- production deployment;
-- зовнішня комунікація;
-- зміна повноважень і політик;
-- підключення сервісу;
-- розширення resource scope;
-- location access.
-
-Окремо: пошта — лише чернетки; Дія / Армія+ / BankID / fingerprint-spoof / residential proxy — поза системою.
-
-## 4. Що можна робити в репозиторії *цій* фазі (людина + агент-розробник)
-
-Це межі **поточної підготовки коду**, не права runtime-профілю:
-
-- описувати gaps і контракти;
-- тримати default-deny маніфест;
-- тестувати, що профіль порожній і policy fail-closed;
-- не запускати n8n, Hermes, production.
-
-Чернетки workflow JSON у git, якщо з’являться пізніше, мають відповідати `ARCHITECT_WORKFLOW_CONTRACT.md` і лишатися `active=false`.
-
-## 5. Рішення 2026-10-09 (без grants)
-
-1. **Профіль зараз:** так (підтвердження Андрія).
-2. **Перший capability:** не видавати, доки не буде окремого точного id.
-3. **LangGraph `ArchitectAgent`:** лишається історичним кодом; не з’єднувати з `AgentDispatcher`; не вважати активацією.
-4. **Vault `architect → mcp`:** не копіювати в `services_enabled`; стару мапу в цій фазі не змінювати.
-5. **Модель:** не вибрана. Runtime prompt — лише чернетка в git, не live Hermes profile.
-
-## 6. Готовність
-
-| Перевірка | Стан |
-|---|---|
-| Маніфест без grants | так, `prepared_not_enabled` |
-| Роль погоджена | ні |
-| Модель вибрана | ні |
-| Prompt підготовлений | ні |
-| Hermes | не встановлений |
-| n8n live / credentials | ні |
-| Workflow активований | ні |
-| Dispatcher підключений | ні |
-| Production | ні |
-
-Контрольний висновок: пакет придатний лише як контракт default-deny. Не до technical go-live.
+LangGraph `ArchitectAgent` — історичний код, не Dispatcher, не activation.
