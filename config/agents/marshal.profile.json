@@ -41,6 +41,16 @@
     "activation": "not_enabled",
     "live_api": false
   },
+  "skill_scan": {
+    "tool": "skillspector",
+    "mode": "no_llm",
+    "binary": "skillspector",
+    "activation": "host_cli_optional",
+    "installs_skills": false,
+    "llm_pass": false,
+    "remote_urls": false,
+    "required_before_proposal": true
+  },
   "reports": {
     "daily_brief_to_eva": "payload_only",
     "full_report": "andrii_direct_request"

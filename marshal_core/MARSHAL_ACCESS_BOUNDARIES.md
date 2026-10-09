@@ -20,7 +20,8 @@
 | Cloudflare | не для внутрішніх метрик; пізніше лише публічний ingress |
 | Drive workspace | `folder_id=null`; не джерело прав |
 | knowledge/security | `sources: []`; read-only після ingest, ingest немає |
-| MCP / HoneyMCP / SkillSpector | не копіювати з Vault у `services_enabled` |
+| SkillSpector `--no-llm` | хост CLI на **локальний** шлях; не grant; не install skill; remote URL deny |
+| MCP / HoneyMCP | не копіювати з Vault у `services_enabled` |
 | Sentinel / Sentyr / Council / Tetragon | out of scope / Фаза 2 |
 | TTS / voice | deny |
 | секрети Vault, `.env`, тексти інших агентів | deny |

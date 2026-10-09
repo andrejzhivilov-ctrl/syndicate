@@ -40,7 +40,8 @@
 Що: skill | mcp | service | knowledge-source
 Навіщо: <аргумент>
 Ризик: low | high
-Скан: немає | skillspector --no-llm <score> (без секретів у тексті)
+Скан: scan_unavailable | skillspector --no-llm score=<n> rec=<do_not_install|review> (без секретів)
+Без скану або `scan_unavailable` — не Погодити як «чисто».
 Що зміниться, якщо погодити: <одне речення>
 Альтернатива: не підключати
 [ Погодити ]  [ Відхилити ]  [ До ознайомлення ]

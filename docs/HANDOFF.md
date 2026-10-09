@@ -25,6 +25,16 @@
 
 ---
 
+## 2026-10-09 — Arena Agent: SkillSpector як сканер пропозицій (не grant)
+
+Андрій сказав «так» на SkillSpector `--no-llm` як сканер, не як право вмикати скіли.
+- Хост-обгортка `src/agents/marshal_skill_scan.py` + `tools/marshal_skill_scan.py`.
+- Лише локальний шлях; remote URL deny; LLM-pass вимкнений; env з ключами здирається; секрети в stdout редагуються.
+- Немає бінарника → `scan_unavailable`, не SAFE. Немає рядка в `requirements.txt` і не в `skills`.
+- `capabilities` порожні.
+
+---
+
 ## 2026-10-09 — Arena Agent: каталог кандидатів Marshal (не install)
 
 Огляд GitHub у `marshal_core/MARSHAL_CANDIDATE_CATALOG.md`. Перша черга (окреме «так»): NVIDIA SkillSpector `--no-llm`, Gitleaks, OWASP як SOURCES. Не ставити: archived protectai/llm-guard, оптові skill-packs, live red-team payload. Профіль `skills: []`.

@@ -1,6 +1,7 @@
 # Marshal — каталог кандидатів (GitHub / скіли / знання)
 
-**Статус:** огляд 2026-10-09. Нічого з цього не встановлено, не ingest, не в `skills` / `services_enabled`.
+**Статус:** огляд 2026-10-09. Нічого з цього не встановлено як pip/submodule. Не ingest. Не в `skills` / `services_enabled`.
+Хост-обгортка SkillSpector `--no-llm`: `src/agents/marshal_skill_scan.py` (бінарник опційний; відсутній ≠ SAFE).
 **Правило:** новий скіл лише через картку HITL. «Погодити» ≠ grant. Живі red-team payload не ганяти на Синдикаті.
 
 Пошук був за scanner’ами скілів, guardrail LLM, secret leak, OWASP agentic. Нижче — що варто тримати в голові, і що **не** тягнути.
@@ -9,7 +10,7 @@
 
 | # | Кандидат | Навіщо Маршалу | Як чіпати | Не робити зараз |
 |---|---|---|---|---|
-| 1 | [NVIDIA/SkillSpector](https://github.com/NVIDIA/SkillSpector) | Скан `SKILL.md` / MCP **перед** карткою «підключити скіл». Статичний прохід `--no-llm` (AST, taint, secret, injection). Оновлюється (коміти 2026-10-09). | Окремий HITL на *встановлення сканера*; далі Marshal запускає scan і кладе score в пропозицію | Не `pip install` у цей профіль; LLM-pass SkillSpector не вмикати (токени + ключ) |
+| 1 | [NVIDIA/SkillSpector](https://github.com/NVIDIA/SkillSpector) | Скан локального `SKILL.md` **перед** карткою HITL. `--no-llm`. Відсутній бінарник = `scan_unavailable`, не дозвіл ставити. | Хост CLI `python tools/marshal_skill_scan.py <path>`. Бінарник `skillspector` Андрій ставить окремо, не в `requirements.txt`. | Не LLM-pass, не scan URL/GitHub, не `pip` у runtime-образ, не рядок у `skills` |
 | 2 | [gitleaks/gitleaks](https://github.com/gitleaks/gitleaks) (MIT) | Zero-token шар A: секрет у outbound/дифі/промпті → **червоний** (це вже критичне, не «вийшов в інтернет») | Окремий HITL; сканувати метадані/текст, не слати знайдений секрет у Telegram | Не verify live API (це вже використання вкраденого ключа) |
 | 3 | OWASP LLM Top 10 + OWASP Agentic ASI01–ASI10 | Read-only корпус знань Маршала | Коли буде ingest: рядок у `SOURCES.yaml` з ліцензією й датою | Не копіювати FULL_SPEC «✅ Закрито»; `sources: []` лишається |
 | 4 | Власний regex-шар (вже в дусі репо: `sk-`, `ghp_`, `xoxb-`, `AIza`) | Дешевий observe без нових залежностей | Можна колись винести в host-owned helper; не LLM | Не вважати це «LLM-Guard» |

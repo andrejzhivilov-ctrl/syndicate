@@ -69,6 +69,9 @@ def test_marshal_manifest_does_not_select_model_or_integrations() -> None:
     assert manifest["n8n"]["control_plane"] is False
     assert manifest["n8n"]["permission_source"] is False
     assert manifest["n8n"]["activation"] == "not_enabled"
+    assert manifest["skill_scan"]["mode"] == "no_llm"
+    assert manifest["skill_scan"]["installs_skills"] is False
+    assert manifest["skill_scan"]["llm_pass"] is False
     assert manifest["workspace"]["drive"]["folder_id"] is None
     assert manifest["workspace"]["drive"]["activation"] == "not_configured"
     assert manifest["knowledge_bases"]["security"]["status"] == "not_loaded"
