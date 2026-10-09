@@ -108,6 +108,9 @@ PRESEED = ("review_change_request", "apply_change_request")
 #: complete cleanly.
 EXPECTED_ERROR_RESULTS = frozenset({"vault_reindex"})
 
+#: Eva Telegram inbound is disabled with an empty allowlist (deny).
+EXPECTED_DENIED_RESULTS = frozenset({"webhook_telegram"})
+
 
 def _payloads(tmp_path: Path) -> Dict[str, Dict[str, Any]]:
     art = tmp_path / "probe_art.png"
@@ -353,10 +356,13 @@ def test_task_type_routes_cleanly(harness, task_type: str):
     body = result.get("result")
     if isinstance(body, dict):
         err = body.get("error")
-        if err and task_type not in EXPECTED_ERROR_RESULTS:
+        allowed_faults = EXPECTED_ERROR_RESULTS | EXPECTED_DENIED_RESULTS
+        if err and task_type not in allowed_faults:
             pytest.fail(f"{task_type} answered with an error: {err}")
         if task_type in EXPECTED_ERROR_RESULTS:
             assert body.get("status") == "error", f"{task_type}: expected a clean error, got {body}"
+        if task_type in EXPECTED_DENIED_RESULTS:
+            assert body.get("status") == "denied", f"{task_type}: expected deny, got {body}"
 
 
 def test_split_audio_result_contains_no_raw_bytes(harness):

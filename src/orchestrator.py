@@ -808,8 +808,20 @@ class EvaOrchestrator:
 
     async def _eva_direct_handler(self, state: AgentState) -> AgentState:
         from src.agents.eva import EvaAgent
-        agent = EvaAgent(memory=self._memory, llm=self._llm, config=self._config, vault=self._vault)
+        from src.agents.eva_access import eva_telegram_inbound_allowed, extract_telegram_chat_id
+
         payload = dict(state["payload"])
+        if state.get("task_type") == "webhook_telegram" and not eva_telegram_inbound_allowed(
+            extract_telegram_chat_id(payload)
+        ):
+            state["result"] = {
+                "agent": "eva",
+                "status": "denied",
+                "error": "telegram_inbound_denied",
+            }
+            state["status"] = "completed"
+            return state
+        agent = EvaAgent(memory=self._memory, llm=self._llm, config=self._config, vault=self._vault)
         if "action" not in payload:
             payload["action"] = state["task_type"] if state["task_type"] in ("chat", "compose_briefing", "compose_reflection", "delegate", "system_status") else "chat"
         result = await agent.execute(payload)

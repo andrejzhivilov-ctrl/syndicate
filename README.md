@@ -67,7 +67,7 @@ n8n — виконання workflow та інтеграцій; не control plan
 
 ### Межі профілю Єви
 
-`config/agents/eva.profile.json` позначає Єву як `prepared_not_enabled`; `capabilities`, `resource_scopes` і `services_enabled` порожні. Підготовлений нічний контракт — 03:00 `Europe/Kyiv`, але source provider не налаштований: scheduled orchestrator повертає `unavailable`, а публічного `nightly_analysis` action немає. Погоджена роль, політика пам’яті та статус готовності описані в [`eva_core/`](eva_core/) — цей профіль не є дозволом на live Hermes чи production.
+`config/agents/eva.profile.json` позначає Єву як `prepared_not_enabled`; `capabilities`, `resource_scopes` і `services_enabled` порожні. Пам’ять проєктується лише на `agents/eva` (cross-agent deny). Telegram inbound вимкнений, порожній allowlist = deny. Нічний контракт — 03:00 `Europe/Kyiv`, source provider не налаштований. `AgentDispatcher` ще не стоїть на історичних маршрутах Єви — активні grants не додавати. Деталі: [`eva_core/`](eva_core/).
 
 ### Межі профілю Архітектора
 

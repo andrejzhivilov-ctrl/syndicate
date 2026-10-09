@@ -25,6 +25,36 @@
 
 ---
 
+## 2026-10-09 — Arena Agent: підготовка Єви (без активних grants)
+
+**Гілка:** `arena/41a10104-syndicate` · **Ворота:** ✅ `bash tools/check.sh` · **PR #7 не злито**
+
+### Зроблено (тільки Єва)
+
+- Grants лишаються порожніми. Запропоновані межі — `eva_core/EVA_ACCESS_BOUNDARIES.md`, не поле `capabilities`.
+- `EvaAgent` відхиляє cross-agent memory write; recall читає лише `agents/eva`.
+- Telegram inbound: `enabled=false`, порожній allowlist = deny; webhook без allowlist не проходить у чат. Bot/chat id не вигадані.
+- Gmail не інтегровано. Nightly dormant. Psychology `sources: []`.
+- Тести fail-closed: порожні grants, чужий namespace навіть при гіпотетичному memory.read, порожній Telegram allowlist, cross-agent remember.
+
+### Блокери (не обходити)
+
+1. `AgentDispatcher` не підключений до `chat` / `webhook_telegram` / curator / `parse_memory_command`. Підключення з порожніми grants відхилить і розмову — потрібне окреме рішення.
+2. Оркестраторний `parse_memory_command` досі може писати в чужі namespace через `detect_agent()`.
+3. Hermes, модель, credentials, n8n, Obsidian mount, voice/camera/geo — не готові.
+
+### Handoff наступному агенту (не починати тут)
+
+Наступний кандидат — **Marshal**: `config/agents/marshal.profile.json` уже `prepared_not_enabled`, `role_status=not_agreed`, grants порожні. Sentinel виключений. Не видавати capability, не підключати Dispatcher «заодно», не копіювати історичний `MARSHAL_FULL_SPEC.md` у права.
+
+### Не дороблено
+
+- Не активовано жодної capability.
+- Dispatcher не інтегровано (свідомо).
+- PR не злито.
+
+---
+
 ## 2026-10-09 — Arena Agent: профіль Архітектора + default-deny слоти інших агентів
 
 **Гілка:** `arena/41a10104-syndicate` · **Ворота:** ✅ `bash tools/check.sh`

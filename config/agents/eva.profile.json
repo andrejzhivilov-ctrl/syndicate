@@ -11,6 +11,13 @@
   "capabilities": [],
   "resource_scopes": [],
   "services_enabled": [],
+  "inbound_channels": {
+    "telegram": {
+      "enabled": false,
+      "bot_id": null,
+      "chat_allowlist": []
+    }
+  },
   "skills": [
     {"id": "eva-humanizer", "path": "eva_core/skills/eva-humanizer/SKILL.md", "activation": "draft"},
     {"id": "eva-summary", "path": "eva_core/skills/eva-summary/SKILL.md", "activation": "draft"},
