@@ -9,13 +9,45 @@ v4.1 Verified:
 from __future__ import annotations
 
 import json
+from contextvars import ContextVar
 from datetime import date
 from typing import Any, Dict, List, Optional
 
 import structlog
 from langchain_core.messages import HumanMessage
 
+from src.agent_memory import (
+    append_memory_context,
+    memory_session_id,
+    memory_status,
+    recall_agent_memory,
+    save_agent_episode,
+)
+
 logger = structlog.get_logger(__name__)
+
+
+def _opt_float(payload: Dict[str, Any], key: str) -> Optional[float]:
+    """Read a metric, keeping absence as ``None``.
+
+    Substituting a plausible default (HRV 50 ms, weight 80 kg, …) turned
+    "never measured" into a confident score with a colour zone, which then
+    propagated into the morning briefing. Absence must stay visible, so a
+    missing or non-numeric value is returned as ``None`` for the caller to
+    report as ``unavailable``.
+    """
+    value = payload.get(key)
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _opt_int(payload: Dict[str, Any], key: str) -> Optional[int]:
+    value = _opt_float(payload, key)
+    return None if value is None else int(value)
 
 
 class DocAgent:
@@ -37,6 +69,9 @@ class DocAgent:
         self._llm = llm
         self._config = config or {}
         self._registry = registry
+        self._memory_context: ContextVar[Optional[Dict[str, Any]]] = ContextVar(
+            f"doc_memory_context_{id(self)}", default=None
+        )
         # Dispatch table (was a 13-branch if/elif chain that grew a new branch
         # every time an action was added, and whose final ``else`` silently
         # returned a string instead of a result dict).
@@ -58,9 +93,18 @@ class DocAgent:
         }
 
     async def _llm_ask(self, prompt: str, fallback: str) -> str:
-        """Helper to invoke async ChatModel cleanly via ainvoke()."""
+        """Invoke the LLM with bounded memory, treating prior health data as historical."""
         if not self._llm:
             return fallback
+        prompt = append_memory_context(
+            prompt,
+            self._memory_context.get() or {},
+            instruction=(
+                "Remembered medical measurements, medications, or symptoms are historical "
+                "only. Do not present them as current; use current payload measurements "
+                "for present-tense recommendations."
+            ),
+        )
         try:
             resp = await self._llm.ainvoke([HumanMessage(content=prompt)])
             return str(getattr(resp, "content", resp))
@@ -69,17 +113,17 @@ class DocAgent:
             return fallback
 
     async def _save(self, payload: Dict[str, Any], category: str, data: Dict[str, Any], extra_meta: Optional[Dict[str, Any]] = None) -> None:
-        """Helper to persist episode with matching signature."""
-        if not self._memory:
-            return
+        """Persist a compact episode with PII redaction and non-blocking failure."""
         meta = {"category": category}
         if extra_meta:
             meta.update(extra_meta)
-        await self._memory.save_episode(
-            session_id=payload.get("session_id", "doc-default-session"),
+        await save_agent_episode(
+            self._memory,
             agent_id=self.AGENT_ID,
+            session_id=memory_session_id(payload, "doc-default-session"),
+            action=category,
             role="assistant",
-            content=json.dumps(data, ensure_ascii=False),
+            content=json.dumps(data, ensure_ascii=False, default=str)[:8000],
             metadata=meta,
         )
 
@@ -96,7 +140,23 @@ class DocAgent:
                     "agent": self.AGENT_ID,
                     "available_actions": sorted(self._ACTION_MAP),
                 }
-            return await handler(payload)
+            session_id = memory_session_id(payload, "doc-default-session")
+            memory_context = await recall_agent_memory(
+                self._memory,
+                agent_id=self.AGENT_ID,
+                session_id=session_id,
+                payload=payload,
+                limit=int(self._config.get("memory_context_limit", 8)),
+                max_chars=int(self._config.get("memory_context_chars", 1800)),
+            )
+            token = self._memory_context.set(memory_context)
+            try:
+                result = await handler(payload)
+                if isinstance(result, dict):
+                    result["memory"] = memory_status(memory_context)
+                return result
+            finally:
+                self._memory_context.reset(token)
         except Exception as exc:  # noqa: BLE001
             logger.exception("Error executing DocAgent action", action=action, exc_info=exc)
             return {"error": str(exc), "agent": self.AGENT_ID}
@@ -124,74 +184,189 @@ class DocAgent:
         await self._save(payload, "extract", res, {"fields": fields})
         return res
 
-    async def _morning_readiness(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        hrv_ms = float(payload.get("hrv_ms", 50.0))
-        sleep_hours = float(payload.get("sleep_hours", 7.5))
-        sleep_quality = float(payload.get("sleep_quality", 80.0))
-        resting_hr = float(payload.get("resting_hr", 65.0))
-        steps_yesterday = int(payload.get("steps_yesterday", 8000))
-        stress_score = float(payload.get("stress_score", 30.0))
+    def _unavailable(self, category: str, warning: str) -> Dict[str, Any]:
+        """Structured absence (AGENTS.md §1) for a measurement never read."""
+        return {
+            "agent": self.AGENT_ID,
+            "category": category,
+            "status": "unavailable",
+            "value": None,
+            "warning": warning,
+        }
 
-        hrv_score = min(100.0, max(0.0, (hrv_ms / 50.0) * 75.0))
-        if 7.0 <= sleep_hours <= 9.0:
-            sleep_score = 100.0
-        elif sleep_hours < 7.0:
-            sleep_score = max(0.0, (sleep_hours / 7.0) * 100.0)
-        else:
-            sleep_score = max(0.0, 100.0 - (sleep_hours - 9.0) * 15.0)
+    # Readiness is a weighted composite. Weights are renormalised over the
+    # metrics actually supplied, so a partial morning is scored on what was
+    # measured and nothing else.
+    _READINESS_FIELDS: Dict[str, str] = {
+        "hrv": "hrv_ms",
+        "sleep_duration": "sleep_hours",
+        "sleep_quality": "sleep_quality",
+        "resting_hr": "resting_hr",
+        "steps": "steps_yesterday",
+        "stress": "stress_score",
+    }
+    _READINESS_WEIGHTS: Dict[str, float] = {
+        "hrv": 0.30,
+        "sleep_duration": 0.25,
+        "sleep_quality": 0.15,
+        "resting_hr": 0.15,
+        "steps": 0.10,
+        "stress": 0.05,
+    }
 
-        sq_score = min(100.0, max(0.0, sleep_quality))
-        rhr_score = min(100.0, max(0.0, 100.0 - (resting_hr - 55.0) * 2.5))
-        steps_score = min(100.0, max(0.0, (steps_yesterday / 8000.0) * 85.0))
-        s_score = min(100.0, max(0.0, 100.0 - stress_score))
+    @staticmethod
+    def _score_hrv(value: float) -> float:
+        return min(100.0, max(0.0, (value / 50.0) * 75.0))
 
-        composite = (
-            hrv_score * 0.30
-            + sleep_score * 0.25
-            + sq_score * 0.15
-            + rhr_score * 0.15
-            + steps_score * 0.10
-            + s_score * 0.05
+    @staticmethod
+    def _score_sleep_duration(hours: float) -> float:
+        if 7.0 <= hours <= 9.0:
+            return 100.0
+        if hours < 7.0:
+            return max(0.0, (hours / 7.0) * 100.0)
+        return max(0.0, 100.0 - (hours - 9.0) * 15.0)
+
+    @staticmethod
+    def _score_sleep_quality(value: float) -> float:
+        return min(100.0, max(0.0, value))
+
+    @staticmethod
+    def _score_resting_hr(value: float) -> float:
+        return min(100.0, max(0.0, 100.0 - (value - 55.0) * 2.5))
+
+    @staticmethod
+    def _score_steps(value: float) -> float:
+        return min(100.0, max(0.0, (value / 8000.0) * 85.0))
+
+    @staticmethod
+    def _score_stress(value: float) -> float:
+        return min(100.0, max(0.0, 100.0 - value))
+
+    def _readiness_metrics(self, payload: Dict[str, Any]) -> "tuple[Dict[str, Any], Dict[str, float], List[str]]":
+        """Read each metric; a missing one is reported, never substituted."""
+        readings: Dict[str, Any] = {
+            "hrv": _opt_float(payload, "hrv_ms"),
+            "sleep_duration": _opt_float(payload, "sleep_hours"),
+            "sleep_quality": _opt_float(payload, "sleep_quality"),
+            "resting_hr": _opt_float(payload, "resting_hr"),
+            "steps": _opt_int(payload, "steps_yesterday"),
+            "stress": _opt_float(payload, "stress_score"),
+        }
+        scorers = {
+            "hrv": self._score_hrv,
+            "sleep_duration": self._score_sleep_duration,
+            "sleep_quality": self._score_sleep_quality,
+            "resting_hr": self._score_resting_hr,
+            "steps": self._score_steps,
+            "stress": self._score_stress,
+        }
+        component = {
+            name: scorers[name](value) for name, value in readings.items() if value is not None
+        }
+        missing = sorted(
+            self._READINESS_FIELDS[name] for name, value in readings.items() if value is None
         )
-        score = round(composite, 1)
+        return readings, component, missing
 
+    @staticmethod
+    def _readiness_warnings(
+        readings: Dict[str, Any], missing: List[str]
+    ) -> List[str]:
         warnings: List[str] = []
-        if hrv_ms < 35:
+        if missing:
+            warnings.append(f"Partial data — missing: {', '.join(missing)}")
+        if readings["hrv"] is not None and readings["hrv"] < 35:
             warnings.append("Low HRV detected: sympathetic nervous system dominance")
-        if sleep_hours < 6.0:
+        if readings["sleep_duration"] is not None and readings["sleep_duration"] < 6.0:
             warnings.append("Significant sleep debt (< 6h)")
-        if resting_hr > 75:
+        if readings["resting_hr"] is not None and readings["resting_hr"] > 75:
             warnings.append("Elevated resting heart rate")
+        return warnings
 
+    @staticmethod
+    def _readiness_zone(score: float) -> "tuple[str, str, bool]":
         if score < 45:
-            zone = "red"
-            intensity = "rest"
-            deload = True
-        elif score < 70:
-            zone = "yellow"
-            intensity = "light" if score < 55 else "moderate"
-            deload = False
-        else:
-            zone = "green"
-            intensity = "intense"
-            deload = False
+            return "red", "rest", True
+        if score < 70:
+            return "yellow", "light" if score < 55 else "moderate", False
+        return "green", "intense", False
+
+    async def _morning_readiness(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        # Every metric is optional at the boundary and absent stays None: a
+        # fabricated hrv_ms/sleep pair used to produce a score and a "green"
+        # zone out of data nobody supplied.
+        readings, component, missing = self._readiness_metrics(payload)
+
+        # The two core drivers: without either of them there is no readiness
+        # worth reporting, so report absence instead of a number.
+        if readings["hrv"] is None and readings["sleep_duration"] is None:
+            result = {
+                **self._unavailable(
+                    "morning_readiness",
+                    "no HRV and no sleep data supplied — readiness not computed "
+                    f"(missing: {', '.join(missing)})",
+                ),
+                "score": None,
+                "zone": None,
+                "recommended_intensity": None,
+                "deload_suggested": None,
+                "warnings": [],
+                "missing_inputs": missing,
+                "partial": True,
+            }
+            await self._save(payload, "morning_readiness", result)
+            return result
+
+        active = {name: self._READINESS_WEIGHTS[name] for name in component}
+        total_weight = sum(active.values())
+        score = round(
+            sum(component[name] * weight for name, weight in active.items()) / total_weight, 1
+        )
+        zone, intensity, deload = self._readiness_zone(score)
 
         result = {
             "agent": self.AGENT_ID,
+            "status": "ok",
             "score": score,
             "zone": zone,
             "recommended_intensity": intensity,
-            "warnings": warnings,
+            "warnings": self._readiness_warnings(readings, missing),
             "deload_suggested": deload,
+            "missing_inputs": missing,
+            "partial": bool(missing),
+            "inputs_used": sorted(component),
         }
         await self._save(payload, "morning_readiness", result, {"score": score, "zone": zone})
         return result
 
     async def _training_protocol(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        readiness_score = float(payload.get("readiness_score", 75.0))
+        readiness_score = _opt_float(payload, "readiness_score")
         training_type = payload.get("training_type", "strength")
         goal = payload.get("goal", "hypertrophy")
-        equipment = payload.get("equipment_available", ["barbell", "dumbbells", "pullup_bar"])
+        # Absent equipment stays absent — assuming a barbell rack is assuming
+        # the operator's gym, not reporting it.
+        equipment = payload.get("equipment_available")
+        warnings: List[str] = []
+        if equipment is None:
+            warnings.append("equipment_available not supplied — plan left equipment-agnostic")
+
+        if readiness_score is None:
+            result = {
+                **self._unavailable(
+                    "training_protocol",
+                    "readiness_score not supplied — intensity and duration not prescribed "
+                    "(run morning_readiness first)",
+                ),
+                "training_type": training_type,
+                "goal": goal,
+                "equipment_available": equipment,
+                "workout": None,
+                "duration_min": None,
+                "intensity": None,
+                "warnings": warnings,
+            }
+            await self._save(payload, "training_protocol", result)
+            return result
 
         if readiness_score < 45:
             intensity = "low (deload / recovery)"
@@ -203,13 +378,15 @@ class DocAgent:
             intensity = "high"
             duration = 60
 
+        equipment_text = ", ".join(equipment) if equipment else "not specified"
         notes = await self._llm_ask(
-            f"Create a concise training note for a {training_type} session ({goal}), readiness {readiness_score}/100, equipment: {equipment}.",
+            f"Create a concise training note for a {training_type} session ({goal}), readiness {readiness_score}/100, equipment: {equipment_text}.",
             fallback=f"Structured {training_type} protocol calibrated for readiness {readiness_score}.",
         )
 
         result = {
             "agent": self.AGENT_ID,
+            "status": "ok",
             "workout": {
                 "warmup": "10 min dynamic mobility + joint activation",
                 "main_block": [
@@ -222,20 +399,22 @@ class DocAgent:
             "duration_min": duration,
             "intensity": intensity,
             "notes": notes,
+            "equipment_available": equipment,
+            "warnings": warnings,
         }
         await self._save(payload, "training_protocol", result, {"readiness": readiness_score})
         return result
 
     async def _nutrition_plan(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         goal = payload.get("goal", "maintenance")
-        weight_kg = float(payload.get("weight_kg", 80.0))
-        height_cm = float(payload.get("height_cm", 180.0))
-        age = int(payload.get("age", 35))
-        sex = payload.get("sex", "male")
-        activity_level = payload.get("activity_level", "moderate")
+        # Mifflin-St Jeor needs real body metrics; a default 80 kg / 180 cm / 35 y
+        # produced calorie targets for a body nobody described.
+        weight_kg = _opt_float(payload, "weight_kg")
+        height_cm = _opt_float(payload, "height_cm")
+        age = _opt_int(payload, "age")
+        sex = payload.get("sex")
+        activity_level = payload.get("activity_level")
 
-        # Real Mifflin-St Jeor formula
-        bmr = (10.0 * weight_kg) + (6.25 * height_cm) - (5.0 * age) + (5.0 if sex == "male" else -161.0)
         multipliers = {
             "sedentary": 1.2,
             "light": 1.375,
@@ -243,7 +422,40 @@ class DocAgent:
             "active": 1.725,
             "very_active": 1.9,
         }
-        tdee = bmr * multipliers.get(activity_level, 1.55)
+        missing = [
+            name
+            for name, value in (
+                ("weight_kg", weight_kg),
+                ("height_cm", height_cm),
+                ("age", age),
+                ("sex", sex),
+                ("activity_level", activity_level),
+            )
+            if value is None
+        ]
+        if activity_level is not None and activity_level not in multipliers:
+            missing.append(f"activity_level (unknown value {activity_level!r})")
+        if sex is not None and sex not in ("male", "female"):
+            missing.append(f"sex (unknown value {sex!r})")
+        if missing:
+            result = {
+                **self._unavailable(
+                    "nutrition_plan",
+                    "body metrics required for Mifflin-St Jeor are missing: " + ", ".join(missing),
+                ),
+                "calories": None,
+                "protein_g": None,
+                "fat_g": None,
+                "carbs_g": None,
+                "water_ml": None,
+                "missing_inputs": missing,
+            }
+            await self._save(payload, "nutrition_plan", result, {"goal": goal})
+            return result
+
+        # Real Mifflin-St Jeor formula
+        bmr = (10.0 * weight_kg) + (6.25 * height_cm) - (5.0 * age) + (5.0 if sex == "male" else -161.0)
+        tdee = bmr * multipliers[activity_level]
 
         if goal == "cut":
             calories = tdee - 400
@@ -285,7 +497,9 @@ class DocAgent:
         return result
 
     async def _screening_calendar(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        age = int(payload.get("age", 35))
+        # Age drives the colonoscopy recommendation (≥45). Assuming 35 hid a
+        # screening that an older operator should be offered.
+        age = _opt_int(payload, "age")
         last_checkups = payload.get("last_checkups", {})
 
         annual = ["blood_pressure", "dental", "vision", "comprehensive_blood_panel"]
@@ -307,14 +521,20 @@ class DocAgent:
             if (today - last_dt).days > 365:
                 overdue.append(name)
 
-        if age >= 45 and "colonoscopy" not in last_checkups:
+        warnings: List[str] = []
+        if age is None:
+            warnings.append("age not supplied — age-dependent screening (colonoscopy ≥45) not evaluated")
+        elif age >= 45 and "colonoscopy" not in last_checkups:
             due.append("colonoscopy")
 
         result = {
             "agent": self.AGENT_ID,
+            "status": "ok",
+            "age": age,
             "completed": completed,
             "due": due,
             "overdue": overdue,
+            "warnings": warnings,
             "schedule_12_months": ["Annual Blood Panel (Q1)", "Dental Checkup (Q2)", "Cardio/ECG Check (Q3)"],
         }
         await self._save(payload, "screening_calendar", result, {"age": age})
@@ -412,12 +632,41 @@ class DocAgent:
         return result
 
     async def _nervous_system(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        hrv_ms = float(payload.get("hrv_ms", 45.0))
-        stress_score = float(payload.get("stress_score", 60.0))
-        technique = "Physiological Sigh (double inhale + long exhale)" if stress_score >= 60 else "Box Breathing (4-4-4-4)"
+        # Previously hrv_ms defaulted to 45 and stress_score to 60, so an empty
+        # payload "measured" a stressed operator and prescribed the sigh.
+        hrv_ms = _opt_float(payload, "hrv_ms")
+        stress_score = _opt_float(payload, "stress_score")
+
+        warnings: List[str] = []
+        if stress_score is not None:
+            technique = (
+                "Physiological Sigh (double inhale + long exhale)"
+                if stress_score >= 60
+                else "Box Breathing (4-4-4-4)"
+            )
+            personalised = True
+        elif hrv_ms is not None:
+            # Low HRV indicates sympathetic dominance — the sigh downshifts faster.
+            technique = (
+                "Physiological Sigh (double inhale + long exhale)"
+                if hrv_ms < 35
+                else "Box Breathing (4-4-4-4)"
+            )
+            personalised = True
+        else:
+            technique = "Box Breathing (4-4-4-4)"
+            personalised = False
+            warnings.append(
+                "no hrv_ms / stress_score supplied — generic protocol, not personalised "
+                "(no metrics were measured)"
+            )
+
         result = {
             "agent": self.AGENT_ID,
+            "status": "ok",
             "breathing_exercise": technique,
+            "personalised": personalised,
+            "inputs": {"hrv_ms": hrv_ms, "stress_score": stress_score},
             "duration_min": 5,
             "sleep_hygiene_tips": [
                 "Zero blue light 60 min prior to sleep",
@@ -425,6 +674,7 @@ class DocAgent:
                 "Magnesium glycinate 400mg before bed",
             ],
             "grounding_exercise": "5-4-3-2-1 sensory grounding protocol",
+            "warnings": warnings,
         }
         await self._save(payload, "nervous_system", result, {"hrv": hrv_ms, "stress": stress_score})
         return result
@@ -433,12 +683,17 @@ class DocAgent:
         readiness = await self._morning_readiness(payload)
         result = {
             "agent": self.AGENT_ID,
+            "status": readiness["status"],
             "readiness_score": readiness["score"],
             "zone": readiness["zone"],
             "recommended_intensity": readiness["recommended_intensity"],
             "water_target_ml": self._config.get("water_target_ml", 2500),
             "warnings": readiness["warnings"],
+            "missing_inputs": readiness.get("missing_inputs", []),
+            "partial": readiness.get("partial", False),
         }
+        if readiness["status"] != "ok":
+            result["warning"] = readiness["warning"]
         await self._save(payload, "morning_data", result)
         return result
 
@@ -451,9 +706,13 @@ class DocAgent:
 
         swarm = SwarmResearcher(llm=self._llm, memory=self._memory, registry=self._registry)
         briefing = await swarm.run_swarm(query=query, domain="biomedical", sources=sources)
-
-        return {
+        result = {
             "agent": self.AGENT_ID,
             "action": "swarm_research",
             "medical_briefing": briefing,
         }
+        await self._save(payload, "swarm_research", {
+            "query": str(query)[:500],
+            "medical_briefing": briefing,
+        })
+        return result

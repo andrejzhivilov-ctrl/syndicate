@@ -14,6 +14,38 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 logger = structlog.get_logger(__name__)
 
+#: Strings that mean "nobody filled this in yet". ``vault_init.sh`` used to
+#: write ``CHANGE_ME_BEFORE_PRODUCTION`` / ``PLACEHOLDER_UPDATE_ME`` into Vault,
+#: and half the callers then had to remember to filter them (eight ad-hoc
+#: checks existed, and one of them was always missing). A placeholder read as a
+#: real secret is worse than a missing one: the failure surfaces far from the
+#: cause, sometimes as an authenticated request with a nonsense token.
+PLACEHOLDER_MARKERS = (
+    "CHANGE_ME",
+    "PLACEHOLDER",
+    "REPLACE_ME",
+    "UPDATE_ME",
+    "FIXME",
+    "TODO",
+)
+
+
+def is_placeholder_secret(value: Any) -> bool:
+    """True when ``value`` is a fill-me-in marker rather than a real secret.
+
+    >>> is_placeholder_secret("CHANGE_ME_BEFORE_PRODUCTION")
+    True
+    >>> is_placeholder_secret("sk-live-…")
+    False
+    """
+    if value is None:
+        return True
+    text = str(value).strip()
+    if not text:
+        return True
+    upper = text.upper()
+    return any(marker in upper for marker in PLACEHOLDER_MARKERS)
+
 
 class VaultClient:
     """Async HashiCorp Vault client with AppRole auth and lease management."""
@@ -26,6 +58,9 @@ class VaultClient:
         self._token_expires_at: float = 0
         self._renewal_task: Optional[asyncio.Task] = None
         self._http = httpx.AsyncClient(timeout=10.0)
+        #: ``(path, key)`` pairs Vault holds only as fill-me-in markers. Read by
+        #: /health so an operator can see *which* secret was never filled in.
+        self.placeholder_keys: list[tuple[str, str]] = []
 
     @property
     def is_authenticated(self) -> bool:
@@ -66,7 +101,14 @@ class VaultClient:
         logger.info("Vault authenticated", lease_duration_seconds=lease_duration)
 
     async def get_secret(self, path: str) -> Dict[str, Any]:
-        """Retrieve a KV v2 secret from Vault."""
+        """Retrieve a KV v2 secret from Vault.
+
+        Keys whose value is a fill-me-in marker (or empty) are dropped and
+        reported, so a half-configured Vault behaves exactly like a missing
+        secret: callers fall back to env or report ``unavailable``. The flagged
+        keys are recorded in :attr:`placeholder_keys` for diagnostics — the
+        values themselves are never logged.
+        """
         if not self.is_authenticated:
             await self.authenticate()
 
@@ -77,7 +119,7 @@ class VaultClient:
         response.raise_for_status()
         payload = response.json()
         try:
-            return payload["data"]["data"]
+            data = payload["data"]["data"]
         except (KeyError, TypeError):
             # KV v1 (and empty KV v2 secrets) have a different envelope; report
             # it instead of raising a bare KeyError deep in the caller.
@@ -85,6 +127,18 @@ class VaultClient:
                 f"vault_unexpected_secret_envelope: {path} "
                 f"(keys: {sorted(payload) if isinstance(payload, dict) else type(payload).__name__})"
             ) from None
+
+        if not isinstance(data, dict):
+            raise RuntimeError(f"vault_unexpected_secret_envelope: {path} (data is {type(data).__name__})")
+
+        usable: Dict[str, Any] = {}
+        for key, value in data.items():
+            if is_placeholder_secret(value):
+                self.placeholder_keys.append((path, key))
+                logger.warning("vault_placeholder_secret_ignored", path=path, key=key)
+                continue
+            usable[key] = value
+        return usable
 
     async def start_token_renewal(self) -> None:
         """Background task: renew the token at 75% of its TTL.

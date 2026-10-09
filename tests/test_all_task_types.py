@@ -307,6 +307,24 @@ def _build_payload(harness, task_type: str) -> Dict[str, Any]:
             "proposed_content": "# Seed\n",
         }))
         payload["cr_id"] = (seed.get("result") or {}).get("cr_id")
+    if task_type == "gitops_sync":
+        # GitOps now intentionally fails closed. Exercise its success route with
+        # a workflow whose exact proposal has been reviewed and applied by the
+        # test operator; the approval step is not bypassed by the harness.
+        draft = asyncio.run(harness.orchestrator.execute("design_workflow", {
+            "name": "gitops-sync-test",
+            "trigger": "manual",
+        }))
+        proposal = draft.get("result") or {}
+        cr_id = proposal.get("approval_cr_id")
+        store = harness.orchestrator._change_requests
+        store.review(cr_id, reviewer="operator", comment="Approved in route probe")
+        store.apply(cr_id, approver="operator")
+        payload.update({
+            "workflow_name": "gitops-sync-test",
+            "workflow_json": proposal["workflow"],
+            "approval_cr_id": cr_id,
+        })
     return payload
 
 

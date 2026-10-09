@@ -17,10 +17,11 @@ import hmac
 import json
 import logging
 import os
+import sys
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import structlog
 import uvicorn
@@ -30,19 +31,30 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 
 from pydantic import BaseModel, Field
 
-from src.agents.sentinel import SentinelAgent
-from src.confidence import ConfidenceBudget
-from src.change_requests import ChangeRequestError
-from src.device_auth import DEFAULT_TTL_SECONDS, DeviceTokenStore, KNOWN_SCOPES
-from src.integrations import build_default_registry
-from src.lessons import LessonsStore
-from src.memory import MemoryManager
-from src.orchestrator import EvaOrchestrator
-from src.pii import PIIRedactor
-from src.runtime_config import build_runtime_config
-from src.vault_client import VaultClient
-from src.vault_paths import secret_path
-from src.voice import build_voice_manager
+# Running this file directly — ``python deploy/runtime/agent_runner.py`` — puts
+# ``deploy/runtime`` on sys.path instead of the repository root, so every
+# ``src.*`` import below died with ``ModuleNotFoundError: No module named 'src'``.
+# The container sets PYTHONPATH=/app and the tests add the paths themselves, so
+# only a local operator hit this. Third-party imports stay above the block, so
+# just the project imports carry the E402 exception.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from src.agents.sentinel import SentinelAgent  # noqa: E402
+from src.confidence import ConfidenceBudget  # noqa: E402
+from src.change_requests import ChangeRequestError  # noqa: E402
+from src.device_auth import DEFAULT_TTL_SECONDS, DeviceTokenStore, KNOWN_SCOPES  # noqa: E402
+from src.integrations import build_default_registry  # noqa: E402
+from src.lessons import LessonsStore  # noqa: E402
+from src.embeddings import build_embedding_provider  # noqa: E402
+from src.memory import MemoryManager  # noqa: E402
+from src.orchestrator import EvaOrchestrator  # noqa: E402
+from src.pii import PIIRedactor  # noqa: E402
+from src.runtime_config import build_runtime_config  # noqa: E402
+from src.vault_client import VaultClient, is_placeholder_secret  # noqa: E402
+from src.vault_paths import secret_path  # noqa: E402
+from src.voice import build_voice_manager  # noqa: E402
 
 # ─── Logging ────────────────────────────────────────────────────────────────
 
@@ -68,6 +80,7 @@ logger = structlog.get_logger(__name__)
 class AppState:
     vault_client: Optional[VaultClient] = None
     memory_manager: Optional[MemoryManager] = None
+    embedding_provider: Optional[Any] = None
     lessons_store: Optional[LessonsStore] = None
     confidence_budget: Optional[ConfidenceBudget] = None
     pii_redactor: Optional[PIIRedactor] = None
@@ -92,14 +105,88 @@ class AppState:
 app_state = AppState()
 
 
+# ─── Startup configuration ───────────────────────────────────────────────────
+
+_VAULT_ENV_VARS = ("VAULT_ADDR", "VAULT_ROLE_ID", "VAULT_SECRET_ID")
+
+
+def _load_local_dotenv() -> None:
+    """Load ``.env`` once, for operators running outside Docker.
+
+    ``python-dotenv`` was already a declared dependency and the runbook tells the
+    operator to ``cp .env.example .env``, but nothing ever read the file — the
+    agent only looked at the process environment, so a local run failed even with
+    a perfectly good ``.env`` sitting in the repository root.
+
+    ``override=False``: the real environment (Compose, systemd) always wins, so
+    this can never silently replace injected production values.
+    """
+    try:
+        from dotenv import load_dotenv
+    except ImportError:  # pragma: no cover - python-dotenv is a declared dependency
+        logger.warning("dotenv_not_installed", note=".env will not be loaded")
+        return
+
+    env_file = Path(os.getenv("EVA_DOTENV_FILE") or (_REPO_ROOT / ".env"))
+    if env_file.is_file():
+        load_dotenv(env_file, override=False)
+        logger.info("dotenv_loaded", path=str(env_file))
+
+
+def _require_secret(secrets: Dict[str, Any], key: str, path: str) -> Any:
+    """Read a mandatory key, naming the Vault path when it is unusable.
+
+    ``db_secrets["password"]`` used to raise a bare ``KeyError: 'password'``
+    inside the lifespan traceback — the operator had no way to tell whether the
+    secret was missing, empty, or still holding a fill-me-in marker (the client
+    drops placeholders, see ``VaultClient.get_secret``).
+    """
+    if key not in secrets or is_placeholder_secret(secrets.get(key)):
+        keys = ", ".join(sorted(secrets)) or "none"
+        raise RuntimeError(
+            f"Vault secret '{path}' has no usable '{key}' "
+            f"(usable keys: {keys}). Fill it in on the server: "
+            f"deploy/scripts/vault_init.sh or `vault kv put {path.replace('/data/', '/')}`. "
+            "Placeholder values (CHANGE_ME*/PLACEHOLDER*) count as absent by design."
+        )
+    return secrets[key]
+
+
+def _vault_env() -> Dict[str, str]:
+    """Read the Vault bootstrap variables, or fail with an actionable message.
+
+    These used to be read with ``os.environ[...]``, so a missing variable
+    surfaced as ``KeyError: 'VAULT_ADDR'`` inside a lifespan traceback: the
+    operator saw a crash but no hint about which file to fix. A blank value is
+    treated as missing — Compose happily substitutes an empty string for an
+    unset variable, and an empty VAULT_ADDR fails much later with a confusing
+    connection error instead of here.
+    """
+    missing = [name for name in _VAULT_ENV_VARS if not os.environ.get(name, "").strip()]
+    if missing:
+        raise RuntimeError(
+            "Missing required environment variable(s): "
+            + ", ".join(missing)
+            + ". Copy .env.example to .env and fill them in (see DEPLOYMENT_RUNBOOK.md"
+            " section 2), or export them before starting the agent."
+        )
+    return {name: os.environ[name] for name in _VAULT_ENV_VARS}
+
+
 # ─── Lifespan ───────────────────────────────────────────────────────────────
 
-@asynccontextmanager
 async def _purge_device_tokens(interval_seconds: int = 3600) -> None:
     """Background sweep: drop device tokens that died long ago.
 
     Module-level (not a closure inside ``lifespan``) to keep the startup
     function's cyclomatic complexity under the C901 gate.
+
+    This must stay a plain coroutine: ``lifespan`` starts it with
+    ``asyncio.create_task()``. A stray ``@asynccontextmanager`` here (left over
+    from an earlier refactor) turned the call into an
+    ``_AsyncGeneratorContextManager``, so ``create_task`` raised
+    ``TypeError: a coroutine was expected`` at startup step 8b and the agent
+    could never boot — with or without a working Vault.
     """
     while True:
         try:
@@ -121,10 +208,12 @@ async def lifespan(app: FastAPI):
 
     try:
         # 1. Initialize Vault client
+        _load_local_dotenv()
+        vault_env = _vault_env()
         app_state.vault_client = VaultClient(
-            vault_addr=os.environ["VAULT_ADDR"],
-            role_id=os.environ["VAULT_ROLE_ID"],
-            secret_id=os.environ["VAULT_SECRET_ID"],
+            vault_addr=vault_env["VAULT_ADDR"],
+            role_id=vault_env["VAULT_ROLE_ID"],
+            secret_id=vault_env["VAULT_SECRET_ID"],
         )
         await app_state.vault_client.authenticate()
         logger.info("Vault authentication successful")
@@ -133,17 +222,33 @@ async def lifespan(app: FastAPI):
         db_secrets = await app_state.vault_client.get_secret(secret_path("database"))
 
         # 3. Initialize Memory Manager
+        db_path = secret_path("database")
         postgres_dsn = (
-            f"postgresql+asyncpg://{db_secrets['user']}:{db_secrets['password']}"
+            f"postgresql+asyncpg://{_require_secret(db_secrets, 'user', db_path)}"
+            f":{_require_secret(db_secrets, 'password', db_path)}"
             f"@{os.getenv('POSTGRES_HOST', 'postgres')}:{os.getenv('POSTGRES_PORT', '5432')}"
             f"/{os.getenv('POSTGRES_DB', 'eva_syndicate')}"
         )
         redis_secrets = await app_state.vault_client.get_secret(secret_path("redis"))
-        redis_url = f"redis://:{redis_secrets.get('password', '')}@redis:6379/0"
+        redis_password = _require_secret(redis_secrets, "password", secret_path("redis"))
+        redis_url = f"redis://:{redis_password}@redis:6379/0"
+
+        # Vector producer for semantic memory search. Absent EMBEDDINGS_URL is a
+        # supported mode: memory keeps working, semantic recall reports "disabled".
+        app_state.embedding_provider = build_embedding_provider()
+        if app_state.embedding_provider is not None:
+            probe = await app_state.embedding_provider.health()
+            logger.info(
+                "embedding_provider_configured",
+                provider=app_state.embedding_provider.name,
+                status=probe.get("status"),
+                warning=probe.get("warning"),
+            )
 
         app_state.memory_manager = MemoryManager(
             postgres_dsn=postgres_dsn,
             redis_url=redis_url,
+            embedder=app_state.embedding_provider,
         )
         await app_state.memory_manager.initialize()
         logger.info("Memory manager initialized")
@@ -152,6 +257,7 @@ async def lifespan(app: FastAPI):
         app_state.lessons_store = LessonsStore(
             session_factory=app_state.memory_manager._session_factory,
             redis=app_state.memory_manager._redis,
+            embedder=app_state.embedding_provider,
         )
         app_state.confidence_budget = ConfidenceBudget()
         app_state.pii_redactor = PIIRedactor()
@@ -246,9 +352,14 @@ async def lifespan(app: FastAPI):
             app_state.device_purge_task.cancel()
             with contextlib.suppress(BaseException):
                 await app_state.device_purge_task
-            app_state.vault_renewal_task = None
+            # This used to clear ``vault_renewal_task`` instead — a copy-paste
+            # slip that dropped the reference to the wrong task and left the
+            # purge task pointing at an already-cancelled object.
+            app_state.device_purge_task = None
         if app_state.memory_manager:
             await app_state.memory_manager.close()
+        if app_state.embedding_provider:
+            await app_state.embedding_provider.close()
         if app_state.vault_client:
             await app_state.vault_client.revoke_token()
             await app_state.vault_client.aclose()
@@ -362,6 +473,16 @@ class HealthResponse(BaseModel):
     vault_connected: bool
     memory_ready: bool
     orchestrator_ready: bool
+    # Configuration-level facts, not a live probe of the embeddings service: a
+    # healthcheck that blocked on another container would be worse than useless.
+    # ``semantic_search_enabled=False`` is a supported mode (episodic memory only).
+    semantic_search_enabled: bool = False
+    embedding_failures: int = 0
+    #: ``["<vault path>:<key>", ...]`` for secrets Vault holds only as
+    #: fill-me-in markers (or empty). Names, never values: an operator needs to
+    #: know *which* secret was never filled in, and the client drops such values
+    #: anyway, so silently continuing would hide a half-configured Vault.
+    vault_placeholder_secrets: List[str] = []
 
 
 # ─── Dependencies: Ready State & Authentication ─────────────────────────────
@@ -646,6 +767,16 @@ async def health_check():
         vault_connected=app_state.vault_client is not None and app_state.vault_client.is_authenticated,
         memory_ready=app_state.memory_manager is not None and app_state.memory_manager.is_ready,
         orchestrator_ready=app_state.orchestrator is not None,
+        semantic_search_enabled=bool(
+            app_state.memory_manager is not None and app_state.memory_manager.embeddings_enabled
+        ),
+        embedding_failures=int(
+            getattr(app_state.memory_manager, "embedding_failures", 0) or 0
+        ),
+        vault_placeholder_secrets=[
+            f"{path}:{key}"
+            for path, key in getattr(app_state.vault_client, "placeholder_keys", []) or []
+        ],
     )
 
 

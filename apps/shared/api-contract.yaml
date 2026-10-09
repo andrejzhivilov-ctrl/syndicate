@@ -7,7 +7,7 @@
 # Verify in CI with: python tools/export_openapi.py --check
 # ============================================================
 #
-# contract_sha256: b526dd789d3f2de164251971cc78a7f3f02a5e1ec7fbbef61fb237e4bc52d94c
+# contract_sha256: 42e2ab0ea838b37f455a6c4b167a7c34be43866808283360783b157c5ab1c280
 # api_version:     4.1.0
 # paths:           26
 #
@@ -124,11 +124,19 @@ components:
       type: object
     HealthResponse:
       properties:
+        embedding_failures:
+          default: 0
+          title: Embedding Failures
+          type: integer
         memory_ready:
           title: Memory Ready
           type: boolean
         orchestrator_ready:
           title: Orchestrator Ready
+          type: boolean
+        semantic_search_enabled:
+          default: false
+          title: Semantic Search Enabled
           type: boolean
         status:
           title: Status
@@ -139,6 +147,12 @@ components:
         vault_connected:
           title: Vault Connected
           type: boolean
+        vault_placeholder_secrets:
+          default: []
+          items:
+            type: string
+          title: Vault Placeholder Secrets
+          type: array
       required:
       - status
       - uptime

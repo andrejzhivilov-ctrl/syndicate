@@ -78,15 +78,24 @@ echo "N8N_ENCRYPTION_KEY=$(openssl rand -hex 16)"
 Впишіть згенеровані значення у `.env` (`nano .env`). Також задайте `DOMAIN=your-domain.com` та `N8N_HOST=your-domain.com`.
 Поля `VAULT_ROLE_ID` / `VAULT_SECRET_ID` заповняться пізніше (крок 4.4).
 
+> ⚠️ `POSTGRES_PASSWORD` і `REDIS_PASSWORD` мають бути **справжніми вже тут**: контейнери стартують із ними (крок 3), і саме ці самі значення `vault_init.sh` покладе у Vault (крок 4). Скрипт відмовиться працювати, якщо побачить `CHANGE_ME`/`PLACEHOLDER` — щоб не розійтися з тим, з чим реально піднято БД.
+
 > ⚠️ Ніколи не комітьте `.env` у git — він уже у `.gitignore`.
 
-### 2.3. Синхронізувати пароль Redis у конфіг
+### 2.3. Пароль Redis
 
-У `config/redis/redis.conf` рядок `requirepass REDIS_PASSWORD_PLACEHOLDER` потрібно замінити на реальний пароль з `.env`:
+**Нічого синхронізувати не треба — і не можна.** `config/redis/redis.conf` навмисно
+не містить `requirepass`: пароль передається процесу при старті контейнера
+(`docker compose` бере `${REDIS_PASSWORD}` з `.env` і додає `--requirepass`).
+
+Команда `sed` тут більше не потрібна: раніше вона редагувала рядок, якого у файлі
+не існувало, тому мовчки нічого не робила, а Redis піднімався **без пароля**.
+
+Що потрібно зробити — лише переконатися, що `.env` містить `REDIS_PASSWORD`
+(порожнє або відсутнє значення зупинить запуск, це навмисно).
 
 ```bash
-source .env
-sed -i "s/^requirepass .*/requirepass ${REDIS_PASSWORD}/" config/redis/redis.conf
+grep -q '^REDIS_PASSWORD=.\+' .env && echo "OK: пароль задано" || echo "СТОП: задайте REDIS_PASSWORD"
 ```
 
 ---
@@ -118,77 +127,111 @@ curl -s http://127.0.0.1:8200/v1/sys/health | jq   # initialized:false, sealed:t
 
 ## 4. Ініціалізація Vault
 
-### 4.1. Запустити ініціалізацію (Shamir 3-of-5 + AppRole)
+### 4.1. Що змінилось (прочитати перед першим запуском)
+
+Раніша версія скрипта клала в Vault **плейсхолдери** — `CHANGE_ME_BEFORE_PRODUCTION`
+для пароля БД і Redis та `PLACEHOLDER_UPDATE_ME` для LLM-ключів. Значення, яке *виглядає*
+заповненим, небезпечніше за відсутнє: воно не кидається в очі при перевірці `vault kv get`,
+а помилка виринає пізніше й далеко від причини. Тепер:
+
+* пароль БД і Redis **беруться з `.env`** (ті самі, з якими стартували контейнери) —
+  скрипт не вигадує своїх і **відмовляється працювати**, якщо `POSTGRES_PASSWORD` /
+  `REDIS_PASSWORD` порожні або містять `CHANGE_ME`/`PLACEHOLDER`;
+* LLM-ключі передаються змінними середовища; чого немає — того **немає в Vault**
+  (це чесно, і агент так і звітує: LLM `unavailable`). Щоб додати пізніше:
+  `vault kv put secret/eva-syndicate/<service> key=value`;
+* `api_key` + `webhook_secret` генеруються випадково самим скриптом;
+* політики **не** пишуться heredoc-ом, а завантажуються з `config/vault/policies/*.hcl`,
+  які генеруються з коду: `python tools/vault_policies.py --write`;
+* AppRole створюється **на кожну політику** (не лише eva/sentinel), щоб поверх міг
+  отримати власний токен, коли переїде в окремий контейнер;
+* root-token **відкликається** наприкінці (`KEEP_ROOT_TOKEN=1` — щоб лишити).
+
+### 4.2. Ключі для запуску
+
+Скрипт бере секрети зі змінних середовища. Найпростіше — підвантажити `.env`:
 
 ```bash
 cd /opt/eva
-sudo VAULT_ADDR=http://127.0.0.1:8200 bash deploy/scripts/vault_init.sh
+set -a; source .env; set +a          # POSTGRES_PASSWORD, REDIS_PASSWORD уже там
+export ANTHROPIC_API_KEY="sk-ant-..."   # опційно; що не задано — те не потрапить у Vault
+sudo -E VAULT_ADDR=http://127.0.0.1:8200 bash deploy/scripts/vault_init.sh
 ```
 
-Скрипт виконає: init (5 ключів, поріг 3), автоматичний unseal для налаштування, увімкнення audit log, KV v2, завантаження політик, створення AppRole для eva/sentinel, збереження плейсхолдер-секретів.
+`sudo -E` потрібен, щоб змінні дійшли до скрипта (і `SUDO` не зʼїв `VAULT_ADDR`).
 
-### 4.2. Зберегти unseal-ключі та root-token
+Скрипт виконує: init (5 ключів, поріг 3) → автounseal для налаштування → audit log →
+KV v2 `secret` → завантаження політик → запис секретів → AppRole на кожну політику →
+ревокація root-token. Наприкінці він друкує, у якому файлі лежать AppRole-креденшли.
 
-Файл `/opt/eva/vault-secrets/vault-init.json` містить 5 unseal-ключів і root-token.
+### 4.3. Зберегти unseal-ключі
 
 ```bash
 sudo cat /opt/eva/vault-secrets/vault-init.json | jq
 ```
 
 > 🔴 **КРИТИЧНО:**
-> 1. Розподіліть 5 unseal-ключів між 5 довіреними особами.
-> 2. Збережіть root-token у HSM або менеджері паролів.
+> 1. Розподіліть 5 unseal-ключів між 5 довіреними особами (не в одному місці).
+> 2. Збережіть root-token у HSM або менеджері паролів — він знадобиться для
+>    аварійного доступу (`vault operator generate-root` з 3 ключами, якщо root
+>    втрачено, теж працює).
 > 3. Після цього **видаліть** файл: `sudo shred -u /opt/eva/vault-secrets/vault-init.json`.
-
-### 4.3. Замінити плейсхолдери секретів на реальні
-
-Використайте root-token (тимчасово) для запису реальних значень:
-
-```bash
-export VAULT_ADDR=http://127.0.0.1:8200
-export VAULT_TOKEN="<root-token>"
-source /opt/eva/.env
-
-> **Увага.** Усі секрети живуть в одному KV v2-mount `secret` з префіксом
-> `eva-syndicate` — єдине джерело правди: `src/vault_paths.py`. Старі шляхи
-> `eva/database`, `eva/config`, `eva/api-keys` більше не використовуються.
-
-```bash
-# Реальні креденшли БД
-curl -s -X POST -H "X-Vault-Token: $VAULT_TOKEN" \
-  -d "{\"data\":{\"host\":\"postgres\",\"port\":\"5432\",\"name\":\"eva_syndicate\",\"user\":\"eva\",\"password\":\"${POSTGRES_PASSWORD}\"}}" \
-  "$VAULT_ADDR/v1/secret/data/eva-syndicate/database"
-
-# Пароль Redis
-curl -s -X POST -H "X-Vault-Token: $VAULT_TOKEN" \
-  -d "{\"data\":{\"password\":\"${REDIS_PASSWORD}\"}}" \
-  "$VAULT_ADDR/v1/secret/data/eva-syndicate/redis"
-
-# Реальні LLM-ключі
-curl -s -X POST -H "X-Vault-Token: $VAULT_TOKEN" \
-  -d '{"data":{"openai_api_key":"sk-...","anthropic_api_key":"sk-ant-...","embedding_model":"text-embedding-3-small"}}' \
-  "$VAULT_ADDR/v1/secret/data/eva-syndicate/api-keys"
-
-# API-ключ агента та HMAC-секрет webhook'ів.
-# Без цього /execute повертає 401 "API authentication key not configured".
-API_KEY=$(openssl rand -hex 32)
-WEBHOOK_SECRET=$(openssl rand -hex 32)
-curl -s -X POST -H "X-Vault-Token: $VAULT_TOKEN" \
-  -d "{\"data\":{\"api_key\":\"${API_KEY}\",\"webhook_secret\":\"${WEBHOOK_SECRET}\"}}" \
-  "$VAULT_ADDR/v1/secret/data/eva-syndicate/auth"
-
-unset VAULT_TOKEN
-```
 
 ### 4.4. Записати AppRole-креденшли в `.env`
 
 ```bash
-sudo cat /opt/eva/vault-secrets/eva-approle.env
+sudo cat /opt/eva/vault-secrets/eva-agent.approle.env
 # Скопіюйте VAULT_ROLE_ID та VAULT_SECRET_ID у /opt/eva/.env
 nano /opt/eva/.env
-# Після копіювання — видаліть файл:
-sudo shred -u /opt/eva/vault-secrets/eva-approle.env
+# Після копіювання — видаліть усі файли *.approle.env:
+sudo shred -u /opt/eva/vault-secrets/*.approle.env
 ```
+
+### 4.5. Перевірити, що політики відповідають коду
+
+```bash
+python tools/vault_policies.py --check     # виконується і в tools/check.sh
+```
+
+Перевірка ловить три класи помилок: політику, що відстала від коду (агент отримав би
+403 на секреті, який читає на старті); сервіс, який код читає, але `src/vault_paths.py`
+не оголошує; і grant, що покриває весь префікс (`secret/data/eva-syndicate/*`), тобто
+доступ до чужих ключів.
+
+### 4.6. Хто які секрети бачить
+
+| Політика | Призначення | Доступ |
+| :--- | :--- | :--- |
+| `eva-agent` | **рантайм** (усі поверхи в одному процесі) | `database`, `redis`, `api-keys`, `auth`, конектори, голос, `agents/*` |
+| `eva-eva` | Єва в окремому контейнері (на майбутнє) | інфраструктура + конектори + голос + `agents/eva/*` |
+| `eva-marshal` | Маршал | інфраструктура + `mcp`, `telegram` + `agents/marshal/*` |
+| `eva-fin` | Фін | інфраструктура + `google_workspace` + `agents/fin/*` |
+| `eva-architect` | Архітектор | інфраструктура + `mcp` + `agents/architect/*` |
+| `eva-sam`, `eva-doc`, `eva-kira` | Сем, Док, Кіра | інфраструктура + власна гілка (default deny) |
+
+Жодна агентська політика не дає `auth` (ключ API самого сервера) і не дає доступу до
+гілки іншого агента. **Причина, чому рантайм поки бачить усе:** сьогодні всі поверхи
+живуть в одному процесі (`eva-agent`). Щойно поверх переїде в окремий контейнер, його
+`VAULT_ROLE_ID/SECRET_ID` беруться з `vault-secrets/eva-<id>.approle.env`, і жодних
+змін у коді це не потребує.
+
+### 4.7. Як додати секрет для сервісу
+
+```bash
+export VAULT_ADDR=http://127.0.0.1:8200
+vault login                     # будь-який метод з правом на запис
+vault kv put secret/eva-syndicate/telegram bot_token=... chat_id=...
+vault kv put secret/eva-syndicate/agents/sam/broker api_key=... api_secret=...
+```
+
+Далі перевірте, що сервіс оголошено в `src/vault_paths.py` (інакше `--check` попередить),
+і за потреби додайте його агенту в `AGENT_SERVICES`.
+
+> **Плейсхолдери заборонені.** `VaultClient.get_secret()` відкидає значення з
+> `CHANGE_ME` / `PLACEHOLDER` / `REPLACE_ME` / `UPDATE_ME` і пише в лог
+> `vault_placeholder_secret_ignored`. `/health` показує
+> `vault_placeholder_secrets: ["secret/data/...:<key>"]` — саме **назви** ключів, не
+> значення. Так само поводиться й порожній рядок.
 
 ---
 
@@ -285,18 +328,123 @@ docker compose -f deploy/docker-compose.yml --project-directory . --env-file .en
 
 ## 10. Резервне копіювання
 
-```bash
-# PostgreSQL dump (запускати з кореня /opt/eva)
-docker compose -f deploy/docker-compose.yml --project-directory . --env-file .env exec -T postgres \
-  pg_dump -U eva eva_syndicate | gzip > /opt/eva/backups/pg_$(date +%F).sql.gz
+Бекапи робить `tools/backup.py` — не одноразові команди з цього документа (раніше тут були
+три рядки, які неможливо було запустити надійно). Інструмент створює **набір** з трьох
+артефактів і сам їх перевіряє:
 
-# Дані Vault (Raft snapshot; потрібен root-token)
+| Артефакт | Навіщо |
+| :--- | :--- |
+| `postgres.dump` (`pg_dump --format=custom`) | Єдині невідтворювані дані: пам'ять, журнали, історія |
+| `vault.snap` (Raft snapshot) | Без нього не буде паролів до БД, Redis і всіх API-ключів |
+| `env.bootstrap` (копія `.env`, `chmod 600`) | Без нього відновлення неможливе: unseal-матеріал і AppRole |
+
+Плюс `manifest.json` із `sha256`, розмірами та **чесним статусом кожного кроку**:
+`ok` або `unavailable` із причиною. Дамп **верифікується** (`pg_restore --list`) до того, як
+набір уважається придатним — саме ця перевірка ловить пошкоджений дамп, який інакше
+виявився б у день відновлення.
+
+### Запуск
+
+```bash
+cd /opt/eva
+# покласти поруч із бекапом (потрібен libpq: apt-get install -y postgresql-client)
+export EVA_BACKUP_DIR=/data/backups
+export DATABASE_URL="postgresql://eva:${POSTGRES_PASSWORD}@127.0.0.1:5432/eva_syndicate"  # або POSTGRES_PASSWORD
+
+# токен Vault ІЗ ПРАВОМ ЛИШЕ НА ЗНІМОК (не root!) — див. нижче
 export VAULT_ADDR=http://127.0.0.1:8200
-curl -s -H "X-Vault-Token: $VAULT_TOKEN" \
-  "$VAULT_ADDR/v1/sys/storage/raft/snapshot" -o /opt/eva/backups/vault_$(date +%F).snap
+export VAULT_TOKEN="$(cat /root/.vault-backup-token)"
+
+python3 tools/backup.py --dest "$EVA_BACKUP_DIR" --keep-days 14 --offsite
+python3 tools/backup.py --list          # що лежить на диску
 ```
 
-Каталоги `/data/postgres`, `/data/redis`, `/data/vault`, `/data/n8n` також слід включати в офлайн-бекап.
+`--offsite` штовхає набір у `restic` (`RESTIC_REPOSITORY`, `RESTIC_PASSWORD`). Якщо restic
+не встановлено або репозиторій не задано — це буде `unavailable` з причиною, **не** «ok».
+
+`DB_PASSWORD` передається через DSN, тому не друкуйте вивід у публічні логи.
+
+### Розклад (cron)
+
+```bash
+# /etc/cron.d/eva-backup — щодня о 03:30
+30 3 * * * root cd /opt/eva && set -a && . ./.backup.env && set +a && \
+  /usr/bin/python3 tools/backup.py --offsite >> /var/log/eva-backup.log 2>&1
+```
+
+`/opt/eva/.backup.env` (chmod 600, у git не потрапляє) містить `EVA_BACKUP_DIR`,
+`DATABASE_URL`, `VAULT_ADDR`, `VAULT_TOKEN`, `RESTIC_*`. Cron повертає ненульовий код, якщо
+дампу немає — тобто тишу в логах можна відрізнити від відсутності бекапу.
+
+Альтернатива cron — systemd timer:
+
+```ini
+# /etc/systemd/system/eva-backup.service
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/eva
+EnvironmentFile=/opt/eva/.backup.env
+ExecStart=/usr/bin/python3 tools/backup.py --offsite
+```
+```ini
+# /etc/systemd/system/eva-backup.timer
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+[Install]
+WantedBy=timers.target
+```
+
+### Токен Vault лише для знімків
+
+Не використовуйте root-token у cron. Створіть окрему політику й токен:
+
+```bash
+vault policy write eva-backup - <<'EOF'
+path "sys/storage/raft/snapshot" { capabilities = ["read"] }
+EOF
+vault token create -policy=eva-backup -period=768h -field=token > /root/.vault-backup-token
+chmod 600 /root/.vault-backup-token
+```
+
+---
+
+## 10.1. Відновлення з бекапу
+
+> Порядок важливий: **спершу Vault, потім БД, потім `.env`, і тільки потім піднімаємо стек.**
+> Агент стартує, лише коли має і Vault, і БД — інакше він просто не підніметься.
+
+```bash
+cd /opt/eva
+export SNAP=/data/backups/2026-10-06T03-30-00Z     # потрібен набір зі статусом "ok"
+python3 -c "import json;print(json.load(open('$SNAP/manifest.json'))['status'])"   # має бути ok
+sha256sum -c <(cd "$SNAP" && python3 -c "
+import json,hashlib,pathlib
+m=json.load(open('manifest.json'))
+for a in m['artifacts']:
+    if a['status']=='ok' and a['sha256']: print(a['sha256'], a['path'])")
+```
+
+1. **Секрети.** Розгорнути Vault, розпечатати (крок 8), потім:
+   ```bash
+   vault operator raft snapshot restore "$SNAP/vault.snap"
+   ```
+2. **Bootstrap-файл.** Відновити `.env` зі знімка (`cp "$SNAP/env.bootstrap" .env && chmod 600 .env`),
+   звірити `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `VAULT_ROLE_ID/SECRET_ID`.
+3. **Інфраструктура.** `docker compose ... up -d postgres redis vault` і дочекатися `healthy`.
+4. **База.**
+   ```bash
+   docker compose -f deploy/docker-compose.yml --project-directory . --env-file .env exec -T postgres \
+     pg_restore --clean --if-exists --no-owner -U eva -d eva_syndicate < "$SNAP/postgres.dump"
+   ```
+5. **Решта стека** (крок 6) і перевірка (крок 7), окремо — `/health` має показати
+   `semantic_search_enabled: true`, а `embedding_failures: 0`.
+
+**Обов'язкова репетиція.** Бекап, який жодного разу не відновлювали, — це не бекап:
+раз на квартал розгортайте набір на тестовій машині за цими п'ятьма кроками й фіксуйте час.
+
+Каталоги `/data/postgres`, `/data/vault`, `/data/n8n` (bind-mounts) варто додатково включати
+в офлайн-бекап хоста: знімок Vault і дамп БД цілком замінюють їхній вміст, але копія не завадить.
 
 ---
 
@@ -309,6 +457,9 @@ curl -s -H "X-Vault-Token: $VAULT_TOKEN" \
 | nginx `unhealthy` | Відсутні TLS-сертифікати | Виконати крок 5, перевірити `/etc/letsencrypt/live/<domain>/` |
 | redis healthcheck fail | Пароль у конфізі ≠ `.env` | Синхронізувати (крок 2.3), перезапустити redis |
 | Vault `sealed:true` після рестарту | Очікувано | Розпечатати (крок 8) |
+| Агент падає з 403 на `/v1/secret/data/...` | політика відстала від коду | `python tools/vault_policies.py --check`, далі `--write` і повторно завантажити політики (крок 4) |
+| `/health` показує `vault_placeholder_secrets` | у Vault лежить `CHANGE_ME*`/`PLACEHOLDER*` | записати справжнє значення: `vault kv put secret/eva-syndicate/<service> <key>=<value>` |
+| `vault_init.sh` відмовляється стартувати | `POSTGRES_PASSWORD`/`REDIS_PASSWORD` порожні або плейсхолдер | задати справжній пароль у `.env` і повторити |
 | 403 на внутрішніх портах ззовні | Очікувано (ізоляція) | Це коректна поведінка Zero-Trust |
 
 ---
@@ -317,16 +468,21 @@ curl -s -H "X-Vault-Token: $VAULT_TOKEN" \
 
 - [ ] `server_bootstrap.sh` виконано; UFW/fail2ban активні
 - [ ] `.env` заповнено надійними паролями, `chmod 600`, не в git
-- [ ] `config/redis/redis.conf` містить реальний `requirepass`
-- [ ] Vault ініціалізовано; 5 unseal-ключів розподілено; root-token у сейфі
+- [ ] Redis відповідає лише з паролем: `redis-cli -a "$REDIS_PASSWORD" --no-auth-warning ping` → `PONG`, а `redis-cli ping` → `NOAUTH` (порожній `REDIS_PASSWORD` у `.env` не дає запустити compose)
+- [ ] `POSTGRES_PASSWORD` / `REDIS_PASSWORD` — справжні (не `CHANGE_ME`), ті самі, з якими стартували контейнери
+- [ ] Vault ініціалізовано (`vault_init.sh`); 5 unseal-ключів розподілено; root-token у сейфі
+- [ ] `python tools/vault_policies.py --check` — політики відповідають коду
+- [ ] `vault-init.json` і `*.approle.env` видалено з диска після розповсюдження ключів
 - [ ] `vault-init.json` та `*-approle.env` видалено (`shred`)
-- [ ] Реальні секрети записано у Vault (БД, Redis, LLM)
+- [ ] Реальні секрети записано у Vault (БД, Redis, LLM); перевірено, що плейсхолдерів немає
+      (`curl -s localhost:8000/health | jq .vault_placeholder_secrets` → `[]`)
 - [ ] `VAULT_ROLE_ID/SECRET_ID` вписано в `.env`
 - [ ] TLS-сертифікати видано
 - [ ] Усі сервіси `healthy`
 - [ ] `verify_deployment.sh` — без критичних помилок
 - [ ] Внутрішні порти недоступні ззовні
-- [ ] Налаштовано резервне копіювання
+- [ ] `tools/backup.py` виконано на сервері: набір має `status: ok` у `manifest.json`, дамп **верифіковано** `pg_restore --list`, а cron/systemd timer щодня створює новий
+- [ ] Бекап **відновлено** на тестовій машині за §10.1 (бекап без репетиції не рахується)
 
 ---
 

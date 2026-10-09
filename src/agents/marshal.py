@@ -18,8 +18,16 @@ import hashlib
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set
+
 import structlog
 
+from src.agent_memory import (
+    compact_json,
+    memory_session_id,
+    memory_status,
+    recall_agent_memory,
+    save_agent_episode,
+)
 from src.vault_client import VaultClient
 
 logger = structlog.get_logger(__name__)
@@ -208,26 +216,44 @@ class MarshalAgent:
     # ─── Unified Dispatcher ──────────────────────────────────────────────────
 
     async def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Dispatch security operations."""
+        """Dispatch security operations; recalled memory is audit context only."""
         action = payload.get("action", "security_audit")
         logger.info("marshal_security_dispatched", action=action)
+        handler = self._ACTION_MAP.get(action)
+        if handler is None:
+            # Unknown actions used to silently run a full security audit,
+            # which is both expensive and surprising.
+            logger.warning("marshal_unknown_action", action=action)
+            return {
+                "status": "error",
+                "error": f"Unknown action: {action}",
+                "agent": self.AGENT_ID,
+                "available_actions": sorted(self._ACTION_MAP),
+            }
 
+        session_id = memory_session_id(payload, "marshal_security_ops")
+        memory_context = await recall_agent_memory(
+            self._memory,
+            agent_id=self.AGENT_ID,
+            session_id=session_id,
+            payload=payload,
+            limit=int(self._config.get("memory_context_limit", 8)),
+            max_chars=int(self._config.get("memory_context_chars", 1800)),
+        )
         try:
-            handler = self._ACTION_MAP.get(action)
-            if handler is None:
-                # Unknown actions used to silently run a full security audit,
-                # which is both expensive and surprising.
-                logger.warning("marshal_unknown_action", action=action)
-                return {
-                    "status": "error",
-                    "error": f"Unknown action: {action}",
-                    "agent": self.AGENT_ID,
-                    "available_actions": sorted(self._ACTION_MAP),
-                }
-            return await handler(payload)
+            result = await handler(payload)
         except Exception as exc:  # noqa: BLE001
             logger.exception("Marshal execution error", action=action, exc_info=exc)
             return {"error": str(exc), "agent": self.AGENT_ID, "action": action, "status": "failed"}
+
+        if isinstance(result, dict):
+            result["memory"] = memory_status(memory_context)
+            if action in {"security_audit", "audit", "system_audit", "incident_report", "threat_intel"}:
+                historical = memory_context.get("text") if memory_context.get("status") == "ok" else ""
+                if historical:
+                    result["historical_memory"] = historical
+            await self._save_episode(action, result, session_id=session_id)
+        return result
 
     # ─── Direct Zero-Token Security Methods ──────────────────────────────────
 
@@ -399,7 +425,6 @@ class MarshalAgent:
             "threat_level": "DEFCON_4 (Normal / Defended)",
             "status": "nominal",
         }
-        await self._save_episode("security_audit", res)
         return res
 
     async def _incident_report(self, payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -476,15 +501,21 @@ class MarshalAgent:
         else:
             logger.info("Task validated by Marshal", risk_score=result.risk_score, task_type=task.get("task_type", "unknown"))
 
-    async def _save_episode(self, action: str, data: Dict[str, Any]) -> None:
-        if self._memory and hasattr(self._memory, "save_episode"):
-            try:
-                await self._memory.save_episode(
-                    session_id="marshal_security_ops",
-                    agent_id=self.AGENT_ID,
-                    role="assistant",
-                    content=f"Marshal Security: {action}",
-                    metadata={"action": action, "data": data},
-                )
-            except Exception as e:
-                logger.warning("marshal_memory_save_failed", error=str(e))
+    async def _save_episode(
+        self, action: str, data: Dict[str, Any], *, session_id: str
+    ) -> None:
+        """Persist only bounded audit facts; never store scanned raw output."""
+        safe_keys = (
+            "status", "allowed", "reason", "risk_score", "requires_hitl",
+            "has_secrets", "detected_types", "threat_level", "recent_incidents_count",
+            "total_recorded_threats", "task_type", "protocol_status",
+        )
+        summary = {key: data[key] for key in safe_keys if key in data}
+        await save_agent_episode(
+            self._memory,
+            agent_id=self.AGENT_ID,
+            session_id=session_id,
+            action=action,
+            content=compact_json({"action": action, "summary": summary}),
+            metadata={"category": "security_audit"},
+        )

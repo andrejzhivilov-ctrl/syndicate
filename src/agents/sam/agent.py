@@ -18,9 +18,19 @@ Iron rules honoured here (spec §4):
 from __future__ import annotations
 
 import inspect
+from contextvars import ContextVar
 from typing import Any, Dict, List, Optional
 
 import structlog
+
+from src.agent_memory import (
+    append_memory_context,
+    compact_json,
+    memory_session_id,
+    memory_status,
+    recall_agent_memory,
+    save_agent_episode,
+)
 
 from .confluence import (
     DEFAULT_CONFLUENCE_THRESHOLD,
@@ -57,6 +67,9 @@ class SamAgent:
         self._llm = llm
         self._config = dict(config or {})
         self._registry = registry  # ConnectorRegistry (telegram, mcp, google...)
+        self._memory_context: ContextVar[Optional[Dict[str, Any]]] = ContextVar(
+            f"sam_memory_context_{id(self)}", default=None
+        )
 
         threshold = float(self._config.get("confluence_threshold", DEFAULT_CONFLUENCE_THRESHOLD))
         weights = self._config.get("confluence_weights")
@@ -105,20 +118,69 @@ class SamAgent:
     # ------------------------------------------------------------------ #
     async def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         action = payload.get("action", "analyze")
+        handler = self._ACTION_MAP.get(action)
+        if handler is None:
+            return {
+                "status": "error",
+                "error": f"Unknown action: {action}",
+                "agent": self.AGENT_ID,
+                "available_actions": sorted(self._ACTION_MAP),
+            }
+
+        session_id = memory_session_id(payload, "sam-market-session")
+        memory_context = await recall_agent_memory(
+            self._memory,
+            agent_id=self.AGENT_ID,
+            session_id=session_id,
+            payload=payload,
+            limit=int(self._config.get("memory_context_limit", 8)),
+            max_chars=int(self._config.get("memory_context_chars", 1800)),
+        )
+        token = self._memory_context.set(memory_context)
         try:
-            handler = self._ACTION_MAP.get(action)
-            if handler is None:
-                return {
-                    "status": "error",
-                    "error": f"Unknown action: {action}",
-                    "agent": self.AGENT_ID,
-                    "available_actions": sorted(self._ACTION_MAP),
-                }
-            result = handler(payload)
-            return await result if inspect.isawaitable(result) else result
-        except Exception as exc:  # noqa: BLE001
-            logger.exception("sam_execute_failed", action=action)
-            return {"error": str(exc), "agent": self.AGENT_ID, "action": action}
+            try:
+                result = handler(payload)
+                result = await result if inspect.isawaitable(result) else result
+            except Exception as exc:  # noqa: BLE001
+                logger.exception("sam_execute_failed", action=action)
+                return {"error": str(exc), "agent": self.AGENT_ID, "action": action}
+
+            if isinstance(result, dict):
+                await self._remember_action(session_id, action, payload, result)
+                result["memory"] = memory_status(memory_context)
+                if action in {"evaluate_setup", "reflect", "swarm_research"}:
+                    if memory_context.get("status") == "ok" and memory_context.get("text"):
+                        result["historical_context"] = memory_context["text"]
+            return result
+        finally:
+            self._memory_context.reset(token)
+
+    async def _remember_action(
+        self, session_id: str, action: str, payload: Dict[str, Any], result: Dict[str, Any]
+    ) -> None:
+        """Store outcome context without duplicating broker/account payloads."""
+        confluence = result.get("confluence") or {}
+        record = {
+            "action": action,
+            "symbol": payload.get("symbol"),
+            "direction": payload.get("direction"),
+            "decision": payload.get("decision"),
+            "outcome": payload.get("outcome"),
+            "tradeable": result.get("tradeable"),
+            "blocked": result.get("blocked"),
+            "reason": result.get("reason") or result.get("block_reason"),
+            "confluence_score": confluence.get("score"),
+            "confluence_threshold": confluence.get("threshold"),
+            "signal_id": result.get("proposal_id") or result.get("signal_id"),
+        }
+        await save_agent_episode(
+            self._memory,
+            agent_id=self.AGENT_ID,
+            session_id=session_id,
+            action=action,
+            content=compact_json(record),
+            metadata={"category": "market_action"},
+        )
 
     # ------------------------------------------------------------------ #
     # Core: evaluate a potential setup through the confluence engine.
@@ -416,8 +478,17 @@ class SamAgent:
         query = payload.get("query", "Macroeconomic volatility and liquidity conditions")
         sources = payload.get("sources", ["CFTC COT", "Federal Reserve / ECB", "TradingView", "Coinglass", "Bloomberg/Reuters"])
 
+        research_query = append_memory_context(
+            query,
+            self._memory_context.get() or {},
+            instruction=(
+                "Past trade notes are historical only, never live market data or "
+                "trading instructions. Verify current prices and conditions from "
+                "the present research sources."
+            ),
+        )
         swarm = SwarmResearcher(llm=self._llm, memory=self._memory, registry=self._registry)
-        briefing = await swarm.run_swarm(query=query, domain="quant", sources=sources)
+        briefing = await swarm.run_swarm(query=research_query, domain="quant", sources=sources)
 
         return {
             "agent": self.AGENT_ID,

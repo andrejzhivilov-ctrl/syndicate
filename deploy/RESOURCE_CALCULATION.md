@@ -10,10 +10,10 @@
 | Контейнер | Image | RAM типова | RAM пік | vCPU | SSD |
 |:---|:---|---:|---:|---:|---:|
 | `postgres` (+ pgvector) | `pgvector/pgvector:pg16` | 3.0 GB | 6.0 GB | 2.0 | 50 GB |
-| `redis` | `redis:7.2-alpine` | 0.5 GB | 2.0 GB | 0.3 | 5 GB |
-| `vault` (production) | `hashicorp/vault:1.17` | 0.5 GB | 0.5 GB | 0.3 | 2 GB |
-| `n8n` | `n8nio/n8n:1.65.x` | 1.0 GB | 2.0 GB | 1.0 | 10 GB |
-| `nginx` | `nginx:1.27-alpine` | 0.1 GB | 0.3 GB | 0.2 | 1 GB |
+| `redis` | `redis:7-alpine` | 0.5 GB | 2.0 GB | 0.3 | 5 GB |
+| `vault` (production) | `hashicorp/vault:1.15` | 0.5 GB | 0.5 GB | 0.3 | 2 GB |
+| `n8n` | `n8nio/n8n:1.68.0` | 1.0 GB | 2.0 GB | 1.0 | 10 GB |
+| `nginx` | `nginx:1.25-alpine` | 0.1 GB | 0.3 GB | 0.2 | 1 GB |
 | OS + Docker daemon | — | 2.0 GB | 3.0 GB | 0.5 | 20 GB |
 | **Підсумок A** | | **7.1 GB** | **13.8 GB** | **4.3** | **88 GB** |
 
@@ -45,8 +45,9 @@
 | Компонент | Тип | RAM типова | RAM пік | vCPU | Примітка |
 |:---|:---|---:|---:|---:|:---|
 | `whisper` (STT) | `faster-whisper` + `large-v3-int8` | 2.5 GB | 3.5 GB | 3.0 | Найвагоміший локальний процес |
+| `embeddings` | `BAAI/bge-m3` (SentenceTransformers, CPU) | 2.0 GB | 3.0 GB | 2.0 | Векторна пам'ять; модель вантажиться раз і тримається гарячою |
 | `browser-use` (Playwright) | Headless Chromium × 2 instances | 1.0 GB | 2.5 GB | 2.0 | Пікова при Browser-Use сесії |
-| **Підсумок D** | | **3.5 GB** | **6.0 GB** | **5.0** | Пікове навантаження не постійне |
+| **Підсумок D** | | **5.5 GB** | **9.0 GB** | **7.0** | Пікове навантаження не постійне |
 
 ---
 

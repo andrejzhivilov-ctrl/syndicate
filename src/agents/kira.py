@@ -15,11 +15,20 @@ Zero cross-domain distractions. Kira focuses exclusively on 5 core disciplines:
 from __future__ import annotations
 
 import json
+from contextvars import ContextVar
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 import structlog
 from langchain_core.messages import HumanMessage
+
+from src.agent_memory import (
+    append_memory_context,
+    memory_session_id,
+    memory_status,
+    recall_agent_memory,
+    save_agent_episode,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -78,11 +87,22 @@ class KiraAgent:
         self._llm = llm
         self._config = config or {}
         self._registry = registry
+        self._memory_context: ContextVar[Optional[Dict[str, Any]]] = ContextVar(
+            f"kira_memory_context_{id(self)}", default=None
+        )
 
     async def _llm_ask(self, prompt: str, fallback: str) -> str:
-        """Invoke LLM asynchronously with graceful fallback."""
+        """Invoke the LLM with bounded, untrusted historical context."""
         if not self._llm:
             return fallback
+        prompt = append_memory_context(
+            prompt,
+            self._memory_context.get() or {},
+            instruction=(
+                "Use prior learning preferences and completed topics as historical "
+                "context; do not assume past quiz answers prove current mastery."
+            ),
+        )
         try:
             resp = await self._llm.ainvoke([HumanMessage(content=prompt)])
             return str(getattr(resp, "content", resp))
@@ -91,19 +111,20 @@ class KiraAgent:
             return fallback
 
     async def _save(self, payload: Dict[str, Any], category: str, data: Dict[str, Any]) -> None:
-        """Save educational interaction into episodic memory."""
-        if not self._memory or not hasattr(self._memory, "save_episode"):
-            return
-        try:
-            await self._memory.save_episode(
-                session_id=payload.get("session_id", "kira-academy-session"),
-                agent_id=self.AGENT_ID,
-                role="mentor",
-                content=json.dumps(data, ensure_ascii=False),
-                metadata={"category": category, "floor": self.FLOOR, "timestamp": datetime.now(timezone.utc).isoformat()},
-            )
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("kira_memory_save_failed", error=str(exc))
+        """Save a redacted educational episode without blocking the lesson."""
+        await save_agent_episode(
+            self._memory,
+            agent_id=self.AGENT_ID,
+            session_id=memory_session_id(payload, "kira-academy-session"),
+            action=category,
+            role="mentor",
+            content=json.dumps(data, ensure_ascii=False, default=str)[:8000],
+            metadata={
+                "category": category,
+                "floor": self.FLOOR,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+        )
 
     async def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Dispatch academic or mentorship action."""
@@ -136,9 +157,34 @@ class KiraAgent:
                 "available_actions": sorted(dispatch_table),
             }
 
-        result = await handler(payload)
-        await self._save(payload, f"academy_{action}", result)
-        return result
+        session_id = memory_session_id(payload, "kira-academy-session")
+        memory_context = await recall_agent_memory(
+            self._memory,
+            agent_id=self.AGENT_ID,
+            session_id=session_id,
+            payload=payload,
+            limit=int(self._config.get("memory_context_limit", 8)),
+            max_chars=int(self._config.get("memory_context_chars", 1800)),
+        )
+        token = self._memory_context.set(memory_context)
+        try:
+            result = await handler(payload)
+            if isinstance(result, dict):
+                result["memory"] = memory_status(memory_context)
+            await self._save(payload, f"academy_{action}", result)
+            if action == "socratic_dialogue" and result.get("socratic_response"):
+                result["skill_candidate"] = {
+                    "name": "Socratic dialogue for deliberate learning",
+                    "when_to_use": "When helping a learner examine a claim or difficult concept.",
+                    "procedure": (
+                        "Clarify the learner's claim and topic; surface hidden assumptions; "
+                        "ask two or three focused questions; offer one useful analogy; "
+                        "finish by inviting the learner to test or refine their reasoning."
+                    ),
+                }
+            return result
+        finally:
+            self._memory_context.reset(token)
 
     async def disciplines_overview(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Return structured catalogue of all active Academy disciplines."""

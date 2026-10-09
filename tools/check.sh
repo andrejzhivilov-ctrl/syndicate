@@ -75,6 +75,12 @@ run "ruff C901   (складність)"       "$RUFF" check --select C901      
 step "Контракт API (клієнтська частина)"
 run "api-contract.yaml відповідає коду" "$PY" tools/export_openapi.py --check
 
+step "Vault (політики й скрипти)"
+# Політики генеруються з src/vault_paths.py. Застарілий файл = агент отримає
+# 403 на секреті, який читає на старті, — тому це ворота, а не побажання.
+run "політики відповідають коду" "$PY" tools/vault_policies.py --check
+run "vault_init.sh / vault_unseal.sh — синтаксис" bash -n deploy/scripts/vault_init.sh deploy/scripts/vault_unseal.sh
+
 step "PostgreSQL (жива схема й SQL-шляхи)"
 # SQL-гілки в src/ позначені "needs live DB": без справжньої бази вони не
 # перевіряються взагалі. CI піднімає pgvector/pgvector:pg16 і задає
