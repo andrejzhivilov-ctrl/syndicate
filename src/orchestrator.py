@@ -872,12 +872,8 @@ class EvaOrchestrator:
 
     async def _marshal_agent_handler(self, state: AgentState) -> AgentState:
         from src.agents.marshal import MarshalAgent
-        agent = MarshalAgent(
-            memory=self._memory,
-            llm=self._llm,
-            config=self._config.get("marshal", self._config),
-            sentinel=self._sentinel,
-        )
+        from src.agents.marshal_access import marshal_host_control_allowed
+
         payload = dict(state["payload"])
         action_map = {
             "marshal_execute": payload.get("action", "security_audit"),
@@ -889,6 +885,20 @@ class EvaOrchestrator:
             "compliance_check": "compliance_check",
         }
         payload["action"] = action_map.get(state["task_type"], payload.get("action", "security_audit"))
+        if payload["action"] == "emergency_lockdown" and not marshal_host_control_allowed():
+            state["result"] = {
+                "agent": "marshal",
+                "status": "denied",
+                "error": "host_control_not_granted",
+            }
+            state["status"] = "completed"
+            return state
+        agent = MarshalAgent(
+            memory=self._memory,
+            llm=self._llm,
+            config=self._config.get("marshal", self._config),
+            sentinel=self._sentinel,
+        )
         result = await agent.execute(payload)
         state["result"] = result
         state["status"] = "completed"

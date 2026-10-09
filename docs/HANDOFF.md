@@ -25,6 +25,32 @@
 
 ---
 
+## 2026-10-09 — Arena Agent: ідентичність Marshal (без активних grants)
+
+**Гілка:** `arena/41a10104-syndicate` · **Ворота:** `bash tools/check.sh` · **PR #7 не злито**
+
+### Зроблено (тільки Marshal)
+
+- Профіль: `prepared_not_enabled`, `role_status=identity_draft`, порожні `capabilities` / `resource_scopes` / `services_enabled`.
+- Ідентичність: опис і статичні межі, не CSO 24/7. `MARSHAL_FULL_SPEC.md` не скопійовано в права.
+- Telegram inbound вимкнений; `live_modes.host_control` / `emergency_lockdown` / `telegram_bot` = false.
+- Оркестраторний `emergency_lockdown` fail-closed (`host_control_not_granted`). `MarshalAgent` і Sentinel-маршрути не підключені до Dispatcher і не вмикались.
+- Sentinel виключений; Tetragon/eBPF лишаються Фазою 2.
+
+### Не дороблено / свідомо залишено
+
+- Жодної capability. Hermes, модель, Telegram-бот, host control — ні.
+- Dispatcher не ставився на маршрути Marshal.
+- Історичний `src/agents/marshal.py` (CSO title, прямий `execute` lockdown) не переписувався, щоб не ламати 10floors; оркестраторний lockdown уже deny.
+- PR не злито.
+
+### Наступне
+
+1. Формувати наступного агента (ідентичність, не grants) — за замовчуванням Fin, якщо Андрій не вкаже інакше.
+2. Будь-який Marshal capability — окремий точний id після рішення про Dispatcher.
+
+---
+
 ## 2026-10-09 — Arena Agent: підготовка Єви (без активних grants)
 
 **Гілка:** `arena/41a10104-syndicate` · **Ворота:** ✅ `bash tools/check.sh` · **PR #7 не злито**

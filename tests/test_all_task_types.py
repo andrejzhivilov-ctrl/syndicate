@@ -109,7 +109,8 @@ PRESEED = ("review_change_request", "apply_change_request")
 EXPECTED_ERROR_RESULTS = frozenset({"vault_reindex"})
 
 #: Eva Telegram inbound is disabled with an empty allowlist (deny).
-EXPECTED_DENIED_RESULTS = frozenset({"webhook_telegram"})
+#: Marshal host control / emergency lockdown is not granted.
+EXPECTED_DENIED_RESULTS = frozenset({"webhook_telegram", "emergency_lockdown"})
 
 
 def _payloads(tmp_path: Path) -> Dict[str, Dict[str, Any]]:

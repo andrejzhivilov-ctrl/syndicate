@@ -73,9 +73,13 @@ n8n — виконання workflow та інтеграцій; не control plan
 
 `config/agents/architect.profile.json` — `prepared_not_enabled`, `role_status=identity_draft`: ідентичність обмежена чернетками n8n, grants порожні, модель не вибрана, n8n не control plane. Історичні CTO-спеки не є правами. Профіль не активований; workflow не запускалися.
 
+### Межі профілю Marshal
+
+`config/agents/marshal.profile.json` — `prepared_not_enabled`, `role_status=identity_draft`: ідентичність обмежена описом і статичними межами, не автономний CSO. Grants порожні, модель не вибрана, host control і Telegram-бот вимкнені. Історичний `MARSHAL_FULL_SPEC.md` не є правами. Sentinel виключений; Tetragon/eBPF — Фаза 2. Профіль не активований.
+
 ### Інші підготовлені маніфести (ще не сформовані)
 
-`marshal`, `fin`, `doc`, `kira`, `sam` мають `prepared_not_enabled` файли в `config/agents/` з порожніми grants і `role_status=not_agreed`. Історичні специфікації в `*_core/` не є активними ролями. Sentinel і Council не включаються.
+`fin`, `doc`, `kira`, `sam` мають `prepared_not_enabled` файли в `config/agents/` з порожніми grants і `role_status=not_agreed`. Історичні специфікації в `*_core/` не є активними ролями. Sentinel і Council не включаються.
 
 ## Принципи безпеки
 
