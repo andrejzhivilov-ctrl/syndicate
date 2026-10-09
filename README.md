@@ -36,7 +36,7 @@ n8n — виконання workflow та інтеграцій; не control plan
 | **LangGraph** | Оркестрація задач у наявному backend-коді; новий policy dispatcher ще не інтегрований у цей потік. |
 | **Agent platform** | `AgentProfile`, immutable registry, default-deny policy, dispatcher та adapter-контракти в `src/agent_platform/`; локальні тести є, live runtime bridge — ні. |
 | **Hermes** | Цільовий окремий когнітивний runtime/profile для кожного агента. Не встановлений і не запускався в межах цієї підготовки. |
-| **n8n** | Workflow та інтеграції. Не control plane; workflow не може самостійно розширювати профілі чи scope. Конкретні права майбутнього Архітектора ще не визначені. |
+| **n8n** | Workflow та інтеграції. Не control plane; workflow не може самостійно розширювати профілі чи scope. Профіль Архітектора — `prepared_not_enabled` без grants; права, модель і інтеграції ще не визначені. |
 | **PostgreSQL + pgvector** | Наявне backend-сховище для структурованих даних, audit і семантичного пошуку. |
 | **Redis** | Кеш/короткоживучий стан; не канонічний архів знань. |
 | **HashiCorp Vault** | Інтерфейси та політики роботи із секретами; секрети не зберігаються в README, prompt чи profile manifest. |
@@ -69,6 +69,10 @@ n8n — виконання workflow та інтеграцій; не control plan
 
 `config/agents/eva.profile.json` позначає Єву як `prepared_not_enabled`; `capabilities`, `resource_scopes` і `services_enabled` порожні. Підготовлений нічний контракт — 03:00 `Europe/Kyiv`, але source provider не налаштований: scheduled orchestrator повертає `unavailable`, а публічного `nightly_analysis` action немає. Погоджена роль, політика пам’яті та статус готовності описані в [`eva_core/`](eva_core/) — цей профіль не є дозволом на live Hermes чи production.
 
+### Межі профілю Архітектора
+
+`config/agents/architect.profile.json` теж `prepared_not_enabled`: роль/модель/prompt не погоджені, grants порожні, n8n не control plane і не джерело дозволів. Історичні CTO/n8n-специфікації в `architect_core/` не є активними правами. Gap analysis і контракт — [`architect_core/ARCHITECT_GAP_ANALYSIS.md`](architect_core/ARCHITECT_GAP_ANALYSIS.md), [`ARCHITECT_ROLE_BOUNDARIES.md`](architect_core/ARCHITECT_ROLE_BOUNDARIES.md), [`ARCHITECT_WORKFLOW_CONTRACT.md`](architect_core/ARCHITECT_WORKFLOW_CONTRACT.md). Профіль не активований; workflow не запускалися.
+
 ## Принципи безпеки
 
 - Новий профіль починається без capability та resource grants; scope — точний, не wildcard.
@@ -89,6 +93,7 @@ n8n — виконання workflow та інтеграцій; не control plan
 ├── config/agents/             # Маніфести агентських профілів
 ├── config/postgres/           # SQL-схема й міграції
 ├── eva_core/                  # Межі ролі Єви, пам’ять, workflow та readiness
+├── architect_core/            # Gap analysis і default-deny контракт Архітектора (не activation)
 ├── docs/SYNDICATE_PLATFORM_BASE.md # Актуальний нейтральний платформний дизайн
 ├── deploy/                    # Наявні deployment-конфігурації; не доказ live deployment
 ├── apps/                      # Клієнтський застосунок, окрема зона

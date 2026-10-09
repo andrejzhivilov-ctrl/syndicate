@@ -25,6 +25,40 @@
 
 ---
 
+## 2026-10-09 — Arena Agent: Архітектор — gap analysis і default-deny контракт
+
+**Гілка:** `arena/41a10104-syndicate` · **Коміт:** delivery commit цього запису · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+
+- Перевірено checkout: HEAD = `a50e8e4` (merge PR #6), робоче дерево було чисте; `git reset`/`clean` не використовувались.
+- Gap analysis історичних CTO/n8n-спек і `src/agents/architect/` проти `docs/SYNDICATE_PLATFORM_BASE.md`: роль/модель/інтеграції не визначені; LangGraph-handler існує поза `AgentDispatcher`; n8n не control plane.
+- Додано `config/agents/architect.profile.json`: `prepared_not_enabled`, порожні grants, `role_status=not_agreed`, `model_status=not_selected`, n8n flags вимкнені.
+- Межі й workflow-контракт: `architect_core/ARCHITECT_ROLE_BOUNDARIES.md`, `ARCHITECT_WORKFLOW_CONTRACT.md`, `ARCHITECT_GAP_ANALYSIS.md`. Історичні специфікації позначені як не-grants.
+- Тести `tests/test_architect_profile.py`: порожні grants, ізоляція від Єви, policy deny, golden/generated JSON лишаються `active=false`.
+- Профіль не активовано; Hermes/n8n/workflow не запускались; capability не видавались.
+
+### Не дороблено / свідомо залишено
+
+- Не вибрано роль, модель, prompt, skills.
+- Не відключено історичний `ArchitectAgent` у LangGraph (потрібне окреме рішення).
+- Не змінено Vault-мап `architect → mcp`.
+- Не імпортовано й не активовано жодного n8n workflow, включно з нічним аналізом Єви.
+- `apps/` не чіпався; production не виконувався.
+
+### Наступне
+
+1. Андрій відповідає на відкриті питання в `ARCHITECT_ROLE_BOUNDARIES.md` §5 точним scope — без цього grants не додавати.
+2. Окремо вирішити, чи ізолювати історичний LangGraph-handler до підключення Dispatcher.
+3. Лише після явного дозволу — вузька функція (наприклад, статичний lint чернеток) з одним capability id.
+
+### Ризики й спостереження
+
+- Історичний оркестратор усе ще маршрутизує `design_workflow` тощо; це не platform grant, але може створювати хибне враження активації.
+- Дві старі специфікації суперечать одна одній (24/7 CTO vs on-demand); не змішувати їх у майбутній ролі.
+
+---
+
 ## 2026-10-06 — Arena Agent: нейтральний каркас платформи SYNDICATE (фаза 1)
 
 **Гілка:** `arena/0f6034ef-eva-syndicate` · **Коміт:** delivery commit цього запису · **Ворота:** ✅ `bash tools/check.sh`

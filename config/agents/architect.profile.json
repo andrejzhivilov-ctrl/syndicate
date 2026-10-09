@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "activation": "prepared_not_enabled",
+  "agent_id": "architect",
+  "runtime": "hermes",
+  "hermes_profile": "architect",
+  "memory_namespace": "agents/architect",
+  "prompt_status": "not_prepared",
+  "role_status": "not_agreed",
+  "model_status": "not_selected",
+  "capabilities": [],
+  "resource_scopes": [],
+  "services_enabled": [],
+  "skills": [],
+  "n8n": {
+    "control_plane": false,
+    "permission_source": false,
+    "activation": "not_enabled",
+    "live_api": false,
+    "credentials_managed_in_profile": false
+  },
+  "live_modes": {
+    "n8n_editor": false,
+    "gitops_push": false,
+    "host_control": false,
+    "telegram_bot": false,
+    "geolocation": false
+  }
+}
