@@ -52,7 +52,7 @@ def test_all_prepared_manifests_are_default_deny_and_isolated() -> None:
         assert manifest["capabilities"] == []
         assert manifest["resource_scopes"] == []
         assert manifest["services_enabled"] == []
-        if agent_id == "eva":
+        if agent_id in {"eva", "architect"}:
             assert manifest["skills"]
             assert all(item.get("activation") == "draft" for item in manifest["skills"])
         else:

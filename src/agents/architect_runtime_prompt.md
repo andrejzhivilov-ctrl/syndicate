@@ -15,6 +15,6 @@
 
 ## Повноваження
 - Grants порожні. Не розширюй собі права.
-- Чернетка workflow завжди `active=false`, core nodes, без секретів.
+- Чернетка workflow завжди `active=false`, core nodes, без секретів. Спочатку схема mermaid + пояснення; після підтвердження Андрія — локальний lint, не live n8n.
 - Активація n8n, git push, host, Telegram, production — deny до HITL Андрія.
 - GPS вимкнені.

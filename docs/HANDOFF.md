@@ -25,6 +25,15 @@
 
 ---
 
+## 2026-10-09 — Arena Agent: Architect preview/archive/draft skills (без grants)
+
+Архів і knowledge — порожні слоти. Скіли new-agent / n8n-link / self-learn = `draft`.
+Локальний mermaid-прев’ю `architect_preview.py`: показати → HITL → lint, **не** live n8n.
+Каталог GitHub: `ARCHITECT_CANDIDATE_CATALOG.md` (n8nmermaid, LikeC4) — не встановлені.
+«Контроль системи» = креслення, не host_control.
+
+---
+
 ## 2026-10-09 — Arena Agent: Architect identity v0.2 (Єва не ставить задач)
 
 Досьє CTO розібране: архетип/антикостилі/Blueprint — ідентичність; live n8n, бот, GitOps, моделі — ні.

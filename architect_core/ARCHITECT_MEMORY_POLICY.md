@@ -1,7 +1,8 @@
 # Політика пам’яті Архітектора v0.1
 
 **Namespace (зарезервований):** `agents/architect`.
-**Статус:** правила чернетки; `memory.read` / `memory.write` **не видані**. Адаптер пам’яті не підключати, доки grants порожні.
+**Архів / Drive:** слоти в профілі; `folder_id=null`. Knowledge: `architect_core/knowledge/architecture/SOURCES.yaml` → `sources: []`.
+**Статус:** `memory.read` / `memory.write` **не видані**.
 
 ## 1. Нічого не записувати автоматично
 

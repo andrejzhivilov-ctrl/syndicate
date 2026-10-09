@@ -12,19 +12,39 @@
   "capabilities": [],
   "resource_scopes": [],
   "services_enabled": [],
-  "skills": [],
+  "skills": [
+    {"id": "architect-new-agent", "path": "architect_core/skills/architect-new-agent/SKILL.md", "activation": "draft"},
+    {"id": "architect-n8n-link", "path": "architect_core/skills/architect-n8n-link/SKILL.md", "activation": "draft"},
+    {"id": "architect-self-learn", "path": "architect_core/skills/architect-self-learn/SKILL.md", "activation": "draft"}
+  ],
   "memory_policy_file": "architect_core/ARCHITECT_MEMORY_POLICY.md",
   "task_source": "andrii_only",
   "reports": {
     "daily_brief_to_eva": "payload_only",
     "eva_can_assign": false
   },
+  "knowledge_bases": {
+    "architecture": {
+      "status": "not_loaded",
+      "read_only": true,
+      "source_manifest": "architect_core/knowledge/architecture/SOURCES.yaml"
+    }
+  },
+  "workspace": {
+    "archive": {"activation": "reserved", "namespace": "agents/architect"},
+    "drive": {
+      "activation": "not_configured",
+      "folder_id": null,
+      "credentials_managed_in_profile": false
+    }
+  },
   "n8n": {
     "control_plane": false,
     "permission_source": false,
     "activation": "not_enabled",
     "live_api": false,
-    "credentials_managed_in_profile": false
+    "credentials_managed_in_profile": false,
+    "preview": "local_mermaid_only"
   },
   "live_modes": {
     "n8n_editor": false,

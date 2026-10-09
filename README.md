@@ -71,7 +71,7 @@ n8n — виконання workflow та інтеграцій; не control plan
 
 ### Межі профілю Архітектора
 
-`config/agents/architect.profile.json` — `prepared_not_enabled`, `role_status=identity_draft`: інженерний архетип, чернетки n8n, не live CTO. Задачі лише від Андрія; Єва не призначає роботу, лише може отримати стислий звіт у payload. Grants порожні, n8n не control plane, Telegram/GitOps/host вимкнені.
+`config/agents/architect.profile.json` — `prepared_not_enabled`: інженерний архетип, чернетки n8n з mermaid-прев’ю, не live CTO. Задачі лише Андрій; Єва не призначає. Скіли draft. Архів/knowledge порожні. Grants порожні; n8n не control plane.
 
 ### Межі профілю Marshal
 

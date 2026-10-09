@@ -1,0 +1,3 @@
+# Read-only architecture reference corpus for Architect. Distinct from memory.
+# Do not ingest secrets, live n8n exports with credentials, or GPS.
+sources: []

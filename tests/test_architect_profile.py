@@ -50,7 +50,8 @@ def test_architect_manifest_is_prepared_not_enabled_and_has_no_grants() -> None:
     assert profile.capabilities == frozenset()
     assert profile.resource_scopes == frozenset()
     assert manifest["services_enabled"] == []
-    assert manifest["skills"] == []
+    assert manifest["skills"]
+    assert all(item.get("activation") == "draft" for item in manifest["skills"])
     assert not hasattr(profile, "role")
 
     prompt_path = ROOT / manifest["prompt_file"]
@@ -74,6 +75,10 @@ def test_architect_manifest_does_not_select_model_or_integrations() -> None:
     assert manifest["task_source"] == "andrii_only"
     assert manifest["reports"]["eva_can_assign"] is False
     assert manifest["reports"]["daily_brief_to_eva"] == "payload_only"
+    assert manifest["knowledge_bases"]["architecture"]["status"] == "not_loaded"
+    assert manifest["workspace"]["drive"]["folder_id"] is None
+    sources = (ROOT / "architect_core/knowledge/architecture/SOURCES.yaml").read_text(encoding="utf-8")
+    assert "sources: []" in sources
     assert manifest["live_modes"]["telegram_bot"] is False
     assert manifest["live_modes"]["gitops_push"] is False
     assert manifest["live_modes"]["n8n_editor"] is False

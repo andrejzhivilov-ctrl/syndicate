@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from src.agents.architect import n8n_builder
 from src.agents.architect_access import architect_accepts_task, architect_n8n_live_allowed
+from src.agents.architect_preview import build_preview, deliver_after_confirm
 from src.agents.architect_blueprint import apply_blueprint_decision, build_blueprint
 from src.agents.architect_ready import architect_readiness
 from src.agents.architect_report import build_eva_report
@@ -35,6 +37,20 @@ def test_eva_report_is_payload_only() -> None:
     assert report["eva_must_not_fetch"] is True
 
 
+def test_preview_and_confirm_do_not_call_n8n() -> None:
+    workflow = n8n_builder.build_workflow(name="preview-draft", trigger="manual")
+    preview = build_preview(workflow)
+    assert preview["active"] is False
+    assert preview["calls_n8n_api"] is False
+    assert "flowchart" in preview["mermaid"]
+    assert preview["explanations"]
+    delivered = deliver_after_confirm(workflow, approved=True)
+    assert delivered["activates_n8n"] is False
+    assert delivered["status"] == "delivered_inactive"
+    cancelled = deliver_after_confirm(workflow, approved=False)
+    assert cancelled["status"] == "cancelled"
+
+
 def test_architect_readiness_empty_grants() -> None:
     snap = architect_readiness()
     assert snap["grants_empty"] is True
@@ -42,4 +58,6 @@ def test_architect_readiness_empty_grants() -> None:
     assert snap["gitops_push"] is False
     assert snap["telegram_bot"] is False
     assert snap["eva_cannot_assign"] is True
+    assert snap["knowledge_loaded"] is False
+    assert snap["drive_configured"] is False
     assert snap["deployable_as_prepared_profile"] is True
