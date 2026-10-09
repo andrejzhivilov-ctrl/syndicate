@@ -1,4 +1,4 @@
-# Syndicate
+# 🌐 SYNDICATE
 
 > **A modular multi-agent AI platform with privacy-conscious memory and controlled integrations.**
 
