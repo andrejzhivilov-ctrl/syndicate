@@ -1,21 +1,23 @@
-# Підготовка Marshal — контрольний список v0.4
+# Підготовка Marshal — контрольний список v0.5
 
-**Стан:** ідентичність + операційна чернетка; не activation.
+**Стан:** prepared профіль + хост-код observe/HITL/scan. Не live runtime.
+**Ранбук:** `MARSHAL_DEPLOYMENT_RUNBOOK.md`.
 
 ## Зроблено
 
-- Досьє розібране; операційна модель v0.4: observe; HITL лише критичне; інтернет за командою Андрія не блокувати.
-- HITL-контракт кнопок без live бота.
-- Knowledge `sources: []`. Drive `folder_id=null`. n8n не control plane.
-- Grants порожні. Telegram/host_control/voice = false.
+- Ідентичність CSO, observe-only на інтернет за командою Андрія, HITL лише критичне.
+- Порожні grants. Telegram/host/voice/n8n/Drive вимкнені.
+- Код: `marshal_observe`, `marshal_hitl`, `marshal_brief`, `marshal_skill_scan`, `marshal_ready`.
+- Скрипт бінарника: `tools/install_skillspector.sh` (Python 3.12+; не в `requirements.txt`).
 - Оркестраторний lockdown — deny.
 
-## Не готово
+## Не готово до live
 
-- Шар Observe, бот, Dispatcher, veto grant, n8n aggregator, Drive folder, ingest.
-- Tetragon, Sentinel, lockdown.
+- Бінарник SkillSpector на хості (3.12).
+- Бот, Dispatcher, veto grant, n8n, Drive, ingest, Tetragon, модель.
 
 ## Go/no-go
 
-1. `bash tools/check.sh` зелений.
-2. Жоден кандидат не в полі `capabilities` без точного «так».
+1. `bash tools/check.sh`
+2. `python tools/marshal_ready.py` → `grants_empty: true`
+3. Жоден capability без точного «так».

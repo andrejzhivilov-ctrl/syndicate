@@ -45,6 +45,8 @@
     "tool": "skillspector",
     "mode": "no_llm",
     "binary": "skillspector",
+    "local_prefix": ".tools/skillspector",
+    "install_script": "tools/install_skillspector.sh",
     "activation": "host_cli_optional",
     "installs_skills": false,
     "llm_pass": false,

@@ -53,6 +53,21 @@ def _scan_config(manifest: Mapping[str, Any] | None = None) -> dict[str, Any]:
     return dict(block) if isinstance(block, dict) else {}
 
 
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_LOCAL_BIN = _REPO_ROOT / ".tools" / "skillspector" / "bin" / "skillspector"
+
+
+def resolve_skillspector_binary(manifest: Mapping[str, Any] | None = None, which=shutil.which) -> str | None:
+    env_bin = os.environ.get("MARSHAL_SKILLSPECTOR_BIN", "").strip()
+    if env_bin and Path(env_bin).is_file():
+        return env_bin
+    if _LOCAL_BIN.is_file():
+        return str(_LOCAL_BIN)
+    cfg = _scan_config(manifest)
+    found = which(str(cfg.get("binary") or "skillspector"))
+    return found
+
+
 def marshal_skill_scan_allowed(manifest: Mapping[str, Any] | None = None) -> bool:
     """Host CLI may run; this is not a Marshal capability grant."""
     cfg = _scan_config(manifest)
@@ -130,8 +145,7 @@ def scan_skill_proposal(
     if path is None:
         return {**base, "status": "denied", "error": "remote_or_missing_path"}
 
-    cfg = _scan_config(manifest)
-    resolved = which(str(cfg.get("binary") or "skillspector"))
+    resolved = resolve_skillspector_binary(manifest, which=which)
     if not resolved:
         return _unavailable(base, "skillspector_not_installed", str(path))
 

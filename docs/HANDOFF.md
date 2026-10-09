@@ -25,6 +25,15 @@
 
 ---
 
+## 2026-10-09 — Arena Agent: Marshal prepared-пакет + install SkillSpector
+
+Код observe/HITL/brief/ready в `src/agents/marshal_*.py`. Ранбук `MARSHAL_DEPLOYMENT_RUNBOOK.md`.
+`tools/install_skillspector.sh` ставить бінарник у `.tools/` (gitignore), не в `requirements.txt` і не в `capabilities`.
+Python 3.12+ потрібен для NVIDIA CLI; на 3.11 — fail-closed `scan_unavailable`.
+`python tools/marshal_ready.py` вимагає порожні grants. Live бот/veto/Hermes не вмикались.
+
+---
+
 ## 2026-10-09 — Arena Agent: SkillSpector як сканер пропозицій (не grant)
 
 Андрій сказав «так» на SkillSpector `--no-llm` як сканер, не як право вмикати скіли.

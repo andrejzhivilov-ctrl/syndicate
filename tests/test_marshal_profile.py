@@ -72,6 +72,9 @@ def test_marshal_manifest_does_not_select_model_or_integrations() -> None:
     assert manifest["skill_scan"]["mode"] == "no_llm"
     assert manifest["skill_scan"]["installs_skills"] is False
     assert manifest["skill_scan"]["llm_pass"] is False
+    assert manifest["skill_scan"]["install_script"] == "tools/install_skillspector.sh"
+    assert (ROOT / "tools/install_skillspector.sh").is_file()
+    assert (ROOT / "marshal_core/MARSHAL_DEPLOYMENT_RUNBOOK.md").is_file()
     assert manifest["workspace"]["drive"]["folder_id"] is None
     assert manifest["workspace"]["drive"]["activation"] == "not_configured"
     assert manifest["knowledge_bases"]["security"]["status"] == "not_loaded"

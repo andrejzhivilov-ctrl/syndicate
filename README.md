@@ -75,7 +75,7 @@ n8n — виконання workflow та інтеграцій; не control plan
 
 ### Межі профілю Marshal
 
-`config/agents/marshal.profile.json` — `prepared_not_enabled`, `role_status=identity_draft`: CSO-архетип, observe+HITL, не live enforcement. Grants порожні. Telegram-бот, veto, n8n, Drive, TTS вимкнені. Стислий бриф для Єви — лише з payload. Sentinel виключений; Tetragon/eBPF — Фаза 2.
+`config/agents/marshal.profile.json` — `prepared_not_enabled`, порожні grants. CSO-архетип, observe+HITL лише на критичне; інтернет за командою Андрія не блокується. Ранбук: [`marshal_core/MARSHAL_DEPLOYMENT_RUNBOOK.md`](marshal_core/MARSHAL_DEPLOYMENT_RUNBOOK.md). Сканер пропозицій: `bash tools/install_skillspector.sh` (Python 3.12+, не в runtime image) і `python tools/marshal_skill_scan.py`. Telegram, veto, n8n, Drive, TTS вимкнені.
 
 ### Інші підготовлені маніфести (ще не сформовані)
 
