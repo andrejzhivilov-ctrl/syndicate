@@ -1,6 +1,6 @@
-# 🌐 EVA SYNDICATE
+# 🌐 SYNDICATE
 
-> **Sovereign Autonomous Multi-Agent AI Ecosystem**  
+> **A modular multi-agent AI platform with privacy-conscious memory and controlled integrations**  
 > **Засновник та Командир:** Андрій (Ветеран, Військовий)  
 > **Генеральний Директор (CEO):** ЄВА (E.V.A.)  
 > **Економічний Закон:** ROI x3+ | Стек: LangGraph + Hermes + N8N  
