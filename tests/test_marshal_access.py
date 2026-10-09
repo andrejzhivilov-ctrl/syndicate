@@ -31,6 +31,7 @@ def test_marshal_manifest_grants_remain_empty_and_channels_disabled() -> None:
     assert manifest["services_enabled"] == []
     assert telegram["enabled"] is False
     assert telegram["chat_allowlist"] == []
+    assert telegram["bot_id"] is None
     assert marshal_host_control_allowed(manifest) is False
     assert marshal_telegram_inbound_allowed("123") is False
     assert marshal_memory_namespace_allowed("eva") is False

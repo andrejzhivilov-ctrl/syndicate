@@ -1,26 +1,21 @@
-# Підготовка Marshal — контрольний список v0.2
+# Підготовка Marshal — контрольний список v0.3
 
-**Стан пакета:** ідентичність-чернетка (CSO-архетип) і default-deny профіль; не activation.
+**Стан:** ідентичність + операційна чернетка; не activation.
 
 ## Зроблено
 
-- Окремий профіль `marshal`.
-- Досьє розібране: `MARSHAL_DOSSIER_REVIEW.md` — ідентичність vs амбіція vs deny.
-- Persona/prompt: голос, кредо, підпорядкування Андрію; без live CSO.
-- Grants порожні; модель не вибрана.
-- Telegram inbound вимкнений; host_control вимкнений.
-- Оркестраторний `emergency_lockdown` — deny без grant.
+- Досьє розібране; операційна модель v0.3 (вето, жовтий/червоний, звіти, скіли, Drive-слот).
+- HITL-контракт кнопок без live бота.
+- Knowledge `sources: []`. Drive `folder_id=null`. n8n не control plane.
+- Grants порожні. Telegram/host_control/voice = false.
+- Оркестраторний lockdown — deny.
 
 ## Не готово
 
-- Dispatcher на маршрутах Marshal.
-- Hermes, модель, credentials.
-- Реальний lockdown/мережа/host/Tetragon.
-- Sentinel/Sentyr (виключені).
-- Вeto, бот, cron 02:00–21:00.
+- Шар Observe, бот, Dispatcher, veto grant, n8n aggregator, Drive folder, ingest.
+- Tetragon, Sentinel, lockdown.
 
-## Умови go/no-go
+## Go/no-go
 
-1. Зелений `bash tools/check.sh`.
-2. Окремий точний capability, якщо взагалі потрібен runtime.
-3. Не копіювати історичний spec і «✅ Закрито» в grants.
+1. `bash tools/check.sh` зелений.
+2. Жоден кандидат не в полі `capabilities` без точного «так».

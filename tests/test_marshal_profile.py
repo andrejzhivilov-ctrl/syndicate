@@ -60,7 +60,17 @@ def test_marshal_manifest_does_not_select_model_or_integrations() -> None:
     assert manifest["live_modes"]["host_control"] is False
     assert manifest["live_modes"]["emergency_lockdown"] is False
     assert manifest["live_modes"]["telegram_bot"] is False
+    assert manifest["live_modes"]["voice"] is False
     assert all(value is False for value in manifest["live_modes"].values())
+    assert manifest["n8n"]["control_plane"] is False
+    assert manifest["n8n"]["permission_source"] is False
+    assert manifest["n8n"]["activation"] == "not_enabled"
+    assert manifest["workspace"]["drive"]["folder_id"] is None
+    assert manifest["workspace"]["drive"]["activation"] == "not_configured"
+    assert manifest["knowledge_bases"]["security"]["status"] == "not_loaded"
+    assert manifest["reports"]["daily_brief_to_eva"] == "payload_only"
+    sources = (ROOT / "marshal_core/knowledge/security/SOURCES.yaml").read_text(encoding="utf-8")
+    assert "sources: []" in sources
     dumped = json.dumps(manifest)
     for credential_shape in ("sk-", "ghp_", "xoxb-", "AIza", "Bearer "):
         assert credential_shape not in dumped
@@ -109,6 +119,7 @@ def test_policy_denies_every_marshal_capability_while_grants_are_empty() -> None
         ("memory.read", ActionClass.INFORMATIONAL, "agents/marshal"),
         ("memory.write", ActionClass.BOUNDED_WRITE, "agents/marshal"),
         ("host.control", ActionClass.PRODUCTION_DEPLOYMENT, "host"),
+        ("policy.veto", ActionClass.PRODUCTION_DEPLOYMENT, None),
         ("service.telegram.call", ActionClass.SERVICE_CONNECTION, "telegram"),
     ):
         decision = policy.evaluate(

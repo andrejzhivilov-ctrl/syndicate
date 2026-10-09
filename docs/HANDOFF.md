@@ -25,6 +25,22 @@
 
 ---
 
+## 2026-10-09 — Arena Agent: операційна модель Marshal v0.3 (без grants)
+
+**Гілка:** `arena/41a10104-syndicate` · **Ворота:** `bash tools/check.sh` · **PR #7 не злито**
+
+### Зроблено
+
+- `MARSHAL_OPERATING_MODEL.md` + `MARSHAL_HITL_CONTRACT.md`: вето як HITL (таймаут deny), жовтий/червоний, brief→Єва лише payload, full report — прямий запит, пропозиції скілів з кнопками.
+- TTS ні. n8n не control plane. Drive `folder_id=null`. Knowledge `sources: []`.
+- Кандидати (`policy.veto`, Telegram, Drive) **не** в полі `capabilities`.
+
+### Не робити без окремого «так»
+
+- Бот (потрібен реальний bot_id + allowlist), шар Observe, n8n aggregator, Drive folder, Dispatcher, `policy.veto`.
+
+---
+
 ## 2026-10-09 — Arena Agent: розбір досьє Marshal (ідентичність ≠ grants)
 
 **Гілка:** `arena/41a10104-syndicate` · **Ворота:** `bash tools/check.sh` · **PR #7 не злито**

@@ -21,10 +21,35 @@
       "chat_allowlist": []
     }
   },
+  "knowledge_bases": {
+    "security": {
+      "status": "not_loaded",
+      "read_only": true,
+      "source_manifest": "marshal_core/knowledge/security/SOURCES.yaml"
+    }
+  },
+  "workspace": {
+    "drive": {
+      "activation": "not_configured",
+      "folder_id": null,
+      "credentials_managed_in_profile": false
+    }
+  },
+  "n8n": {
+    "control_plane": false,
+    "permission_source": false,
+    "activation": "not_enabled",
+    "live_api": false
+  },
+  "reports": {
+    "daily_brief_to_eva": "payload_only",
+    "full_report": "andrii_direct_request"
+  },
   "live_modes": {
     "host_control": false,
     "emergency_lockdown": false,
     "telegram_bot": false,
+    "voice": false,
     "geolocation": false
   }
 }
