@@ -1,4 +1,4 @@
-# Marshal — запропоновані межі доступу v0.3
+# Marshal — запропоновані межі доступу v0.4
 
 **Статус:** чернетка. Це **не** активні grants.
 **Профіль:** `prepared_not_enabled`, порожні `capabilities` / `resource_scopes` / `services_enabled`.
@@ -13,7 +13,7 @@
 | `memory.read` / `memory.write` | лише `agents/marshal`; briefs/HITL audit, не сирі payload |
 | cross-agent memory | deny; Єва не читає namespace Маршала, Маршал не читає Єву |
 | щоденний brief → Єва | лише як поле `agent_data.marshal` у payload брифу; не виклик агента |
-| `policy.veto` | кандидат після шару Observe + Dispatcher; не Andrii; таймаут = deny |
+| `policy.veto` | лише критична загроза; **не** на пошук в інтернеті за командою Андрія; таймаут = deny |
 | host control / lockdown / network sever | deny |
 | Telegram inbound / alert send | окремий бот; `enabled=false`; bot_id і allowlist не вигадувати |
 | n8n aggregator | не control plane; `activation=not_enabled`; не джерело прав |
