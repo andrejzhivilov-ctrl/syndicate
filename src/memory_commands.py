@@ -11,13 +11,23 @@ import re
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
+from src.agents.eva_memory_policy import EvaMemoryPolicy, MemoryDisposition
 from src.vault_md import MarkdownVault
+
+_MEMORY_POLICY = EvaMemoryPolicy()
 
 _APOS = "['’ʼ`]"
 _PATTERNS = [
     ("remember", re.compile(rf"^\s*(?:запам{_APOS}?ятай|запомни|remember)\s*[:\-—]?\s*(?P<t>.+)$", re.I | re.S)),
     ("thought", re.compile(r"^\s*(?:запиши\s+думку|запиши\s+мысль|note)\s*[:\-—]?\s*(?P<t>.+)$", re.I | re.S)),
-    ("update", re.compile(r"^\s*(?:онови|обнови|update)(?:\s+(?:інформацію|информацию))?\s*(?:про|о|about)?\s*(?P<t>.+)$", re.I | re.S)),
+    (
+        "update",
+        re.compile(
+            r"^\s*(?:онови|обнови|update)(?:\s+(?:інформацію|информацию))?"
+            r"(?:\s+(?:про\s+мене|о\s+мне|about\s+me))?\s*[:\-—]?\s*(?P<t>.+)$",
+            re.I | re.S,
+        ),
+    ),
     ("forget", re.compile(r"^\s*(?:забудь|видали|удали|forget)\s*[:\-—]?\s*(?P<t>.+)$", re.I | re.S)),
     ("about_me", re.compile(r"^\s*(?:про\s+мене|обо\s+мне|about\s+me)\s*[?!.]*\s*$", re.I)),
 ]
@@ -61,27 +71,106 @@ def parse_command(message: str) -> Optional[MemoryCommand]:
     return None
 
 
-def execute_command(cmd: MemoryCommand, vault: MarkdownVault, operator_confirmed_forget: bool = True) -> Dict[str, Any]:
+def _policy_result(cmd: MemoryCommand, vault: MarkdownVault) -> Optional[Dict[str, Any]]:
+    decision = _MEMORY_POLICY.evaluate(cmd.text, explicit_save_request=True)
+    if decision.disposition is MemoryDisposition.ARCHIVE:
+        return None
+    if decision.disposition is MemoryDisposition.REJECT:
+        return {
+            "agent": cmd.target_agent,
+            "status": "refused",
+            "reason_code": decision.reason_code,
+            "active_memory_written": False,
+            "draft_stored": False,
+        }
+
+    if decision.reason_code == "overlong_item_review_required":
+        return {
+            "agent": cmd.target_agent,
+            "status": "review_required",
+            "reason_code": decision.reason_code,
+            "active_memory_written": False,
+            "draft_stored": False,
+        }
+    draft = vault.add_memory_review_draft(cmd.target_agent, cmd.text, decision.reason_code)
+    return {
+        "agent": cmd.target_agent,
+        **draft,
+        "reason_code": decision.reason_code,
+        "active_memory_written": False,
+        "draft_stored": draft.get("status") == "review_required",
+    }
+
+
+def _execute_write_command(cmd: MemoryCommand, vault: MarkdownVault) -> Dict[str, Any]:
+    policy_result = _policy_result(cmd, vault)
+    if policy_result is not None:
+        return policy_result
+
     agent = cmd.target_agent
     if cmd.kind == "remember":
-        return {"agent": agent, **vault.remember(agent, cmd.text)}
+        return {
+            "agent": agent,
+            **vault.remember(agent, cmd.text, source="explicit_memory_request", confirmed=True),
+        }
     if cmd.kind == "thought":
         rel = "raw/thoughts.md"
-        prev = vault.read(rel) if vault.exists(rel) else "# Thoughts\n\n"
-        vault.write(rel, prev + f"- {cmd.text}\n")
+        previous = vault.read(rel) if vault.exists(rel) else "# Thoughts\n\n"
+        normalized = " ".join(cmd.text.split())
+        metadata = vault._memory_metadata("explicit_thought_request", True)
+        vault.write(rel, previous + f"- {normalized} <!-- {metadata} -->\n", allow_memory_write=True)
         return {"agent": "eva", "status": "thought_saved"}
-    if cmd.kind == "update":
-        # "про X: нове значення" -> query is the part before ':' when present
-        if ":" in cmd.text:
-            query, value = (s.strip() for s in cmd.text.split(":", 1))
-        else:
-            query, value = cmd.text, cmd.text
-        return {"agent": agent, **vault.update_fact(agent, query, value)}
+
+    # "про X: нове значення" -> query is the part before ':' when present
+    if ":" in cmd.text:
+        query, value = (part.strip() for part in cmd.text.split(":", 1))
+    else:
+        query, value = cmd.text, cmd.text
+    return {
+        "agent": agent,
+        **vault.update_fact(
+            agent,
+            query,
+            value,
+            confirmed=True,
+            source="explicit_update_request",
+        ),
+    }
+
+
+def _execute_forget_command(
+    cmd: MemoryCommand, vault: MarkdownVault, operator_confirmed_forget: bool
+) -> Dict[str, Any]:
+    if operator_confirmed_forget is not True:
+        return {"agent": cmd.target_agent, "status": "confirmation_required", "stored": False}
+    return {
+        "agent": cmd.target_agent,
+        **vault.forget(
+            cmd.target_agent,
+            cmd.text,
+            confirmed=True,
+            source="explicit_forget_confirmation",
+        ),
+    }
+
+
+def execute_command(
+    cmd: MemoryCommand,
+    vault: MarkdownVault,
+    operator_confirmed_forget: bool = False,
+) -> Dict[str, Any]:
+    """Execute a parsed command only after the privacy and confirmation gates."""
+    if EvaMemoryPolicy.contains_secret_like_value(cmd.text):
+        return {
+            "agent": cmd.target_agent,
+            "status": "refused",
+            "reason_code": "secret_like_content",
+            "stored": False,
+        }
+    if cmd.kind in {"remember", "thought", "update"}:
+        return _execute_write_command(cmd, vault)
     if cmd.kind == "forget":
-        if not operator_confirmed_forget:
-            return {"agent": agent, "status": "confirmation_required"}
-        return {"agent": agent, **vault.forget(agent, cmd.text)}
+        return _execute_forget_command(cmd, vault, operator_confirmed_forget)
     if cmd.kind == "about_me":
-        facts = vault._load_facts("eva")
-        return {"agent": "eva", "status": "ok", "facts": facts}
+        return {"agent": "eva", "status": "ok", "facts": vault._load_facts("eva")}
     return {"status": "unknown_command"}

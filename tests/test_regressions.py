@@ -2037,93 +2037,61 @@ class _CapturingLLM:
 
 
 class TestEvaMemoryLoop:
-    """Eva wrote every turn with ``save_episode`` and never read anything back,
-    so each conversation started from zero while the stored episodes cost
-    tokens and storage for nothing. These tests pin the read half in place."""
+    """Eva reads only provenance-marked Obsidian facts and never persists chat turns."""
 
     @staticmethod
-    def _agent(memory, llm):
+    def _agent(memory, llm, vault=None):
         from src.agents.eva import EvaAgent
 
-        return EvaAgent(memory=memory, llm=llm)
+        return EvaAgent(memory=memory, llm=llm, vault=vault)
 
-    @staticmethod
-    def _ok_block(text: str, used: int = 1) -> Dict[str, Any]:
-        return {
-            "status": "ok", "text": text, "episodes_used": used,
-            "episodes_available": used, "truncated": False, "warning": None,
-        }
+    def test_confirmed_obsidian_facts_reach_the_prompt(self, tmp_path):
+        from src.memory_commands import execute_command, parse_command
+        from src.vault_md import MarkdownVault
 
-    def test_recalled_episodes_reach_the_prompt(self):
-        memory = _StubMemory(self._ok_block(
-            "Твоя пам'ять...\n[10-05 12:00] Оператор: мене звати Андрій"
-        ))
+        vault = MarkdownVault(vault_root=tmp_path / "vault")
+        command = parse_command("Запам'ятай: Obsidian is the canonical project archive.")
+        assert command is not None
+        assert execute_command(command, vault)["status"] == "created"
         llm = _CapturingLLM()
 
-        result = _run(self._agent(memory, llm).execute(
-            {"action": "chat", "message": "як мене звати?"}
+        result = _run(self._agent(None, llm, vault).execute(
+            {"action": "chat", "message": "Which archive is canonical?", "session_id": "arbitrary-thread"}
         ))
 
-        assert "мене звати Андрій" in llm.prompts[0][0].content
+        assert "Obsidian is the canonical project archive" in llm.prompts[0][0].content
         assert result["memory"]["status"] == "ok"
-        assert result["memory"]["episodes_used"] == 1
+        assert result["memory"]["facts_used"] == 1
 
-    def test_recall_and_save_use_the_same_session(self):
-        memory = _StubMemory(self._ok_block("", used=0))
+    def test_unapproved_session_episodes_are_never_recalled_or_saved(self):
+        memory = _StubMemory({"status": "ok", "text": "unapproved private chat", "episodes_used": 1})
         llm = _CapturingLLM()
 
         _run(self._agent(memory, llm).execute(
-            {"action": "chat", "message": "привіт", "session_id": "s-42"}
+            {"action": "chat", "message": "hello", "session_id": "user-controlled-thread"}
         ))
 
-        assert memory.recall_kwargs["session_id"] == "s-42"
-        assert {call["session_id"] for call in memory.saved} == {"s-42"}
+        assert "unapproved private chat" not in llm.prompts[0][0].content
+        assert memory.recall_kwargs == {}
+        assert memory.saved == []
 
-    def test_unreadable_memory_is_reported_not_hidden(self):
-        """Absence must never be dressed up as ``ok`` (AGENTS.md §1)."""
-        memory = _StubMemory(recall_error=RuntimeError("db is down"))
-        llm = _CapturingLLM(reply="Відповідаю без пам'яті.")
-
-        result = _run(self._agent(memory, llm).execute(
+    def test_unavailable_vault_is_reported_not_hidden(self):
+        llm = _CapturingLLM(reply="Відповідаю без підтвердженої пам'яті.")
+        result = _run(self._agent(None, llm).execute(
             {"action": "chat", "message": "що я казав учора?"}
         ))
 
-        assert result["response"] == "Відповідаю без пам'яті."  # still answers
-        assert result["memory"]["status"] == "unavailable"      # but admits why
-        assert "db is down" in result["memory"]["warning"]
-        assert "Твоя пам'ять" not in llm.prompts[0][0].content  # no invented context
-
-    def test_both_turns_are_saved_so_there_is_something_to_recall(self):
-        """Only the assistant reply used to be stored — the user's own words,
-        the most valuable part of an episode, were dropped."""
-        memory = _StubMemory(self._ok_block("", used=0))
-        llm = _CapturingLLM(reply="Запам'ятав.")
-
-        _run(self._agent(memory, llm).execute(
-            {"action": "chat", "message": "мене звати Андрій"}
-        ))
-
-        assert [call["role"] for call in memory.saved] == ["user", "assistant"]
-        assert memory.saved[0]["content"] == "мене звати Андрій"
-        assert memory.saved[1]["content"] == "Запам'ятав."
+        assert result["response"] == "Відповідаю без підтвердженої пам'яті."
+        assert result["memory"]["status"] == "unavailable"
+        assert "canonical Obsidian vault is unavailable" in result["memory"]["warning"]
+        assert "Підтверджені факти" not in llm.prompts[0][0].content
 
     def test_dsn_passwords_never_reach_the_logs(self):
-        """Connection errors are logged; a Redis/PostgreSQL URL can embed the
-        password, and this repository already had one credential leak."""
         from src.memory import _redact_dsn
 
         assert "s3cret" not in _redact_dsn("redis://:s3cret@127.0.0.1:6379/0")
         assert "hunter2" not in _redact_dsn("AUTH failed for redis://default:hunter2@db:6379")
-        assert "127.0.0.1" in _redact_dsn("redis://:s3cret@127.0.0.1:6379/0")  # host stays useful
-
-    def test_missing_memory_backend_never_breaks_a_chat(self):
-        from src.agents.eva import EvaAgent
-
-        llm = _CapturingLLM()
-        result = _run(EvaAgent(memory=None, llm=llm).execute({"action": "chat", "message": "привіт"}))
-
-        assert result["status"] == "completed"
-        assert result["memory"]["status"] == "unavailable"
+        assert "127.0.0.1" in _redact_dsn("redis://:s3cret@127.0.0.1:6379/0")
 
 
 class TestOrchestratorSessionPropagation:
@@ -3295,18 +3263,14 @@ class TestEvaBriefingReportsAbsence:
         assert out["status"] == "unavailable"
         assert "успішно завершено" not in out["response"]
         assert "немає" in out["response"]
-        assert sorted(out["missing_inputs"]) == ["doc", "kira"]
+        assert sorted(out["missing_inputs"]) == ["doc", "kira.quiz"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Scheduled jobs — the scheduler has no wearable, so it must not send one
+# Scheduled jobs — no agent dispatch or voice action without a user request
 # ─────────────────────────────────────────────────────────────────────────────
-class TestScheduledJobsDoNotInventBiometrics:
-    """The 21:00 job passed Doc ``hrv_ms`` 62, ``stress_score`` 35 and
-    ``sleep_quality`` 85 as if a device had reported them, so the recovery
-    protocol was "personalised" to a body nobody measured."""
-
-    def test_evening_reflection_sends_no_biometrics(self):
+class TestScheduledJobsDoNotDispatchAgents:
+    def test_evening_reflection_without_precollected_data_is_unavailable(self):
         from src.orchestrator import EvaOrchestrator
 
         calls = []
@@ -3317,14 +3281,11 @@ class TestScheduledJobsDoNotInventBiometrics:
                 return {"result": {"status": "ok"}}
 
         stub = _Stub()
-        stub._voice = None
         out = _run(EvaOrchestrator.proactive_evening_reflection(stub))
 
-        assert calls, "the job must still ask Doc for the recovery protocol"
-        for _task, payload in calls:
-            for field in ("hrv_ms", "stress_score", "sleep_quality"):
-                assert field not in payload, f"{field} must never be invented"
-        assert "reflection" in out and "evening_data" in out
+        assert calls == []
+        assert out["status"] == "unavailable"
+        assert out["agent_tasks_dispatched"] is False
 
 
 

@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "activation": "prepared_not_enabled",
+  "agent_id": "eva",
+  "runtime": "hermes",
+  "hermes_profile": "eva",
+  "memory_namespace": "agents/eva",
+  "prompt_file": "src/agents/eva_runtime_prompt.md",
+  "capabilities": [],
+  "resource_scopes": [],
+  "services_enabled": [],
+  "skills": [
+    {"id": "eva-humanizer", "path": "eva_core/skills/eva-humanizer/SKILL.md", "activation": "draft"},
+    {"id": "eva-summary", "path": "eva_core/skills/eva-summary/SKILL.md", "activation": "draft"},
+    {"id": "eva-deep-research", "path": "eva_core/skills/eva-deep-research/SKILL.md", "activation": "draft"},
+    {"id": "eva-skill-creator", "path": "eva_core/skills/eva-skill-creator/SKILL.md", "activation": "draft"},
+    {"id": "eva-prompt-lab", "path": "eva_core/skills/eva-prompt-lab/SKILL.md", "activation": "draft"}
+  ],
+  "knowledge_bases": {
+    "psychology": {
+      "status": "not_loaded",
+      "read_only": true,
+      "source_manifest": "eva_core/knowledge/psychology/SOURCES.yaml"
+    }
+  },
+  "memory_policy_file": "eva_core/EVA_MEMORY_POLICY.md",
+  "nightly_analysis": {
+    "local_time": "03:00",
+    "timezone": "Europe/Kyiv",
+    "activation": "pending_n8n_workflow",
+    "source_scope": "eva_owned_and_explicitly_authorized_text_only",
+    "source_provider": "not_configured",
+    "public_action_enabled": false,
+    "audio_saved_by_default": false
+  },
+  "live_modes": {
+    "voice": false,
+    "screen": false,
+    "camera": false,
+    "google_meet": false,
+    "message_monitoring": false,
+    "geolocation": false
+  }
+}

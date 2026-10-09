@@ -611,7 +611,7 @@ class TestDeviceTokenStoreLiveSql:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# The memory loop end-to-end: what Eva learns survives a restart
+# Eva's canonical Obsidian memory survives an agent restart; chat turns do not
 # ─────────────────────────────────────────────────────────────────────────────
 class _CapturingLLM:
     """Records the exact prompt it was asked to answer."""
@@ -625,48 +625,59 @@ class _CapturingLLM:
         return type("_Reply", (), {"content": self._reply})()
 
 
-class TestEvaRemembersAcrossRestart:
-    """The acceptance criterion from the operator's first request: the agent
-    must remember, instead of re-reading the dialogue, and must still remember
-    after a restart. ``save_episode`` alone never delivered that — nothing read
-    the episodes back."""
+class TestEvaCanonicalMemoryAcrossRestart:
+    def test_explicit_fact_survives_restart_without_saving_chat_turns(self, tmp_path):
+        from src.agents.eva import EvaAgent
+        from src.vault_md import MarkdownVault
 
-    def test_second_instance_recalls_the_first_conversation(self, live_pg):
-        session = _tag("eva-session")
+        vault = MarkdownVault(vault_root=tmp_path / "vault")
+        first_llm = _CapturingLLM("Факт записано.")
+        first = EvaAgent(memory=None, llm=first_llm, vault=vault)
+        saved = _run(first.execute({
+            "action": "chat",
+            "message": "Запам'ятай: Obsidian is the canonical project archive.",
+            "session_id": _tag("eva-session"),
+        }))
+
+        # A new agent instance reads only the confirmed Obsidian entry.
+        second_llm = _CapturingLLM("Так.")
+        second = EvaAgent(memory=None, llm=second_llm, vault=vault)
+        recalled = _run(second.execute({
+            "action": "chat",
+            "message": "Which project archive is canonical?",
+            "session_id": _tag("different-eva-session"),
+        }))
+
+        prompt = second_llm.prompts[0][0].content
+        assert saved["status"] == "created"
+        assert "Obsidian is the canonical project archive" in prompt
+        assert recalled["memory"]["facts_used"] == 1
+        assert not vault.exists("raw/memory_review.md")
+
+    def test_ordinary_chat_is_not_stored_in_postgres(self, live_pg):
+        session_id = _tag("eva-chat-session")
 
         async def scenario():
             memory = await _memory(live_pg)
             try:
                 from src.agents.eva import EvaAgent
 
-                first_llm = _CapturingLLM("Запам'ятав: тебе звати Андрій.")
-                first = EvaAgent(memory=memory, llm=first_llm)
-                await first.execute({
+                llm = _CapturingLLM("Привіт.")
+                result = await EvaAgent(memory=memory, llm=llm).execute({
                     "action": "chat",
-                    "message": "Запам'ятай: мене звати Андрій.",
-                    "session_id": session,
+                    "message": "Привіт, поговорімо про ідеї.",
+                    "session_id": session_id,
                 })
-
-                # A restart: brand-new agent and LLM, same database, no context
-                # carried over in Python.
-                second_llm = _CapturingLLM("Так, Андрію.")
-                second = EvaAgent(memory=memory, llm=second_llm)
-                result = await second.execute({
-                    "action": "chat",
-                    "message": "Як мене звати?",
-                    "session_id": session,
-                })
-                return second_llm.prompts[0][0].content, result
+                stored = await memory.get_recent_episodes(
+                    session_id=session_id, agent_id="eva", limit=10
+                )
+                return result, stored
             finally:
                 await memory.close()
 
-        system_prompt, result = _run(scenario())
-
-        assert "мене звати Андрій" in system_prompt, (
-            "the restarted agent must recall the earlier conversation from the database"
-        )
-        assert result["memory"]["status"] == "ok"
-        assert result["memory"]["episodes_used"] >= 2  # the user turn and the reply
+        result, stored = _run(scenario())
+        assert result["status"] == "completed"
+        assert stored == []
 
     def test_context_is_bounded_even_with_a_long_history(self, live_pg):
         """Token economy: recall is a budgeted slice, never the whole transcript."""

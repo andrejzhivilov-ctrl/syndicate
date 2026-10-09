@@ -1,0 +1,19 @@
+# Source manifest for Eva's separate, read-only psychology reference collection.
+# Keep this collection distinct from personal memory. Do not ingest private health records.
+# Every future entry must identify origin, authorship, date, license, intended use,
+# and an evidence-quality assessment. Verify provenance before adding any source.
+sources: []
+
+# Required record shape (illustrative only; do not treat this as an actual source):
+# - id: stable-source-id
+#   title: ""
+#   authors: []
+#   publication_date: YYYY-MM-DD
+#   source_url_or_citation: ""
+#   source_type: book | guideline | systematic_review | study | other
+#   license_or_usage_basis: ""
+#   evidence_level: high | moderate | low | unclear
+#   quality_notes: ""
+#   intended_use: psychoeducation | reflective_questions | other
+#   reviewed_by: ""
+#   reviewed_at: YYYY-MM-DD

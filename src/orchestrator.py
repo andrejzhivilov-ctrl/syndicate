@@ -13,6 +13,7 @@ Full 10-Floor Architecture Integration:
 from __future__ import annotations
 
 import uuid
+from pathlib import Path
 from typing import Any, Dict, List, Optional, TypedDict
 
 import structlog
@@ -63,23 +64,7 @@ class AgentState(TypedDict):
     status: str  # pending | running | awaiting_hitl | completed | failed
 
 
-SYSTEM_PROMPT = """You are EVA, the central orchestrator of the EVA SYNDICATE autonomous system.
-Your role is to:
-1. Analyze incoming tasks and coordinate across the 10-floor syndicate layout.
-2. Coordinate multi-step workflows across specialist agents (Doc, Kira, Sam, Fin, Marshal, Architect).
-3. Ensure all actions comply with security policies (Sentinel Zero-Trust Veto).
-4. Maintain Ground Truth in MarkdownVault and continuity via the memory system.
-
-Specialist agents & services:
-- Floor 10 (Command): Eva (Orchestrator & Curator), Fin (CFO), Marshal (COO), Architect (CTO), Sentinel (SecOps), LLM Council, Orc Verifier, Change Requests.
-- Floor 9: Doc (Health, Readiness, Nutrition, Bio-metrics).
-- Floor 8: Kira (Academic Mentor, Socratic Tutor, SYNDICATE Academy).
-- Floor 7: Sam (Quant CIO, Confluence Engine, Capital Protection, strict HITL).
-- Floor 2: Content Factory (Video Engine v2, Humanizer, POD Studio, Growth).
-- Floor 1: Server & n8n (Sensory Router, Dead Letter Queue, Proactive Scheduler).
-- Floors 3-6: Reserved for future expansion.
-
-Always respond with structured JSON or definitive data indicating routing decisions."""
+SYSTEM_PROMPT = (Path(__file__).with_name("agents") / "eva_runtime_prompt.md").read_text(encoding="utf-8")
 
 
 class EvaOrchestrator:
@@ -823,7 +808,7 @@ class EvaOrchestrator:
 
     async def _eva_direct_handler(self, state: AgentState) -> AgentState:
         from src.agents.eva import EvaAgent
-        agent = EvaAgent(memory=self._memory, llm=self._llm, config=self._config)
+        agent = EvaAgent(memory=self._memory, llm=self._llm, config=self._config, vault=self._vault)
         payload = dict(state["payload"])
         if "action" not in payload:
             payload["action"] = state["task_type"] if state["task_type"] in ("chat", "compose_briefing", "compose_reflection", "delegate", "system_status") else "chat"
@@ -834,7 +819,7 @@ class EvaOrchestrator:
 
     async def _eva_curator_handler(self, state: AgentState) -> AgentState:
         from src.agents.eva_curator import EvaCurator
-        agent = EvaCurator(memory=self._memory, llm=self._llm, config=self._config)
+        agent = EvaCurator(memory=self._memory, llm=self._llm, config=self._config, vault=self._vault)
         payload = dict(state["payload"])
         if "action" not in payload:
             payload["action"] = state["task_type"]
@@ -1018,12 +1003,19 @@ class EvaOrchestrator:
 
     async def _memory_command_handler(self, state: AgentState) -> AgentState:
         text = state["payload"].get("text", "")
-        cmd = parse_command(text)
+        cmd = parse_command(text if isinstance(text, str) else "")
         if cmd is None:
-            state["result"] = {"status": "not_a_memory_command", "text": text}
+            state["result"] = {"status": "not_a_memory_command"}
         else:
-            res = execute_command(cmd, self._vault, operator_confirmed_forget=state["payload"].get("confirmed", True))
-            state["result"] = res
+            try:
+                state["result"] = execute_command(
+                    cmd,
+                    self._vault,
+                    operator_confirmed_forget=state["payload"].get("confirmed") is True,
+                )
+            except VaultError:
+                logger.warning("memory_command_failed", command=cmd.kind)
+                state["result"] = {"status": "error", "error": "memory_command_failed"}
         state["status"] = "completed"
         return state
 
@@ -1033,10 +1025,25 @@ class EvaOrchestrator:
         if task_type == "vault_write_ground_truth":
             rel_path = payload.get("path", "wiki/general.md")
             content = payload.get("content", "")
+            if not isinstance(rel_path, str) or not isinstance(content, str):
+                state["result"] = {"status": "error", "error": "string_path_and_content_required"}
+                state["status"] = "completed"
+                return state
             try:
+                parts = Path(rel_path).parts
+                if parts and (
+                    parts[0] in {"raw", "archive"}
+                    or (len(parts) >= 3 and parts[0] == "agents" and parts[2] == "memory.md")
+                ):
+                    state["result"] = {
+                        "status": "refused",
+                        "error": "managed_memory_path_requires_policy_command",
+                    }
+                    state["status"] = "completed"
+                    return state
                 self._vault.write(rel_path, content)
-            except VaultError as exc:
-                state["result"] = {"status": "error", "path": rel_path, "error": str(exc)}
+            except VaultError:
+                state["result"] = {"status": "error", "error": "vault_write_rejected"}
                 state["status"] = "completed"
                 return state
             state["result"] = {"status": "ok", "path": rel_path}
@@ -1195,12 +1202,15 @@ class EvaOrchestrator:
             state["result"] = result
 
         await self._persist_task_audit(state, result)
-        await self._memory.save_checkpoint(
-            thread_id=state["session_id"],
-            checkpoint_id=state["task_id"],
-            agent_id=state.get("current_agent", "eva"),
-            state_data={"result": result, "status": state["status"]},
-        )
+        # Chat, memory queries, and Telegram payloads may contain private text.
+        # Do not persist their input/output in LangGraph checkpoints.
+        if state.get("task_type") not in {"chat", "webhook_telegram", "parse_memory_command"}:
+            await self._memory.save_checkpoint(
+                thread_id=state["session_id"],
+                checkpoint_id=state["task_id"],
+                agent_id=state.get("current_agent", "eva"),
+                state_data={"status": state["status"], "task_type": state.get("task_type")},
+            )
         return state
 
     # ─── Execution Routine ──────────────────────────────────────────────────
@@ -1303,58 +1313,37 @@ class EvaOrchestrator:
 
     # ─── Proactive Lifecycles ────────────────────────────────────────────────
 
-    async def proactive_daily_briefing(self) -> Dict[str, Any]:
-        """Called by n8n cron at 07:30. Gathers morning data from all floor agents."""
-        results = {}
-        for agent_id in ["eva", "fin", "sam", "doc", "marshal", "kira", "architect"]:
-            try:
-                task_name = f"morning_data_{agent_id}"
-                r = await self.execute(task_name, {"action": "morning_data"})
-                results[agent_id] = r.get("result", {})
-            except Exception as exc:  # noqa: BLE001
-                results[agent_id] = {"error": str(exc)}
+    async def proactive_daily_briefing(self, agent_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Compose only from reports already supplied; never dispatch agent tasks."""
+        if not isinstance(agent_data, dict):
+            return {
+                "status": "unavailable",
+                "reason": "no_precollected_reports",
+                "agent_tasks_dispatched": False,
+                "voice_started": False,
+            }
+        result = await self.execute("chat", {"action": "compose_briefing", "agent_data": agent_data})
+        return {"briefing": result.get("result", {}), "agent_data": agent_data, "agent_tasks_dispatched": False}
 
-        briefing = await self.execute("chat", {
-            "message": "Compose comprehensive 07:30 executive morning briefing for the Syndicate Leader.",
-            "agent_data": results,
-        })
+    async def proactive_evening_reflection(self, evening_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Compose only from reports already supplied; do not invoke Doc or Kira."""
+        if not isinstance(evening_data, dict):
+            return {
+                "status": "unavailable",
+                "reason": "no_precollected_reports",
+                "agent_tasks_dispatched": False,
+            }
+        result = await self.execute("chat", {"action": "compose_reflection", "evening_data": evening_data})
+        return {"reflection": result.get("result", {}), "evening_data": evening_data, "agent_tasks_dispatched": False}
 
-        if self._voice and briefing.get("result", {}).get("response"):
-            try:
-                await self._voice.speak(briefing["result"]["response"])
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("voice_briefing_speak_failed", error=str(exc))
-
-        return {"briefing": briefing.get("result", {}), "agent_data": results}
-
-    async def proactive_evening_reflection(self) -> Dict[str, Any]:
-        """Called by n8n cron at 21:00. Evening reflection & recovery protocol."""
-        results = {}
-        try:
-            # No invented biometrics: the scheduler has no wearable feed, so Doc
-            # is asked without metrics and answers with a non-personalised
-            # protocol instead of "measuring" a heart rate nobody reported.
-            doc_rec = await self.execute("nervous_system", {
-                "action": "nervous_system",
-            })
-            results["doc_recovery"] = doc_rec.get("result", {})
-        except Exception as exc:  # noqa: BLE001
-            results["doc_recovery"] = {"error": str(exc)}
-
-        try:
-            kira_quiz = await self.execute("micro_quiz", {
-                "action": "micro_quiz",
-                "topic": "Python Async / Distributed Agents",
-            })
-            results["kira_sparring"] = kira_quiz.get("result", {})
-        except Exception as exc:  # noqa: BLE001
-            results["kira_sparring"] = {"error": str(exc)}
-
-        reflection = await self.execute("chat", {
-            "message": "Synthesize 21:00 evening reflection (Doc recovery tips + Kira 5-min sparring).",
-            "evening_data": results,
-        })
-        return {"reflection": reflection.get("result", {}), "evening_data": results}
+    async def proactive_nightly_analysis(self) -> Dict[str, Any]:
+        """Dormant 03:00 contract; no source provider is configured or invoked."""
+        return {
+            "status": "unavailable",
+            "reason": "nightly_source_provider_not_configured",
+            "agent_tasks_dispatched": False,
+            "external_actions": False,
+        }
 
     async def weekly_life_review(self) -> Dict[str, Any]:
         """Called by n8n cron on Sunday at 20:00."""

@@ -1,13 +1,7 @@
-"""
-Proactive scheduler — the Syndicate writes first.
+"""Dormant schedule contract for a prepared Eva-only text review.
 
-* 07:30 Morning briefing (Eva composes Doc/Fin/Kira/Curator morning data)
-* 21:00 Evening reflection (Doc recovery + Kira 5-minute sparring prompt)
-
-The scheduler is intentionally tiny: n8n owns the real cron (see
-``n8n_templates``); this module defines the schedule contract, evaluates cron
-expressions deterministically (so it is testable) and exposes the tasks the
-n8n webhooks call.
+No job in this module dispatches tasks to other agents or performs external
+actions. The nightly source provider and production/n8n activation remain unconfigured.
 """
 
 from __future__ import annotations
@@ -15,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Awaitable, Callable, Dict, List, Optional
+from zoneinfo import ZoneInfo
 
 import structlog
 
@@ -27,12 +22,17 @@ class ScheduledJob:
     cron: str          # "m h dom mon dow" — numbers, lists (1,2), ranges (1-5), steps (*/5), *
     task: str          # method name on the orchestrator
     description: str = ""
+    timezone: str = "Europe/Kyiv"
 
 
 DEFAULT_JOBS: List[ScheduledJob] = [
-    ScheduledJob("morning_briefing", "30 7 * * *", "proactive_daily_briefing", "Ранковий бриф Єви"),
-    ScheduledJob("evening_reflection", "0 21 * * *", "proactive_evening_reflection", "Вечірній рефлекс Дока та Кіри"),
-    ScheduledJob("weekly_review", "0 20 * * 0", "weekly_life_review", "Недільний Life Review"),
+    ScheduledJob(
+        "nightly_analysis",
+        "0 3 * * *",
+        "proactive_nightly_analysis",
+        "Євин текстовий аналіз без запуску інших агентів",
+        "Europe/Kyiv",
+    ),
 ]
 
 
@@ -72,10 +72,12 @@ class ProactiveScheduler:
         self._last_run: Dict[str, str] = {}
 
     def due(self, when: datetime) -> List[ScheduledJob]:
-        stamp = when.strftime("%Y-%m-%d %H:%M")
         out = []
         for job in self.jobs:
-            if cron_matches(job.cron, when) and self._last_run.get(job.name) != stamp:
+            zone = ZoneInfo(job.timezone)
+            local_when = when.replace(tzinfo=zone) if when.tzinfo is None else when.astimezone(zone)
+            stamp = local_when.strftime("%Y-%m-%d %H:%M")
+            if cron_matches(job.cron, local_when) and self._last_run.get(job.name) != stamp:
                 out.append(job)
         return out
 

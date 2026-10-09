@@ -293,14 +293,15 @@ async def run_10floors_sandbox_suite():
     assert any("errorTrigger" in n["type"] for n in wf_error["nodes"])
     assert "/webhook/error" in json.dumps(wf_error)
 
-    # 2f. ProactiveScheduler cron evaluation
+    # 2f. The prepared, dormant Eva-only 03:00 Kyiv cron contract is the sole default job.
     scheduler = ProactiveScheduler()
-    assert {j.name for j in scheduler.jobs} == {"morning_briefing", "evening_reflection", "weekly_review"}
+    assert {j.name for j in scheduler.jobs} == {"nightly_analysis"}
+    t_0300 = datetime(2026, 10, 4, 3, 0)
     t_0730 = datetime(2026, 10, 4, 7, 30)
-    t_2100 = datetime(2026, 10, 4, 21, 0)
+    assert cron_matches("0 3 * * *", t_0300)
     assert cron_matches("30 7 * * *", t_0730)
-    assert cron_matches("0 21 * * *", t_2100)
-    assert not cron_matches("30 7 * * *", t_2100)
+    assert [job.name for job in scheduler.due(t_0300)] == ["nightly_analysis"]
+    assert scheduler.due(t_0730) == []
     print("  ✅ Floor 1 (Sensory Router, Dead Letter Queue, n8n FlowLint Workflows, Proactive Cron) verified!")
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -712,13 +713,15 @@ async def run_10floors_sandbox_suite():
     })
     assert res_council["status"] == "completed" and res_council["result"]["quorum"] is True
 
-    # 9b. Proactive Daily Briefing (07:30) & Evening Reflection (21:00)
+    # 9b. Scheduled tasks do not dispatch other agents without precollected reports.
     morning_briefing = await orchestrator.proactive_daily_briefing()
-    assert "briefing" in morning_briefing and "agent_data" in morning_briefing
+    assert morning_briefing["status"] == "unavailable"
+    assert morning_briefing["agent_tasks_dispatched"] is False
 
     evening_reflection = await orchestrator.proactive_evening_reflection()
-    assert "reflection" in evening_reflection and "evening_data" in evening_reflection
-    print("  ✅ EvaOrchestrator (10-Floor StateGraph Routing, Proactive Morning Briefing, Evening Reflection) verified!")
+    assert evening_reflection["status"] == "unavailable"
+    assert evening_reflection["agent_tasks_dispatched"] is False
+    print("  ✅ EvaOrchestrator (on-demand reports; no automatic agent dispatch) verified!")
 
     # ─────────────────────────────────────────────────────────────────────────
     # STEP 10: FastAPI Runtime & Specialized Endpoints Suite

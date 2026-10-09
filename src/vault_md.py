@@ -19,7 +19,9 @@ from __future__ import annotations
 
 import hashlib
 import re
-import time
+import uuid
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from dataclasses import dataclass
 from enum import IntEnum
 from pathlib import Path
@@ -102,10 +104,24 @@ class MarkdownVault:
         return first in PROTECTED_DIRS
 
     # ── file operations ───────────────────────────────────────────────────
-    def write(self, rel: str, content: str, *, allow_protected: bool = False) -> str:
-        if self.is_protected(rel) and not allow_protected:
-            raise VaultError(f"protected_path_requires_approved_change_request:{rel}")
+    def write(
+        self,
+        rel: str,
+        content: str,
+        *,
+        allow_protected: bool = False,
+        allow_memory_write: bool = False,
+    ) -> str:
         p = self._resolve(rel)
+        parts = p.relative_to(self.root).parts
+        if parts and parts[0] == "statutes" and not allow_protected:
+            raise VaultError("protected_path_requires_approved_change_request")
+        is_managed_memory = (
+            bool(parts)
+            and (parts[0] in {"raw", "archive"} or (len(parts) >= 3 and parts[0] == "agents" and parts[2] == "memory.md"))
+        )
+        if is_managed_memory and not allow_memory_write:
+            raise VaultError("managed_memory_path_requires_policy_gate")
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(content, encoding="utf-8")
         return self.content_hash(content)
@@ -154,7 +170,7 @@ class MarkdownVault:
         for f in facts:
             meta = f" <!-- {f['meta']} -->" if f.get("meta") else ""
             lines.append(f"- **{f['key']}**: {f['value']}{meta}")
-        self.write(self._agent_memory_path(agent), "\n".join(lines) + "\n")
+        self.write(self._agent_memory_path(agent), "\n".join(lines) + "\n", allow_memory_write=True)
 
     @staticmethod
     def _slug(text: str, limit: int = 48) -> str:
@@ -162,18 +178,130 @@ class MarkdownVault:
         s = re.sub(r"[^\w\s\-]", "", s, flags=re.UNICODE)
         return s[:limit].strip() or "fact"
 
-    def remember(self, agent: str, fact: str, key: Optional[str] = None) -> Dict[str, Any]:
+    @staticmethod
+    def _memory_metadata(source: str, confirmed: bool) -> str:
+        """Attach auditable provenance to an explicitly approved memory write."""
+        safe_source = re.sub(r"[^a-z0-9_-]", "", str(source).lower())[:40] or "unknown"
+        recorded_at = datetime.now(ZoneInfo("Europe/Kyiv")).isoformat(timespec="seconds")
+        confirmation = "yes" if confirmed is True else "no"
+        return f"date={recorded_at};source={safe_source};confirmed={confirmation}"
+
+    def _memory_candidate_gate(self, agent: str, candidate: str, source: str) -> Optional[Dict[str, Any]]:
+        from src.agents.eva_memory_policy import EvaMemoryPolicy, MemoryDisposition
+
+        decision = EvaMemoryPolicy().evaluate(candidate, explicit_save_request=True)
+        if decision.disposition is MemoryDisposition.ARCHIVE:
+            return None
+        if decision.disposition is MemoryDisposition.REJECT:
+            return {"status": "refused", "reason_code": decision.reason_code, "active_memory_written": False}
+        draft = self.add_memory_review_draft(agent, candidate, decision.reason_code, source=source)
+        return {**draft, "active_memory_written": False, "reason_code": decision.reason_code}
+
+    def remember(
+        self,
+        agent: str,
+        fact: str,
+        key: Optional[str] = None,
+        *,
+        source: str = "unknown",
+        confirmed: bool = False,
+    ) -> Dict[str, Any]:
+        """Append an approved fact; replacing an existing key needs an update command."""
+        if confirmed is not True:
+            return {"status": "confirmation_required"}
+        normalized_fact = " ".join(str(fact).split())
+        if not normalized_fact:
+            return {"status": "error", "reason": "empty_fact"}
+        policy_result = self._memory_candidate_gate(agent, normalized_fact, source)
+        if policy_result is not None:
+            return policy_result
         facts = self._load_facts(agent)
-        key = key or self._slug(fact, 40)
-        for f in facts:
-            if f["key"] == key:
-                f["value"] = fact
-                f["meta"] = f"updated={int(time.time())}"
-                self._save_facts(agent, facts)
-                return {"status": "updated", "key": key}
-        facts.append({"key": key, "value": fact, "meta": f"created={int(time.time())}"})
+        key = key or self._slug(normalized_fact, 40)
+        for existing in facts:
+            if existing["key"] == key:
+                return {
+                    "status": "confirmation_required",
+                    "reason": "existing_fact_requires_explicit_update",
+                    "key": key,
+                }
+        facts.append(
+            {
+                "key": key,
+                "value": normalized_fact,
+                "meta": self._memory_metadata(source, confirmed),
+            }
+        )
         self._save_facts(agent, facts)
         return {"status": "created", "key": key}
+
+    def archive_nightly_summary(self, summary: str, local_date: str) -> Dict[str, str]:
+        """Create one dated, explicitly unconfirmed nightly text summary without overwriting."""
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(local_date)):
+            return {"status": "error", "reason": "invalid_local_date"}
+        try:
+            datetime.strptime(local_date, "%Y-%m-%d")
+        except ValueError:
+            return {"status": "error", "reason": "invalid_local_date"}
+        normalized = str(summary).strip()
+        if not normalized:
+            return {"status": "error", "reason": "empty_summary"}
+        if len(normalized) > 2_000:
+            return {"status": "review_required", "reason": "summary_too_long"}
+        from src.agents.eva_memory_policy import EvaMemoryPolicy, MemoryDisposition
+
+        decision = EvaMemoryPolicy().evaluate(
+            normalized, explicit_save_request=False, nightly_summary=True
+        )
+        if decision.disposition is not MemoryDisposition.ARCHIVE:
+            status = "refused" if decision.disposition is MemoryDisposition.REJECT else "review_required"
+            return {"status": status, "reason": decision.reason_code}
+        rel = f"archive/nightly/{local_date}.md"
+        if self.exists(rel):
+            return {"status": "already_archived", "path": rel}
+        metadata = self._memory_metadata("nightly_analysis", False)
+        content = (
+            f"# Нічний підсумок — {local_date}\n\n"
+            "Статус: автоматично згенерований архівний підсумок; не є підтвердженою пам'яттю.\n"
+            "Джерело: лише текстові матеріали, окремо дозволені для аналізу Євою.\n"
+            f"<!-- {metadata} -->\n\n{normalized}\n"
+        )
+        self.write(rel, content, allow_memory_write=True)
+        return {"status": "archived", "path": rel}
+
+    def add_memory_review_draft(
+        self,
+        agent: str,
+        candidate: str,
+        reason_code: str,
+        *,
+        source: str = "explicit_memory_request",
+    ) -> Dict[str, str]:
+        """Place one bounded, unapproved item in the manual review queue."""
+        self._agent_memory_path(agent)  # validate the target without granting active-memory access
+        if not isinstance(candidate, str):
+            return {"status": "error", "reason": "text_candidate_required"}
+        from src.agents.eva_memory_policy import EvaMemoryPolicy
+
+        policy = EvaMemoryPolicy()
+        if policy.contains_secret_like_value(candidate) or policy.contains_location_data(candidate):
+            return {"status": "refused", "reason": "secret_or_location_data_not_stored"}
+        normalized = " ".join(str(candidate).split())
+        if not normalized:
+            return {"status": "error", "reason": "empty_candidate"}
+        if len(normalized) > 2_000:
+            normalized = normalized[:1_997].rstrip() + "..."
+        safe_reason = re.sub(r"[^a-z0-9_-]", "", str(reason_code).lower())[:64] or "review_required"
+        safe_candidate = normalized.replace("<!--", "< !--").replace("-->", "-- >")
+        draft_id = str(uuid.uuid4())[:8]
+        rel = "raw/memory_review.md"
+        previous = self.read(rel) if self.exists(rel) else "# Memory Review Queue\n\nUnapproved items; not active memory.\n\n"
+        metadata = self._memory_metadata(source, False)
+        previous += (
+            f"- [ ] `{draft_id}` agent={agent} reason={safe_reason} "
+            f"<!-- {metadata} -->\n  - Candidate: {safe_candidate}\n"
+        )
+        self.write(rel, previous, allow_memory_write=True)
+        return {"status": "review_required", "draft_id": draft_id, "path": rel}
 
     def find_fact(self, agent: str, query: str) -> Optional[Dict[str, str]]:
         """Keyword match (token overlap) — fallback to semantic search outside this module."""
@@ -188,32 +316,70 @@ class MarkdownVault:
                 best, best_score = f, score
         return best if best_score >= 0.34 else None
 
-    def update_fact(self, agent: str, query: str, new_value: str) -> Dict[str, Any]:
+    def update_fact(
+        self,
+        agent: str,
+        query: str,
+        new_value: str,
+        *,
+        confirmed: bool = False,
+        source: str = "explicit_update_command",
+    ) -> Dict[str, Any]:
+        if confirmed is not True:
+            return {"status": "confirmation_required"}
+        normalized_value = " ".join(str(new_value).split())
+        if not normalized_value:
+            return {"status": "error", "reason": "empty_fact"}
+        policy_result = self._memory_candidate_gate(agent, f"{query}: {normalized_value}", source)
+        if policy_result is not None:
+            return policy_result
         facts = self._load_facts(agent)
         target = self.find_fact(agent, query)
         if not target:
-            return self.remember(agent, new_value) | {"note": "no_match_created_new"}
-        for f in facts:
-            if f["key"] == target["key"]:
-                self._archive_fact(agent, f, reason="superseded")
-                f["value"], f["meta"] = new_value, f"updated={int(time.time())}"
+            result = self.remember(
+                agent, normalized_value, source=source, confirmed=confirmed
+            )
+            return result | {"note": "no_match_created_new"}
+        for fact in facts:
+            if fact["key"] == target["key"]:
+                self._archive_fact(agent, fact, reason="superseded", source=source, confirmed=confirmed)
+                fact["value"] = normalized_value
+                fact["meta"] = self._memory_metadata(source, confirmed)
         self._save_facts(agent, facts)
         return {"status": "updated", "key": target["key"]}
 
-    def forget(self, agent: str, query: str) -> Dict[str, Any]:
+    def forget(
+        self,
+        agent: str,
+        query: str,
+        *,
+        confirmed: bool = False,
+        source: str = "explicit_forget_command",
+    ) -> Dict[str, Any]:
+        if confirmed is not True:
+            return {"status": "confirmation_required"}
         target = self.find_fact(agent, query)
         if not target:
             return {"status": "not_found"}
-        facts = [f for f in self._load_facts(agent) if f["key"] != target["key"]]
-        self._archive_fact(agent, target, reason="forgotten")
+        facts = [fact for fact in self._load_facts(agent) if fact["key"] != target["key"]]
+        self._archive_fact(agent, target, reason="forgotten", source=source, confirmed=confirmed)
         self._save_facts(agent, facts)
         return {"status": "archived", "key": target["key"]}
 
-    def _archive_fact(self, agent: str, fact: Dict[str, str], reason: str) -> None:
+    def _archive_fact(
+        self,
+        agent: str,
+        fact: Dict[str, str],
+        reason: str,
+        *,
+        source: str,
+        confirmed: bool,
+    ) -> None:
         rel = f"archive/{agent}.md"
         prev = self.read(rel) if self.exists(rel) else f"# Archive — {agent}\n\n"
-        prev += f"- **{fact['key']}**: {fact['value']} <!-- {reason}={int(time.time())} -->\n"
-        self.write(rel, prev)
+        metadata = self._memory_metadata(source, confirmed)
+        prev += f"- **{fact['key']}**: {fact['value']} <!-- {reason};{metadata} -->\n"
+        self.write(rel, prev, allow_memory_write=True)
 
     # ── grounding + index ─────────────────────────────────────────────────
     def verify_against_source(self, rel: str, snippet: str) -> bool:
