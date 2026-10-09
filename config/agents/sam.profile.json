@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "activation": "prepared_not_enabled",
+  "agent_id": "sam",
+  "runtime": "hermes",
+  "hermes_profile": "sam",
+  "memory_namespace": "agents/sam",
+  "prompt_status": "not_prepared",
+  "role_status": "not_agreed",
+  "model_status": "not_selected",
+  "capabilities": [],
+  "resource_scopes": [],
+  "services_enabled": [],
+  "skills": [],
+  "live_modes": {
+    "geolocation": false
+  }
+}

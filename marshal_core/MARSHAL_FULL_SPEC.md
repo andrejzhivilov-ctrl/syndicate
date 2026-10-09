@@ -1,4 +1,6 @@
 # 🛡️ MARSHAL — Фінальна Повна Специфікація v4.0
+
+> **Історичний документ.** Не є джерелом активної ролі, моделі чи grants. Чинні межі: `MARSHAL_ROLE_BOUNDARIES.md`, `config/agents/marshal.profile.json` (`prepared_not_enabled`).
 # Multi-layer Autonomous Runtime Security & Host-level Access Layer
 # EVA SYNDICATE — Security Cornerstone Document
 

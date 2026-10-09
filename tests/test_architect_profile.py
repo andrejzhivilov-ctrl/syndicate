@@ -43,9 +43,9 @@ def test_architect_manifest_is_prepared_not_enabled_and_has_no_grants() -> None:
     profile = _architect_profile(manifest)
 
     assert manifest["activation"] == "prepared_not_enabled"
-    assert manifest["role_status"] == "not_agreed"
+    assert manifest["role_status"] == "identity_draft"
     assert manifest["model_status"] == "not_selected"
-    assert manifest["prompt_status"] == "not_prepared"
+    assert manifest["prompt_status"] == "draft"
     assert profile.runtime is RuntimeKind.HERMES
     assert profile.capabilities == frozenset()
     assert profile.resource_scopes == frozenset()
@@ -53,12 +53,15 @@ def test_architect_manifest_is_prepared_not_enabled_and_has_no_grants() -> None:
     assert manifest["skills"] == []
     assert not hasattr(profile, "role")
 
+    prompt_path = ROOT / manifest["prompt_file"]
+    assert prompt_path.is_file()
+    assert "Ніколи не проси вставити" in prompt_path.read_text(encoding="utf-8")
+
 
 def test_architect_manifest_does_not_select_model_or_integrations() -> None:
     manifest = _load(ARCHITECT_PROFILE_PATH)
-    assert "prompt_file" not in manifest
     assert manifest["model_status"] == "not_selected"
-    assert manifest["role_status"] == "not_agreed"
+    assert manifest["role_status"] == "identity_draft"
     assert manifest["services_enabled"] == []
     assert manifest["n8n"]["control_plane"] is False
     assert manifest["n8n"]["permission_source"] is False

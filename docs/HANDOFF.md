@@ -25,6 +25,31 @@
 
 ---
 
+## 2026-10-09 — Arena Agent: профіль Архітектора + default-deny слоти інших агентів
+
+**Гілка:** `arena/41a10104-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+
+- Андрій підтвердив окремий **профіль** Архітектора. Ідентичність: чернетки n8n, не CTO. `role_status=identity_draft`.
+- Capability не видано. LangGraph `ArchitectAgent` не з’єднаний з Dispatcher. Vault `architect → mcp` не скопійовано в `services_enabled` і не змінювалось.
+- Додано persona, memory policy, toolkit, readiness, runtime prompt (draft у git).
+- Інші агенти (`marshal`, `fin`, `doc`, `kira`, `sam`): лише `prepared_not_enabled` маніфести, `role_status=not_agreed`, порожні grants. Історичні спеки позначені як не-grants.
+- Тести: усі маніфести default-deny; policy deny `agent.invoke` без grant.
+
+### Не дороблено
+
+- Немає моделі, live Hermes, n8n activation, жодного capability.
+- Ідентичності marshal/fin/doc/kira/sam ще не сформовані (наступні по одному).
+- Sentinel/Council не додавались.
+
+### Наступне
+
+1. Формувати наступного агента (ідентичність, не grants) — за замовчуванням Marshal, якщо Андрій не вкаже інакше.
+2. Будь-який capability — окремий точний scope.
+
+---
+
 ## 2026-10-09 — Arena Agent: Архітектор — gap analysis і default-deny контракт
 
 **Гілка:** `arena/41a10104-syndicate` · **Коміт:** delivery commit цього запису · **Ворота:** ✅ `bash tools/check.sh`

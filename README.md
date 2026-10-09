@@ -71,7 +71,11 @@ n8n — виконання workflow та інтеграцій; не control plan
 
 ### Межі профілю Архітектора
 
-`config/agents/architect.profile.json` теж `prepared_not_enabled`: роль/модель/prompt не погоджені, grants порожні, n8n не control plane і не джерело дозволів. Історичні CTO/n8n-специфікації в `architect_core/` не є активними правами. Gap analysis і контракт — [`architect_core/ARCHITECT_GAP_ANALYSIS.md`](architect_core/ARCHITECT_GAP_ANALYSIS.md), [`ARCHITECT_ROLE_BOUNDARIES.md`](architect_core/ARCHITECT_ROLE_BOUNDARIES.md), [`ARCHITECT_WORKFLOW_CONTRACT.md`](architect_core/ARCHITECT_WORKFLOW_CONTRACT.md). Профіль не активований; workflow не запускалися.
+`config/agents/architect.profile.json` — `prepared_not_enabled`, `role_status=identity_draft`: ідентичність обмежена чернетками n8n, grants порожні, модель не вибрана, n8n не control plane. Історичні CTO-спеки не є правами. Профіль не активований; workflow не запускалися.
+
+### Інші підготовлені маніфести (ще не сформовані)
+
+`marshal`, `fin`, `doc`, `kira`, `sam` мають `prepared_not_enabled` файли в `config/agents/` з порожніми grants і `role_status=not_agreed`. Історичні специфікації в `*_core/` не є активними ролями. Sentinel і Council не включаються.
 
 ## Принципи безпеки
 

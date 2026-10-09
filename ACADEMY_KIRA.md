@@ -1,5 +1,7 @@
 # 🎓 SYNDICATE Academy — Поверх 8: Просвітництво та Академічне Менторство (Кіра)
 
+> **Історичний документ.** Не є джерелом активної ролі, моделі чи grants. Чинні межі: `kira_core/KIRA_ROLE_BOUNDARIES.md`, `config/agents/kira.profile.json` (`prepared_not_enabled`).
+
 ## 🏛️ Архітектура Поверхів SYNDICATE (Holding Floor Hierarchy)
 
 Згідно з новою архітектурною моделлю суверенного холдингу **SYNDICATE**, впроваджено принцип **суворої доменної ізоляції та вузької спеціалізації**:
