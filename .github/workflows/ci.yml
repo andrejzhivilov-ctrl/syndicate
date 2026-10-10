@@ -36,7 +36,16 @@ jobs:
           .venv/bin/pip install -r requirements.txt -r requirements-dev.txt -r requirements-fin.txt
 
       - name: Gates (tests, suites, ruff, API contract)
-        run: bash tools/check.sh
+        run: |
+          # Діагностика: кроки, що впали, виводимо як анотації (читаються через REST API).
+          set +e
+          bash tools/check.sh > check.out 2>&1
+          rc=$?
+          sed 's/\x1b\[[0-9;]*m//g' check.out > check.clean.txt
+          grep -E "FAIL" check.clean.txt | head -20 | while IFS= read -r line; do echo "::error title=check.sh::${line}"; done
+          grep -A30 "FAIL" check.clean.txt | head -150 | while IFS= read -r line; do echo "::notice title=check.sh detail::${line}"; done
+          cat check.clean.txt
+          exit $rc
 
       - name: Working tree must stay clean
         run: |
