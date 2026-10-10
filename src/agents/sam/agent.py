@@ -227,14 +227,14 @@ class SamAgent:
                     "block_reason": f"negative constraint match: {blocked_by_constraint}",
                 }
             )
-            return response
+            return self._attach_execution_path(response, payload, risk_blocked=True)
 
         if not result.passes:
             reason = "vetoed by news/black-swan shield" if result.vetoed else (
                 f"confluence {result.score:.1f} < threshold {result.threshold:.1f}"
             )
             response.update({"tradeable": False, "reason": reason})
-            return response
+            return self._attach_execution_path(response, payload, risk_blocked=False)
 
         # Signal passes the gate → compute risk plan (never auto-executed).
         risk_input = payload.get("risk") or {}
@@ -254,7 +254,7 @@ class SamAgent:
                 {"tradeable": False, "blocked": True, "risk_plan": plan,
                  "block_reason": "; ".join(plan.get("reasons", []))}
             )
-            return response
+            return self._attach_execution_path(response, payload, risk_blocked=True)
 
         proposal_id = new_proposal_id()
         entry_price = float(risk_input.get("entry", payload.get("entry", 0.0)))
@@ -309,6 +309,25 @@ class SamAgent:
                 "delivered": delivered,
             }
         )
+        return self._attach_execution_path(response, payload, risk_blocked=False)
+
+    def _attach_execution_path(
+        self, response: Dict[str, Any], payload: Dict[str, Any], *, risk_blocked: bool
+    ) -> Dict[str, Any]:
+        """Annotate HITL/auto path. Empty grants keep auto_execute False."""
+        from src.agents.sam_policy import decide_execution
+
+        plan = decide_execution(
+            symbol=str(response.get("symbol") or payload.get("symbol") or ""),
+            venue=payload.get("venue"),
+            confluence=response.get("confluence"),
+            risk_blocked=risk_blocked or bool(response.get("blocked")),
+            timeframe=payload.get("timeframe"),
+        )
+        response["execution_path"] = plan["path"]
+        response["notification"] = plan.get("notification")
+        response["auto_execute"] = False
+        response["requires_hitl"] = True
         return response
 
     def _match_constraint(

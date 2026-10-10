@@ -25,6 +25,14 @@
 
 ---
 
+## 2026-10-10 — Arena Agent: ідентичність Сема + міст + перемикач (grants порожні)
+
+Сформовано SAM v0.2: HITL за замовчуванням. Auto FX/crypto @99 — схема й код, прапор `false`, без `trade.execute`.
+Інвестиції завжди обговорення; `sam_auto_invest_allowed()` завжди False. Брокер TBD; `submit_lot` → `broker_unavailable`.
+Бот, голос, Drive, n8n, Hermes — вимкнені. Поверх 7.
+
+---
+
 ## 2026-10-10 — Arena Agent: живий монтаж n8n (inactive, HITL)
 
 Андрій: потрібен live mount. Видано точно `n8n.workflow.design` + `n8n.workflow.mount` / `n8n/live`.
