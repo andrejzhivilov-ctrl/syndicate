@@ -25,6 +25,14 @@
 
 ---
 
+## 2026-10-10 — Arena Agent: Architect завершений для викладки
+
+Пакет prepared: ранбук + `ARCHITECT_PERMISSIONS.md` (порожні grants = fail-closed дозвіл на деплой).
+CLI `tools/architect_preview.py`. `gitops_push=false`; агент не пушить у GitHub.
+Не live n8n, не merge в main. Гілка `arena/41a10104-syndicate`.
+
+---
+
 ## 2026-10-09 — Arena Agent: Architect preview/archive/draft skills (без grants)
 
 Архів і knowledge — порожні слоти. Скіли new-agent / n8n-link / self-learn = `draft`.

@@ -79,6 +79,8 @@ def test_architect_manifest_does_not_select_model_or_integrations() -> None:
     assert manifest["workspace"]["drive"]["folder_id"] is None
     sources = (ROOT / "architect_core/knowledge/architecture/SOURCES.yaml").read_text(encoding="utf-8")
     assert "sources: []" in sources
+    assert (ROOT / "architect_core/ARCHITECT_PERMISSIONS.md").is_file()
+    assert (ROOT / "architect_core/ARCHITECT_DEPLOYMENT_RUNBOOK.md").is_file()
     assert manifest["live_modes"]["telegram_bot"] is False
     assert manifest["live_modes"]["gitops_push"] is False
     assert manifest["live_modes"]["n8n_editor"] is False
