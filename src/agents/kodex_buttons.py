@@ -1,7 +1,7 @@
 """K.O.D.E.K.S. — інтерактивні кнопки Telegram-бота. Лише розмітка й розбір callback.
 
-Бот приватний: лише Андрій. Видалення файлів з міткою і будь-який вихід в інтернет — тільки після
-натискання «Підтвердити» від Андрія. Єва отримує звіт (усі дії агентів, включно з автоматичними).
+Бот приватний: лише Андрій. Зміна (редагування або видалення) мічених файлів і будь-який вихід в інтернет —
+лише після натискання «Дозволити» від Андрія. Єва отримує звіт (усі дії агентів, включно з автоматичними).
 """
 
 from __future__ import annotations
@@ -19,10 +19,13 @@ MENUS: Dict[str, List[List[Tuple[str, str, str]]]] = {
         [("📋 Повний звіт", "rep:full", "andrii")],
     ],
     "confirm_delete": [
-        [("✅ Так, видалити (кошик на 30 днів)", "del:yes", "andrii"), ("❌ Скасувати", "del:no", "andrii")],
+        [("✅ Так, видалити (кошик на 30 днів)", "chg:yes", "andrii"), ("❌ Скасувати", "chg:no", "andrii")],
     ],
     "approve_download": [
         [("✅ Дозволити завантаження", "net:yes", "andrii"), ("❌ Ні", "net:no", "andrii")],
+    ],
+    "approve_change": [
+        [("✅ Дозволити зміну", "chg:yes", "andrii"), ("❌ Заборонити", "chg:no", "andrii")],
     ],
     "confirm_label_removal": [
         [("✅ Зняти мітку", "lbl:off:yes", "andrii"), ("❌ Залишити", "lbl:off:no", "andrii")],
@@ -36,15 +39,15 @@ ACTIONS = {
     "up:file": ("upload", "await_file"),
     "up:protected": ("upload", "await_file_protected"),
     "up:link": ("download", "ask_url"),
+    "chg:yes": ("change", "confirm"),
+    "chg:no": ("change", "reject"),
     "lbl:start": ("label", "pick_item"),
     "lbl:off:yes": ("label", "unlabel_confirm"),
     "lbl:off:no": ("label", "cancel"),
     "tree:show": ("archive", "tree"),
     "edit:start": ("edit", "pick_item"),
     "del:start": ("delete", "pick_item"),
-    "del:yes": ("delete", "confirm"),
-    "del:no": ("delete", "cancel"),
-    "route:show": ("route", "show"),
+            "route:show": ("route", "show"),
     "tr:start": ("transcribe", "await_media"),
     "tl:start": ("translate", "await_text"),
     "fmt:learn": ("format", "ask_ext"),

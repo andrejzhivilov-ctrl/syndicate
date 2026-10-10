@@ -61,13 +61,14 @@ def test_all_prepared_manifests_are_default_deny_and_isolated() -> None:
             assert manifest["resource_scopes"] == ["fin/out"]
             assert manifest["services_enabled"] == []
         elif agent_id == "kodex":
-            # KODEX: читання всіх архівів, запис у файли без мітки, видалення міток лише з підтвердженням Андрія.
+            # KODEX: читання всіх архівів, зміна файлів без мітки, переміщення мічених, зміна мічених — з дозволом Андрія.
             assert manifest["capabilities"] == ["kodex.archive.read_all", "kodex.archive.write_unlabeled",
-                                                "kodex.delete.labeled_with_andrii_confirm", "kodex.report.eva"]
+                                                "kodex.labeled.move",
+                                                "kodex.labeled.change_with_andrii_permission", "kodex.report.eva"]
             assert manifest["resource_scopes"] == ["kodex/archive"]
             assert manifest["services_enabled"] == []
             assert manifest["knowledge_base"]["protection"]["label"] == "andrii_protected"
-            assert manifest["knowledge_base"]["protection"]["on_labeled_files"] == ["read_only", "no_edit", "no_move", "no_delete"]
+            assert manifest["knowledge_base"]["protection"]["labeled_files"]["edit_or_delete"] == "лише з дозволом Андрія"
         else:
             assert manifest["capabilities"] == []
             assert manifest["resource_scopes"] == []

@@ -12,7 +12,8 @@
   "capabilities": [
     "kodex.archive.read_all",
     "kodex.archive.write_unlabeled",
-    "kodex.delete.labeled_with_andrii_confirm",
+    "kodex.labeled.move",
+    "kodex.labeled.change_with_andrii_permission",
     "kodex.report.eva"
   ],
   "resource_scopes": [
@@ -35,18 +36,17 @@
     ],
     "protection": {
       "label": "andrii_protected",
-      "auto_applied_to": "особисті завантаження Андрія",
-      "on_labeled_files": [
-        "read_only",
-        "no_edit",
-        "no_move",
-        "no_delete"
-      ],
-      "delete_labeled": "лише KODEX за командою Андрія з його підтвердженням",
-      "label_removal": "лише Андрій",
-      "unlabeled_files": "редагування, сортування і видалення дозволені KODEX і агентам (видалене — у кошик 30 днів)"
+      "auto_applied_to": "особисте завантаження Андрія (поза KODEX); через KODEX — без мітки з попередженням, якщо не попросив мітку",
+      "unlabeled_upload_warning": "завантажено без мітки захисту — KODEX і агенти можуть будь-що з ним робити",
+      "labeled_files": {
+        "read": "всі агенти",
+        "move": "KODEX і агенти (сортування)",
+        "edit_or_delete": "лише з дозволом Андрія"
+      },
+      "label_removal": "лише Андрій"
     },
-    "agent_actions": "усі дії агентів (редагування, видалення) — у звіті для Єви"
+    "agent_actions": "усі дії агентів (редагування, видалення) — у звіті для Єви",
+    "unprotected_files": "редагування, сортування, видалення — KODEX і агенти самі; видалене — кошик 30 днів"
   },
   "classification": "deterministic_keyword_rules_no_paid_llm",
   "formats": {
@@ -95,8 +95,9 @@
     "Парсери Office/PDF: перевірка в середовищі деплою"
   ],
   "delete": {
-    "mode": "labeled_two_step_unlabeled_direct",
-    "trash_retention_days": 30,
+    "unlabeled": "direct_to_trash_30d",
+    "labeled": "andrii_permission_required",
     "confirm_by": "andrii"
-  }
+  },
+  "agent_actions": "усі дії агентів (редагування, переміщення, видалення) — у звіті для Єви"
 }

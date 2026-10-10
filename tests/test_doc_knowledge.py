@@ -52,9 +52,12 @@ def test_medical_claim_needs_tier_ab_or_andrii():
     assert K.admit_fact(dict(base, verified_by="andrii"))["status"] == "admitted"
 
 
-def test_vault_is_read_only_for_doc():
-    r = K.admit_fact({"domain": "andrii_medical_vault", "claim": "аналіз", "source_type": "book"})
-    assert r["status"] == "rejected" and r["reason"] == "vault_is_read_only_for_doc"
+def test_labeled_vault_file_is_read_only_for_doc_unlabeled_follows_medical_rules():
+    labeled = K.admit_fact({"domain": "andrii_medical_vault", "claim": "аналіз", "source_type": "book",
+                            "target_labeled": True})
+    assert labeled["status"] == "rejected" and labeled["reason"] == "labeled_file_read_only_for_doc"
+    unlabeled = K.admit_fact({"domain": "andrii_medical_vault", "claim": "аналіз", "source_type": "book"})
+    assert unlabeled["status"] == "pending_review"  # медичний контекст: потрібна оцінка A/B або Андрій
 
 
 def test_refresh_only_from_allowed_hosts_and_on_sunday():

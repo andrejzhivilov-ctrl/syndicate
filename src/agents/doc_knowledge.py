@@ -12,7 +12,8 @@ from urllib.parse import urlparse
 
 # ---------------------------------------------------------------- домени
 DOMAINS: Dict[str, Dict[str, str]] = {
-    "andrii_medical_vault": {"owner": "andrii", "doc_access": "read_only", "label": "Медичний архів Андрія [ANDRII_IMMUTABLE]"},
+    # Файли з міткою andrii_protected — лише читання для Дока. Решта — за правилами допуску нижче.
+    "andrii_medical_vault": {"owner": "andrii", "doc_access": "read_labeled_only", "label": "Медичний архів Андрія"},
     "training_protocols": {"owner": "doc", "doc_access": "read_write", "label": "Тренування і реабілітація"},
     "exercise_library": {"owner": "doc", "doc_access": "read_write", "label": "База вправ"},
     "nutrition_recipes": {"owner": "doc", "doc_access": "read_write", "label": "Рецепти і КБЖУ"},
@@ -55,11 +56,11 @@ def admit_fact(record: Dict[str, Any]) -> Dict[str, Any]:
     domain = record.get("domain")
     if domain not in DOMAINS:
         return {"status": "rejected", "reason": "unknown_domain"}
-    if domain == "andrii_medical_vault":
-        # Архів Андрія не редагується Доком; лише читання.
-        return {"status": "rejected", "reason": "vault_is_read_only_for_doc"}
+    if domain == "andrii_medical_vault" and record.get("target_labeled"):
+        # Файл з міткою andrii_protected: лише читання для Дока.
+        return {"status": "rejected", "reason": "labeled_file_read_only_for_doc"}
     tier = SOURCE_TIERS.get(record.get("source_type", ""), "C")
-    medical = domain in {"supplements_safety", "evidence_research"} or record.get("medical", False)
+    medical = domain in {"supplements_safety", "evidence_research", "andrii_medical_vault"} or record.get("medical", False)
     if medical:
         if tier in {"A", "B"} and record.get("evidence_level") in {"1A", "1B"} and record.get("source_url"):
             return {"status": "admitted", "tier": tier}

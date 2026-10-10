@@ -29,7 +29,7 @@
   "knowledge_base": {
     "status": "rules_ready_not_enabled",
     "domains": [
-      "andrii_medical_vault(read_only)",
+      "andrii_medical_vault(файли з міткою andrii_protected — лише читання; решта — за правилами допуску)",
       "training_protocols",
       "exercise_library",
       "nutrition_recipes",
@@ -49,7 +49,7 @@
     "medical_information": "інформація й протоколи; діагнозів і ліків не призначає",
     "trainer": "програми, RPE, реабілітація, бібліотека вправ",
     "nutritionist_chef": "рецепти, КБЖУ, список продуктів для Єви",
-    "archivist": "ваш медичний архів — лише читання"
+    "archivist": "ваш медичний архів: файли з міткою andrii_protected — лише читання; без мітки — за правилами допуску"
   },
   "reports": {
     "to_eva": "короткий, без кнопок; без вигаданих цифр до підключення годинника",
