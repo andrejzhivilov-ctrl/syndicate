@@ -80,9 +80,20 @@
     "rule": "жодного завантаження без явного підтвердження Андрія (approve_download)"
   },
   "telegram": {
-    "status": "buttons_ready_bot_pending_token",
-    "module": "src/agents/kodex_buttons.py",
-    "access": "andrii_only"
+    "status": "handlers_ready_bot_pending_token",
+    "module": "src/agents/kodex_telegram.py",
+    "runner": "tools/kodex_bot.py",
+    "access": "andrii_only",
+    "allowlist_env": "KODEX_TELEGRAM_ALLOWED_CHAT_IDS",
+    "token_env": "TELEGRAM_BOT_TOKEN_KODEX",
+    "default_deny": true,
+    "not_connected": [
+      "транскрибація",
+      "переклад",
+      "розпізнавання фото/HEIC",
+      "вивчення нових форматів (парсер)",
+      "завантаження за дозволеним посиланням"
+    ]
   },
   "reports": {
     "to_eva": "uploads, transformations, deletions, pending approvals"

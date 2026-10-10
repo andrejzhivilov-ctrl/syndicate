@@ -25,6 +25,7 @@
 Додані в цьому пакеті (значення не задані):
 - `KODEX_DATA_DIR` — каталог сховища файлів KODEX.
 - `TELEGRAM_BOT_TOKEN_DOC`, `TELEGRAM_BOT_TOKEN_KODEX` — окремі приватні боти, allowlist лише Андрій.
+- `KODEX_TELEGRAM_ALLOWED_CHAT_IDS` — ID Андрія для бота KODEX. Порожньо = бот відмовляє всім.
 - `YOUTUBE_API_KEY` — лише після погодження Андрія для Єви.
 
 ## 3. Права (коротко; повна матриця — `docs/PERMISSIONS_MATRIX.md`)
@@ -39,7 +40,7 @@
 
 ## 4. Код: карта модулів
 
-- **KODEX:** `src/agents/kodex.py` (сховище, завантаження, мітки, дозволи, звіт), `src/agents/kodex_buttons.py` (кнопки), `config/agents/kodex.profile.json`, `doc_core/KODEX_NOTES.md`.
+- **KODEX:** `src/agents/kodex.py` (сховище, завантаження, мітки, дозволи, звіт), `src/agents/kodex_buttons.py` (кнопки), `src/agents/kodex_telegram.py` (обробники), `tools/kodex_bot.py` (запуск бота, long polling), `config/agents/kodex.profile.json`, `doc_core/KODEX_NOTES.md`.
 - **Док:** `src/agents/doc_knowledge.py`, `doc_nutrition.py`, `doc_shopping.py`, `doc_buttons.py`, `doc_reminders.py` (13:10 і 19:10 Europe/Kyiv), `doc_exercises.py`.
 - **Єва:** `src/agents/eva*.py`, `config/agents/eva.profile.json` (YouTube — лише оголошено, не ввімкнено).
 - **Фін:** `src/agents/fin_*.py`, `eva_basket.py`.

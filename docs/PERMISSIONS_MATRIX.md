@@ -12,7 +12,7 @@
 | eva | prepared_not_enabled | agreed_draft | — | — | — | 5 (активних: 0) | — |
 | fin | prepared_not_enabled | identity_draft | fin.dispatch.eva_basket, fin.funds_check, fin.reports.local, fin.docs.local_generate | fin/out | — | 14 (активних: 0) | — |
 | kira | prepared_not_enabled | not_agreed | — | — | — | 0 (активних: 0) | — |
-| kodex | prepared_not_enabled | not_agreed | kodex.archive.read_all, kodex.archive.write_unlabeled, kodex.labeled.move, kodex.labeled.change_with_andrii_permission, kodex.report.eva | kodex/archive | — | 0 (активних: 0) | buttons_ready_bot_pending_token |
+| kodex | prepared_not_enabled | not_agreed | kodex.archive.read_all, kodex.archive.write_unlabeled, kodex.labeled.move, kodex.labeled.change_with_andrii_permission, kodex.report.eva | kodex/archive | — | 0 (активних: 0) | handlers_ready_bot_pending_token |
 | marshal | prepared_not_enabled | identity_draft | — | — | — | 0 (активних: 0) | — |
 | sam | prepared_not_enabled | identity_draft | — | — | — | 5 (активних: 0) | — |
 
