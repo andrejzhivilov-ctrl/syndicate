@@ -464,3 +464,21 @@ class KodexStore:
                 "awaiting_andrii": self._pending_counts(),
                 "protected_files": sum(self._protected(r) for r in self.records.values() if r.status != "trashed"),
                 "active_records_by_status": by_status}
+
+
+# ------------------------------------------------------------ вечірній звіт Єві (21:00)
+EVENING_WINDOW = timedelta(hours=24)
+
+
+def evening_section(data_dir: Optional[str], now: datetime) -> Dict[str, Any]:
+    """Файлова частина вечірнього звіту: усі дії KODEX і агентів за 24 години.
+
+    Без KODEX_DATA_DIR — чесна відсутність (status=unavailable), а не нулі.
+    """
+    if not data_dir:
+        return {"status": "unavailable", "warning": "KODEX_DATA_DIR не задано: звіт файлів не зібрано"}
+    base = Path(data_dir)
+    store = KodexStore(base / "kodex.json", base / "blobs")
+    rep = store.report_for_eva(now - EVENING_WINDOW)
+    return {"status": "ok", "window_hours": int(EVENING_WINDOW.total_seconds() // 3600), "report": rep}
+

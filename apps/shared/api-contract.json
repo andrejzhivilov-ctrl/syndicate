@@ -1443,7 +1443,7 @@
     },
     "/proactive/evening": {
       "post": {
-        "description": "Trigger 21:00 evening reflection (Floor 1 / Floor 8 / Floor 9).",
+        "description": "Trigger 21:00 evening reflection (Floor 1 / Floor 8 / Floor 9).\n\nЗбираємо лише вже наявні звіти (файли KODEX за 24 год); жодного запуску агентів.\nБез KODEX_DATA_DIR звіт файлів чесно позначається unavailable.",
         "operationId": "trigger_evening_reflection_proactive_evening_post",
         "parameters": [
           {

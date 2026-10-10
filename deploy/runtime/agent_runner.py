@@ -1140,8 +1140,17 @@ async def trigger_morning_briefing(state: AppState = Depends(require_auth)):
 
 @app.post("/proactive/evening")
 async def trigger_evening_reflection(state: AppState = Depends(require_auth)):
-    """Trigger 21:00 evening reflection (Floor 1 / Floor 8 / Floor 9)."""
-    result = await state.orchestrator.proactive_evening_reflection()
+    """Trigger 21:00 evening reflection (Floor 1 / Floor 8 / Floor 9).
+
+    Збираємо лише вже наявні звіти (файли KODEX за 24 год); жодного запуску агентів.
+    Без KODEX_DATA_DIR звіт файлів чесно позначається unavailable.
+    """
+    from datetime import datetime
+
+    from src.agents.kodex import evening_section
+
+    evening = {"kodex": evening_section(os.getenv("KODEX_DATA_DIR"), datetime.now())}
+    result = await state.orchestrator.proactive_evening_reflection(evening)
     return {"ok": True, "reflection": result}
 
 
