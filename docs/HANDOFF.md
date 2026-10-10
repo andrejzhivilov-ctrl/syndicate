@@ -1433,3 +1433,14 @@ Vault і БД агент не стартував**. Погодинне приб�
 - **Єва:** YouTube (офіційний Data API) і YouTube Music оголошено в `external_sources` профілю, **не ввімкнено**. YouTube Music не має офіційного публічного API — рішення Андрія.
 - **Сміття прибрано:** застарілі планові й аудитні записки перенесено в `docs/archive/`; кеші й `.venv` локальні, не в git.
 - **Відкрите:** див. розділ 8 у `DEPLOY_SYNDICATE.md`.
+
+### Стан на кінець сесії 2026-10-10 (для наступного чату)
+
+- **`main`** — злито PR #7 (merge `b18c335`). Обидва джоби CI на `main` зелені: «Gates (no database)» і «PostgreSQL + pgvector».
+- **Робоча копія:** `/home/user/syndicate`, гілка `arena/41a10104-syndicate` (вершина == `main` за змістом). Незакомічених змін немає, стешів немає. `.venv` і кеші видалено; для тестів створити заново: `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt -r requirements-dev.txt -r requirements-fin.txt`.
+- **Перевірка:** `bash tools/check.sh` — зелено (ruff, тести, контракт API, політики Vault, гігієна).
+- **CI:** Gates ставить `requirements-fin.txt` (тести звітів Фіна потребують pptx/docx/xlsx); gates-джоб не піднімає pgserver (`EVA_SKIP_PGSERVER=1`), SQL-шляхи перевіряє джоб з pgvector.
+- **Відома нестабільність:** `tests/test_postgres_paths.py::...durable_audit_decisions...` падав один раз у повному прогоні; у ізоляції 0/12. Причину червоного Gates на попередніх комітах не встановлено (журнали CI недоступні з пісочниці). Після змін Gates зелений у трьох прогонах з рядка.
+- **Файли для розгортання:** `docs/DEPLOY_SYNDICATE.md`, `docs/PERMISSIONS_MATRIX.md`, `DEPLOYMENT_RUNBOOK.md`, `.env.example`.
+- **Відкрите (Андрій):** YouTube для Єви (офіційний Data API) — вмикати чи ні; YouTube Music (офіційного API немає); пороги харчування Дока; журнал діалогу `EVA_SYNDICATE_FULL_DIALOGUE.txt` (1,8 МБ) — лишати чи архівувати; рушій транскрибації і OCR при деплої; Telegram-токени для Дока і KODEX.
+- **Відкладено до деплою:** бази знань (вправи, рецепти, медичні протоколи), запуск runtime агентів, live-відео, голос, нагадування-планувальник Дока, n8n-моніторинг новин, Obsidian/NotebookLM/Drive/Sheets.
