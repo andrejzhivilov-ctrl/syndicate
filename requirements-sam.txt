@@ -1,0 +1,8 @@
+# Sam-only dependencies. NOT part of the core requirements.txt.
+# Install into a separate venv for Sam skills only, after separate permission.
+PyYAML>=6.0
+jsonschema>=4.25.1
+pandas-market-calendars==5.2.2
+pandas>=2.0
+requests>=2.31.0
+beautifulsoup4>=4.12

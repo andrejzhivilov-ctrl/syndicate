@@ -1,0 +1,4 @@
+# Read-only security reference corpus for Marshal. Distinct from agent memory.
+# Do not ingest secrets, scan payloads, or live incident dumps.
+# Every future entry needs origin, authorship, date, license, intended use.
+sources: []

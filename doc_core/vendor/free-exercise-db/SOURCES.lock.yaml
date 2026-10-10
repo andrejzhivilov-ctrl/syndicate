@@ -1,0 +1,8 @@
+package: free-exercise-db
+upstream: https://github.com/yuhonas/free-exercise-db
+commit: f00c92c7dcf1216a928a52c3706c7ce8e2f71ed5
+license: Unlicense (LICENSE.md)
+vendored_on: 2026-10-10
+scope: dist/exercises.json, schema.json, LICENSE.md, README.md
+omitted: зображення (репозиторій ~99 MB)
+status: data only, читається модулем src/agents/doc_exercises.py

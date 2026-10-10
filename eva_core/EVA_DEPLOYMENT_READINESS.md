@@ -1,19 +1,21 @@
 # Підготовка Єви до розгортання — контрольний список v0.1
 
-**Стан пакета:** готовий до технічного перегляду, не до production activation.<br>
-**Порядок:** Єва першою; Архітектор — окремою наступною фазою для n8n.
+**Стан пакета:** `prepared_not_enabled`; не production-ready і не activation.<br>
+**Порядок:** Єва першою. Наступний агент (ідентичність, не grants) — окремий handoff; не починати його в цій фазі.
 
 ## Зроблено в цій фазі
 
 - Узгоджені ідентичність і межі ролі Єви записані в `EVA_CORE_PERSONA.md` та runtime prompt.
 - Профіль `config/agents/eva.profile.json` має `activation=prepared_not_enabled`, порожні grants і вимкнені сервіси/режими.
 - Підготовлено чернетки ключових навичок для Єви; нічого не інстальовано в Hermes.
-- Memory policy підключено до Eva chat, curator і Obsidian-команд: звичайні turns не записуються, дублікати не перезаписуються, секрети/GPS відхиляються, чутливе переходить у окрему чергу перегляду.
+- Memory policy підключено до Eva chat, curator і Obsidian-команд: звичайні turns не записуються, дублікати не перезаписуються, секрети/GPS відхиляються, чутливе переходить у окрему чергу перегляду. `EvaAgent` читає/пише лише `agents/eva`; cross-agent з чату Єви — deny.
 - Підготовлено bounded nightly-analysis helper і cron contract на 03:00 `Europe/Kyiv`; helper не є публічним Eva action/task route. Source provider не налаштований, тож scheduled orchestrator повертає `unavailable`; n8n workflow і джерела не активовані. Жоден request-body прапорець не є дозволом чи способом запустити workflow.
 - Додані регресійні перевірки профілю, пам’яті, секретів, нічного аналізу, cron timezone і меж prompt/skills.
 
 ## Не готово / не виконувалося
 
+- **Блокер:** `AgentDispatcher` не підключений до `EvaAgent` / LangGraph (`chat`, `webhook_telegram`, curator, `parse_memory_command`). Активні grants не додавати, доки Dispatcher не стане обов’язковим шляхом. Підключення з порожніми grants відхилить і розмову.
+- Історичний `parse_memory_command` оркестратора все ще може писати в чужі namespace через `detect_agent()`; це не шлях профілю Єви.
 - Hermes runtime, locked upstream release, sandbox, tool bridge і API transport не встановлювалися та не запускалися.
 - Production deployment, Docker/n8n зміни й інтеграції не виконувалися.
 - Obsidian vault path/mount і secure write flow не підтверджені.

@@ -163,6 +163,8 @@ class EvaOrchestrator:
         "fin_sync_bank": "fin",
         "morning_data_fin": "fin",
         "fin_report": "fin",
+        "eva_basket_ready": "fin",   # автоматичний виклик Єви (funds_check)
+        "fin_funds_check": "fin",    # прямий запит Андрія
         # Marshal (CSO - Chief Security Officer commanding Sentinel Protocol)
         "marshal_execute": "marshal",
         "morning_data_marshal": "marshal",
@@ -808,8 +810,20 @@ class EvaOrchestrator:
 
     async def _eva_direct_handler(self, state: AgentState) -> AgentState:
         from src.agents.eva import EvaAgent
-        agent = EvaAgent(memory=self._memory, llm=self._llm, config=self._config, vault=self._vault)
+        from src.agents.eva_access import eva_telegram_inbound_allowed, extract_telegram_chat_id
+
         payload = dict(state["payload"])
+        if state.get("task_type") == "webhook_telegram" and not eva_telegram_inbound_allowed(
+            extract_telegram_chat_id(payload)
+        ):
+            state["result"] = {
+                "agent": "eva",
+                "status": "denied",
+                "error": "telegram_inbound_denied",
+            }
+            state["status"] = "completed"
+            return state
+        agent = EvaAgent(memory=self._memory, llm=self._llm, config=self._config, vault=self._vault)
         if "action" not in payload:
             payload["action"] = state["task_type"] if state["task_type"] in ("chat", "compose_briefing", "compose_reflection", "delegate", "system_status") else "chat"
         result = await agent.execute(payload)
@@ -851,7 +865,11 @@ class EvaOrchestrator:
             "fin_sync_bank": "sync_bank_data",
             "morning_data_fin": "morning_data",
             "fin_report": "report",
+            "eva_basket_ready": "funds_check",
+            "fin_funds_check": "funds_check",
         }
+        # Відправник визначає, кому відповідає Фін: автоматичний виклик — від Єви.
+        payload.setdefault("from", "eva" if state["task_type"] == "eva_basket_ready" else "andrii")
         payload.setdefault("action", action_map.get(state["task_type"], "analyze"))
         result = await agent.execute(payload)
         state["result"] = result
@@ -860,12 +878,8 @@ class EvaOrchestrator:
 
     async def _marshal_agent_handler(self, state: AgentState) -> AgentState:
         from src.agents.marshal import MarshalAgent
-        agent = MarshalAgent(
-            memory=self._memory,
-            llm=self._llm,
-            config=self._config.get("marshal", self._config),
-            sentinel=self._sentinel,
-        )
+        from src.agents.marshal_access import marshal_host_control_allowed
+
         payload = dict(state["payload"])
         action_map = {
             "marshal_execute": payload.get("action", "security_audit"),
@@ -877,6 +891,20 @@ class EvaOrchestrator:
             "compliance_check": "compliance_check",
         }
         payload["action"] = action_map.get(state["task_type"], payload.get("action", "security_audit"))
+        if payload["action"] == "emergency_lockdown" and not marshal_host_control_allowed():
+            state["result"] = {
+                "agent": "marshal",
+                "status": "denied",
+                "error": "host_control_not_granted",
+            }
+            state["status"] = "completed"
+            return state
+        agent = MarshalAgent(
+            memory=self._memory,
+            llm=self._llm,
+            config=self._config.get("marshal", self._config),
+            sentinel=self._sentinel,
+        )
         result = await agent.execute(payload)
         state["result"] = result
         state["status"] = "completed"

@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "activation": "prepared_not_enabled",
+  "agent_id": "doc",
+  "runtime": "hermes",
+  "hermes_profile": "doc",
+  "memory_namespace": "agents/doc",
+  "prompt_status": "not_prepared",
+  "role_status": "not_agreed",
+  "model_status": "not_selected",
+  "capabilities": [],
+  "resource_scopes": [],
+  "services_enabled": [],
+  "skills": [],
+  "live_modes": {
+    "geolocation": false
+  },
+  "shopping_responsibilities": {
+    "status": "code_ready_not_enabled",
+    "owner_of": [
+      "shopping_list (список продуктів для Єви)",
+      "нутрієнтний критерій (doc_shopping.py)"
+    ],
+    "web_access": "planned_at_deployment (вихід в інтернет і база рецептів — Андрій)",
+    "output_to": "eva",
+    "order_allowed": false,
+    "after_order": "Єва (або Андрій) передає ordered_list → Док планує харчування"
+  },
+  "knowledge_base": {
+    "status": "rules_ready_not_enabled",
+    "domains": [
+      "andrii_medical_vault(файли з міткою andrii_protected — лише читання; решта — за правилами допуску)",
+      "training_protocols",
+      "exercise_library",
+      "nutrition_recipes",
+      "supplements_safety",
+      "evidence_research",
+      "books"
+    ],
+    "build": "offline batch by cheap/free LLMs (not Doc runtime)",
+    "weekly_refresh": {
+      "day": "sunday",
+      "sources": "allowed_refresh_hosts only"
+    },
+    "self_learning": "pending_review until Andrii confirms or tier A/B evidence 1A/1B",
+    "shared_skill": "config/shared_skills/knowledge_base.json"
+  },
+  "roles": {
+    "medical_information": "інформація й протоколи; діагнозів і ліків не призначає",
+    "trainer": "програми, RPE, реабілітація, бібліотека вправ",
+    "nutritionist_chef": "рецепти, КБЖУ, список продуктів для Єви",
+    "archivist": "ваш медичний архів: файли з міткою andrii_protected — лише читання; без мітки — за правилами допуску"
+  },
+  "reports": {
+    "to_eva": "короткий, без кнопок; без вигаданих цифр до підключення годинника",
+    "to_andrii": "повний за кнопкою"
+  },
+  "telegram": {
+    "status": "buttons_ready_bot_pending_token",
+    "bot": "@doc_health_bot",
+    "access": "andrii_only",
+    "module": "src/agents/doc_buttons.py"
+  },
+  "medical_card": {
+    "status": "not_configured",
+    "rule": "жодних медичних полів без верифікації Андрієм"
+  },
+  "github_scout": {
+    "doc": "doc_core/DOC_GITHUB_SCOUT.md",
+    "installed": []
+  },
+  "deployment_deferred": [
+    "Telegram-бот: токен і chat_id",
+    "Доступ в інтернет і тижневе оновлення (неділя)",
+    "Фітнес-годинник",
+    "Передача медичних файлів і шлях архіву",
+    "NotebookLM / Vision OCR / Perplexity — перевірка і вибір"
+  ]
+}

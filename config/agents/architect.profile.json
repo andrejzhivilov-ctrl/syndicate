@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "activation": "prepared_not_enabled",
+  "agent_id": "architect",
+  "runtime": "hermes",
+  "hermes_profile": "architect",
+  "memory_namespace": "agents/architect",
+  "prompt_file": "src/agents/architect_runtime_prompt.md",
+  "prompt_status": "draft",
+  "role_status": "identity_draft",
+  "model_status": "not_selected",
+  "capabilities": [
+    "n8n.workflow.design",
+    "n8n.workflow.mount"
+  ],
+  "resource_scopes": [
+    "n8n/live"
+  ],
+  "services_enabled": [
+    "n8n"
+  ],
+  "skills": [
+    {"id": "architect-new-agent", "path": "architect_core/skills/architect-new-agent/SKILL.md", "activation": "draft"},
+    {"id": "architect-n8n-link", "path": "architect_core/skills/architect-n8n-link/SKILL.md", "activation": "draft"},
+    {"id": "architect-self-learn", "path": "architect_core/skills/architect-self-learn/SKILL.md", "activation": "draft"}
+  ],
+  "memory_policy_file": "architect_core/ARCHITECT_MEMORY_POLICY.md",
+  "task_source": "andrii_only",
+  "reports": {
+    "daily_brief_to_eva": "payload_only",
+    "eva_can_assign": false
+  },
+  "knowledge_bases": {
+    "architecture": {
+      "status": "not_loaded",
+      "read_only": true,
+      "source_manifest": "architect_core/knowledge/architecture/SOURCES.yaml"
+    }
+  },
+  "workspace": {
+    "archive": {"activation": "reserved", "namespace": "agents/architect"},
+    "drive": {
+      "activation": "not_configured",
+      "folder_id": null,
+      "credentials_managed_in_profile": false
+    }
+  },
+  "n8n": {
+    "control_plane": false,
+    "permission_source": false,
+    "activation": "live_mount_after_hitl",
+    "live_api": true,
+    "create_active": false,
+    "community_packages": false,
+    "credentials_managed_in_profile": false,
+    "base_url_env": "N8N_BASE_URL",
+    "api_key_env": "N8N_API_KEY",
+    "preview": "local_mermaid_then_live_mount"
+  },
+  "live_modes": {
+    "n8n_editor": false,
+    "gitops_push": false,
+    "host_control": false,
+    "telegram_bot": false,
+    "geolocation": false
+  }
+}

@@ -25,6 +25,321 @@
 
 ---
 
+## 2026-10-10 — Arena Agent: Док — здоров'я, тренер, кухар, база знань (правила і каркас)
+
+**Гілка:** arena/41a10104-syndicate  **Коміт:** див. git log (наступний після fcbfe8c)  **Ворота:** ✅
+
+### Зроблено
+- Код: `doc_nutrition.py` (Mifflin-St Jeor, КБЖУ, вода; без даних — `not_configured`), `doc_knowledge.py` (домени, рівні джерел A/B/C, допуск фактів, неділя, дозволені хости), `doc_buttons.py` (кнопки бота, лише Андрій), `doc_shopping.py` (список для Єви).
+- Архів Андрія — лише читання для Дока. Медичні поля — `not_configured` до верифікації.
+- Спільний скіл `knowledge_base`: читання всім, запис — лише власникам (`config/shared_skills/knowledge_base.json`).
+- Документи: `doc_core/DOC_KNOWLEDGE_PLAN.md`, `doc_core/DOC_GITHUB_SCOUT.md`, `doc_core/DOC_TELEGRAM_BOT.md`.
+- GitHub: кандидати book-to-skill (MIT), pdf-reader-skills (MIT), free-exercise-db (Unlicense, без зображень). Нічого не встановлено.
+
+### Не дороблено / свідомо залишено
+- Токен бота, інтернет і неділя, годинник, передача файлів, NotebookLM/OCR/Perplexity — при розгортанні.
+
+### Наступне
+1. Вирішити, які кандидати GitHub вендорити (з перевіркою ліцензії).
+2. Пороги нутрієнтів затверджує Док з Андрієм.
+
+### Ризики й спостереження
+- NotebookLM може не мати публічного API. Перевірити перед вибором сховища архіву.
+- `tests/test_postgres_paths.py::test_durable_audit...` інколи падає в повному прогоні (спільний стан живого Postgres); окремо і повторно — зелено. Розібрати окремо.
+
+---
+
+## 2026-10-10 — Arena Agent: Єва — кошики (перевірка можливості) і Док як власник списку
+
+**Коміти:** a121f30, fcbfe8c  **Ворота:** ✅
+
+### Зроблено
+- Сільпо: внутрішній API, неофіційний; кошик можливий лише через браузерний воркер у n8n з обліковим записом. АТБ — технічні роботи під час перевірки. Varus — лише акції й магазини. Ашан — не перевірено.
+- `eva_basket.py`: реєстр мереж (усі `not_connected`), пропозиція з `order_allowed: false`. Док веде список і нутрієнти; Єва формує кошик, якщо зможе.
+- Воркер дозволено за умов перевірки умов користування кожної мережі.
+
+### Наступне
+- Перевірка умов користування перед підключенням воркера.
+
+---
+
+## 2026-10-10 — Arena Agent: Фін — автоматичний виклик Єви, фонди картки/готівка/платіжні системи
+
+**Коміти:** a73982d, e4d14d3  **Ворота:** ✅
+
+### Зроблено
+- Маршрутизація: Фін відповідає лише Єві (і Андрію). Док до Фіна не звертається.
+- Фонди: `card`, `cash`, `payment_system`; безпека (`safety`) недоторканна. Назви — при налаштуванні доступів. Категорії: Продукти, Відпочинок, Інше.
+- Автовиклик `eva_basket_ready` → Фін (`funds_check`); прямий запит Андрія: `fin_funds_check`.
+- Банк: рішення A — читання закрите за замовчуванням (`fin_bank_gate.py`, `bank_read_grants=[]`).
+- Звіти: ЗВІТ (повний) — лише Андрій; стандартні; блок «Заплановано» завжди. Експорт PDF/DOCX/XLSX/PPTX/Obsidian локально; Google — `blocked_not_granted`.
+- Активовано (внутрішнє): dispatch Єви, розрахунок коштів, локальні звіти. Не активовано: банк, Telegram, Google, Obsidian, n8n.
+
+### Наступне
+- Крок «Єва сформувала кошик» має викликати `eva_basket_ready` (з'явиться при підключенні Єви).
+- PDF і інші файли перевірити при запуску.
+
+---
+
+## 2026-10-10 — Arena Agent: Фін — пряме доручення Андрія (затверджено)
+
+**Коміт:** a73982d  **Ворота:** ✅
+
+### Зроблено
+- Фін відповідає лише Єві. ФОП — окрема документація, не рахунок. Джерела: готівка, Монобанк, ПриватБанк, А-Банк, Payoneer, PayPal, криптогаманець (без реквізитів).
+- Не підключено: сам крок Єви, Telegram, банки, Google.
+
+---
+
+## 2026-10-10 — Arena Agent: Фін і Сем — підготовка (локально, відтворено після втрати sandbox)
+
+**Коміти:** 22cff78 (запушено)  **Ворота:** ✅
+
+### Зроблено
+- Сем: 8 скілів вендоровано (`sam_core/vendor/`, `vendored_inactive`), SOURCES.lock.yaml з SHA, FMP-адаптер прибрано. Тести вендору зелені (709). `requirements-sam.txt` окремо.
+- Фін: `fin_policy.py` (runway, самозвірка, basket advisory, allocate_purchase), профіль з 9 драфт-скілами, `banking.not_granted`, `payment_data_stored=false`.
+
+### Ризики й спостереження
+- Локальні коміти `97b2dbe`, `60f7927`, `1666b3b` зникли після перезавантаження sandbox. Не покладатися на незапушене.
+
+---
+
+## 2026-10-10 — Сем: перевірка скілів + шорт-ліст брокерів (не вибрано)
+
+Перевірено ліцензії/код: `sam_core/SAM_SKILL_REVIEW_2026-10-10.md`. У профілі `skill_candidates` (activation=candidate_not_installed). Брокери: `sam_core/SAM_BROKER_SHORTLIST_2026-10-10.md`. Жодного install/ключа/брокера.
+
+## 2026-10-10 — Arena Agent: Сем — розклад 07:00 Азія, щоденник, аналітика, розвідка скілів
+
+Азія **07:00** Kyiv. Щоденник обов’язковий щодня. Аналітика: понеділок 10:00 (тиждень), 1-ше 10:00 (місяць). Розвідка: `sam_core/SAM_SKILLS_REPO_SCOUT_2026-10-10.md` (не встановлено). Брокери — почекати.
+
+## 2026-10-10 — Arena Agent: Сем — бриф Єви, Азія, демо+live, слоти LLM
+
+Запам’ятовано, grants не чіпали: стислий JSON у бриф Єви **обов’язковий** (не скасовується). Торгівля і демо, і live — окремі контури. Слот азійської сесії ~03:00 Kyiv. Моделі (не вибрані): Grok=соцмережі, Gemini=аналіз/календар, Claude=ризик/10-K; математика без LLM.
+Брокерів не підключали. Довіра брокера ≠ «знайшов у чаті»; реєстри регуляторів + окреме «так».
+
+---
+
+## 2026-10-10 — Arena Agent: ідентичність Сема + міст + перемикач (grants порожні)
+
+Сформовано SAM v0.2: HITL за замовчуванням. Auto FX/crypto @99 — схема й код, прапор `false`, без `trade.execute`.
+Інвестиції завжди обговорення; `sam_auto_invest_allowed()` завжди False. Брокер TBD; `submit_lot` → `broker_unavailable`.
+Бот, голос, Drive, n8n, Hermes — вимкнені. Поверх 7.
+
+---
+
+## 2026-10-10 — Arena Agent: живий монтаж n8n (inactive, HITL)
+
+Андрій: потрібен live mount. Видано точно `n8n.workflow.design` + `n8n.workflow.mount` / `n8n/live`.
+`n8n.workflow.activate` не видана. n8n не control plane. Ключі лише `N8N_BASE_URL` + `N8N_API_KEY` у env.
+Код: `src/agents/architect_n8n.py`. Без env → `mount_unavailable`, не фейковий успіх.
+
+---
+
+## 2026-10-10 — Arena Agent: Architect завершений для викладки
+
+Пакет prepared: ранбук + `ARCHITECT_PERMISSIONS.md` (порожні grants = fail-closed дозвіл на деплой).
+CLI `tools/architect_preview.py`. `gitops_push=false`; агент не пушить у GitHub.
+Не live n8n, не merge в main. Гілка `arena/41a10104-syndicate`.
+
+---
+
+## 2026-10-09 — Arena Agent: Architect preview/archive/draft skills (без grants)
+
+Архів і knowledge — порожні слоти. Скіли new-agent / n8n-link / self-learn = `draft`.
+Локальний mermaid-прев’ю `architect_preview.py`: показати → HITL → lint, **не** live n8n.
+Каталог GitHub: `ARCHITECT_CANDIDATE_CATALOG.md` (n8nmermaid, LikeC4) — не встановлені.
+«Контроль системи» = креслення, не host_control.
+
+---
+
+## 2026-10-09 — Arena Agent: Architect identity v0.2 (Єва не ставить задач)
+
+Досьє CTO розібране: архетип/антикостилі/Blueprint — ідентичність; live n8n, бот, GitOps, моделі — ні.
+**Корекція Андрія:** задачі лише він; Архітектор → Єва тільки звіт у payload.
+Код: `architect_access`, `architect_blueprint`, `architect_report`, `architect_ready`. Grants порожні. PR не злито.
+
+---
+
+## 2026-10-09 — Arena Agent: Marshal prepared-пакет + install SkillSpector
+
+Код observe/HITL/brief/ready в `src/agents/marshal_*.py`. Ранбук `MARSHAL_DEPLOYMENT_RUNBOOK.md`.
+`tools/install_skillspector.sh` ставить бінарник у `.tools/` (gitignore), не в `requirements.txt` і не в `capabilities`.
+Python 3.12+ потрібен для NVIDIA CLI; на 3.11 — fail-closed `scan_unavailable`.
+`python tools/marshal_ready.py` вимагає порожні grants. Live бот/veto/Hermes не вмикались.
+
+---
+
+## 2026-10-09 — Arena Agent: SkillSpector як сканер пропозицій (не grant)
+
+Андрій сказав «так» на SkillSpector `--no-llm` як сканер, не як право вмикати скіли.
+- Хост-обгортка `src/agents/marshal_skill_scan.py` + `tools/marshal_skill_scan.py`.
+- Лише локальний шлях; remote URL deny; LLM-pass вимкнений; env з ключами здирається; секрети в stdout редагуються.
+- Немає бінарника → `scan_unavailable`, не SAFE. Немає рядка в `requirements.txt` і не в `skills`.
+- `capabilities` порожні.
+
+---
+
+## 2026-10-09 — Arena Agent: каталог кандидатів Marshal (не install)
+
+Огляд GitHub у `marshal_core/MARSHAL_CANDIDATE_CATALOG.md`. Перша черга (окреме «так»): NVIDIA SkillSpector `--no-llm`, Gitleaks, OWASP як SOURCES. Не ставити: archived protectai/llm-guard, оптові skill-packs, live red-team payload. Профіль `skills: []`.
+
+---
+
+## 2026-10-09 — Arena Agent: Marshal observe-only на інтернет за командою Андрія
+
+**Гілка:** `arena/41a10104-syndicate` · **PR #7 не злито**
+
+Пряме «пошукай в інтернеті» не вето і не HITL. Маршал лише пише метадані. Пуш/кнопки — тільки критична загроза (витік, скіл/права, deploy, гроші, delete, exfil). Жовте — у бриф, не в Telegram. Grants не змінювались.
+
+---
+
+## 2026-10-09 — Arena Agent: операційна модель Marshal v0.3 (без grants)
+
+**Гілка:** `arena/41a10104-syndicate` · **Ворота:** `bash tools/check.sh` · **PR #7 не злито**
+
+### Зроблено
+
+- `MARSHAL_OPERATING_MODEL.md` + `MARSHAL_HITL_CONTRACT.md`: вето як HITL (таймаут deny), жовтий/червоний, brief→Єва лише payload, full report — прямий запит, пропозиції скілів з кнопками.
+- TTS ні. n8n не control plane. Drive `folder_id=null`. Knowledge `sources: []`.
+- Кандидати (`policy.veto`, Telegram, Drive) **не** в полі `capabilities`.
+
+### Не робити без окремого «так»
+
+- Бот (потрібен реальний bot_id + allowlist), шар Observe, n8n aggregator, Drive folder, Dispatcher, `policy.veto`.
+
+---
+
+## 2026-10-09 — Arena Agent: розбір досьє Marshal (ідентичність ≠ grants)
+
+**Гілка:** `arena/41a10104-syndicate` · **Ворота:** `bash tools/check.sh` · **PR #7 не злито**
+
+### Зроблено
+
+- Досьє CSO v4.0 розібране в `marshal_core/MARSHAL_DOSSIER_REVIEW.md`: архетип/голос/кредо — в ідентичність; 9 рівнів, cron, бот, Tetragon, veto, Haiku/Sonnet — не в профіль.
+- Persona і runtime prompt v0.2: сталевий рапорт, підпорядкування Андрію, чесний `DENIED` замість вигаданого `SECURE`.
+- Grants, Telegram, host_control лишаються порожніми/false. Абсолютне вето не видане.
+
+### Не робити далі без окремого «так»
+
+- Модель, `@marshal_security_bot`, Dispatcher, Tetragon, lockdown, читання пам’яті Єви, `policy.veto`.
+
+---
+
+## 2026-10-09 — Arena Agent: ідентичність Marshal (без активних grants)
+
+**Гілка:** `arena/41a10104-syndicate` · **Ворота:** `bash tools/check.sh` · **PR #7 не злито**
+
+### Зроблено (тільки Marshal)
+
+- Профіль: `prepared_not_enabled`, `role_status=identity_draft`, порожні `capabilities` / `resource_scopes` / `services_enabled`.
+- Ідентичність (початково вузька, далі розширена розбором досьє). `MARSHAL_FULL_SPEC.md` не скопійовано в права.
+- Telegram inbound вимкнений; `live_modes.host_control` / `emergency_lockdown` / `telegram_bot` = false.
+- Оркестраторний `emergency_lockdown` fail-closed (`host_control_not_granted`). `MarshalAgent` і Sentinel-маршрути не підключені до Dispatcher і не вмикались.
+- Sentinel виключений; Tetragon/eBPF лишаються Фазою 2.
+
+### Не дороблено / свідомо залишено
+
+- Жодної capability. Hermes, модель, Telegram-бот, host control — ні.
+- Dispatcher не ставився на маршрути Marshal.
+- Історичний `src/agents/marshal.py` (CSO title, прямий `execute` lockdown) не переписувався, щоб не ламати 10floors; оркестраторний lockdown уже deny.
+- PR не злито.
+
+### Наступне
+
+1. Формувати наступного агента (ідентичність, не grants) — за замовчуванням Fin, якщо Андрій не вкаже інакше.
+2. Будь-який Marshal capability — окремий точний id після рішення про Dispatcher.
+
+---
+
+## 2026-10-09 — Arena Agent: підготовка Єви (без активних grants)
+
+**Гілка:** `arena/41a10104-syndicate` · **Ворота:** ✅ `bash tools/check.sh` · **PR #7 не злито**
+
+### Зроблено (тільки Єва)
+
+- Grants лишаються порожніми. Запропоновані межі — `eva_core/EVA_ACCESS_BOUNDARIES.md`, не поле `capabilities`.
+- `EvaAgent` відхиляє cross-agent memory write; recall читає лише `agents/eva`.
+- Telegram inbound: `enabled=false`, порожній allowlist = deny; webhook без allowlist не проходить у чат. Bot/chat id не вигадані.
+- Gmail не інтегровано. Nightly dormant. Psychology `sources: []`.
+- Тести fail-closed: порожні grants, чужий namespace навіть при гіпотетичному memory.read, порожній Telegram allowlist, cross-agent remember.
+
+### Блокери (не обходити)
+
+1. `AgentDispatcher` не підключений до `chat` / `webhook_telegram` / curator / `parse_memory_command`. Підключення з порожніми grants відхилить і розмову — потрібне окреме рішення.
+2. Оркестраторний `parse_memory_command` досі може писати в чужі namespace через `detect_agent()`.
+3. Hermes, модель, credentials, n8n, Obsidian mount, voice/camera/geo — не готові.
+
+### Handoff наступному агенту (не починати тут)
+
+Наступний кандидат — **Marshal**: `config/agents/marshal.profile.json` уже `prepared_not_enabled`, `role_status=not_agreed`, grants порожні. Sentinel виключений. Не видавати capability, не підключати Dispatcher «заодно», не копіювати історичний `MARSHAL_FULL_SPEC.md` у права.
+
+### Не дороблено
+
+- Не активовано жодної capability.
+- Dispatcher не інтегровано (свідомо).
+- PR не злито.
+
+---
+
+## 2026-10-09 — Arena Agent: профіль Архітектора + default-deny слоти інших агентів
+
+**Гілка:** `arena/41a10104-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+
+- Андрій підтвердив окремий **профіль** Архітектора. Ідентичність: чернетки n8n, не CTO. `role_status=identity_draft`.
+- Capability не видано. LangGraph `ArchitectAgent` не з’єднаний з Dispatcher. Vault `architect → mcp` не скопійовано в `services_enabled` і не змінювалось.
+- Додано persona, memory policy, toolkit, readiness, runtime prompt (draft у git).
+- Інші агенти (`marshal`, `fin`, `doc`, `kira`, `sam`): лише `prepared_not_enabled` маніфести, `role_status=not_agreed`, порожні grants. Історичні спеки позначені як не-grants.
+- Тести: усі маніфести default-deny; policy deny `agent.invoke` без grant.
+
+### Не дороблено
+
+- Немає моделі, live Hermes, n8n activation, жодного capability.
+- Ідентичності marshal/fin/doc/kira/sam ще не сформовані (наступні по одному).
+- Sentinel/Council не додавались.
+
+### Наступне
+
+1. Формувати наступного агента (ідентичність, не grants) — за замовчуванням Marshal, якщо Андрій не вкаже інакше.
+2. Будь-який capability — окремий точний scope.
+
+---
+
+## 2026-10-09 — Arena Agent: Архітектор — gap analysis і default-deny контракт
+
+**Гілка:** `arena/41a10104-syndicate` · **Коміт:** delivery commit цього запису · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+
+- Перевірено checkout: HEAD = `a50e8e4` (merge PR #6), робоче дерево було чисте; `git reset`/`clean` не використовувались.
+- Gap analysis історичних CTO/n8n-спек і `src/agents/architect/` проти `docs/SYNDICATE_PLATFORM_BASE.md`: роль/модель/інтеграції не визначені; LangGraph-handler існує поза `AgentDispatcher`; n8n не control plane.
+- Додано `config/agents/architect.profile.json`: `prepared_not_enabled`, порожні grants, `role_status=not_agreed`, `model_status=not_selected`, n8n flags вимкнені.
+- Межі й workflow-контракт: `architect_core/ARCHITECT_ROLE_BOUNDARIES.md`, `ARCHITECT_WORKFLOW_CONTRACT.md`, `ARCHITECT_GAP_ANALYSIS.md`. Історичні специфікації позначені як не-grants.
+- Тести `tests/test_architect_profile.py`: порожні grants, ізоляція від Єви, policy deny, golden/generated JSON лишаються `active=false`.
+- Профіль не активовано; Hermes/n8n/workflow не запускались; capability не видавались.
+
+### Не дороблено / свідомо залишено
+
+- Не вибрано роль, модель, prompt, skills.
+- Не відключено історичний `ArchitectAgent` у LangGraph (потрібне окреме рішення).
+- Не змінено Vault-мап `architect → mcp`.
+- Не імпортовано й не активовано жодного n8n workflow, включно з нічним аналізом Єви.
+- `apps/` не чіпався; production не виконувався.
+
+### Наступне
+
+1. Андрій відповідає на відкриті питання в `ARCHITECT_ROLE_BOUNDARIES.md` §5 точним scope — без цього grants не додавати.
+2. Окремо вирішити, чи ізолювати історичний LangGraph-handler до підключення Dispatcher.
+3. Лише після явного дозволу — вузька функція (наприклад, статичний lint чернеток) з одним capability id.
+
+### Ризики й спостереження
+
+- Історичний оркестратор усе ще маршрутизує `design_workflow` тощо; це не platform grant, але може створювати хибне враження активації.
+- Дві старі специфікації суперечать одна одній (24/7 CTO vs on-demand); не змішувати їх у майбутній ролі.
+
+---
+
 ## 2026-10-06 — Arena Agent: нейтральний каркас платформи SYNDICATE (фаза 1)
 
 **Гілка:** `arena/0f6034ef-eva-syndicate` · **Коміт:** delivery commit цього запису · **Ворота:** ✅ `bash tools/check.sh`
@@ -1081,3 +1396,40 @@ Vault і БД агент не стартував**. Погодинне приб�
   консолідація гілок, періодичні повні проходи.
 - Ніколи не редагуємо `main` одночасно. Гілка → `tools/check.sh` → мердж → запис сюди.
 - Правила для обох — у `AGENTS.md`. Що робити далі — у `docs/BACKLOG.md`.
+
+## 2026-10-10 — KODEX, Док: нагадування, вправи, вендор, профіль
+
+- **KODEX** (`src/agents/kodex.py`, `kodex_buttons.py`, `config/agents/kodex.profile.json`, `doc_core/KODEX_NOTES.md`): системний агент архівів; видалення двоетапне (лише Андрій); інтернет лише з його підтвердженням; `andrii_medical_vault` незмінний для всіх агентів (рішення KODEX — лише читання, потребує підтвердження Андрія). Профіль додано в `EXPECTED_IDS`.
+- **Shared skill** `knowledge_base`: KODEX додано до читання й запису (файли без мітки).
+- **Док**: нагадування о 13:10 і 19:10 (`doc_reminders.py`), показання цифрами, список добавок порожній — нічого не вигадується; вправи (`doc_exercises.py`, free-exercise-db, Unlicense).
+- **Вендор**: `kodex_core/vendor/book-to-skill` (офіційний, MIT, 808 тестів пройдено), `doc_core/vendor/free-exercise-db` (Unlicense), `doc_core/vendor/open-exercisedb` (MIT). Кожен має `SOURCES.lock.yaml`.
+- **Відкладено до деплою**: планувальник і доставка нагадувань, live-відео, голос, n8n моніторинг новин, транскрибація і переклад (рушій), Obsidian/NotebookLM/Drive/Sheets, Telegram-токен.
+- **Відкрите**: підтвердити пороги харчування і зон; підтвердити «щоранку» з нагадуваннями; вирішити, чи вендорені набори вправ іти в базу зараз.
+
+### Оновлення KODEX (рішення Андрія, 2026-10-10)
+
+- Захист іде за **міткою файла** `andrii_protected`, а не за папкою. Попереднє правило «`andrii_medical_vault` незмінний» скасовано.
+- Особисті завантаження Андрія мітяться автоматично: лише читання; видалення — лише через KODEX з підтвердженням Андрія.
+- Файли без мітки: редагування, сортування, видалення — агентами й KODEX автоматично; усе йде у звіт Єві.
+- Нагадування Доку: щодня о 13:10 і 19:10 (підтверджено).
+- База знань (вправи, рецепти тощо) — вводиться при деплої. Вендоровані набори вправ лежать у репозиторії, але не завантажені в базу знань.
+- Відкрите: Док (`DOC_KNOWLEDGE_PLAN.md`, `doc_knowledge.py`) досі має правило «лише читання» для `andrii_medical_vault` як роль Доку. Потрібне рішення: залишити чи прив'язати до мітки.
+
+### Уточнення правил захисту (2026-10-10, остаточне)
+
+- Медичний архів: **лише читання** для файлів з міткою `andrii_protected`; решта файлів архіву — за звичайними правилами.
+- Мічені файли: переміщення дозволене (сортування); редагування і видалення — лише з дозволу Андрія.
+- Особисте завантаження Андрія — мітка автоматично. Через KODEX — без мітки, з негайним попередженням (якщо не просили мітку); з такими файлами дозволені будь-які дії.
+- Усі дії KODEX і агентів (редагування, переміщення, видалення) — у звіті для Єви.
+- `doc_knowledge.py`: доступ Дока до медичного архіву прив'язано до мітки, а не до папки.
+- Нагадування Доку — о 13:10 і 19:10, щодня (підтверджено).
+- База знань при деплої.
+
+### Пакет розгортання і злиття в main (2026-10-10)
+
+- **Пакет розгортання:** `docs/DEPLOY_SYNDICATE.md` (що запускати, секрети, права, карта коду, відкрите). Серверні кроки — `DEPLOYMENT_RUNBOOK.md`.
+- **Матриця прав:** `docs/PERMISSIONS_MATRIX.md` — генерується з `config/agents/*.profile.json` (`tools/export_permissions.py`), тест перевіряє відповідність.
+- **KODEX:** завантаження через KODEX — без мітки за замовчуванням з попередженням; мітка — на прохання Андрія. Фото (jpg, png, webp, gif, bmp, tiff) — зберігаються; HEIC і аудіо (mp3, wav, m4a, flac, ogg, opus, aac, aiff…) — зберігаються, розпізнавання (OCR, транскрибація) — при деплої. Файли зберігаються в `KODEX_DATA_DIR` (не в git).
+- **Єва:** YouTube (офіційний Data API) і YouTube Music оголошено в `external_sources` профілю, **не ввімкнено**. YouTube Music не має офіційного публічного API — рішення Андрія.
+- **Сміття прибрано:** застарілі планові й аудитні записки перенесено в `docs/archive/`; кеші й `.venv` локальні, не в git.
+- **Відкрите:** див. розділ 8 у `DEPLOY_SYNDICATE.md`.

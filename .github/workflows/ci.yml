@@ -32,10 +32,25 @@ jobs:
         run: |
           python -m venv .venv
           .venv/bin/pip install --upgrade pip
-          .venv/bin/pip install -r requirements.txt -r requirements-dev.txt
+          # requirements-fin.txt — лише для тестів генерації звітів Фіна (pptx/docx/xlsx); не для рантайму.
+          .venv/bin/pip install -r requirements.txt -r requirements-dev.txt -r requirements-fin.txt
 
       - name: Gates (tests, suites, ruff, API contract)
-        run: bash tools/check.sh
+        env:
+          # Без бази: pgserver не піднімаємо (SQL-шляхи перевіряє джоб PostgreSQL).
+          EVA_SKIP_PGSERVER: "1"
+        run: |
+          # Діагностика: кроки, що впали, виводимо як анотації (читаються через REST API).
+          # Файли виводу — поза робочою копією, щоб не забруднювати git.
+          set +e
+          TMP="${RUNNER_TEMP:-/tmp}"
+          bash tools/check.sh > "$TMP/check.out" 2>&1
+          rc=$?
+          sed 's/\x1b\[[0-9;]*m//g' "$TMP/check.out" > "$TMP/check.clean.txt"
+          grep -E "FAIL" "$TMP/check.clean.txt" | head -20 | while IFS= read -r line; do echo "::error title=check.sh::${line}"; done
+          grep -A30 "FAIL" "$TMP/check.clean.txt" | head -150 | while IFS= read -r line; do echo "::notice title=check.sh detail::${line}"; done
+          cat "$TMP/check.clean.txt"
+          exit $rc
 
       - name: Working tree must stay clean
         run: |
@@ -83,7 +98,8 @@ jobs:
         run: |
           python -m venv .venv
           .venv/bin/pip install --upgrade pip
-          .venv/bin/pip install -r requirements.txt -r requirements-dev.txt
+          # requirements-fin.txt — лише для тестів генерації звітів Фіна (pptx/docx/xlsx); не для рантайму.
+          .venv/bin/pip install -r requirements.txt -r requirements-dev.txt -r requirements-fin.txt
 
       - name: Gates with a live database
         run: bash tools/check.sh

@@ -1,4 +1,6 @@
 # 📈 SAM (СЕМ) — Специфікація Головного Квантового Трейдера та Керуючого Активами (v2.0)
+
+> **Історичний документ.** Не є джерелом активної ролі, моделі чи grants. Чинні межі: `SAM_ROLE_BOUNDARIES.md`, `config/agents/sam.profile.json` (`prepared_not_enabled`).
 # EVA SYNDICATE — Chief Investment & Trading Officer (CIO)
 
 > **Позивний:** СЕМ (SAM — Sovereign Asset & Market Manager)  

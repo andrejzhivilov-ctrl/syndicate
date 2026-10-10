@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "activation": "prepared_not_enabled",
+  "agent_id": "marshal",
+  "runtime": "hermes",
+  "hermes_profile": "marshal",
+  "memory_namespace": "agents/marshal",
+  "prompt_file": "src/agents/marshal_runtime_prompt.md",
+  "prompt_status": "draft",
+  "role_status": "identity_draft",
+  "model_status": "not_selected",
+  "capabilities": [],
+  "resource_scopes": [],
+  "services_enabled": [],
+  "skills": [],
+  "memory_policy_file": "marshal_core/MARSHAL_MEMORY_POLICY.md",
+  "inbound_channels": {
+    "telegram": {
+      "enabled": false,
+      "bot_id": null,
+      "chat_allowlist": []
+    }
+  },
+  "knowledge_bases": {
+    "security": {
+      "status": "not_loaded",
+      "read_only": true,
+      "source_manifest": "marshal_core/knowledge/security/SOURCES.yaml"
+    }
+  },
+  "workspace": {
+    "drive": {
+      "activation": "not_configured",
+      "folder_id": null,
+      "credentials_managed_in_profile": false
+    }
+  },
+  "n8n": {
+    "control_plane": false,
+    "permission_source": false,
+    "activation": "not_enabled",
+    "live_api": false
+  },
+  "skill_scan": {
+    "tool": "skillspector",
+    "mode": "no_llm",
+    "binary": "skillspector",
+    "local_prefix": ".tools/skillspector",
+    "install_script": "tools/install_skillspector.sh",
+    "activation": "host_cli_optional",
+    "installs_skills": false,
+    "llm_pass": false,
+    "remote_urls": false,
+    "required_before_proposal": true
+  },
+  "reports": {
+    "daily_brief_to_eva": "payload_only",
+    "full_report": "andrii_direct_request"
+  },
+  "live_modes": {
+    "host_control": false,
+    "emergency_lockdown": false,
+    "telegram_bot": false,
+    "voice": false,
+    "geolocation": false
+  }
+}

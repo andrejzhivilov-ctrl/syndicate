@@ -294,6 +294,11 @@ def _resolve_admin_dsn(require: bool) -> tuple:
     env_dsn = os.getenv("EVA_TEST_DATABASE_URL", "").strip()
     if env_dsn:
         return env_dsn, None
+    # Джоб без бази (CI Gates) не піднімає другий PostgreSQL: SQL-шляхи перевіряє джоб із pgvector.
+    if os.getenv("EVA_SKIP_PGSERVER", "").strip().lower() in {"1", "true", "yes", "on"}:
+        if require:
+            raise LivePostgresUnavailable("EVA_REQUIRE_LIVE_DB=1 but EVA_SKIP_PGSERVER forbids pgserver")
+        return None, None
     try:
         server = _start_bundled_server()
     except Exception as exc:  # noqa: BLE001 - bundled binaries may be unavailable

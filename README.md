@@ -36,7 +36,7 @@ n8n — виконання workflow та інтеграцій; не control plan
 | **LangGraph** | Оркестрація задач у наявному backend-коді; новий policy dispatcher ще не інтегрований у цей потік. |
 | **Agent platform** | `AgentProfile`, immutable registry, default-deny policy, dispatcher та adapter-контракти в `src/agent_platform/`; локальні тести є, live runtime bridge — ні. |
 | **Hermes** | Цільовий окремий когнітивний runtime/profile для кожного агента. Не встановлений і не запускався в межах цієї підготовки. |
-| **n8n** | Workflow та інтеграції. Не control plane; workflow не може самостійно розширювати профілі чи scope. Конкретні права майбутнього Архітектора ще не визначені. |
+| **n8n** | Workflow та інтеграції. Не control plane; workflow не може самостійно розширювати профілі чи scope. Профіль Архітектора — `prepared_not_enabled` без grants; права, модель і інтеграції ще не визначені. |
 | **PostgreSQL + pgvector** | Наявне backend-сховище для структурованих даних, audit і семантичного пошуку. |
 | **Redis** | Кеш/короткоживучий стан; не канонічний архів знань. |
 | **HashiCorp Vault** | Інтерфейси та політики роботи із секретами; секрети не зберігаються в README, prompt чи profile manifest. |
@@ -67,7 +67,19 @@ n8n — виконання workflow та інтеграцій; не control plan
 
 ### Межі профілю Єви
 
-`config/agents/eva.profile.json` позначає Єву як `prepared_not_enabled`; `capabilities`, `resource_scopes` і `services_enabled` порожні. Підготовлений нічний контракт — 03:00 `Europe/Kyiv`, але source provider не налаштований: scheduled orchestrator повертає `unavailable`, а публічного `nightly_analysis` action немає. Погоджена роль, політика пам’яті та статус готовності описані в [`eva_core/`](eva_core/) — цей профіль не є дозволом на live Hermes чи production.
+`config/agents/eva.profile.json` позначає Єву як `prepared_not_enabled`; `capabilities`, `resource_scopes` і `services_enabled` порожні. Пам’ять проєктується лише на `agents/eva` (cross-agent deny). Telegram inbound вимкнений, порожній allowlist = deny. Нічний контракт — 03:00 `Europe/Kyiv`, source provider не налаштований. `AgentDispatcher` ще не стоїть на історичних маршрутах Єви — активні grants не додавати. Деталі: [`eva_core/`](eva_core/).
+
+### Межі профілю Архітектора
+
+`config/agents/architect.profile.json` — завершений `prepared_not_enabled` пакет. Чернетки n8n з mermaid-прев’ю (`tools/architect_preview.py`). Задачі лише Андрій. Дозволи: [`ARCHITECT_PERMISSIONS.md`](architect_core/ARCHITECT_PERMISSIONS.md). Grants порожні; n8n не live; git push вимкнений.
+
+### Межі профілю Marshal
+
+`config/agents/marshal.profile.json` — `prepared_not_enabled`, порожні grants. CSO-архетип, observe+HITL лише на критичне; інтернет за командою Андрія не блокується. Ранбук: [`marshal_core/MARSHAL_DEPLOYMENT_RUNBOOK.md`](marshal_core/MARSHAL_DEPLOYMENT_RUNBOOK.md). Сканер пропозицій: `bash tools/install_skillspector.sh` (Python 3.12+, не в runtime image) і `python tools/marshal_skill_scan.py`. Telegram, veto, n8n, Drive, TTS вимкнені.
+
+### Інші підготовлені маніфести (ще не сформовані)
+
+`fin`, `doc`, `kira`, `sam` мають `prepared_not_enabled` файли в `config/agents/` з порожніми grants і `role_status=not_agreed`. Історичні специфікації в `*_core/` не є активними ролями. Sentinel і Council не включаються.
 
 ## Принципи безпеки
 
@@ -89,6 +101,7 @@ n8n — виконання workflow та інтеграцій; не control plan
 ├── config/agents/             # Маніфести агентських профілів
 ├── config/postgres/           # SQL-схема й міграції
 ├── eva_core/                  # Межі ролі Єви, пам’ять, workflow та readiness
+├── architect_core/            # Gap analysis і default-deny контракт Архітектора (не activation)
 ├── docs/SYNDICATE_PLATFORM_BASE.md # Актуальний нейтральний платформний дизайн
 ├── deploy/                    # Наявні deployment-конфігурації; не доказ live deployment
 ├── apps/                      # Клієнтський застосунок, окрема зона
@@ -111,3 +124,7 @@ bash tools/check.sh
 Quality gate запускає тести, лінтери, перевірки API-контракту й Vault-політик, а також перевірку PostgreSQL-шляхів, якщо доступний `pgserver` або заданий `EVA_TEST_DATABASE_URL`. Зелений результат підтверджує лише локальні перевірки коду — **не** готовність Hermes, сервісних інтеграцій чи production deployment.
 
 Production-запуск, активація Hermes і підключення сервісів потребують окремого технічного перегляду та явного погодження.
+
+## Розгортання
+
+Пакет розгортання, права і відкриті питання: [`docs/DEPLOY_SYNDICATE.md`](docs/DEPLOY_SYNDICATE.md). Матриця прав (генерується): [`docs/PERMISSIONS_MATRIX.md`](docs/PERMISSIONS_MATRIX.md). Серверні кроки: [`DEPLOYMENT_RUNBOOK.md`](DEPLOYMENT_RUNBOOK.md).

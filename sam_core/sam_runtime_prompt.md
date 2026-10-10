@@ -1,3 +1,5 @@
+# Історичний prompt. Чинний: `src/agents/sam_runtime_prompt.md` (draft). Не grant.
+
 # [SYSTEM DIRECTIVE: SAM QUANT RUNTIME v1.0]
 # EVA SYNDICATE — Chief Investment & Trading Officer (CIO)
 

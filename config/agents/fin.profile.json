@@ -1,0 +1,417 @@
+{
+  "schema_version": 1,
+  "activation": "prepared_not_enabled",
+  "agent_id": "fin",
+  "display_name": "ФІН (CFO)",
+  "runtime": "hermes",
+  "hermes_profile": "fin",
+  "memory_namespace": "agents/fin",
+  "prompt_file": "src/agents/fin_runtime_prompt.md",
+  "prompt_status": "draft",
+  "role_status": "identity_draft",
+  "model_status": "not_selected",
+  "model_slots": {
+    "ocr_receipts": "slot_not_selected",
+    "analysis_reports": "slot_not_selected",
+    "math": "python_no_llm"
+  },
+  "capabilities": [
+    "fin.dispatch.eva_basket",
+    "fin.funds_check",
+    "fin.reports.local",
+    "fin.docs.local_generate"
+  ],
+  "resource_scopes": [
+    "fin/out"
+  ],
+  "services_enabled": [],
+  "skills": [
+    {
+      "id": "fin-funds-check",
+      "activation": "draft",
+      "code": "src/agents/fin_dispatcher.py:answer_funds_check + fin_policy.allocate_purchase",
+      "purpose": "Відповідь Єві: чи є кошти, з якого фонду; безпека недоторканна"
+    },
+    {
+      "id": "fin-sources",
+      "activation": "draft",
+      "code": "src/agents/fin_ledger.py:withdraw_options",
+      "purpose": "З якого джерела можна зняти готівкою (без реквізитів)"
+    },
+    {
+      "id": "fin-planner",
+      "activation": "draft",
+      "code": "src/agents/fin_ledger.py:plan_header, plan_items",
+      "purpose": "Плановані платежі: день/тиждень/місяць/30 днів, суми і разом"
+    },
+    {
+      "id": "fin-expense-ledger",
+      "activation": "draft",
+      "code": "src/agents/fin_ledger.py:Expense, spend_by_fund",
+      "purpose": "Фіксує, куди пішли гроші (фонд, категорія, магазин, джерело)"
+    },
+    {
+      "id": "fin-buttons",
+      "activation": "draft",
+      "code": "src/agents/fin_buttons.py",
+      "purpose": "Інтерактивні кнопки; ЗВІТ (повний) — лише Андрій"
+    },
+    {
+      "id": "fin-report-full",
+      "activation": "draft",
+      "code": "src/agents/fin_reports.py:build_report(kind=full|standard|eva)",
+      "purpose": "Повний фінансовий звіт / стандартний / для Єви"
+    },
+    {
+      "id": "fin-report-export",
+      "activation": "draft",
+      "code": "src/agents/fin_reports.py:export (md, xlsx, docx, pdf, pptx, obsidian)",
+      "purpose": "Локальні файли; Google — окремі дозволи"
+    },
+    {
+      "id": "fin-basket-audit",
+      "activation": "draft",
+      "code": "src/agents/fin_policy.py:basket_audit",
+      "purpose": "Аудит кошика (advisory)"
+    },
+    {
+      "id": "fin-receipt-reconcile",
+      "activation": "draft",
+      "code": "src/agents/fin_policy.py:reconcile_receipt",
+      "purpose": "Самозвірка чеків і виписок (1 копійка = розбіжність)"
+    },
+    {
+      "id": "fin-runway",
+      "activation": "draft",
+      "code": "src/agents/fin_policy.py:runway_months, runway_zone",
+      "purpose": "Runway і зони безпеки"
+    },
+    {
+      "id": "fin-token-guard",
+      "activation": "draft",
+      "code": "src/agents/fin_policy.py:token_guard",
+      "purpose": "Ліміт токенів $5/добу"
+    },
+    {
+      "id": "fin-fx-monitor",
+      "activation": "draft",
+      "code": "src/agents/fin_policy.py:fx_move_alert",
+      "purpose": "Стрибок курсу >1.5% за добу"
+    },
+    {
+      "id": "fin-tax-calendar",
+      "activation": "draft",
+      "code": "manual_input",
+      "purpose": "Дедлайни ФОП 3 група, ЄСВ, комуналка (введення вручну)"
+    },
+    {
+      "id": "fin-law-scan",
+      "activation": "draft",
+      "code": "web_observe_only",
+      "purpose": "Тижневий огляд ДПС/НБУ, observe-only, архів"
+    }
+  ],
+  "skills_note": "Скіли прописані кодом (поле code). activation=draft: без capability і без grant вони не виконують зовнішніх дій. Локальна логіка працює в тестах; зовнішні вузли — окремі дозволи.",
+  "knowledge_bases": {
+    "drive": {
+      "activation": "not_configured"
+    },
+    "obsidian": {
+      "activation": "not_configured"
+    },
+    "archive": {
+      "activation": "reserved",
+      "namespace": "agents/fin"
+    }
+  },
+  "live_modes": {
+    "bank_read": false,
+    "bank_write": false,
+    "telegram_bot": false,
+    "voice": false,
+    "drive": false,
+    "obsidian": false,
+    "n8n": false,
+    "news_monitor": false,
+    "tax_monitor": false,
+    "geolocation": false,
+    "eva_dispatch": true,
+    "local_reports": true
+  },
+  "banking": {
+    "status": "not_granted",
+    "decision": "A — за замовчуванням закрито (fin_bank_gate.py)",
+    "mode": "read_only_if_granted",
+    "write_allowed": false,
+    "payment_data_stored": false,
+    "bank_read_grants": [],
+    "note": "Рішення A: читання банку закрите. Активація потребує AISP/токенів і bank_read_grants. Андрій 2026-10-10: Фін лише дивиться; платежів немає.",
+    "sources": {
+      "cash_wallet": {
+        "label": "Готівка (гаманець)",
+        "kind": "cash",
+        "cash_path": "already_cash",
+        "intl": false,
+        "read_mode": "manual"
+      },
+      "monobank": {
+        "label": "Монобанк",
+        "kind": "bank",
+        "cash_path": "direct_atm",
+        "intl": false,
+        "read_mode": "not_granted"
+      },
+      "privatbank": {
+        "label": "ПриватБанк",
+        "kind": "bank",
+        "cash_path": "direct_atm",
+        "intl": false,
+        "read_mode": "not_granted"
+      },
+      "a_bank": {
+        "label": "А-Банк",
+        "kind": "bank",
+        "cash_path": "direct_atm",
+        "intl": false,
+        "read_mode": "not_connected"
+      },
+      "payoneer": {
+        "label": "Payoneer",
+        "kind": "payment_service",
+        "cash_path": "via_bank_transfer",
+        "intl": true,
+        "read_mode": "not_connected"
+      },
+      "paypal": {
+        "label": "PayPal",
+        "kind": "payment_service",
+        "cash_path": "via_bank_transfer",
+        "intl": true,
+        "read_mode": "not_connected"
+      },
+      "crypto_wallet": {
+        "label": "Криптогаманець",
+        "kind": "crypto",
+        "cash_path": "via_exchange",
+        "intl": true,
+        "read_mode": "not_connected"
+      }
+    },
+    "recommended_path": "NBU-authorised AISP / open-banking consent, read-only; токени у Vault"
+  },
+  "purchase_flow": {
+    "status": "active_dispatch_2026_10_10",
+    "trigger": "eva_basket_ready (автоматично, коли Єва сформувала кошик)",
+    "routing": {
+      "eva": [
+        "funds_check",
+        "basket_status",
+        "expense_note",
+        "report_request"
+      ],
+      "andrii": [
+        "*"
+      ],
+      "doc": "no_direct_contact_with_fin"
+    },
+    "doc": "fin_core/FIN_PURCHASE_FLOW.md",
+    "rule": "Фін відповідає Єві автоматично; фонд обирає сам з достатнім залишком; безпека недоторканна.",
+    "execution": "observe_only"
+  },
+  "execution": {
+    "money_movement": "forbidden",
+    "payments": "forbidden",
+    "basket_audit": "advisory_only"
+  },
+  "budgets": {
+    "token_daily_limit_usd": 5.0,
+    "warn_ratio": 0.8,
+    "circuit_spike_usd_15m": 0.5,
+    "fx_daily_move_alert_pct": 1.5
+  },
+  "reports": {
+    "buttons": "fin-buttons (Telegram inline, proposed)",
+    "full": "ЗВІТ — повний фінансовий (кнопка; лише Андрій)",
+    "standard": "день / тиждень / місяць",
+    "eva_brief": "короткий для Єви, завжди з блоком «Заплановано»",
+    "planned_block": "always: day, week, month, next_30_days — кількість і суми по валютах",
+    "formats": [
+      "md",
+      "pdf",
+      "docx",
+      "xlsx",
+      "pptx",
+      "obsidian"
+    ],
+    "google": "sheets/docs/drive: blocked_not_granted until approved",
+    "evening_detailed_to_andrii": "20:00 Europe/Kyiv (proposed, scheduler off)",
+    "morning_brief_to_eva": "payload_only, proposed, scheduler off",
+    "weekly_law_scan": "Thu 05:00 observe-only (proposed, scheduler off)"
+  },
+  "proposed_expansions": {
+    "status": "partly_activated; rest requires_andrii_approval",
+    "note": "Кожен пункт — окремий точний дозвіл. Поки не видано нічого.",
+    "items": [
+      {
+        "id": "fin.bank.read",
+        "scope": "Read-only баланси через NBU-авторизованого AISP з явною згодою; по одному провайдеру; токени у Vault",
+        "blocked_by": "A: bank_read_grants порожній"
+      },
+      {
+        "id": "fin.bank.a_bank",
+        "scope": "А-Банк через AISP (окремо, не в коді)",
+        "blocked_by": "перевірка API А-Банку"
+      },
+      {
+        "id": "fin.intl.read",
+        "scope": "Payoneer / PayPal / криптогаманець: read-only баланси",
+        "blocked_by": "окремий дозвіл"
+      },
+      {
+        "id": "fin.telegram.bot",
+        "scope": "Окремий бот, інтерактивні кнопки, підтвердження, транскрибація голосу (без voice-out)"
+      },
+      {
+        "id": "fin.drive.archive",
+        "scope": "Google Drive: 3 робочі папки"
+      },
+      {
+        "id": "fin.obsidian.vault",
+        "scope": "Obsidian vault Фіна, локально (шлях — за дозволом)"
+      },
+      {
+        "id": "fin.sheets.cockpit",
+        "scope": "Google Sheets: DASHBOARD, ТРАНЗАКЦІЇ, СКАРБНИЧКИ, СИНДИКАТ, МІСЯЧНИЙ ЗВІТ — лише своя таблиця"
+      },
+      {
+        "id": "fin.docs.generate",
+        "scope": "Локальна генерація PDF/DOCX/XLSX/PPTX у out-папку; Google Docs — окремо"
+      },
+      {
+        "id": "fin.n8n.workflows",
+        "scope": "n8n: design + inactive mount, без activate"
+      },
+      {
+        "id": "fin.news.monitor",
+        "scope": "Observe-only: новини, ДПС, НБУ"
+      },
+      {
+        "id": "fin.scheduler",
+        "scope": "Планувальник звітів 20:00 і ранковий для Єви; реальний запуск лише після дозволу"
+      },
+      {
+        "id": "fin.tax.profile",
+        "scope": "Дані ФОП 3 група і ЄСВ — введення Андрієм вручну"
+      }
+    ],
+    "never": [
+      {
+        "id": "fin.payment_data",
+        "scope": "НЕ ПРОПОНУЄТЬСЯ: номери карток, IBAN, CVV, логіни, паролі"
+      },
+      {
+        "id": "fin.money_write",
+        "scope": "НЕ ПРОПОНУЄТЬСЯ: перекази, платежі, списання, замовлення"
+      }
+    ]
+  },
+  "deployment": {
+    "status": "prepared_not_enabled",
+    "runbook": "fin_core/FIN_DEPLOYMENT_RUNBOOK.md",
+    "permissions": "fin_core/FIN_PERMISSIONS.md",
+    "readiness": "fin_core/FIN_DEPLOYMENT_READINESS.md",
+    "merge_to_main": "requires_andrii_approval",
+    "push": "not_yet"
+  },
+  "funds": {
+    "card": "Картки (назви — при налаштуванні доступів)",
+    "cash": "Готівковий фонд",
+    "payment_system": "Платіжні системи (назви — при налаштуванні доступів)",
+    "safety": "Фонд безпеки (недоторканний)"
+  },
+  "requirements": {
+    "file": "requirements-fin.txt",
+    "packages": [
+      "openpyxl",
+      "python-docx",
+      "reportlab",
+      "python-pptx"
+    ],
+    "status": "installed_in_venv_only"
+  },
+  "grants": {
+    "granted": [
+      {
+        "id": "fin.dispatch.eva_basket",
+        "what": "Автоматичний виклик Єви: eva_basket_ready → funds_answer Єві",
+        "route": "orchestrator.TASK_ROUTING['eva_basket_ready']"
+      },
+      {
+        "id": "fin.funds_check",
+        "what": "Розрахунок коштів: читає залишки з запиту або конфігурації (без банку)"
+      },
+      {
+        "id": "fin.reports.local",
+        "what": "Звіти: повний (ЗВІТ, лише Андрій), стандартні, короткий для Єви"
+      },
+      {
+        "id": "fin.docs.local_generate",
+        "what": "Локальні PDF/DOCX/XLSX/PPTX у fin/out"
+      }
+    ],
+    "pending_credentials_or_connection": [
+      {
+        "id": "fin.bank.read",
+        "needs": "NBU-авторизований AISP або токен банку, згода клієнта; токени у Vault; bank_read_grants"
+      },
+      {
+        "id": "fin.bank.a_bank",
+        "needs": "перевірка API А-Банку через AISP"
+      },
+      {
+        "id": "fin.intl.read",
+        "needs": "доступ Payoneer / PayPal / криптогаманець (read-only)"
+      },
+      {
+        "id": "fin.telegram.bot",
+        "needs": "окремий токен бота і chat_id Андрія"
+      },
+      {
+        "id": "fin.drive.archive",
+        "needs": "підключення Google Drive в Arena (3 папки)"
+      },
+      {
+        "id": "fin.sheets.cockpit",
+        "needs": "підключення Google Sheets (своя таблиця)"
+      },
+      {
+        "id": "fin.obsidian.vault",
+        "needs": "шлях до локального vault Фіна"
+      },
+      {
+        "id": "fin.n8n.workflows",
+        "needs": "окремий дозвіл (design + inactive mount)"
+      }
+    ],
+    "never": [
+      "fin.payment_data",
+      "fin.money_write"
+    ]
+  },
+  "categories": {
+    "food": "Продукти",
+    "leisure": "Відпочинок",
+    "other": "Інше"
+  },
+  "deployment_deferred": {
+    "status": "deferred_to_deployment_2026_10_10",
+    "items": [
+      "n8n: міст Єва ↔ Фін (webhook eva_basket_ready / funds_answer) — економія токенів",
+      "банк (AISP або токени) і bank_read_grants",
+      "Telegram-бот і кнопки",
+      "Google Drive / Sheets",
+      "Obsidian vault (шлях)"
+    ],
+    "note": "Андрій 2026-10-10: підключимо при розгортанні разом із налаштуванням зв'язків."
+  }
+}

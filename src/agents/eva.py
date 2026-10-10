@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from src.agents.eva_access import eva_memory_namespace_allowed
 from src.agents.eva_curator import EvaCurator
 from src.agents.eva_memory_policy import EvaMemoryPolicy, MemoryDisposition
 from src.memory_commands import execute_command, parse_command
@@ -103,6 +104,14 @@ class EvaAgent:
 
         memory_command = parse_command(user_message)
         if memory_command is not None:
+            if not eva_memory_namespace_allowed(memory_command.target_agent):
+                return {
+                    "agent": self.AGENT_ID,
+                    "status": "refused",
+                    "error": "cross_agent_memory_denied",
+                    "response": "Пам'ять інших агентів для Єви заборонена; запис не виконано.",
+                    "memory": {"status": "not_written", "reason": "cross_agent_memory_denied"},
+                }
             if self._vault is None:
                 return {
                     "agent": self.AGENT_ID,
@@ -179,18 +188,15 @@ class EvaAgent:
 
     def _confirmed_vault_facts(self) -> list[str]:
         confirmed_facts = []
-        for rel_path in self._vault.list_files("agents"):
-            parts = Path(rel_path).parts
-            if len(parts) != 3 or parts[0] != "agents" or parts[2] != "memory.md":
-                continue
-            agent_id = parts[1]
-            for fact in self._vault._load_facts(agent_id):
-                provenance = self._confirmed_fact_provenance(fact.get("meta"))
-                if provenance:
-                    confirmed_facts.append(
-                        f"[{agent_id}] {fact['key']}: {fact['value']} "
-                        f"(date={provenance['date']}; source={provenance['source']})"
-                    )
+        if not eva_memory_namespace_allowed("eva"):
+            return confirmed_facts
+        for fact in self._vault._load_facts("eva"):
+            provenance = self._confirmed_fact_provenance(fact.get("meta"))
+            if provenance:
+                confirmed_facts.append(
+                    f"[eva] {fact['key']}: {fact['value']} "
+                    f"(date={provenance['date']}; source={provenance['source']})"
+                )
         return confirmed_facts
 
     async def _recall(self) -> Dict[str, Any]:

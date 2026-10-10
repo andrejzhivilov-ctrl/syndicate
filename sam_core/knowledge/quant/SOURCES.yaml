@@ -1,0 +1,3 @@
+# Read-only quant reference corpus for Sam. Distinct from memory.
+# Do not ingest broker statements, API keys, or live order tickets.
+sources: []

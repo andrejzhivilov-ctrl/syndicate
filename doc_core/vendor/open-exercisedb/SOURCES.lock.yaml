@@ -1,0 +1,7 @@
+package: open-exercisedb
+upstream: https://github.com/Glowupp-app/open-exercisedb
+commit: 80b98f38721a88119b860e0e0e969bf1592c2525
+license: MIT (LICENSE)
+vendored_on: 2026-10-10
+scope: exercises.json, schema.json, LICENSE, README.md
+status: data only; не змішувати з free-exercise-db без дедуплікації (окремий стан)
