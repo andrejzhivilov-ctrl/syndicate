@@ -146,13 +146,88 @@ def test_report_counts_pending_permissions(store: KodexStore) -> None:
 def test_buttons_only_andrii_and_changes_need_confirm() -> None:
     from src.agents.kodex_buttons import build_keyboard, handle_callback
 
-    kb = build_keyboard("approve_change", "andrii")
-    assert any(b["callback_data"] == "chg:yes" for row in kb["inline_keyboard"] for b in row)
-    assert handle_callback("chg:yes", "eva") is None
-    assert handle_callback("chg:yes", "andrii")["action"] == "change"
+    kb = build_keyboard("approve_change", "andrii", token="abcd1234")
+    assert any(b["callback_data"] == "chg:yes:abcd1234" for row in kb["inline_keyboard"] for b in row)
+    assert handle_callback("chg:yes:abcd1234", "eva") is None
+    assert handle_callback("chg:yes:abcd1234", "andrii")["action"] == "change"
     assert handle_callback("unknown", "andrii") is None
     for row in build_keyboard("main", "andrii")["inline_keyboard"]:
         assert all(len(b["callback_data"]) <= 64 for b in row)
+
+
+def test_bare_change_callbacks_without_token_are_rejected() -> None:
+    # Голий «chg:yes» не знає, на яку зміну він відповідає — відхиляється.
+    from src.agents.kodex_buttons import handle_callback
+
+    assert handle_callback("chg:yes", "andrii") is None
+    assert handle_callback("chg:no", "andrii") is None
+    assert handle_callback("net:yes", "andrii") is None
+    assert handle_callback("fmt:yes", "andrii") is None
+    assert handle_callback("chg:yes:ZZZ!", "andrii") is None  # недопустимі символи параметра
+
+
+def test_agent_delete_approved_by_andrii_is_still_in_report(store: KodexStore) -> None:
+    # Регресія: агентське видалення мічених файлів, яке схвалив Андрій, мало зникати зі звіту Єві.
+    m = store.ingest("аналіз.pdf", b"a", origin="andrii_direct")
+    req = store.request_delete(m["id"], actor="kodex")
+    store.confirm(req["token"], by="andrii")
+    rep = store.report_for_eva(datetime.now() - timedelta(minutes=1))
+    assert rep["agent_deletes"][0]["actor"] == "kodex"
+    assert rep["agent_deletes"][0]["approved_by"] == "andrii"
+
+
+def test_agent_rewrite_approved_by_andrii_is_in_report(store: KodexStore) -> None:
+    m = store.ingest("план.pdf", b"a", origin="andrii_direct")
+    req = store.rewrite(m["id"], b"b", "очистка", actor="doc")
+    store.confirm(req["token"], by="andrii")
+    rep = store.report_for_eva(datetime.now() - timedelta(minutes=1))
+    assert rep["agent_edits"][0]["actor"] == "doc"
+    assert rep["agent_edits"][0]["approved_by"] == "andrii"
+
+
+def test_andrii_own_actions_are_not_in_agent_report(store: KodexStore) -> None:
+    m = store.ingest("мій.md", b"a", origin="andrii_kodex", actor="andrii")
+    store.rewrite(m["id"], b"b", "сам", actor="andrii")
+    store.request_delete(m["id"], actor="andrii")
+    rep = store.report_for_eva(datetime.now() - timedelta(minutes=1))
+    assert rep["agent_edits"] == [] and rep["agent_deletes"] == []
+
+
+def test_denied_protected_rewrite_removes_its_bytes(store: KodexStore) -> None:
+    m = store.ingest("аналіз.md", b"old", origin="andrii_direct")
+    req = store.rewrite(m["id"], "секретна нова версія".encode("utf-8"), "правка", actor="doc")
+    path = store._blob_path(sha256_of("секретна нова версія".encode("utf-8")), "md")
+    assert path.exists()
+    assert store.reject(req["token"], by="andrii")["status"] == "denied"
+    assert not path.exists()
+    assert store.read_bytes(m["id"]) == b"old"
+
+
+def test_pending_counts_have_no_dead_keys(store: KodexStore) -> None:
+    m = store.ingest("аналіз.pdf", b"a", origin="andrii_direct")
+    store.request_delete(m["id"], actor="kodex")
+    store.request_download("https://example.com/x.pdf", "книга")
+    counts = store._pending_counts()
+    assert counts == {"download": 1, "format": 0, "permission": 1}
+
+
+def test_save_is_atomic_and_leaves_no_tmp(tmp_path: Path) -> None:
+    s = KodexStore(tmp_path / "k.json")
+    s.ingest("з.md", b"q")
+    s.save()
+    assert (tmp_path / "k.json").exists()
+    assert not (tmp_path / "k.json.tmp").exists()
+
+
+def test_reject_download_and_deny_format(store: KodexStore) -> None:
+    req = store.request_download("https://example.com/b.pdf", "книга")["request"]
+    assert store.reject_download(req, by="kodex")["reason"] == "only_andrii_approves"
+    assert store.reject_download(req, by="andrii")["status"] == "denied"
+    assert store.download_allowed(req) is False
+    assert store.approve_download(req, by="andrii")["status"] == "not_found"
+    store.ingest("скан.xyz", b"zzz")
+    assert store.deny_format("xyz", by="andrii")["status"] == "denied"
+    assert "fmt:xyz" not in store.pending
 
 
 def test_photo_and_audio_are_stored_as_files_and_readable(store: KodexStore) -> None:

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
@@ -142,10 +143,13 @@ class KodexStore:
             self.log = raw.get("log", [])
 
     def save(self) -> None:
+        """Атомарний запис: при збої не лишається обрізаний JSON (тимчасовий файл + os.replace)."""
         self.path.parent.mkdir(parents=True, exist_ok=True)
         data = {"records": {k: asdict(v) for k, v in self.records.items()},
                 "pending": self.pending, "log": self.log}
-        self.path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp = self.path.with_name(self.path.name + ".tmp")
+        tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.replace(tmp, self.path)
 
     def _blob_path(self, digest: str, ext: str) -> Path:
         suffix = f".{ext}" if ext else ""
@@ -293,9 +297,11 @@ class KodexStore:
         rec = self._live(item["id"])
         if rec is None:
             return {"status": "not_found"}
+        # Виконавець — той, хто запросив зміну (агент або сам Андрій); дозвіл — окремо, approved_by.
+        # Так зміна, яку агент запросив і Андрій схвалив, потрапляє у звіт Єві з іменем агента.
         if item["kind"] == "delete":
-            return self._trash(rec, OWNER, requested_by=item["actor"])
-        return self._apply_rewrite(rec, item["new_digest"], item["reason"], OWNER, requested_by=item["actor"])
+            return self._trash(rec, item["actor"], approved_by=OWNER)
+        return self._apply_rewrite(rec, item["new_digest"], item["reason"], item["actor"], approved_by=OWNER)
 
     def reject(self, token: str, by: str) -> Dict[str, Any]:
         """Андрій забороняє зміну мічених файлів: запит закривається, файл не змінюється."""
@@ -305,6 +311,11 @@ class KodexStore:
         if item is None:
             return {"status": "not_found"}
         self._log("permission_denied", by, id=item["id"], change=item["kind"], requested_by=item["actor"])
+        if item["kind"] == "rewrite":
+            rec = self.records.get(item["id"])
+            if rec is not None:
+                # Відхилена версія не має лишатися на диску.
+                self._drop_digest_if_unused(item["new_digest"], rec.ext)
         return {"status": "denied", "id": item["id"]}
 
     def _apply_rewrite(self, rec: Record, new_digest: str, reason: str, actor: str, **extra: Any) -> Dict[str, Any]:
@@ -320,11 +331,15 @@ class KodexStore:
         self._log("trashed", actor, id=rec.id, name=rec.name, **extra)
         return {"status": "trashed", "id": rec.id, "restore_until_days": TRASH_RETENTION_DAYS}
 
-    def _drop_blob_if_unused(self, rec: Record) -> None:
-        still_used = any(r.sha256 == rec.sha256 for r in self.records.values())
-        path = self._blob_path(rec.sha256, rec.ext)
-        if not still_used and path.exists():
+    def _drop_digest_if_unused(self, digest: str, ext: str) -> None:
+        if any(r.sha256 == digest for r in self.records.values()):
+            return
+        path = self._blob_path(digest, ext)
+        if path.exists():
             path.unlink()
+
+    def _drop_blob_if_unused(self, rec: Record) -> None:
+        self._drop_digest_if_unused(rec.sha256, rec.ext)
 
     def purge_expired(self, now: datetime) -> List[str]:
         gone = []
@@ -355,6 +370,15 @@ class KodexStore:
         self._log("download_approved", by, req=req)
         return {"status": "approved", "url": item["url"]}
 
+    def reject_download(self, req: str, by: str) -> Dict[str, Any]:
+        if by != OWNER:
+            return {"status": "rejected", "reason": "only_andrii_approves"}
+        item = self.pending.pop(f"net:{req}", None)
+        if item is None:
+            return {"status": "not_found"}
+        self._log("download_denied", by, req=req, url=item["url"])
+        return {"status": "denied", "request": req}
+
     def download_allowed(self, req: str) -> bool:
         item = self.pending.get(f"net:{req}")
         return bool(item and item.get("state") == "approved")
@@ -369,6 +393,15 @@ class KodexStore:
         self._log("format_learning_approved", by, ext=ext)
         return {"status": "approved_to_learn", "ext": ext}
 
+    def deny_format(self, ext: str, by: str) -> Dict[str, Any]:
+        if by != OWNER:
+            return {"status": "rejected", "reason": "only_andrii_approves"}
+        item = self.pending.pop(f"fmt:{ext}", None)
+        if item is None:
+            return {"status": "not_found"}
+        self._log("format_learning_denied", by, ext=ext)
+        return {"status": "denied", "ext": ext}
+
     # ------------------------------------------------------------ звіт Єві
     def _actions_since(self, since: datetime) -> List[Dict[str, Any]]:
         return [e for e in self.log if datetime.fromisoformat(e["at"]) >= since]
@@ -381,15 +414,16 @@ class KodexStore:
             if e["actor"] == OWNER:
                 continue
             if e["action"] == "rewrite":
-                out["edits"].append({k: e.get(k) for k in keys + ("reason",)})
+                out["edits"].append({k: e.get(k) for k in keys + ("reason", "approved_by")})
             elif e["action"] == "trashed":
-                out["deletes"].append({k: e.get(k) for k in keys})
+                out["deletes"].append({k: e.get(k) for k in keys + ("approved_by",)})
             elif e["action"] == "move":
                 out["moves"].append({k: e.get(k) for k in keys + ("frm", "to", "protected")})
         return out
 
     def _pending_counts(self) -> Dict[str, int]:
-        counts = {"delete": 0, "download": 0, "format": 0, "permission": 0}
+        # "permission" — усі запити на зміну мічених файлів (редагування і видалення).
+        counts = {"download": 0, "format": 0, "permission": 0}
         names = {"chg": "permission", "net": "download", "fmt": "format"}
         for key, item in self.pending.items():
             if item.get("state") == "awaiting_andrii":
