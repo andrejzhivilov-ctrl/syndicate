@@ -6,8 +6,9 @@
 - пошук дешевших альтернатив у іншій мережі з нутрієнтами не гірше за початковий товар;
 - пропозиція кошика, що чекає підтвердження Андрія. Замовлення тут неможливе.
 
-Самі мережі опитуються браузерним воркером у n8n (окремий дозвіл при розгортанні). Тут
-лише логіка над уже отриманими даними.
+Самі мережі опитуються браузерним воркером у n8n (воркер дозволено; підключення — після перевірки
+умов користування). Список продуктів і нутрієнтний критерій — у Доку; Єва формує кошик, якщо зможе,
+інакше кошик формує Андрій сам. Тут лише логіка над уже отриманими даними.
 """
 
 from __future__ import annotations
@@ -41,37 +42,11 @@ RETAILERS: Dict[str, Dict[str, str]] = {
 }
 
 # ---------------------------------------------------------------- нутрієнти
-# Проєктні пороги на 100 г. ПОТРЕБУЮТЬ ПІДТВЕРДЖЕННЯ АНДРІЄМ (він сказав «мало», а не цифри).
-NUTRITION_LIMITS_PER_100G: Dict[str, Decimal] = {
-    "sugar_g": Decimal("5"),
-    "fat_g": Decimal("5"),
-    "carbs_g": Decimal("20"),
-}
-# Вага у сумарному балі: цукор важить найбільше, бо це головна вимога.
-NUTRITION_WEIGHTS: Dict[str, Decimal] = {
-    "sugar_g": Decimal("1.5"),
-    "fat_g": Decimal("1.0"),
-    "carbs_g": Decimal("0.5"),
-}
-
-
-def nutrition_score(nutrition: Optional[Dict[str, Any]]) -> Optional[Decimal]:
-    """Менше = краще. None, якщо бракує будь-якого з трьох показників (нічого не вигадуємо)."""
-    if not nutrition:
-        return None
-    total = Decimal("0")
-    for key, weight in NUTRITION_WEIGHTS.items():
-        if nutrition.get(key) is None:
-            return None
-        total += Decimal(str(nutrition[key])) * weight
-    return total.quantize(Decimal("0.01"))
-
-
-def within_limits(nutrition: Optional[Dict[str, Any]]) -> Optional[bool]:
-    """True/False за порогами; None — даних немає."""
-    if not nutrition or any(nutrition.get(k) is None for k in NUTRITION_LIMITS_PER_100G):
-        return None
-    return all(Decimal(str(nutrition[k])) <= lim for k, lim in NUTRITION_LIMITS_PER_100G.items())
+# Власник — Док (src/agents/doc_shopping.py). Тут лише імпорт, без дубля порогів.
+from src.agents.doc_shopping import (  # noqa: E402
+    nutrition_score,
+    within_limits,
+)
 
 
 def cheaper_alternatives(item: Dict[str, Any], candidates: Iterable[Dict[str, Any]],

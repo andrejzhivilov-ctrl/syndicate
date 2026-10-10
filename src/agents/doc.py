@@ -81,6 +81,7 @@ class DocAgent:
             "morning_readiness": self._morning_readiness,
             "training_protocol": self._training_protocol,
             "nutrition_plan": self._nutrition_plan,
+            "shopping_list": self._shopping_list,
             "biomarker_trend": self._biomarker_trend,
             "screening_calendar": self._screening_calendar,
             "emergency_card": self._emergency_card,
@@ -91,6 +92,13 @@ class DocAgent:
             "swarm_research": self._swarm_research,
             "deep_medical_research": self._swarm_research,
         }
+
+    async def _shopping_list(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Список продуктів для Єви (детермінований; рецепти — з бази знань Дока)."""
+        from src.agents.doc_shopping import build_shopping_list
+
+        return {"agent": self.AGENT_ID,
+                **build_shopping_list(payload.get("items", []), payload.get("meal_plan_ref"))}
 
     async def _llm_ask(self, prompt: str, fallback: str) -> str:
         """Invoke the LLM with bounded memory, treating prior health data as historical."""

@@ -14,5 +14,16 @@
   "skills": [],
   "live_modes": {
     "geolocation": false
+  },
+  "shopping_responsibilities": {
+    "status": "code_ready_not_enabled",
+    "owner_of": [
+      "shopping_list (список продуктів для Єви)",
+      "нутрієнтний критерій (doc_shopping.py)"
+    ],
+    "web_access": "planned_at_deployment (вихід в інтернет і база рецептів — Андрій)",
+    "output_to": "eva",
+    "order_allowed": false,
+    "after_order": "Єва (або Андрій) передає ordered_list → Док планує харчування"
   }
 }
