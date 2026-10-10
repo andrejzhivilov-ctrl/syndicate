@@ -158,9 +158,11 @@
     "social_listen": false,
     "geolocation": false
   },
-  "skill_candidates": {
-    "status": "candidate_not_installed",
-    "note": "Reviewed 2026-10-10. Not active. Not grants. Install requires separate permission.",
+  "skill_vendor": {
+    "status": "vendored_inactive",
+    "lock": "sam_core/vendor/SOURCES.lock.yaml",
+    "requirements": "requirements-sam.txt",
+    "note": "Код у репо для рев'ю і тестів. Не активно. Не grants. Ввімкнення — окремий дозвіл.",
     "items": [
       {
         "id": "tm-position-sizer",
@@ -169,7 +171,9 @@
         "license": "MIT",
         "deps": "stdlib",
         "verdict": "adopt_candidate",
-        "use": "risk-based lot sizing (1% / 0.5%)"
+        "use": "risk-based lot sizing (1% / 0.5%)",
+        "vendor_path": "sam_core/vendor/tradermonty-claude-trading-skills/skills/position-sizer",
+        "activation": "vendored_inactive"
       },
       {
         "id": "tm-pre-trade-discipline-gate",
@@ -178,7 +182,9 @@
         "license": "MIT",
         "deps": "PyYAML",
         "verdict": "adopt_candidate",
-        "use": "pre-trade checklist before HITL card"
+        "use": "pre-trade checklist before HITL card",
+        "vendor_path": "sam_core/vendor/tradermonty-claude-trading-skills/skills/pre-trade-discipline-gate",
+        "activation": "vendored_inactive"
       },
       {
         "id": "tm-drawdown-circuit-breaker",
@@ -187,7 +193,9 @@
         "license": "MIT",
         "deps": "pandas-market-calendars, PyYAML",
         "verdict": "adopt_candidate",
-        "use": "daily stop 3% / loss-streak cooldown"
+        "use": "daily stop 3% / loss-streak cooldown",
+        "vendor_path": "sam_core/vendor/tradermonty-claude-trading-skills/skills/drawdown-circuit-breaker",
+        "activation": "vendored_inactive"
       },
       {
         "id": "tm-trader-memory-core",
@@ -196,7 +204,9 @@
         "license": "MIT",
         "deps": "jsonschema, PyYAML; FMP optional",
         "verdict": "adopt_candidate_after_review",
-        "use": "journal / thesis store; FMP key off"
+        "use": "journal / thesis store; FMP key off",
+        "vendor_path": "sam_core/vendor/tradermonty-claude-trading-skills/skills/trader-memory-core",
+        "activation": "vendored_inactive"
       },
       {
         "id": "tm-weekly-performance-digest",
@@ -205,7 +215,9 @@
         "license": "MIT",
         "deps": "PyYAML",
         "verdict": "adopt_candidate",
-        "use": "Monday 10:00 weekly analytics"
+        "use": "Monday 10:00 weekly analytics",
+        "vendor_path": "sam_core/vendor/tradermonty-claude-trading-skills/skills/weekly-performance-digest",
+        "activation": "vendored_inactive"
       },
       {
         "id": "tm-trade-performance-coach",
@@ -214,7 +226,9 @@
         "license": "MIT",
         "deps": "PyYAML",
         "verdict": "adopt_candidate",
-        "use": "1st-of-month analytics / mistakes"
+        "use": "1st-of-month analytics / mistakes",
+        "vendor_path": "sam_core/vendor/tradermonty-claude-trading-skills/skills/trade-performance-coach",
+        "activation": "vendored_inactive"
       },
       {
         "id": "tm-signal-postmortem",
@@ -223,7 +237,8 @@
         "license": "MIT",
         "deps": "requests; FMP optional",
         "verdict": "defer",
-        "use": "post-mortem; network calls need review"
+        "use": "post-mortem; network calls need review",
+        "activation": "candidate_not_installed"
       },
       {
         "id": "tm-economic-calendar-fetcher",
@@ -232,7 +247,8 @@
         "license": "MIT",
         "deps": "stdlib; urllib calls",
         "verdict": "defer",
-        "use": "news freeze calendar; hosts to verify"
+        "use": "news freeze calendar; hosts to verify",
+        "activation": "candidate_not_installed"
       },
       {
         "id": "tm-cot-contrarian-detector",
@@ -241,7 +257,8 @@
         "license": "MIT",
         "deps": "requests",
         "verdict": "defer",
-        "use": "COT signal; use cot_reports first"
+        "use": "COT signal; use cot_reports first",
+        "activation": "candidate_not_installed"
       },
       {
         "id": "riskkit",
@@ -249,7 +266,9 @@
         "license": "MIT",
         "deps": "none (pandas/backtesting optional)",
         "verdict": "adopt_library_candidate",
-        "use": "PreTradeValidator, drawdown, stops, correlation caps; no network, no order code"
+        "use": "PreTradeValidator, drawdown, stops, correlation caps; no network, no order code",
+        "vendor_path": "sam_core/vendor/riskkit",
+        "activation": "vendored_inactive"
       },
       {
         "id": "cot_reports",
@@ -257,7 +276,9 @@
         "license": "MIT",
         "deps": "pandas",
         "verdict": "adopt_candidate",
-        "use": "CFTC COT weekly data"
+        "use": "CFTC COT weekly data",
+        "vendor_path": "sam_core/vendor/cot_reports",
+        "activation": "vendored_inactive"
       },
       {
         "id": "trade-journal-luxalgo",
@@ -265,7 +286,8 @@
         "license": "MIT",
         "deps": "app stack; broker sync present",
         "verdict": "reference_only",
-        "use": "UI / journal ideas; broker sync excluded"
+        "use": "UI / journal ideas; broker sync excluded",
+        "activation": "candidate_not_installed"
       },
       {
         "id": "openmobius-skill",
@@ -273,7 +295,8 @@
         "license": "Apache-2.0",
         "deps": "113MB knowledge base, embeddings",
         "verdict": "reference_only",
-        "use": "SMC knowledge cards; too large for repo, keep external"
+        "use": "SMC knowledge cards; too large for repo, keep external",
+        "activation": "candidate_not_installed"
       },
       {
         "id": "alphaear-finance-skills",
@@ -281,7 +304,8 @@
         "license": "Apache-2.0",
         "deps": "not reviewed in depth",
         "verdict": "defer",
-        "use": "news / sentiment candidate"
+        "use": "news / sentiment candidate",
+        "activation": "candidate_not_installed"
       },
       {
         "id": "llmquant-skills",
@@ -289,7 +313,8 @@
         "license": "MIT",
         "deps": "LLMQuant Data (external API)",
         "verdict": "reference_only",
-        "use": "skill format examples"
+        "use": "skill format examples",
+        "activation": "candidate_not_installed"
       },
       {
         "id": "riskguard",
@@ -297,7 +322,8 @@
         "license": "MIT",
         "deps": "alpaca broker adapters",
         "verdict": "reference_only",
-        "use": "circuit-breaker ideas; broker code excluded"
+        "use": "circuit-breaker ideas; broker code excluded",
+        "activation": "candidate_not_installed"
       }
     ],
     "rejected": [
@@ -346,5 +372,13 @@
         "reason": "MIT but 84-skill compliance/advisory surface; too broad"
       }
     ]
+  },
+  "deployment": {
+    "status": "prepared_not_enabled",
+    "runbook": "sam_core/SAM_DEPLOYMENT_RUNBOOK.md",
+    "permissions": "sam_core/SAM_PERMISSIONS.md",
+    "readiness": "sam_core/SAM_DEPLOYMENT_READINESS.md",
+    "merge_to_main": "requires_andrii_approval",
+    "push": "not_yet"
   }
 }

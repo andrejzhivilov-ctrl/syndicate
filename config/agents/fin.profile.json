@@ -2,17 +2,113 @@
   "schema_version": 1,
   "activation": "prepared_not_enabled",
   "agent_id": "fin",
+  "display_name": "ФІН (CFO)",
   "runtime": "hermes",
   "hermes_profile": "fin",
   "memory_namespace": "agents/fin",
-  "prompt_status": "not_prepared",
-  "role_status": "not_agreed",
+  "prompt_file": "src/agents/fin_runtime_prompt.md",
+  "prompt_status": "draft",
+  "role_status": "identity_draft",
   "model_status": "not_selected",
+  "model_slots": {
+    "ocr_receipts": "slot_not_selected",
+    "analysis_reports": "slot_not_selected",
+    "math": "python_no_llm"
+  },
   "capabilities": [],
   "resource_scopes": [],
   "services_enabled": [],
-  "skills": [],
+  "skills": [
+    {"id": "fin-funds-check", "activation": "draft", "purpose": "Виділення коштів під покупку (advisory)", "uses": "fin_policy.allocate_purchase"},
+    {"id": "fin-basket-audit", "activation": "draft", "purpose": "Аудит кошика (advisory)", "uses": "fin_policy.basket_audit"},
+    {"id": "fin-receipt-reconcile", "activation": "draft", "purpose": "Самозвірка чеків і виписок", "uses": "fin_policy.reconcile_receipt"},
+    {"id": "fin-runway", "activation": "draft", "purpose": "Runway і зони безпеки", "uses": "fin_policy.runway_months"},
+    {"id": "fin-token-guard", "activation": "draft", "purpose": "Ліміт токенів $5/добу", "uses": "fin_policy.token_guard"},
+    {"id": "fin-fx-monitor", "activation": "draft", "purpose": "Курси НБУ/банків, стрибок >1.5%", "uses": "fin_policy.fx_move_alert"},
+    {"id": "fin-tax-calendar", "activation": "draft", "purpose": "Дедлайни ФОП 3 група, ЄСВ, комуналка (введення вручну)", "uses": "manual_input"},
+    {"id": "fin-law-scan", "activation": "draft", "purpose": "Тижневий огляд ДПС/НБУ, observe-only, архів", "uses": "web_observe_only"},
+    {"id": "fin-report-docs", "activation": "draft", "purpose": "Таблиці/документи (Sheets/XLSX/Docs) у свою папку", "uses": "needs fin.docs.generate"}
+  ],
+  "skills_note": "Драфт-скіли. Без capability не виконують зовнішніх дій. Кожен зовнішній вузол — окремий дозвіл з proposed_expansions.",
+  "knowledge_bases": {
+    "drive": {"activation": "not_configured"},
+    "obsidian": {"activation": "not_configured"},
+    "archive": {"activation": "reserved", "namespace": "agents/fin"}
+  },
   "live_modes": {
+    "bank_read": false,
+    "bank_write": false,
+    "telegram_bot": false,
+    "voice": false,
+    "drive": false,
+    "obsidian": false,
+    "n8n": false,
+    "news_monitor": false,
+    "tax_monitor": false,
     "geolocation": false
+  },
+  "banking": {
+    "status": "not_granted",
+    "mode": "read_only_if_granted",
+    "write_allowed": false,
+    "payment_data_stored": false,
+    "providers": [
+      {"id": "monobank", "access": "existing_code_GET_only", "note": "токен з env; потребує рішення A/B/C"},
+      {"id": "privatbank", "access": "existing_code_GET_only", "note": "merchant+пароль з env; потребує рішення A/B/C"},
+      {"id": "a_bank", "access": "not_in_code", "note": "Open Banking з 1.08.2025: доступ через NBU-авторизованого TPP з явною згодою клієнта; API А-Банку не перевірено"}
+    ],
+    "recommended_path": "NBU-authorised AISP / open-banking consent, read-only; токени в Vault",
+    "note": "Андрій 2026-10-10: Фін лише дивиться; платежів немає. Платіжні реквізити Фін не зберігає."
+  },
+  "purchase_flow": {
+    "status": "proposed_requires_dispatcher_decision",
+    "doc": "fin_core/FIN_PURCHASE_FLOW.md",
+    "funds_check_task": "fin_funds_check (proposed)"
+  },
+  "execution": {
+    "money_movement": "forbidden",
+    "payments": "forbidden",
+    "basket_audit": "advisory_only"
+  },
+  "budgets": {
+    "token_daily_limit_usd": 5.0,
+    "warn_ratio": 0.8,
+    "circuit_spike_usd_15m": 0.5,
+    "fx_daily_move_alert_pct": 1.5
+  },
+  "reports": {
+    "evening_detailed_to_andrii": "20:00 Europe/Kyiv (proposed, scheduler off)",
+    "morning_brief_to_eva": "payload_only, proposed, scheduler off",
+    "weekly_law_scan": "Thu 05:00 observe-only (proposed, scheduler off)",
+    "eva_can_assign": false,
+    "task_source": "andrii_only_proposed"
+  },
+  "proposed_expansions": {
+    "status": "requires_andrii_approval",
+    "note": "Кожен пункт — окремий точний дозвіл. Поки не видано нічого.",
+    "items": [
+      {"id": "fin.bank.read", "scope": "Read-only баланси і виписки через NBU-авторизованого AISP з явною згодою; без write; токени у Vault", "blocked_by": "рішення щодо існуючого fin_sync_bank (A/B/C)"},
+      {"id": "fin.telegram.bot", "scope": "Окремий бот, інтерактивні кнопки, підтвердження, транскрибація вхідного голосу (без voice-out)"},
+      {"id": "fin.drive.archive", "scope": "Google Drive: 3 робочі папки, read/write лише в них"},
+      {"id": "fin.obsidian.vault", "scope": "Obsidian vault Фіна, локально"},
+      {"id": "fin.sheets.cockpit", "scope": "Google Sheets 5 вкладок: DASHBOARD, ТРАНЗАКЦІЇ, СКАРБНИЧКИ, СИНДИКАТ, МІСЯЧНИЙ ЗВІТ — лише своя таблиця"},
+      {"id": "fin.docs.generate", "scope": "Генерація Docs/XLSX/PPTX у свою папку Drive"},
+      {"id": "fin.n8n.workflows", "scope": "n8n: design + inactive mount у n8n/live (як Architect), без activate"},
+      {"id": "fin.news.monitor", "scope": "Observe-only: новини, ДПС, НБУ; alert лише на critical"},
+      {"id": "fin.purchase_flow", "scope": "Потік Док → Єва → Фін → Андрій (FIN_PURCHASE_FLOW.md). Потребує рішення про Dispatcher і постійного правила Андрія"},
+      {"id": "fin.tax.profile", "scope": "Дані ФОП 3 група і ЄСВ — введення Андрієм вручну, без зовнішніх API"}
+    ],
+    "never": [
+      {"id": "fin.payment_data", "scope": "НЕ ПРОПОНУЄТЬСЯ: Фін не зберігає номери карток, IBAN, CVV, логіни, паролі. Оплати робить Андрій."},
+      {"id": "fin.money_write", "scope": "НЕ ПРОПОНУЄТЬСЯ: жодних переказів, платежів, списань."}
+    ]
+  },
+  "deployment": {
+    "status": "prepared_not_enabled",
+    "runbook": "fin_core/FIN_DEPLOYMENT_RUNBOOK.md",
+    "permissions": "fin_core/FIN_PERMISSIONS.md",
+    "readiness": "fin_core/FIN_DEPLOYMENT_READINESS.md",
+    "merge_to_main": "requires_andrii_approval",
+    "push": "not_yet"
   }
 }
