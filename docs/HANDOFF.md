@@ -27,7 +27,7 @@
 
 ## 2026-10-10 — Arena Agent: KODEX — обробники Telegram і виправлення дефектів сховища
 
-**Гілка:** arena/f1e67097-syndicate  **Коміт:** див. git log  **Ворота:** див. нижче
+**Гілка:** arena/f1e67097-syndicate  **Коміт:** див. git log  **Ворота:** ✅ (`bash tools/check.sh` зелений)
 
 ### Зроблено
 - **Обробники Telegram KODEX** (`src/agents/kodex_telegram.py`): кожна кнопка викликає метод `KodexStore` (`chg:yes` → `confirm`, `chg:no` → `reject`, `del:start` → вибір → `request_delete`, `net:*`, `fmt:*`, `lbl:*`, `edit:*`, `up:*`, звіти). Тести на кожен callback: `tests/test_kodex_telegram.py` (44 тести, без мережі).
