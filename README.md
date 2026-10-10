@@ -124,3 +124,7 @@ bash tools/check.sh
 Quality gate запускає тести, лінтери, перевірки API-контракту й Vault-політик, а також перевірку PostgreSQL-шляхів, якщо доступний `pgserver` або заданий `EVA_TEST_DATABASE_URL`. Зелений результат підтверджує лише локальні перевірки коду — **не** готовність Hermes, сервісних інтеграцій чи production deployment.
 
 Production-запуск, активація Hermes і підключення сервісів потребують окремого технічного перегляду та явного погодження.
+
+## Розгортання
+
+Пакет розгортання, права і відкриті питання: [`docs/DEPLOY_SYNDICATE.md`](docs/DEPLOY_SYNDICATE.md). Матриця прав (генерується): [`docs/PERMISSIONS_MATRIX.md`](docs/PERMISSIONS_MATRIX.md). Серверні кроки: [`DEPLOYMENT_RUNBOOK.md`](DEPLOYMENT_RUNBOOK.md).

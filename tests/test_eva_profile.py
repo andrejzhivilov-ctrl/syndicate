@@ -68,3 +68,14 @@ def test_humanizer_does_not_claim_deceptive_provenance_or_fake_experience() -> N
     text = (ROOT / "eva_core/skills/eva-humanizer/SKILL.md").read_text(encoding="utf-8").lower()
     assert "never claim the text is human-written" in text
     assert "never invent personal anecdotes or feelings" in text
+
+
+def test_youtube_access_is_declared_but_not_enabled() -> None:
+    manifest = json.loads(PROFILE_PATH.read_text(encoding="utf-8"))
+    sources = manifest["external_sources"]
+    assert sources["youtube"]["status"] == "requires_andrii_approval"
+    assert sources["youtube_music"]["status"] == "requires_andrii_decision"
+    assert sources["youtube_music"]["official_api"] is False
+    assert "завантаження відео чи аудіо з YouTube" in sources["youtube"]["not_allowed"]
+    # YouTube не потрапляє в capabilities чи services: Єва без grants, доки Андрій не погодить
+    assert manifest["capabilities"] == [] and manifest["services_enabled"] == []

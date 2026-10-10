@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from src.agents import kodex
-from src.agents.kodex import FORMATS, UNPROTECTED_WARNING, KodexStore, classify
+from src.agents.kodex import FORMATS, UNPROTECTED_WARNING, KodexStore, classify, sha256_of
 
 
 @pytest.fixture
@@ -46,7 +46,7 @@ def test_unknown_origin_rejected(store: KodexStore) -> None:
 def test_unlabeled_files_all_manipulations_direct_and_reported(store: KodexStore) -> None:
     since = datetime.now() - timedelta(minutes=1)
     u = store.ingest("робочий.md", b"w", origin="andrii_kodex", text="ринок")
-    assert store.rewrite(u["id"], "z" * 64, "очистка", actor="sam")["status"] == "rewritten"
+    assert store.rewrite(u["id"], b"zzz", "очистка", actor="sam")["status"] == "rewritten"
     assert store.move(u["id"], "fin", actor="fin")["status"] == "moved"
     assert store.request_delete(u["id"], actor="sam")["status"] == "trashed"
     rep = store.report_for_eva(since)
@@ -65,12 +65,12 @@ def test_protected_files_can_be_moved_by_agents_for_sorting(store: KodexStore) -
 
 def test_protected_edit_and_delete_need_andrii_permission(store: KodexStore) -> None:
     m = store.ingest("аналіз.pdf", b"a", origin="andrii_direct")
-    req = store.rewrite(m["id"], "q" * 64, "виправити", actor="doc")
+    req = store.rewrite(m["id"], b"qqq", "виправити", actor="doc")
     assert req["status"] == "awaiting_andrii_permission" and req["change"] == "rewrite"
-    assert store.records[m["id"]].sha256 != "q" * 64
+    assert store.records[m["id"]].sha256 != sha256_of(b"qqq")
     assert store.confirm(req["token"], by="doc")["reason"] == "only_andrii_confirms"
     assert store.confirm(req["token"], by="andrii")["status"] == "rewritten"
-    assert store.records[m["id"]].sha256 == "q" * 64
+    assert store.records[m["id"]].sha256 == sha256_of(b"qqq")
     dele = store.request_delete(m["id"], actor="kodex")
     assert dele["status"] == "awaiting_andrii_permission" and dele["change"] == "delete"
     assert store.records[m["id"]].status == "stored"
@@ -91,7 +91,7 @@ def test_only_andrii_can_label_and_unlabel(store: KodexStore) -> None:
     assert store.label(r["id"], by="andrii")["status"] == "protected"
     assert store.unlabel(r["id"], by="sam")["reason"] == "only_andrii_unlabels"
     assert store.unlabel(r["id"], by="andrii")["status"] == "unprotected"
-    assert store.rewrite(r["id"], "y" * 64, "x", actor="sam")["status"] == "rewritten"
+    assert store.rewrite(r["id"], b"yyy", "x", actor="sam")["status"] == "rewritten"
 
 
 def test_agent_delete_goes_to_trash_and_purges(store: KodexStore) -> None:
@@ -108,7 +108,7 @@ def test_trash_retention_is_30_days() -> None:
 
 def test_rewrite_keeps_versions_and_move_checks_domain(store: KodexStore) -> None:
     r = store.ingest("план.md", b"v1", text="тренування")
-    store.rewrite(r["id"], "f" * 64, "очистка тексту", actor="kodex")
+    store.rewrite(r["id"], b"fff", "очистка тексту", actor="kodex")
     assert len(store.records[r["id"]].versions) == 2
     assert store.move(r["id"], "nope", actor="kodex")["reason"] == "unknown_domain"
     assert store.move(r["id"], "fin", actor="kodex")["status"] == "moved"
@@ -153,3 +153,40 @@ def test_buttons_only_andrii_and_changes_need_confirm() -> None:
     assert handle_callback("unknown", "andrii") is None
     for row in build_keyboard("main", "andrii")["inline_keyboard"]:
         assert all(len(b["callback_data"]) <= 64 for b in row)
+
+
+def test_photo_and_audio_are_stored_as_files_and_readable(store: KodexStore) -> None:
+    photo = store.ingest("IMG_0412.HEIC", b"\x00heic-bytes", origin="andrii_kodex")
+    assert photo["status"] == "needs_engine"  # HEIC потребує конвертації при деплої, але байти збережено
+    assert store.records[photo["id"]].kind == "image"
+    assert store.read_bytes(photo["id"]) == b"\x00heic-bytes"
+    pic = store.ingest("скан_аналізу.jpg", b"jpg-bytes", origin="andrii_direct")
+    assert pic["status"] == "stored" and store.records[pic["id"]].kind == "image"
+    assert store.read_bytes(pic["id"]) == b"jpg-bytes"
+    song = store.ingest("Лекція.FLAC", b"flac-bytes", text="тренування")
+    assert song["status"] == "needs_engine" and store.records[song["id"]].kind == "audio"
+    assert store.read_bytes(song["id"]) == b"flac-bytes"
+
+
+def test_rewrite_stores_new_version_bytes(store: KodexStore) -> None:
+    r = store.ingest("нотатка.md", b"old", text="ринок")
+    store.rewrite(r["id"], b"new text", "очистка", actor="sam")
+    assert store.read_bytes(r["id"]) == b"new text"
+
+
+def test_purge_removes_unused_blob(store: KodexStore) -> None:
+    r = store.ingest("тимчасове.png", b"tmp-img")
+    path = store._blob_path(sha256_of(b"tmp-img"), "png")
+    assert path.exists()
+    store.request_delete(r["id"], actor="kodex")
+    store.purge_expired(datetime.now() + timedelta(days=kodex.TRASH_RETENTION_DAYS + 1))
+    assert not path.exists()
+
+
+def test_state_and_blobs_survive_reload(tmp_path: Path) -> None:
+    s = KodexStore(tmp_path / "k.json")
+    r = s.ingest("голос.mp3", b"mp3-data", origin="andrii_kodex")
+    s.save()
+    again = KodexStore(tmp_path / "k.json")
+    assert again.records[r["id"]].kind == "audio"
+    assert again.read_bytes(r["id"]) == b"mp3-data"

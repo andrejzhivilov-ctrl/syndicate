@@ -58,3 +58,7 @@ config/browser_profiles/
 
 # Local test scratch outputs (the suites now use temporary directories).
 /scratch/
+
+# Сховище файлів KODEX (особисті дані, не в git)
+/kodex_data/
+/kodex_storage/

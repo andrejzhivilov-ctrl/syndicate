@@ -50,7 +50,38 @@ FORMATS: Dict[str, Dict[str, str]] = {
     "wav": {"status": "needs_engine", "lib": "локальний Whisper"},
     "m4a": {"status": "needs_engine", "lib": "локальний Whisper"},
     "mp4": {"status": "needs_engine", "lib": "локальний Whisper + ffmpeg"},
+    "mkv": {"status": "needs_engine", "lib": "локальний Whisper + ffmpeg"},
+    "mov": {"status": "needs_engine", "lib": "локальний Whisper + ffmpeg"},
+    "webm": {"status": "needs_engine", "lib": "локальний Whisper + ffmpeg"},
+    "flac": {"status": "needs_engine", "lib": "локальний Whisper"},
+    "ogg": {"status": "needs_engine", "lib": "локальний Whisper"},
+    "opus": {"status": "needs_engine", "lib": "локальний Whisper"},
+    "aac": {"status": "needs_engine", "lib": "локальний Whisper"},
+    "aiff": {"status": "needs_engine", "lib": "локальний Whisper"},
+    "wma": {"status": "needs_engine", "lib": "локальний Whisper + ffmpeg"},
+    # Фото: зберігаються і впорядковуються одразу; розпізнавання тексту (OCR) — при деплої.
+    "jpg": {"status": "stored", "lib": "фото; OCR при деплої"},
+    "jpeg": {"status": "stored", "lib": "фото; OCR при деплої"},
+    "png": {"status": "stored", "lib": "фото; OCR при деплої"},
+    "webp": {"status": "stored", "lib": "фото; OCR при деплої"},
+    "gif": {"status": "stored", "lib": "зображення"},
+    "bmp": {"status": "stored", "lib": "зображення"},
+    "tif": {"status": "stored", "lib": "зображення"},
+    "tiff": {"status": "stored", "lib": "зображення"},
+    "heic": {"status": "needs_engine", "lib": "HEIC: конвертація при деплої (pillow-heif)"},
+    "heif": {"status": "needs_engine", "lib": "HEIC: конвертація при деплої (pillow-heif)"},
 }
+
+KIND_BY_EXT = {
+    **{e: "document" for e in ("md", "txt", "csv", "json", "docx", "xlsx", "pptx", "pdf", "epub", "html", "rtf")},
+    **{e: "image" for e in ("jpg", "jpeg", "png", "webp", "gif", "bmp", "tif", "tiff", "heic", "heif")},
+    **{e: "audio" for e in ("mp3", "wav", "m4a", "flac", "ogg", "opus", "aac", "aiff", "wma")},
+    **{e: "video" for e in ("mp4", "mkv", "mov", "webm")},
+}
+
+
+def kind_of(ext: str) -> str:
+    return KIND_BY_EXT.get(ext, "unknown")
 
 # Папки (бази). Захист іде за міткою файла, а не за папкою.
 DOMAINS = ("andrii_medical_vault", "doc", "fin", "sam", "eva", "architect", "marshal", "kira", "shared")
@@ -88,6 +119,7 @@ class Record:
     status: str                       # stored | needs_parser | needs_engine | trashed
     created_at: str
     origin: str = "agent"
+    kind: str = "document"            # document | image | audio | video | unknown
     labels: List[str] = field(default_factory=list)
     versions: List[Dict[str, Any]] = field(default_factory=list)
     trashed_at: Optional[str] = None
@@ -96,8 +128,10 @@ class Record:
 class KodexStore:
     """Сховище — один JSON-файл. Шлях задає власник (поза git для особистих файлів)."""
 
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, blob_dir: Optional[Path] = None) -> None:
         self.path = Path(path)
+        # Справжні файли (фото, аудіо, документи) — окремо від JSON, за хешем; поза git.
+        self.blob_dir = Path(blob_dir) if blob_dir else self.path.parent / "blobs"
         self.records: Dict[str, Record] = {}
         self.pending: Dict[str, Dict[str, Any]] = {}
         self.log: List[Dict[str, Any]] = []
@@ -112,6 +146,23 @@ class KodexStore:
         data = {"records": {k: asdict(v) for k, v in self.records.items()},
                 "pending": self.pending, "log": self.log}
         self.path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def _blob_path(self, digest: str, ext: str) -> Path:
+        suffix = f".{ext}" if ext else ""
+        return self.blob_dir / digest[:2] / f"{digest}{suffix}"
+
+    def _write_blob(self, digest: str, ext: str, data: bytes) -> None:
+        target = self._blob_path(digest, ext)
+        if not target.exists():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(data)
+
+    def read_bytes(self, rec_id: str) -> Optional[bytes]:
+        rec = self.records.get(rec_id)
+        if rec is None or rec.status == "trashed":
+            return None
+        path = self._blob_path(rec.sha256, rec.ext)
+        return path.read_bytes() if path.exists() else None
 
     def _now(self) -> str:
         return datetime.now().isoformat(timespec="seconds")
@@ -151,17 +202,19 @@ class KodexStore:
             status = "needs_engine"
         else:
             status = "stored"
+        self._write_blob(digest, ext, data)
         labeled = origin == "andrii_direct" or (origin == "andrii_kodex" and protect)
         labels = [PROTECTED_LABEL] if labeled else []
         rec = Record(id=uuid.uuid4().hex[:12], name=name, ext=ext, domain=classify(name, text),
-                     sha256=digest, status=status, created_at=self._now(), origin=origin, labels=labels)
+                     sha256=digest, status=status, created_at=self._now(), origin=origin, labels=labels,
+                     kind=kind_of(ext))
         rec.versions.append({"at": rec.created_at, "action": "ingest", "by": actor, "domain": rec.domain})
         self.records[rec.id] = rec
         if status == "needs_parser":
             self.pending[f"fmt:{ext}"] = {"kind": "learn_format", "ext": ext, "name": name,
                                            "state": "awaiting_andrii"}
         self._log("ingest", actor, id=rec.id, name=name, domain=rec.domain, status=status,
-                  origin=origin, protected=labeled)
+                  origin=origin, protected=labeled, kind=rec.kind)
         result: Dict[str, Any] = {"status": status, "id": rec.id, "domain": rec.domain, "protected": labeled,
                                   "format": FORMATS.get(ext, {"status": "unknown"})}
         if origin == "andrii_kodex" and not labeled:
@@ -203,11 +256,13 @@ class KodexStore:
         return {"status": "moved", "id": rec_id, "from": old, "to": to_domain}
 
     # ------------------------------------------------------------ редагування і видалення
-    def rewrite(self, rec_id: str, new_digest: str, reason: str, actor: str) -> Dict[str, Any]:
+    def rewrite(self, rec_id: str, new_data: bytes, reason: str, actor: str) -> Dict[str, Any]:
         """Без мітки — одразу. З міткою — лише після дозволу Андрія (повертає token)."""
         rec = self._live(rec_id)
         if rec is None:
             return {"status": "not_found"}
+        new_digest = sha256_of(new_data)
+        self._write_blob(new_digest, rec.ext, new_data)  # нова версія зберігається до рішення
         if self._protected(rec):
             return self._request_permission("rewrite", rec, actor, reason=reason, new_digest=new_digest)
         return self._apply_rewrite(rec, new_digest, reason, actor)
@@ -265,6 +320,12 @@ class KodexStore:
         self._log("trashed", actor, id=rec.id, name=rec.name, **extra)
         return {"status": "trashed", "id": rec.id, "restore_until_days": TRASH_RETENTION_DAYS}
 
+    def _drop_blob_if_unused(self, rec: Record) -> None:
+        still_used = any(r.sha256 == rec.sha256 for r in self.records.values())
+        path = self._blob_path(rec.sha256, rec.ext)
+        if not still_used and path.exists():
+            path.unlink()
+
     def purge_expired(self, now: datetime) -> List[str]:
         gone = []
         for rid, rec in list(self.records.items()):
@@ -272,6 +333,7 @@ class KodexStore:
                 if now - datetime.fromisoformat(rec.trashed_at) >= timedelta(days=TRASH_RETENTION_DAYS):
                     del self.records[rid]
                     gone.append(rid)
+                    self._drop_blob_if_unused(rec)
         if gone:
             self._log("purged", "kodex", ids=gone)
         return gone
