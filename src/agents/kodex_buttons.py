@@ -1,7 +1,7 @@
 """K.O.D.E.K.S. — інтерактивні кнопки Telegram-бота. Лише розмітка й розбір callback.
 
-Бот приватний: лише Андрій. Видалення і будь-який вихід в інтернет — тільки після натискання
-«Підтвердити» від Андрія. Єва отримує звіт (без кнопок).
+Бот приватний: лише Андрій. Видалення файлів з міткою і будь-який вихід в інтернет — тільки після
+натискання «Підтвердити» від Андрія. Єва отримує звіт (усі дії агентів, включно з автоматичними).
 """
 
 from __future__ import annotations
@@ -10,7 +10,8 @@ from typing import Dict, List, Optional, Tuple
 
 MENUS: Dict[str, List[List[Tuple[str, str, str]]]] = {
     "main": [
-        [("📥 Завантажити файл", "up:file", "andrii"), ("🔗 Посилання (з дозволом)", "up:link", "andrii")],
+        [("📥 Завантажити файл", "up:file", "andrii"), ("🔒 Завантажити з міткою", "up:protected", "andrii")],
+        [("🔗 Посилання (з дозволом)", "up:link", "andrii"), ("🏷 Позначити міткою", "lbl:start", "andrii")],
         [("🗂 Структура архіву", "tree:show", "andrii"), ("✏️ Перезаписати", "edit:start", "andrii")],
         [("🗑 Видалити", "del:start", "andrii"), ("🧭 Розподіл по базах", "route:show", "andrii")],
         [("🎙 Транскрибація", "tr:start", "andrii"), ("🌐 Переклад", "tl:start", "andrii")],
@@ -23,6 +24,9 @@ MENUS: Dict[str, List[List[Tuple[str, str, str]]]] = {
     "approve_download": [
         [("✅ Дозволити завантаження", "net:yes", "andrii"), ("❌ Ні", "net:no", "andrii")],
     ],
+    "confirm_label_removal": [
+        [("✅ Зняти мітку", "lbl:off:yes", "andrii"), ("❌ Залишити", "lbl:off:no", "andrii")],
+    ],
     "approve_format": [
         [("✅ Вивчити формат", "fmt:yes", "andrii"), ("❌ Не треба", "fmt:no", "andrii")],
     ],
@@ -30,7 +34,11 @@ MENUS: Dict[str, List[List[Tuple[str, str, str]]]] = {
 
 ACTIONS = {
     "up:file": ("upload", "await_file"),
+    "up:protected": ("upload", "await_file_protected"),
     "up:link": ("download", "ask_url"),
+    "lbl:start": ("label", "pick_item"),
+    "lbl:off:yes": ("label", "unlabel_confirm"),
+    "lbl:off:no": ("label", "cancel"),
     "tree:show": ("archive", "tree"),
     "edit:start": ("edit", "pick_item"),
     "del:start": ("delete", "pick_item"),

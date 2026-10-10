@@ -5,14 +5,15 @@
 
 Правила (жорсткі):
 - Нічого не завантажує з інтернету без явного підтвердження Андрія (`approve_download`).
-- Видалення — двоетапне: запит → підтвердження Андрієм. Видалене йде в кошик (soft delete).
-- Архів `andrii_medical_vault` [ANDRII_IMMUTABLE]: читання дозволене; запис і видалення — заборонені
-  для всіх агентів, включно з KODEX.
+- Захист — лише для файлів з міткою `andrii_protected`. Особисті завантаження Андрія мітяться автоматично.
+  Мітка: лише читання — без редагування, переміщення і видалення. Зняти мітку може лише Андрій.
+- Видалення файла з міткою: тільки через KODEX за командою Андрія і з його підтвердженням.
+- Файли без мітки: KODEX і агенти можуть редагувати, сортувати, видаляти (видалене — в кошик на 30 днів).
+  Усе, що агенти роблять самі, фіксується у звіті для Єви.
 - Формат без парсера не відкидається: він стає `needs_parser` і пропонується на вивчення з підтвердженням.
 """
 
 from __future__ import annotations
-
 import hashlib
 import json
 import uuid
@@ -21,13 +22,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-IMMUTABLE_DOMAIN = "andrii_medical_vault"
+PROTECTED_LABEL = "andrii_protected"
+OWNER = "andrii"
 TRASH_RETENTION_DAYS = 30
 
-# ---------------------------------------------------------------- формати
-# status: native (текст читаємо напряму), vendored_parser (через вендорений book-to-skill),
-# library_installed (бібліотека в venv), needs_engine (потрібен окремий безкоштовний рушій),
-# needs_parser (невідомий формат — вивчити з підтвердженням).
+# status: native | vendored_parser | library_installed | needs_engine | needs_parser (вивчити з підтвердженням)
 FORMATS: Dict[str, Dict[str, str]] = {
     "md": {"status": "native"}, "txt": {"status": "native"}, "csv": {"status": "native"},
     "json": {"status": "native"},
@@ -38,17 +37,15 @@ FORMATS: Dict[str, Dict[str, str]] = {
     "epub": {"status": "vendored_parser", "lib": "book-to-skill extractor"},
     "html": {"status": "vendored_parser", "lib": "book-to-skill extractor"},
     "rtf": {"status": "vendored_parser", "lib": "book-to-skill extractor"},
-    "mp3": {"status": "needs_engine", "lib": "локальний Whisper (безкоштовний), транскрибація"},
+    "mp3": {"status": "needs_engine", "lib": "локальний Whisper (безкоштовний)"},
     "wav": {"status": "needs_engine", "lib": "локальний Whisper"},
     "m4a": {"status": "needs_engine", "lib": "локальний Whisper"},
     "mp4": {"status": "needs_engine", "lib": "локальний Whisper + ffmpeg"},
 }
 
-# ---------------------------------------------------------------- домени
-# Агентські бази. KODEX може писати в усі, крім IMMUTABLE_DOMAIN.
+# Папки (бази). Захист іде за міткою файла, а не за папкою.
 DOMAINS = ("andrii_medical_vault", "doc", "fin", "sam", "eva", "architect", "marshal", "kira", "shared")
 
-# Класифікація — детермінована, за ключовими словами. Без LLM.
 CLASSIFY_RULES = [
     ("andrii_medical_vault", ("аналіз", "лаборатор", "діагноз", "мрт", "ліки", "виписка", "феритин", "гемоглобін")),
     ("doc", ("тренування", "вправ", "rpe", "рецепт", "калор", "кбжу", "білок", "добавк", "реабілітац")),
@@ -79,19 +76,21 @@ class Record:
     ext: str
     domain: str
     sha256: str
-    status: str                     # stored | needs_parser | needs_engine | trashed
+    status: str                       # stored | needs_parser | needs_engine | trashed
     created_at: str
+    origin: str = "agent"             # andrii (особисте завантаження) | agent (автоматичне)
+    labels: List[str] = field(default_factory=list)
     versions: List[Dict[str, Any]] = field(default_factory=list)
     trashed_at: Optional[str] = None
 
 
 class KodexStore:
-    """Сховище — один JSON-файл. Шлях задає власник (поза git, для медичних даних — окремо)."""
+    """Сховище — один JSON-файл. Шлях задає власник (поза git для особистих файлів)."""
 
     def __init__(self, path: Path) -> None:
         self.path = Path(path)
         self.records: Dict[str, Record] = {}
-        self.pending: Dict[str, Dict[str, Any]] = {}     # підтвердження: видалення, інтернет, формат
+        self.pending: Dict[str, Dict[str, Any]] = {}
         self.log: List[Dict[str, Any]] = []
         if self.path.exists():
             raw = json.loads(self.path.read_text(encoding="utf-8"))
@@ -105,8 +104,15 @@ class KodexStore:
                 "pending": self.pending, "log": self.log}
         self.path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    def _log(self, action: str, **kw: Any) -> None:
-        self.log.append({"at": datetime.now().isoformat(timespec="seconds"), "action": action, **kw})
+    def _now(self) -> str:
+        return datetime.now().isoformat(timespec="seconds")
+
+    def _log(self, action: str, actor: str, **kw: Any) -> None:
+        self.log.append({"at": self._now(), "action": action, "actor": actor, **kw})
+
+    @staticmethod
+    def _protected(rec: Record) -> bool:
+        return PROTECTED_LABEL in rec.labels
 
     def _hash_exists(self, digest: str) -> Optional[str]:
         for r in self.records.values():
@@ -115,12 +121,14 @@ class KodexStore:
         return None
 
     # ------------------------------------------------------------ завантаження
-    def ingest(self, name: str, data: bytes, text: str = "", sensitivity: str = "public") -> Dict[str, Any]:
+    def ingest(self, name: str, data: bytes, text: str = "", origin: str = "agent",
+               actor: str = "kodex") -> Dict[str, Any]:
+        """origin=andrii — особисте завантаження: автоматично з міткою захисту."""
         ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
         digest = sha256_of(data)
         dup = self._hash_exists(digest)
         if dup:
-            self._log("duplicate_skipped", name=name, existing=dup)
+            self._log("duplicate_skipped", actor, name=name, existing=dup)
             return {"status": "duplicate", "existing_id": dup}
         fmt = FORMATS.get(ext)
         if fmt is None:
@@ -129,71 +137,102 @@ class KodexStore:
             status = "needs_engine"
         else:
             status = "stored"
-        domain = IMMUTABLE_DOMAIN if sensitivity == "medical" else classify(name, text)
-        rec = Record(id=uuid.uuid4().hex[:12], name=name, ext=ext, domain=domain, sha256=digest,
-                     status=status, created_at=datetime.now().isoformat(timespec="seconds"))
-        rec.versions.append({"at": rec.created_at, "action": "ingest", "domain": domain})
+        labels = [PROTECTED_LABEL] if origin == OWNER else []
+        rec = Record(id=uuid.uuid4().hex[:12], name=name, ext=ext, domain=classify(name, text),
+                     sha256=digest, status=status, created_at=self._now(), origin=origin, labels=labels)
+        rec.versions.append({"at": rec.created_at, "action": "ingest", "by": actor, "domain": rec.domain})
         self.records[rec.id] = rec
         if status == "needs_parser":
-            self.pending[f"fmt:{ext}"] = {"kind": "learn_format", "ext": ext, "name": name, "by": "andrii",
-                                           "state": "awaiting_andrii"}
-        self._log("ingest", id=rec.id, name=name, domain=domain, status=status)
-        return {"status": status, "id": rec.id, "domain": domain, "format": FORMATS.get(ext, {"status": "unknown"})}
+            self.pending[f"fmt:{ext}"] = {"kind": "learn_format", "ext": ext, "name": name, "state": "awaiting_andrii"}
+        self._log("ingest", actor, id=rec.id, name=name, domain=rec.domain, status=status, protected=bool(labels))
+        return {"status": status, "id": rec.id, "domain": rec.domain, "protected": bool(labels),
+                "format": FORMATS.get(ext, {"status": "unknown"})}
+
+    # ------------------------------------------------------------ мітка захисту (лише Андрій)
+    def label(self, rec_id: str, by: str) -> Dict[str, Any]:
+        if by != OWNER:
+            return {"status": "rejected", "reason": "only_andrii_labels"}
+        rec = self.records.get(rec_id)
+        if rec is None or rec.status == "trashed":
+            return {"status": "not_found"}
+        if not self._protected(rec):
+            rec.labels.append(PROTECTED_LABEL)
+        self._log("labeled", by, id=rec_id)
+        return {"status": "protected", "id": rec_id}
+
+    def unlabel(self, rec_id: str, by: str) -> Dict[str, Any]:
+        if by != OWNER:
+            return {"status": "rejected", "reason": "only_andrii_unlabels"}
+        rec = self.records.get(rec_id)
+        if rec is None or rec.status == "trashed":
+            return {"status": "not_found"}
+        rec.labels = [x for x in rec.labels if x != PROTECTED_LABEL]
+        self._log("unlabeled", by, id=rec_id)
+        return {"status": "unprotected", "id": rec_id}
 
     # ------------------------------------------------------------ редагування
-    def rewrite(self, rec_id: str, new_text_digest: str, reason: str) -> Dict[str, Any]:
+    def rewrite(self, rec_id: str, new_digest: str, reason: str, actor: str) -> Dict[str, Any]:
         rec = self.records.get(rec_id)
         if rec is None or rec.status == "trashed":
             return {"status": "not_found"}
-        if rec.domain == IMMUTABLE_DOMAIN:
-            return {"status": "rejected", "reason": "immutable_domain"}
-        rec.versions.append({"at": datetime.now().isoformat(timespec="seconds"), "action": "rewrite",
-                             "from_sha256": rec.sha256, "to_sha256": new_text_digest, "reason": reason})
-        rec.sha256 = new_text_digest
-        self._log("rewrite", id=rec_id, reason=reason)
+        if self._protected(rec):
+            return {"status": "rejected", "reason": "protected_label"}
+        rec.versions.append({"at": self._now(), "action": "rewrite", "by": actor, "reason": reason,
+                             "from_sha256": rec.sha256, "to_sha256": new_digest})
+        rec.sha256 = new_digest
+        self._log("rewrite", actor, id=rec_id, name=rec.name, reason=reason)
         return {"status": "rewritten", "id": rec_id, "versions": len(rec.versions)}
 
-    def move(self, rec_id: str, to_domain: str) -> Dict[str, Any]:
+    def move(self, rec_id: str, to_domain: str, actor: str) -> Dict[str, Any]:
         rec = self.records.get(rec_id)
         if rec is None or rec.status == "trashed":
             return {"status": "not_found"}
-        if rec.domain == IMMUTABLE_DOMAIN or to_domain == IMMUTABLE_DOMAIN:
-            return {"status": "rejected", "reason": "immutable_domain"}
+        if self._protected(rec):
+            return {"status": "rejected", "reason": "protected_label"}
         if to_domain not in DOMAINS:
             return {"status": "rejected", "reason": "unknown_domain"}
-        old = rec.domain
-        rec.domain = to_domain
-        rec.versions.append({"at": datetime.now().isoformat(timespec="seconds"), "action": "move",
-                             "from": old, "to": to_domain})
-        self._log("move", id=rec_id, frm=old, to=to_domain)
+        old, rec.domain = rec.domain, to_domain
+        rec.versions.append({"at": self._now(), "action": "move", "by": actor, "from": old, "to": to_domain})
+        self._log("move", actor, id=rec_id, name=rec.name, frm=old, to=to_domain)
         return {"status": "moved", "id": rec_id, "from": old, "to": to_domain}
 
-    # ------------------------------------------------------------ видалення (двоетапне)
-    def request_delete(self, rec_id: str) -> Dict[str, Any]:
+    # ------------------------------------------------------------ видалення
+    def request_delete(self, rec_id: str, actor: str) -> Dict[str, Any]:
+        """Файл з міткою: тільки Андрій (через KODEX) і з підтвердженням.
+        Без мітки: агент видаляє сам (у кошик), дія йде у звіт Єві."""
         rec = self.records.get(rec_id)
         if rec is None or rec.status == "trashed":
             return {"status": "not_found"}
-        if rec.domain == IMMUTABLE_DOMAIN:
-            return {"status": "rejected", "reason": "immutable_domain"}
-        token = uuid.uuid4().hex[:8]
-        self.pending[f"del:{token}"] = {"kind": "delete", "id": rec_id, "state": "awaiting_andrii"}
-        self._log("delete_requested", id=rec_id, token=token)
-        return {"status": "awaiting_confirmation", "token": token, "name": rec.name}
+        if self._protected(rec):
+            if actor != OWNER:
+                return {"status": "rejected", "reason": "protected_label"}
+            token = uuid.uuid4().hex[:8]
+            self.pending[f"del:{token}"] = {"kind": "delete", "id": rec_id, "state": "awaiting_andrii"}
+            self._log("delete_requested", actor, id=rec_id, token=token)
+            return {"status": "awaiting_confirmation", "token": token, "name": rec.name}
+        if actor == OWNER:
+            token = uuid.uuid4().hex[:8]
+            self.pending[f"del:{token}"] = {"kind": "delete", "id": rec_id, "state": "awaiting_andrii"}
+            self._log("delete_requested", actor, id=rec_id, token=token)
+            return {"status": "awaiting_confirmation", "token": token, "name": rec.name}
+        return self._trash(rec, actor)
 
     def confirm_delete(self, token: str, by: str) -> Dict[str, Any]:
-        if by != "andrii":
+        if by != OWNER:
             return {"status": "rejected", "reason": "only_andrii_confirms"}
         item = self.pending.pop(f"del:{token}", None)
         if not item:
             return {"status": "not_found"}
         rec = self.records[item["id"]]
+        return self._trash(rec, OWNER)
+
+    def _trash(self, rec: Record, actor: str) -> Dict[str, Any]:
         rec.status = "trashed"
-        rec.trashed_at = datetime.now().isoformat(timespec="seconds")
-        self._log("trashed", id=rec.id)
+        rec.trashed_at = self._now()
+        self._log("trashed", actor, id=rec.id, name=rec.name)
         return {"status": "trashed", "id": rec.id, "restore_until_days": TRASH_RETENTION_DAYS}
 
     def purge_expired(self, now: datetime) -> List[str]:
-        """Остаточне видалення з кошика через 30 днів."""
         gone = []
         for rid, rec in list(self.records.items()):
             if rec.status == "trashed" and rec.trashed_at:
@@ -201,57 +240,71 @@ class KodexStore:
                     del self.records[rid]
                     gone.append(rid)
         if gone:
-            self._log("purged", ids=gone)
+            self._log("purged", "kodex", ids=gone)
         return gone
 
-    # ------------------------------------------------------------ інтернет і формати (підтвердження)
-    def request_download(self, url: str, reason: str) -> Dict[str, Any]:
+    # ------------------------------------------------------------ інтернет і формати (лише Андрій)
+    def request_download(self, url: str, reason: str, actor: str = "kodex") -> Dict[str, Any]:
         req = uuid.uuid4().hex[:8]
         self.pending[f"net:{req}"] = {"kind": "download", "url": url, "reason": reason, "state": "awaiting_andrii"}
-        self._log("download_requested", req=req, url=url)
+        self._log("download_requested", actor, req=req, url=url)
         return {"status": "awaiting_andrii_approval", "request": req}
 
     def approve_download(self, req: str, by: str) -> Dict[str, Any]:
-        if by != "andrii":
+        if by != OWNER:
             return {"status": "rejected", "reason": "only_andrii_approves"}
         item = self.pending.get(f"net:{req}")
         if not item:
             return {"status": "not_found"}
         item["state"] = "approved"
-        self._log("download_approved", req=req)
+        self._log("download_approved", by, req=req)
         return {"status": "approved", "url": item["url"]}
 
     def download_allowed(self, req: str) -> bool:
-        """Завантаження дозволене лише після підтвердження Андрія. Без нього — False."""
         item = self.pending.get(f"net:{req}")
         return bool(item and item.get("state") == "approved")
 
     def approve_format(self, ext: str, by: str) -> Dict[str, Any]:
-        if by != "andrii":
+        if by != OWNER:
             return {"status": "rejected", "reason": "only_andrii_approves"}
         item = self.pending.get(f"fmt:{ext}")
         if not item:
             return {"status": "not_found"}
         item["state"] = "approved_to_learn"
-        self._log("format_learning_approved", ext=ext)
+        self._log("format_learning_approved", by, ext=ext)
         return {"status": "approved_to_learn", "ext": ext}
 
     # ------------------------------------------------------------ звіт Єві
     def report_for_eva(self, since: datetime) -> Dict[str, Any]:
+        """Усі дії за період, включно з тим, що агенти зробили самі (редагування, видалення)."""
         counts: Dict[str, int] = {}
+        by_actor: Dict[str, int] = {}
+        agent_edits: List[Dict[str, Any]] = []
+        agent_deletes: List[Dict[str, Any]] = []
         for e in self.log:
-            if datetime.fromisoformat(e["at"]) >= since:
-                counts[e["action"]] = counts.get(e["action"], 0) + 1
+            if datetime.fromisoformat(e["at"]) < since:
+                continue
+            counts[e["action"]] = counts.get(e["action"], 0) + 1
+            by_actor[e["actor"]] = by_actor.get(e["actor"], 0) + 1
+            if e["actor"] not in (OWNER, "kodex"):
+                if e["action"] in ("rewrite", "move"):
+                    agent_edits.append({k: e.get(k) for k in ("at", "actor", "action", "id", "name", "reason", "frm", "to")})
+                if e["action"] == "trashed":
+                    agent_deletes.append({k: e.get(k) for k in ("at", "actor", "id", "name")})
         awaiting = {"delete": 0, "download": 0, "format": 0}
         for key, item in self.pending.items():
             if item.get("state") == "awaiting_andrii":
                 awaiting[{"del": "delete", "net": "download", "fmt": "format"}[key.split(":")[0]]] += 1
         by_status: Dict[str, int] = {}
+        protected = 0
         for r in self.records.values():
             if r.status != "trashed":
                 by_status[r.status] = by_status.get(r.status, 0) + 1
+                protected += self._protected(r)
         return {"type": "kodex_report", "to": "eva", "since": since.isoformat(timespec="seconds"),
                 "ingested": counts.get("ingest", 0), "rewritten": counts.get("rewrite", 0),
                 "moved": counts.get("move", 0), "trashed": counts.get("trashed", 0),
                 "duplicates_skipped": counts.get("duplicate_skipped", 0),
-                "awaiting_andrii": awaiting, "active_records_by_status": by_status}
+                "actions_by_actor": by_actor, "agent_edits": agent_edits, "agent_deletes": agent_deletes,
+                "awaiting_andrii": awaiting, "protected_files": protected,
+                "active_records_by_status": by_status}

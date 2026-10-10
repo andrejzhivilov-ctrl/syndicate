@@ -24,13 +24,13 @@
       "andrii_medical_vault"
     ],
     "kodex": [
-      "all_domains_except_andrii_medical_vault (лише з підтвердженням видалення Андрієм)"
+      "файли без мітки andrii_protected (редагування, сортування, видалення у кошик)"
     ]
   },
   "forbidden_for_all": [
-    "delete:andrii_medical_vault_by_agent",
-    "store:unverified_medical_claim",
-    "write:andrii_medical_vault"
+    "modify:andrii_protected_labeled_files",
+    "delete:andrii_protected_labeled_files_without_andrii_confirm",
+    "store:unverified_medical_claim"
   ],
   "rules_code": "src/agents/doc_knowledge.py",
   "note": "Читання всім, запис лише власникам доменів. Ваш медичний архів — лише Андрій."
