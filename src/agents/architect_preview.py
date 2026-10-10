@@ -82,18 +82,17 @@ def build_preview(workflow: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def deliver_after_confirm(workflow: Mapping[str, Any], *, approved: bool) -> dict[str, Any]:
-    """Andrii confirmed the picture. Still no live n8n — lint + inactive JSON only."""
+    """Andrii confirmed the picture. Live mount is inactive-only; activate is not granted."""
+    from src.agents.architect_n8n import mount_inactive_workflow
+
     if approved is not True:
         return {"status": "cancelled", "activates_n8n": False, "grants_capability": False}
     preview = build_preview(workflow)
-    return {
-        "status": "delivered_inactive",
-        "activates_n8n": False,
-        "active": False,
-        "calls_n8n_api": False,
-        "lint_ok": preview["lint_ok"],
-        "mermaid": preview["mermaid"],
-        "explanations": preview["explanations"],
-        "grants_capability": False,
-        "note": "Здано як inactive JSON + схема. Live import потребує окремого grant.",
-    }
+    if not preview["lint_ok"]:
+        return {
+            "status": "lint_failed",
+            "activates_n8n": False,
+            "calls_n8n_api": False,
+            "lint_errors": preview["lint_errors"],
+        }
+    return mount_inactive_workflow(workflow, approved=True)

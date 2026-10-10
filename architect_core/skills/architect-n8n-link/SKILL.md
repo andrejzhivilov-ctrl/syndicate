@@ -8,6 +8,6 @@ status: draft
 
 1. Побудувати JSON `active=false`, core nodes, без секретів.
 2. Показати Андрію схему (mermaid) і пояснення вузлів.
-3. Після «Затвердити проєкт» — локальний FlowLint. Live import заборонений, доки немає окремого grant.
+3. Після «Затвердити проєкт» — FlowLint, потім живий монтаж **inactive** (`n8n.workflow.mount`). Activate не видана.
 
 Єва цю навичку не запускає.

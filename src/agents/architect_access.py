@@ -42,11 +42,14 @@ def architect_accepts_task(source: str) -> bool:
 def architect_n8n_live_allowed(manifest: Mapping[str, Any] | None = None) -> bool:
     data = dict(manifest or load_architect_manifest())
     n8n = data.get("n8n") if isinstance(data.get("n8n"), dict) else {}
-    live = data.get("live_modes") if isinstance(data.get("live_modes"), dict) else {}
+    caps = data.get("capabilities") or []
     return (
-        n8n.get("activation") == "enabled"
-        and n8n.get("live_api") is True
-        and live.get("n8n_editor") is True
+        n8n.get("live_api") is True
+        and n8n.get("activation") == "live_mount_after_hitl"
+        and n8n.get("control_plane") is not True
+        and n8n.get("permission_source") is not True
+        and "n8n.workflow.mount" in caps
+        and "n8n.workflow.activate" not in caps
     )
 
 

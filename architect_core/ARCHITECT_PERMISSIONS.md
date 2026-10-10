@@ -1,17 +1,19 @@
 # Architect — дозволи на розгортання (завтра)
 
-**Чинні права в профілі:** порожні `capabilities` / `resource_scopes` / `services_enabled`.
-Це **і є** дозвіл на викладку: профіль їде вимкненим і fail-closed. Не copypaste CTO-спеки в grants.
+**Чинні права в профілі (Андрій, 2026-10-10):**
+`n8n.workflow.design`, `n8n.workflow.mount` на scope `n8n/live`.
+`n8n.workflow.activate` **не** видана. n8n не control plane і не джерело прав.
+Секрети лише з env `N8N_BASE_URL` / `N8N_API_KEY`, не з JSON профілю.
 
-## Дозволено завтра (хост-код, без capability)
+## Дозволено (після HITL Андрія)
 
 | Дія | Код | Умова |
 |---|---|---|
 | Взяти задачу | `architect_accepts_task` | лише `andrii` |
-| Показати схему n8n | `architect_preview.build_preview` | JSON `active=false`, без n8n API |
+| Показати схему n8n | `architect_preview.build_preview` | mermaid, без API |
 | FlowLint | `flowlint.lint_workflow` | локально |
-| Blueprint HITL | `architect_blueprint` | не Telegram send |
-| Здати після «так» | `deliver_after_confirm` | inactive JSON + lint |
+| Живий монтаж inactive | `mount_inactive_workflow` | HITL + env; `active=false` |
+| Здати після «так» | `deliver_after_confirm` | lint → mount inactive |
 | Звіт Єві | `architect_report` | лише payload |
 | Скіли draft | `architect_core/skills/` | не Hermes install |
 
@@ -19,7 +21,7 @@
 
 | Дія | Як закрито |
 |---|---|
-| Live n8n import/activate | `n8n.live_api=false`, `architect_n8n_live_allowed()→false` |
+| Activate / увімкнути workflow | `n8n.workflow.activate` не видана |
 | GitOps push / PR | `gitops_push=false`; `gitops_sync` готує bundle, **не** пушить |
 | Telegram `@architect_infra_bot` | `telegram_bot=false` |
 | Host / Docker / rollback | `host_control=false` |

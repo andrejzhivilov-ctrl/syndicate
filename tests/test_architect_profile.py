@@ -47,9 +47,9 @@ def test_architect_manifest_is_prepared_not_enabled_and_has_no_grants() -> None:
     assert manifest["model_status"] == "not_selected"
     assert manifest["prompt_status"] == "draft"
     assert profile.runtime is RuntimeKind.HERMES
-    assert profile.capabilities == frozenset()
-    assert profile.resource_scopes == frozenset()
-    assert manifest["services_enabled"] == []
+    assert profile.capabilities == frozenset({"n8n.workflow.design", "n8n.workflow.mount"})
+    assert profile.resource_scopes == frozenset({"n8n/live"})
+    assert manifest["services_enabled"] == ["n8n"]
     assert manifest["skills"]
     assert all(item.get("activation") == "draft" for item in manifest["skills"])
     assert not hasattr(profile, "role")
@@ -66,11 +66,12 @@ def test_architect_manifest_does_not_select_model_or_integrations() -> None:
     manifest = _load(ARCHITECT_PROFILE_PATH)
     assert manifest["model_status"] == "not_selected"
     assert manifest["role_status"] == "identity_draft"
-    assert manifest["services_enabled"] == []
+    assert manifest["services_enabled"] == ["n8n"]
     assert manifest["n8n"]["control_plane"] is False
     assert manifest["n8n"]["permission_source"] is False
-    assert manifest["n8n"]["activation"] == "not_enabled"
-    assert manifest["n8n"]["live_api"] is False
+    assert manifest["n8n"]["activation"] == "live_mount_after_hitl"
+    assert manifest["n8n"]["live_api"] is True
+    assert manifest["n8n"]["create_active"] is False
     assert manifest["n8n"]["credentials_managed_in_profile"] is False
     assert manifest["task_source"] == "andrii_only"
     assert manifest["reports"]["eva_can_assign"] is False
@@ -111,13 +112,12 @@ def test_architect_and_eva_namespaces_are_isolated() -> None:
     assert registry.get("eva") is not None
 
 
-def test_policy_denies_every_architect_capability_while_grants_are_empty() -> None:
+def test_policy_denies_ungranted_architect_capabilities() -> None:
     profile = _architect_profile()
     policy = AgentPolicy()
     for capability, action, scope in (
         ("agent.invoke", ActionClass.INFORMATIONAL, None),
-        ("n8n.workflow.design", ActionClass.BOUNDED_WRITE, None),
-        ("n8n.workflow.activate", ActionClass.PRODUCTION_DEPLOYMENT, "n8n/production"),
+        ("n8n.workflow.activate", ActionClass.PRODUCTION_DEPLOYMENT, "n8n/live"),
         ("memory.read", ActionClass.INFORMATIONAL, "agents/architect"),
         ("service.n8n.call", ActionClass.SERVICE_CONNECTION, "n8n"),
     ):

@@ -49,9 +49,15 @@ def test_all_prepared_manifests_are_default_deny_and_isolated() -> None:
         assert manifest["activation"] == "prepared_not_enabled"
         assert manifest["runtime"] == "hermes"
         assert manifest["model_status"] == "not_selected"
-        assert manifest["capabilities"] == []
-        assert manifest["resource_scopes"] == []
-        assert manifest["services_enabled"] == []
+        if agent_id == "architect":
+            assert manifest["capabilities"] == ["n8n.workflow.design", "n8n.workflow.mount"]
+            assert manifest["resource_scopes"] == ["n8n/live"]
+            assert manifest["services_enabled"] == ["n8n"]
+            assert "n8n.workflow.activate" not in manifest["capabilities"]
+        else:
+            assert manifest["capabilities"] == []
+            assert manifest["resource_scopes"] == []
+            assert manifest["services_enabled"] == []
         if agent_id in {"eva", "architect"}:
             assert manifest["skills"]
             assert all(item.get("activation") == "draft" for item in manifest["skills"])

@@ -26,6 +26,8 @@ def architect_readiness() -> dict[str, Any]:
         "activation": manifest.get("activation"),
         "role_status": manifest.get("role_status"),
         "grants_empty": grants_empty,
+        "n8n_mount_granted": "n8n.workflow.mount" in (manifest.get("capabilities") or []),
+        "n8n_activate_granted": "n8n.workflow.activate" in (manifest.get("capabilities") or []),
         "n8n_live": architect_n8n_live_allowed(manifest),
         "gitops_push": architect_gitops_push_allowed(manifest),
         "telegram_bot": (manifest.get("live_modes") or {}).get("telegram_bot") is True,
@@ -34,6 +36,6 @@ def architect_readiness() -> dict[str, Any]:
         "knowledge_loaded": (manifest.get("knowledge_bases") or {}).get("architecture", {}).get("status") == "loaded",
         "drive_configured": bool((manifest.get("workspace") or {}).get("drive", {}).get("folder_id")),
         "live_runtime": False,
-        "deployable_as_prepared_profile": grants_empty
-        and manifest.get("activation") == "prepared_not_enabled",
+        "deployable_as_prepared_profile": manifest.get("activation") == "prepared_not_enabled"
+        and (manifest.get("n8n") or {}).get("control_plane") is not True,
     }

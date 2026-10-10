@@ -25,6 +25,14 @@
 
 ---
 
+## 2026-10-10 — Arena Agent: живий монтаж n8n (inactive, HITL)
+
+Андрій: потрібен live mount. Видано точно `n8n.workflow.design` + `n8n.workflow.mount` / `n8n/live`.
+`n8n.workflow.activate` не видана. n8n не control plane. Ключі лише `N8N_BASE_URL` + `N8N_API_KEY` у env.
+Код: `src/agents/architect_n8n.py`. Без env → `mount_unavailable`, не фейковий успіх.
+
+---
+
 ## 2026-10-10 — Arena Agent: Architect завершений для викладки
 
 Пакет prepared: ранбук + `ARCHITECT_PERMISSIONS.md` (порожні grants = fail-closed дозвіл на деплой).

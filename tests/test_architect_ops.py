@@ -1,4 +1,4 @@
-"""Architect ops: Andrii-only tasks, Eva reports payload-only, no n8n grant."""
+"""Architect ops: Andrii-only tasks, Eva reports payload-only, n8n inactive-only."""
 
 from __future__ import annotations
 
@@ -27,7 +27,8 @@ def test_blueprint_approve_does_not_activate_n8n() -> None:
     assert decided["activates_n8n"] is False
     assert decided["active"] is False
     assert decided["grants_capability"] is False
-    assert architect_n8n_live_allowed() is False
+    # Live mount is granted; approve_design still must not activate.
+    assert architect_n8n_live_allowed() is True
 
 
 def test_eva_report_is_payload_only() -> None:
@@ -46,18 +47,20 @@ def test_preview_and_confirm_do_not_call_n8n() -> None:
     assert preview["explanations"]
     delivered = deliver_after_confirm(workflow, approved=True)
     assert delivered["activates_n8n"] is False
-    assert delivered["status"] == "delivered_inactive"
+    assert delivered["status"] in {"mounted_inactive", "mount_unavailable"}
     cancelled = deliver_after_confirm(workflow, approved=False)
     assert cancelled["status"] == "cancelled"
 
 
 def test_architect_readiness_empty_grants() -> None:
     snap = architect_readiness()
-    assert snap["grants_empty"] is True
-    assert snap["n8n_live"] is False
+    assert snap["grants_empty"] is False
+    assert snap["n8n_live"] is True
     assert snap["gitops_push"] is False
     assert snap["telegram_bot"] is False
     assert snap["eva_cannot_assign"] is True
+    assert snap["n8n_mount_granted"] is True
+    assert snap["n8n_activate_granted"] is False
     assert snap["knowledge_loaded"] is False
     assert snap["drive_configured"] is False
     assert snap["deployable_as_prepared_profile"] is True
