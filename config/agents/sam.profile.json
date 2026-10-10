@@ -13,11 +13,31 @@
   "resource_scopes": [],
   "services_enabled": [],
   "skills": [
-    {"id": "sam-confluence", "path": "sam_core/skills/sam-confluence/SKILL.md", "activation": "draft"},
-    {"id": "sam-risk-guard", "path": "sam_core/skills/sam-risk-guard/SKILL.md", "activation": "draft"},
-    {"id": "sam-journal", "path": "sam_core/skills/sam-journal/SKILL.md", "activation": "draft"},
-    {"id": "sam-demo-lab", "path": "sam_core/skills/sam-demo-lab/SKILL.md", "activation": "draft"},
-    {"id": "sam-invest-discuss", "path": "sam_core/skills/sam-invest-discuss/SKILL.md", "activation": "draft"}
+    {
+      "id": "sam-confluence",
+      "path": "sam_core/skills/sam-confluence/SKILL.md",
+      "activation": "draft"
+    },
+    {
+      "id": "sam-risk-guard",
+      "path": "sam_core/skills/sam-risk-guard/SKILL.md",
+      "activation": "draft"
+    },
+    {
+      "id": "sam-journal",
+      "path": "sam_core/skills/sam-journal/SKILL.md",
+      "activation": "draft"
+    },
+    {
+      "id": "sam-demo-lab",
+      "path": "sam_core/skills/sam-demo-lab/SKILL.md",
+      "activation": "draft"
+    },
+    {
+      "id": "sam-invest-discuss",
+      "path": "sam_core/skills/sam-invest-discuss/SKILL.md",
+      "activation": "draft"
+    }
   ],
   "memory_policy_file": "sam_core/SAM_MEMORY_POLICY.md",
   "task_source": "andrii_only",
@@ -34,14 +54,34 @@
       "read_only": true,
       "source_manifest": "sam_core/knowledge/quant/SOURCES.yaml"
     },
-    "drive": {"activation": "not_configured", "folder_id": null},
-    "obsidian": {"activation": "not_configured", "vault_path": null},
-    "notebooklm": {"activation": "not_configured", "notebooks": []},
+    "drive": {
+      "activation": "not_configured",
+      "folder_id": null
+    },
+    "obsidian": {
+      "activation": "not_configured",
+      "vault_path": null
+    },
+    "notebooklm": {
+      "activation": "not_configured",
+      "notebooks": []
+    },
     "extra_connectors": []
   },
   "workspace": {
-    "archive": {"activation": "reserved", "namespace": "agents/sam"},
-    "lot_archive": {"activation": "reserved", "sort": ["day", "month", "venue", "symbol"]},
+    "archive": {
+      "activation": "reserved",
+      "namespace": "agents/sam"
+    },
+    "lot_archive": {
+      "activation": "reserved",
+      "sort": [
+        "day",
+        "month",
+        "venue",
+        "symbol"
+      ]
+    },
     "drive": {
       "activation": "not_configured",
       "folder_id": null,
@@ -52,12 +92,35 @@
     "default_mode": "hitl_only",
     "propose_confluence": 95.0,
     "auto_confluence": 99.0,
-    "auto_venues": ["forex", "crypto"],
+    "auto_venues": [
+      "forex",
+      "crypto"
+    ],
     "invest_always_hitl": true,
     "account_mode": "unset",
     "broker": "tbd",
-    "analyze_timeframes": ["M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1", "MN"],
-    "trade_timeframes": ["M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1", "MN"]
+    "analyze_timeframes": [
+      "M1",
+      "M5",
+      "M15",
+      "M30",
+      "H1",
+      "H4",
+      "D1",
+      "W1",
+      "MN"
+    ],
+    "trade_timeframes": [
+      "M1",
+      "M5",
+      "M15",
+      "M30",
+      "H1",
+      "H4",
+      "D1",
+      "W1",
+      "MN"
+    ]
   },
   "risk": {
     "deposit_usd_protocol": 100.0,
@@ -94,5 +157,194 @@
     "broker_live": false,
     "social_listen": false,
     "geolocation": false
+  },
+  "skill_candidates": {
+    "status": "candidate_not_installed",
+    "note": "Reviewed 2026-10-10. Not active. Not grants. Install requires separate permission.",
+    "items": [
+      {
+        "id": "tm-position-sizer",
+        "repo": "tradermonty/claude-trading-skills",
+        "path": "skills/position-sizer",
+        "license": "MIT",
+        "deps": "stdlib",
+        "verdict": "adopt_candidate",
+        "use": "risk-based lot sizing (1% / 0.5%)"
+      },
+      {
+        "id": "tm-pre-trade-discipline-gate",
+        "repo": "tradermonty/claude-trading-skills",
+        "path": "skills/pre-trade-discipline-gate",
+        "license": "MIT",
+        "deps": "PyYAML",
+        "verdict": "adopt_candidate",
+        "use": "pre-trade checklist before HITL card"
+      },
+      {
+        "id": "tm-drawdown-circuit-breaker",
+        "repo": "tradermonty/claude-trading-skills",
+        "path": "skills/drawdown-circuit-breaker",
+        "license": "MIT",
+        "deps": "pandas-market-calendars, PyYAML",
+        "verdict": "adopt_candidate",
+        "use": "daily stop 3% / loss-streak cooldown"
+      },
+      {
+        "id": "tm-trader-memory-core",
+        "repo": "tradermonty/claude-trading-skills",
+        "path": "skills/trader-memory-core",
+        "license": "MIT",
+        "deps": "jsonschema, PyYAML; FMP optional",
+        "verdict": "adopt_candidate_after_review",
+        "use": "journal / thesis store; FMP key off"
+      },
+      {
+        "id": "tm-weekly-performance-digest",
+        "repo": "tradermonty/claude-trading-skills",
+        "path": "skills/weekly-performance-digest",
+        "license": "MIT",
+        "deps": "PyYAML",
+        "verdict": "adopt_candidate",
+        "use": "Monday 10:00 weekly analytics"
+      },
+      {
+        "id": "tm-trade-performance-coach",
+        "repo": "tradermonty/claude-trading-skills",
+        "path": "skills/trade-performance-coach",
+        "license": "MIT",
+        "deps": "PyYAML",
+        "verdict": "adopt_candidate",
+        "use": "1st-of-month analytics / mistakes"
+      },
+      {
+        "id": "tm-signal-postmortem",
+        "repo": "tradermonty/claude-trading-skills",
+        "path": "skills/signal-postmortem",
+        "license": "MIT",
+        "deps": "requests; FMP optional",
+        "verdict": "defer",
+        "use": "post-mortem; network calls need review"
+      },
+      {
+        "id": "tm-economic-calendar-fetcher",
+        "repo": "tradermonty/claude-trading-skills",
+        "path": "skills/economic-calendar-fetcher",
+        "license": "MIT",
+        "deps": "stdlib; urllib calls",
+        "verdict": "defer",
+        "use": "news freeze calendar; hosts to verify"
+      },
+      {
+        "id": "tm-cot-contrarian-detector",
+        "repo": "tradermonty/claude-trading-skills",
+        "path": "skills/cot-contrarian-detector",
+        "license": "MIT",
+        "deps": "requests",
+        "verdict": "defer",
+        "use": "COT signal; use cot_reports first"
+      },
+      {
+        "id": "riskkit",
+        "repo": "HasibVortex369/riskkit",
+        "license": "MIT",
+        "deps": "none (pandas/backtesting optional)",
+        "verdict": "adopt_library_candidate",
+        "use": "PreTradeValidator, drawdown, stops, correlation caps; no network, no order code"
+      },
+      {
+        "id": "cot_reports",
+        "repo": "NDelventhal/cot_reports",
+        "license": "MIT",
+        "deps": "pandas",
+        "verdict": "adopt_candidate",
+        "use": "CFTC COT weekly data"
+      },
+      {
+        "id": "trade-journal-luxalgo",
+        "repo": "saeid00065/trade-journal",
+        "license": "MIT",
+        "deps": "app stack; broker sync present",
+        "verdict": "reference_only",
+        "use": "UI / journal ideas; broker sync excluded"
+      },
+      {
+        "id": "openmobius-skill",
+        "repo": "MobiusQuant/OpenMobius-skill",
+        "license": "Apache-2.0",
+        "deps": "113MB knowledge base, embeddings",
+        "verdict": "reference_only",
+        "use": "SMC knowledge cards; too large for repo, keep external"
+      },
+      {
+        "id": "alphaear-finance-skills",
+        "repo": "RKiding/Awesome-finance-skills",
+        "license": "Apache-2.0",
+        "deps": "not reviewed in depth",
+        "verdict": "defer",
+        "use": "news / sentiment candidate"
+      },
+      {
+        "id": "llmquant-skills",
+        "repo": "LLMQuant/skills",
+        "license": "MIT",
+        "deps": "LLMQuant Data (external API)",
+        "verdict": "reference_only",
+        "use": "skill format examples"
+      },
+      {
+        "id": "riskguard",
+        "repo": "SilentFleetKK/riskguard",
+        "license": "MIT",
+        "deps": "alpaca broker adapters",
+        "verdict": "reference_only",
+        "use": "circuit-breaker ideas; broker code excluded"
+      }
+    ],
+    "rejected": [
+      {
+        "repo": "aryan-cs/grok-trader",
+        "reason": "no license; place_ioc_order / create_order execution code"
+      },
+      {
+        "repo": "13empty/trading-journal (bridge-python)",
+        "reason": "mt5.order_send present; execution path"
+      },
+      {
+        "repo": "Mark-Mulli/Trade-Journal",
+        "reason": "no license; idea-only"
+      },
+      {
+        "repo": "lalit8786/Trading-Journal-Analytics",
+        "reason": "no license; idea-only"
+      },
+      {
+        "repo": "atirek-pro/ForexFactory-MCP",
+        "reason": "no license"
+      },
+      {
+        "repo": "AtaCanYmc/forex-pytory",
+        "reason": "cloudscraper bypasses Cloudflare; TOS risk"
+      },
+      {
+        "repo": "ghwmelite-dotcom/claude-skills",
+        "reason": "no license; MQL5 EA-oriented"
+      },
+      {
+        "repo": "marketcalls/vectorbt-backtesting-skills",
+        "reason": "no license"
+      },
+      {
+        "repo": "SimpleFXcom, GMGNAI, okx onchainos, Superior-Trade",
+        "reason": "execution / wallet / DEX"
+      },
+      {
+        "repo": "agiprolabs/claude-trading-skills",
+        "reason": "MIT but DeFi/Solana-first; not for Sam"
+      },
+      {
+        "repo": "JoelLewis/finance_skills",
+        "reason": "MIT but 84-skill compliance/advisory surface; too broad"
+      }
+    ]
   }
 }
