@@ -88,7 +88,7 @@ step "PostgreSQL (жива схема й SQL-шляхи)"
 # Локально ту саму роль виконує pgserver з requirements-dev.txt.
 if [ -n "${EVA_TEST_DATABASE_URL:-}" ]; then
     run "жива схема + SQL-шляхи (EVA_TEST_DATABASE_URL)" "$PY" -m pytest tests/test_postgres_paths.py -q
-elif "$PY" -c "import pgserver" >/dev/null 2>&1; then
+elif [ -z "${EVA_SKIP_PGSERVER:-}" ] && "$PY" -c "import pgserver" >/dev/null 2>&1; then
     run "жива схема + SQL-шляхи (вбудований pgserver)" "$PY" -m pytest tests/test_postgres_paths.py -q
 else
     printf '  \033[33mℹ️  INFO\033[0m  живого PostgreSQL немає (ані EVA_TEST_DATABASE_URL, ані pgserver)\n'

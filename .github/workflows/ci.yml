@@ -36,6 +36,9 @@ jobs:
           .venv/bin/pip install -r requirements.txt -r requirements-dev.txt -r requirements-fin.txt
 
       - name: Gates (tests, suites, ruff, API contract)
+        env:
+          # Без бази: pgserver не піднімаємо (SQL-шляхи перевіряє джоб PostgreSQL).
+          EVA_SKIP_PGSERVER: "1"
         run: |
           # Діагностика: кроки, що впали, виводимо як анотації (читаються через REST API).
           # Файли виводу — поза робочою копією, щоб не забруднювати git.
