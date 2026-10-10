@@ -47,7 +47,7 @@ AGENTS = "agents"          # Per-agent secrets: agents/<agent_id>/<name>
 INFRA_SERVICES: Tuple[str, ...] = (DATABASE, REDIS, API_KEYS)
 
 #: Secrets read by connector plugins (``src/integrations/*``).
-CONNECTOR_SERVICES: Tuple[str, ...] = ("google_workspace", "mcp", "telegram")
+CONNECTOR_SERVICES: Tuple[str, ...] = ("google_workspace", "mcp", "telegram", "youtube")
 
 #: Secrets read by voice providers (``src/voice/*``).
 VOICE_SERVICES: Tuple[str, ...] = ("elevenlabs", "groq", "openai", "xai")

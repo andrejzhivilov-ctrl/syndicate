@@ -64,6 +64,14 @@ path "secret/metadata/eva-syndicate/telegram" {
   capabilities = [""list"", ""read"", "list"]
 }
 
+path "secret/data/eva-syndicate/youtube" {
+  capabilities = [""read""]
+}
+
+path "secret/metadata/eva-syndicate/youtube" {
+  capabilities = [""list"", ""read"", "list"]
+}
+
 path "secret/data/eva-syndicate/elevenlabs" {
   capabilities = [""read""]
 }
