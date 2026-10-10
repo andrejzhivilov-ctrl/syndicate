@@ -54,6 +54,12 @@ def test_all_prepared_manifests_are_default_deny_and_isolated() -> None:
             assert manifest["resource_scopes"] == ["n8n/live"]
             assert manifest["services_enabled"] == ["n8n"]
             assert "n8n.workflow.activate" not in manifest["capabilities"]
+        elif agent_id == "fin":
+            # Фін: лише внутрішні права (автовиклик Єви, локальні звіти); зовнішніх сервісів немає.
+            assert manifest["capabilities"] == ["fin.dispatch.eva_basket", "fin.funds_check",
+                                                "fin.reports.local", "fin.docs.local_generate"]
+            assert manifest["resource_scopes"] == ["fin/out"]
+            assert manifest["services_enabled"] == []
         else:
             assert manifest["capabilities"] == []
             assert manifest["resource_scopes"] == []

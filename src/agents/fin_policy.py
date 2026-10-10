@@ -8,6 +8,8 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Iterable, Optional
 
+from src.agents.fin_ledger import PURCHASE_FUNDS
+
 GREEN_MONTHS = Decimal("6")
 YELLOW_MONTHS = Decimal("3")
 TOKEN_DAILY_LIMIT_USD = Decimal("5.00")
@@ -75,31 +77,32 @@ def allocate_purchase(amount: Decimal, category: str, fund_left: dict,
                       next_period_ok: bool = True, valid_until: Optional[str] = None) -> dict:
     """Відповідь Єві: чи є кошти під покупку і з якого фонду. Без платежів.
 
-    fund_left, напр. {"groceries": 800, "leisure": 300, "goals": 0, "safety": 9000}
-    (уже за вирахуванням запланованих платежів періоду — див. fin_ledger.available_in_fund).
-    Продукти йдуть ТІЛЬКИ з groceries. Інші товари — лише з фонду, який назвав Андрій.
-    Фонд безпеки недоторканний — ніколи не джерело покупки.
+    fund_left: залишки по фондах card / cash / payment_system (вже за вирахуванням
+    запланованих платежів періоду — див. fin_ledger.available_in_fund).
+    Категорія (food/leisure/other) — це тип витрати, не фонд.
+    Якщо fund не задано — Фін сам бере перший фонд з достатнім залишком (порядок PURCHASE_FUNDS).
+    Фонд безпеки недоторканний: ніколи не береться ні автоматично, ні явно.
     """
     amt = Decimal(str(amount))
     funds = {k: Decimal(str(v)) for k, v in fund_left.items()}
-    if category == "food":
-        fund = "groceries"
-    if fund is None:
-        return {"status": "fund_required", "purpose": purpose, "advisory_only": True,
-                "question": "З якого фонду: відпочинок чи скарбничка цілей?"}
     if fund == SAFETY_FUND:
         return {"status": "reserve_blocked", "purpose": purpose, "advisory_only": True}
-    if funds.get(fund, Decimal("0")) >= amt:
-        res = {"status": "funds_allocated", "allowed_amount": str(amt), "source_fund": fund,
-               "purpose": purpose, "advisory_only": True}
-        if valid_until:
-            res["valid_until"] = valid_until
-        return res
+    candidates = [fund] if fund else list(PURCHASE_FUNDS)
+    for cand in candidates:
+        if cand not in PURCHASE_FUNDS:
+            return {"status": "unknown_fund", "purpose": purpose, "advisory_only": True}
+        if funds.get(cand, Decimal("0")) >= amt:
+            res = {"status": "funds_allocated", "allowed_amount": str(amt), "source_fund": cand,
+                   "category": category, "purpose": purpose, "advisory_only": True}
+            if valid_until:
+                res["valid_until"] = valid_until
+            return res
+    best = max((funds.get(c, Decimal("0")) for c in candidates), default=Decimal("0"))
     if next_period_ok:
         return {"status": "next_period", "reason": "not_planned_this_period",
-                "source_fund": fund, "purpose": purpose, "advisory_only": True}
-    return {"status": "over_budget", "source_fund": fund, "purpose": purpose,
-            "shortfall": str(amt - funds.get(fund, Decimal("0"))), "advisory_only": True}
+                "category": category, "purpose": purpose, "advisory_only": True}
+    return {"status": "over_budget", "category": category, "purpose": purpose,
+            "shortfall": str(amt - best), "advisory_only": True}
 
 
 def token_guard(spent_usd_day: Decimal, spent_usd_15m: Decimal = Decimal("0")) -> dict:

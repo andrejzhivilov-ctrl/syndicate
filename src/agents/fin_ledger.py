@@ -14,13 +14,18 @@ from decimal import Decimal
 from typing import Dict, Iterable, List, Optional, Tuple
 
 # ---------------------------------------------------------------- фонди
+# Фонди = картки, готівковий фонд, платіжні системи. Назви уточнюються при налаштуванні
+# доступів (поле label — плейсхолдер, не фінальна назва).
 FUNDS: Dict[str, str] = {
-    "groceries": "Продукти (продуктовий кошик)",
-    "leisure": "Відпочинок (окремо від продуктів)",
-    "goals": "Скарбничка цілей",
+    "card": "Картки (назви — при налаштуванні доступів)",
+    "cash": "Готівковий фонд",
+    "payment_system": "Платіжні системи (назви — при налаштуванні доступів)",
     "safety": "Фонд безпеки (недоторканний)",
 }
-RESERVED_FUNDS = frozenset({"safety"})  # ніколи не джерело покупки
+PURCHASE_FUNDS = ("card", "cash", "payment_system")  # порядок автовибору
+RESERVED_FUNDS = frozenset({"safety"})                # ніколи не джерело покупки
+# Категорії витрат (не фонди).
+CATEGORIES: Dict[str, str] = {"food": "Продукти", "leisure": "Відпочинок", "other": "Інше"}
 
 # ---------------------------------------------------------------- джерела коштів
 # cash_path: як гроші стають готівкою. Порядок пріоритету — з найпростішого.
@@ -28,22 +33,22 @@ CASH_PATH_PRIORITY = {"already_cash": 0, "direct_atm": 1, "via_bank_transfer": 2
 
 SOURCES: Dict[str, dict] = {
     "cash_wallet": {"label": "Готівка (гаманець)", "kind": "cash", "currency": "UAH",
-                    "cash_path": "already_cash", "intl": False,
+                    "cash_path": "already_cash", "intl": False, "fund": "cash",
                     "note": "Переказ Assets:Bank → Assets:Cash:Wallet"},
-    "monobank": {"label": "Монобанк (картка)", "kind": "bank", "currency": "UAH",
+    "monobank": {"fund": "card", "label": "Монобанк (картка)", "kind": "bank", "currency": "UAH",
                  "cash_path": "direct_atm", "intl": False, "read_mode": "not_granted"},
-    "privatbank": {"label": "ПриватБанк (картка)", "kind": "bank", "currency": "UAH",
+    "privatbank": {"fund": "card", "label": "ПриватБанк (картка)", "kind": "bank", "currency": "UAH",
                    "cash_path": "direct_atm", "intl": False, "read_mode": "not_granted"},
-    "a_bank": {"label": "А-Банк", "kind": "bank", "currency": "UAH",
+    "a_bank": {"fund": "card", "label": "А-Банк", "kind": "bank", "currency": "UAH",
                "cash_path": "direct_atm", "intl": False, "read_mode": "not_connected",
                "note": "Окрема інтеграція (AISP з NBU-ліцензією), не в коді"},
-    "payoneer": {"label": "Payoneer", "kind": "payment_service", "currency": "USD",
+    "payoneer": {"fund": "payment_system", "label": "Payoneer", "kind": "payment_service", "currency": "USD",
                  "cash_path": "via_bank_transfer", "intl": True, "read_mode": "not_connected",
                  "note": "Міжнародні перекази; вивід на банк з комісією і курсом"},
-    "paypal": {"label": "PayPal", "kind": "payment_service", "currency": "USD",
+    "paypal": {"fund": "payment_system", "label": "PayPal", "kind": "payment_service", "currency": "USD",
                "cash_path": "via_bank_transfer", "intl": True, "read_mode": "not_connected",
                "note": "Міжнародні перекази; вивід на банк з комісією"},
-    "crypto_wallet": {"label": "Криптогаманець", "kind": "crypto", "currency": "USDT",
+    "crypto_wallet": {"fund": "payment_system", "label": "Криптогаманець", "kind": "crypto", "currency": "USDT",
                       "cash_path": "via_exchange", "intl": True, "read_mode": "not_connected",
                       "note": "Потрібен обмін на фіат; курс і комісія ризиковані"},
 }
@@ -72,7 +77,7 @@ def withdraw_options(amount: Decimal, currency: str,
             status = "insufficient"
         out.append({"source": sid, "label": meta["label"], "status": status,
                     "balance": str(bal), "currency": cur,
-                    "cash_path": meta["cash_path"], "intl": meta["intl"],
+                    "cash_path": meta["cash_path"], "intl": meta["intl"], "fund": meta["fund"],
                     "_prio": CASH_PATH_PRIORITY[meta["cash_path"]]})
     out.sort(key=lambda r: (r["status"] != "enough", r["_prio"]))
     for r in out:
@@ -138,7 +143,7 @@ class PlannedPayment:
     amount: Decimal
     currency: str
     cadence: str                      # once | day | week | month
-    fund: str = "goals"
+    fund: str = "card"
     on: Optional[date] = None         # для once
     weekday: Optional[int] = None     # 0=пн для week
     day_of_month: Optional[int] = None  # 1..31 для month (обрізається до кінця місяця)

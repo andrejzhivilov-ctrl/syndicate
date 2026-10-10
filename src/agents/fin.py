@@ -55,7 +55,7 @@ class FinAgent:
         action = payload.get("action", "analyze")
         if action not in {
             "analyze", "financial_analysis", "runway", "budget_check", "tax_radar",
-            "sync_bank_data", "morning_data", "report",
+            "sync_bank_data", "morning_data", "report", "funds_check",
         }:
             return {"error": f"Unknown action: {action}", "agent": self.AGENT_ID}
 
@@ -96,7 +96,20 @@ class FinAgent:
             return await self._sync_bank_data(payload)
         if action == "morning_data":
             return await self._morning_data(payload)
+        if action == "funds_check":
+            return await self._funds_check(payload)
         return await self._generate_report(payload)
+
+    async def _funds_check(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Автоматична відповідь Єві: чи є кошти і з якого фонду. Лише рахує."""
+        from src.agents import fin_dispatcher as D
+
+        sender = payload.get("from", "eva")
+        balances = payload.get("fund_balances", self._config.get("fund_balances"))
+        if not balances:
+            return D.unavailable_answer(payload, sender)
+        payments = D.planned_from_config(self._config.get("planned_payments", []))
+        return D.answer_funds_check(payload, sender, balances, payments, date.today())
 
     async def _remember_action(
         self, session_id: str, action: str, payload: Dict[str, Any], result: Dict[str, Any]

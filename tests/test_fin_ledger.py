@@ -6,7 +6,6 @@ import pytest
 
 from src.agents import fin_buttons as B
 from src.agents import fin_ledger as L
-from src.agents import fin_policy as fp
 from src.agents import fin_reports as R
 from src.agents.fin_bank_gate import bank_read_allowed
 
@@ -65,10 +64,10 @@ def test_plan_header_always_has_four_periods_with_totals():
 
 
 def test_spend_by_fund_and_expense_in_period():
-    exp = [L.Expense(TODAY, D("420"), "UAH", "groceries", "food", "молоко", store="АТБ", source="monobank"),
-           L.Expense(date(2026, 9, 1), D("999"), "UAH", "leisure", "fun", "old")]
+    exp = [L.Expense(TODAY, D("420"), "UAH", "card", "food", "молоко", store="АТБ", source="monobank"),
+           L.Expense(date(2026, 9, 1), D("999"), "UAH", "cash", "leisure", "old")]
     totals = L.spend_by_fund(exp, *L.period_bounds(TODAY, "month"))
-    assert totals["groceries"] == D("420") and totals["leisure"] == D("0")
+    assert totals["card"] == D("420") and totals["cash"] == D("0")
 
 
 def test_route_only_eva_and_andrii():
@@ -84,16 +83,6 @@ def test_bank_gate_default_deny():
     assert bank_read_allowed("unknown_bank", ["unknown_bank"]) is False
 
 
-def test_allocate_food_uses_groceries_and_fund_required_for_other():
-    funds = {"groceries": D("800"), "leisure": D("300"), "goals": D("0"), "safety": D("9000")}
-    ok = fp.allocate_purchase(D("500"), "food", funds, "продукти")
-    assert ok["status"] == "funds_allocated" and ok["source_fund"] == "groceries"
-    assert fp.allocate_purchase(D("900"), "food", funds, "продукти")["status"] == "next_period"
-    assert fp.allocate_purchase(D("100"), "other", funds, "гаджет")["status"] == "fund_required"
-    assert fp.allocate_purchase(D("100"), "other", funds, "гаджет", fund="leisure")["source_fund"] == "leisure"
-    assert fp.allocate_purchase(D("100"), "other", funds, "x", fund="safety")["status"] == "reserve_blocked"
-
-
 def test_buttons_fit_telegram_limit_and_permissions():
     for menu in B.MENUS:
         for sender in ("andrii", "eva"):
@@ -106,6 +95,14 @@ def test_buttons_fit_telegram_limit_and_permissions():
     assert not any("ЗВІТ — повний" in t for t in texts)  # повний звіт — лише Андрію
 
 
+def test_funds_are_cards_cash_payment_systems_and_safety():
+    assert set(L.FUNDS) == {"card", "cash", "payment_system", "safety"}
+    assert set(L.PURCHASE_FUNDS) == {"card", "cash", "payment_system"}
+    assert L.SOURCES["monobank"]["fund"] == "card"
+    assert L.SOURCES["cash_wallet"]["fund"] == "cash"
+    assert L.SOURCES["payoneer"]["fund"] == "payment_system"
+
+
 def test_full_report_button_only_for_andrii():
     assert B.handle_callback("rep:full", "andrii")["action"] == "report"
     assert B.handle_callback("rep:full", "eva") is None
@@ -114,10 +111,10 @@ def test_full_report_button_only_for_andrii():
 
 
 def _sample_report(kind="full"):
-    pays = [L.PlannedPayment("m", "Комуналка", D("2000"), "UAH", "month", fund="goals", day_of_month=15),
-            L.PlannedPayment("d", "Підписка", D("10"), "UAH", "day", fund="leisure")]
-    exp = [L.Expense(TODAY, D("420"), "UAH", "groceries", "food", "молоко", store="АТБ", source="monobank")]
-    bal = {"groceries": D("800"), "leisure": D("300"), "goals": D("500"), "safety": D("9000")}
+    pays = [L.PlannedPayment("m", "Комуналка", D("2000"), "UAH", "month", fund="card", day_of_month=15),
+            L.PlannedPayment("d", "Підписка", D("10"), "UAH", "day", fund="cash")]
+    exp = [L.Expense(TODAY, D("420"), "UAH", "card", "food", "молоко", store="АТБ", source="monobank")]
+    bal = {"card": D("800"), "cash": D("300"), "payment_system": D("500"), "safety": D("9000")}
     return R.build_report(kind, TODAY, pays, exp, bal)
 
 
@@ -154,3 +151,66 @@ def test_obsidian_requires_configured_vault(tmp_path):
 def test_external_sinks_blocked_without_grant():
     for sink in ("google_sheets", "google_docs", "google_drive"):
         assert R.external_sink_status(sink)["status"] == "blocked_not_granted"
+
+
+# ---------------------------------------------------------------- автоматичний виклик Єви
+from src.agents import fin_dispatcher as FD  # noqa: E402
+
+
+def _balances():
+    return {"card": "800", "cash": "300", "payment_system": "0", "safety": "9000"}
+
+
+def test_eva_request_gets_automatic_funds_answer_to_eva():
+    out = FD.answer_funds_check({"amount": "500", "category": "food", "purpose": "продукти"},
+                               "eva", _balances(), [], TODAY)
+    assert out["type"] == "funds_answer" and out["to"] == "eva"
+    assert out["status"] == "funds_allocated" and out["source_fund"] == "card"
+    assert out["advisory_only"] is True and out["valid_until"] == "2026-10-31"
+
+
+def test_payment_fields_are_refused():
+    out = FD.answer_funds_check({"amount": "5", "category": "food", "card_number": "4000"},
+                               "eva", _balances(), [], TODAY)
+    assert out["status"] == "rejected" and out["reason"].startswith("payment_fields")
+
+
+def test_only_eva_and_andrii_can_ask():
+    assert FD.validate_request({"amount": "5", "category": "food"}, "doc") == "sender_not_allowed"
+    assert FD.validate_request({"amount": "5", "category": "food"}, "andrii") is None
+
+
+def test_safety_never_offered_and_planned_payments_reduce_available():
+    pays = [L.PlannedPayment("m", "Комуналка", D("700"), "UAH", "once", fund="card", on=date(2026, 10, 20))]
+    out = FD.answer_funds_check({"amount": "250", "category": "food"}, "eva", _balances(), pays, TODAY)
+    assert out["available_by_fund"]["card"] == "100"          # 800 − 700
+    assert out["source_fund"] == "cash"                       # card не вистачає, cash є
+    assert "safety" not in out["available_by_fund"]
+
+
+def test_no_balances_means_unavailable_not_invented():
+    out = FD.unavailable_answer({"amount": "5"}, "eva")
+    assert out["status"] == "unavailable" and out["reason"] == "no_fund_balances"
+
+
+def test_non_uah_needs_conversion_not_guessed():
+    out = FD.answer_funds_check({"amount": "20", "currency": "USD", "category": "other"},
+                               "eva", _balances(), [], TODAY)
+    assert out["status"] == "currency_needs_conversion"
+
+
+def test_fin_agent_funds_check_unavailable_without_balances_and_answers_with_them():
+    import asyncio
+
+    from src.agents.fin import FinAgent
+
+    agent = FinAgent(memory=None, config={"fund_balances": None})
+    empty = asyncio.run(agent._dispatch("funds_check", {"amount": "100", "category": "food", "from": "eva"}))
+    assert empty["status"] == "unavailable" and empty["to"] == "eva"
+
+    agent2 = FinAgent(memory=None, config={"fund_balances": _balances(),
+                                           "planned_payments": []})
+    ok = asyncio.run(agent2._dispatch("funds_check", {"amount": "100", "category": "food", "from": "eva"}))
+    assert ok["status"] == "funds_allocated" and ok["source_fund"] == "card" and ok["to"] == "eva"
+    rejected = asyncio.run(agent2._dispatch("funds_check", {"amount": "100", "from": "doc"}))
+    assert rejected["status"] == "rejected"

@@ -202,6 +202,8 @@ def _payloads(tmp_path: Path) -> Dict[str, Dict[str, Any]]:
         "fin_sync_bank": {"accounts": [{"balance": 10.0, "currency": "UAH"}]},
         "morning_data_fin": {},
         "fin_report": {"period": "monthly"},
+        "eva_basket_ready": {"amount": "420", "currency": "UAH", "category": "food", "purpose": "продукти"},
+        "fin_funds_check": {"amount": "420", "currency": "UAH", "category": "food", "purpose": "продукти"},
         "marshal_execute": {"action": "security_audit"},
         "morning_data_marshal": {},
         "security_audit": {},

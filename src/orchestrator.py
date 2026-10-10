@@ -163,6 +163,8 @@ class EvaOrchestrator:
         "fin_sync_bank": "fin",
         "morning_data_fin": "fin",
         "fin_report": "fin",
+        "eva_basket_ready": "fin",   # автоматичний виклик Єви (funds_check)
+        "fin_funds_check": "fin",    # прямий запит Андрія
         # Marshal (CSO - Chief Security Officer commanding Sentinel Protocol)
         "marshal_execute": "marshal",
         "morning_data_marshal": "marshal",
@@ -863,7 +865,11 @@ class EvaOrchestrator:
             "fin_sync_bank": "sync_bank_data",
             "morning_data_fin": "morning_data",
             "fin_report": "report",
+            "eva_basket_ready": "funds_check",
+            "fin_funds_check": "funds_check",
         }
+        # Відправник визначає, кому відповідає Фін: автоматичний виклик — від Єви.
+        payload.setdefault("from", "eva" if state["task_type"] == "eva_basket_ready" else "andrii")
         payload.setdefault("action", action_map.get(state["task_type"], "analyze"))
         result = await agent.execute(payload)
         state["result"] = result
