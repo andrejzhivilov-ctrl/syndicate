@@ -402,5 +402,16 @@
     "food": "Продукти",
     "leisure": "Відпочинок",
     "other": "Інше"
+  },
+  "deployment_deferred": {
+    "status": "deferred_to_deployment_2026_10_10",
+    "items": [
+      "n8n: міст Єва ↔ Фін (webhook eva_basket_ready / funds_answer) — економія токенів",
+      "банк (AISP або токени) і bank_read_grants",
+      "Telegram-бот і кнопки",
+      "Google Drive / Sheets",
+      "Obsidian vault (шлях)"
+    ],
+    "note": "Андрій 2026-10-10: підключимо при розгортанні разом із налаштуванням зв'язків."
   }
 }
