@@ -18,7 +18,7 @@ from src.agent_platform.registry import AgentRegistry
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILES_DIR = ROOT / "config" / "agents"
-EXPECTED_IDS = frozenset({"eva", "architect", "marshal", "fin", "doc", "kira", "sam"})
+EXPECTED_IDS = frozenset({"eva", "architect", "marshal", "fin", "doc", "kira", "sam", "kodex"})
 FORMED_IDENTITY = frozenset({"eva", "architect", "marshal", "sam", "fin"})
 
 
@@ -60,6 +60,14 @@ def test_all_prepared_manifests_are_default_deny_and_isolated() -> None:
                                                 "fin.reports.local", "fin.docs.local_generate"]
             assert manifest["resource_scopes"] == ["fin/out"]
             assert manifest["services_enabled"] == []
+        elif agent_id == "kodex":
+            # KODEX: читання всіх архівів, запис крім ANDRII_IMMUTABLE, видалення лише після підтвердження Андрія, звіт Єві.
+            assert manifest["capabilities"] == ["kodex.archive.read_all", "kodex.archive.write_non_immutable",
+                                                "kodex.delete.confirmed", "kodex.report.eva"]
+            assert manifest["resource_scopes"] == ["kodex/archive"]
+            assert manifest["services_enabled"] == []
+            assert manifest["knowledge_base"]["immutable_domain"]["kodex_write"] is False
+            assert manifest["knowledge_base"]["immutable_domain"]["kodex_delete"] is False
         else:
             assert manifest["capabilities"] == []
             assert manifest["resource_scopes"] == []

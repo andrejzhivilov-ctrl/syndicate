@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "activation": "prepared_not_enabled",
+  "agent_id": "kodex",
+  "name": "K.O.D.E.K.S. (KODEX) — Knowledge Organization & Database Extraction System",
+  "runtime": "hermes",
+  "hermes_profile": "kodex",
+  "memory_namespace": "agents/kodex",
+  "prompt_status": "not_prepared",
+  "role_status": "not_agreed",
+  "model_status": "not_selected",
+  "capabilities": [
+    "kodex.archive.read_all",
+    "kodex.archive.write_non_immutable",
+    "kodex.delete.confirmed",
+    "kodex.report.eva"
+  ],
+  "resource_scopes": ["kodex/archive"],
+  "services_enabled": [],
+  "skills": [],
+  "knowledge_base": {
+    "shared_skill": "config/shared_skills/knowledge_base.json",
+    "domains": ["andrii_medical_vault", "doc", "fin", "sam", "eva", "architect", "marshal", "kira", "shared"],
+    "immutable_domain": {
+      "name": "andrii_medical_vault",
+      "kodex_read": true,
+      "kodex_write": false,
+      "kodex_delete": false,
+      "rule": "ANDRII_IMMUTABLE: жоден агент не пише і не видаляє; видалення — лише вручну Андрієм"
+    }
+  },
+  "classification": "deterministic_keyword_rules_no_paid_llm",
+  "formats": {
+    "native": ["md", "txt", "csv", "json"],
+    "library_installed": ["docx", "xlsx", "pptx"],
+    "vendored_parser": ["pdf", "epub", "html", "rtf"],
+    "needs_engine": ["mp3", "wav", "m4a", "mp4 (транскрибація, безкоштовний локальний рушій)"],
+    "unknown": "needs_parser → вивчення лише після підтвердження Андрія"
+  },
+  "internet": {
+    "status": "approval_required",
+    "rule": "жодного завантаження без явного підтвердження Андрія (approve_download)"
+  },
+  "delete": {
+    "mode": "two_step_soft_delete",
+    "trash_retention_days": 30,
+    "confirm_by": "andrii"
+  },
+  "telegram": {
+    "status": "buttons_ready_bot_pending_token",
+    "module": "src/agents/kodex_buttons.py",
+    "access": "andrii_only"
+  },
+  "reports": {"to_eva": "uploads, transformations, deletions, pending approvals"},
+  "deployment_deferred": [
+    "Telegram-бот: токен і chat_id",
+    "Транскрибація: вибір і встановлення безкоштовного локального рушія",
+    "Переклад: безкоштовний локальний рушій (вибір при деплої)",
+    "Obsidian, NotebookLM, Google Drive, Sheets: експорт/імпорт — після вибору способу доступу",
+    "Парсери Office/PDF: перевірка в середовищі деплою"
+  ]
+}

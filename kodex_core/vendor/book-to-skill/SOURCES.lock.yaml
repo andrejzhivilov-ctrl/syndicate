@@ -1,0 +1,10 @@
+# Вендорена копія. Лише офіційний репозиторій; форк Leutenegger/book-to-skill заборонено (див. SECURITY-NOTICE.md).
+package: book-to-skill
+upstream: https://github.com/virgiliojr94/book-to-skill
+commit: e180fc46365e8c1aab0120778cc8a40b9515324b
+license: MIT (LICENSE.md)
+vendored_on: 2026-10-10
+scope: full repository except .github/ (тести потребують docs/ та evals/)
+status: inactive — не підключено до агентів; книги з захищеним авторським правом — лише приватно
+tests: 808 passed, 5 skipped (venv проєкту, 2026-10-10)
+network_calls: не виявлено (subprocess лише calibre, pdftotext)
