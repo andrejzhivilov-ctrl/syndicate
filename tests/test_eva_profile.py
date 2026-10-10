@@ -73,7 +73,7 @@ def test_humanizer_does_not_claim_deceptive_provenance_or_fake_experience() -> N
 def test_youtube_access_is_declared_but_not_enabled() -> None:
     manifest = json.loads(PROFILE_PATH.read_text(encoding="utf-8"))
     sources = manifest["external_sources"]
-    assert sources["youtube"]["status"] == "requires_andrii_approval"
+    assert sources["youtube"]["status"] == "approved_by_andrii_2026-10-10_keys_pending_deploy"
     assert sources["youtube_music"]["status"] == "requires_andrii_decision"
     assert sources["youtube_music"]["official_api"] is False
     assert "завантаження відео чи аудіо з YouTube" in sources["youtube"]["not_allowed"]

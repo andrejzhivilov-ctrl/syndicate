@@ -74,7 +74,8 @@
     "status": "prepared_not_enabled",
     "rule": "жодних grants; вмикається лише після погодження Андрія і налаштування ключів при деплої",
     "youtube": {
-      "status": "requires_andrii_approval",
+      "status": "approved_by_andrii_2026-10-10_keys_pending_deploy",
+      "approved_by": "andrii",
       "api": "YouTube Data API v3 (офіційний)",
       "planned_scope": [
         "пошук відео",
