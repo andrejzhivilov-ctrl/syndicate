@@ -27,6 +27,10 @@ from src.memory import MemoryManager
 logger = structlog.get_logger(__name__)
 
 
+def _fmt_money(value):
+    return "недоступно" if value is None else f"{value:,.2f}"
+
+
 class FinAgent:
     """Financial analysis specialist agent and Chief Financial Officer."""
     AGENT_ID = "fin"
@@ -233,6 +237,16 @@ class FinAgent:
 
         # SAFETY RULE (mirrors Doc's "never fabricate medical data"):
         # when the banking integration is unreachable we MUST NOT invent account
+        # Рішення A: банківське читання закрите, доки провайдер не перелічено
+        # в конфігурації (bank_read_grants). Ручні виписки сюди не потрапляють.
+        from src.agents.fin_bank_gate import bank_read_allowed, denied_reply
+        grants = self._config.get("bank_read_grants", [])
+        if not any(bank_read_allowed(p, grants) for p in ("monobank", "privatbank")):
+            return {"agent": self.AGENT_ID, **denied_reply("monobank,privatbank"),
+                    "synced_at": datetime.now().isoformat(), "accounts": [],
+                    "total_uah": 0, "total_usd": 0,
+                    "warning": "Balances not estimated: bank read not granted (рішення A)."}
+
         # balances — the CFO dossier and the runway figure would be built on
         # fabricated numbers. Report the failure explicitly instead.
         try:
@@ -308,6 +322,17 @@ class FinAgent:
     async def _morning_data(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Compact metrics for Eva's 07:00 Daily Briefing."""
         bank_data = await self._sync_bank_data(payload)
+        if bank_data.get("status") != "ok":
+            # Немає живих даних: баланс і runway не вигадуємо, податкові дедлайни рахуються.
+            tax_data = await self._tax_radar(payload)
+            return {
+                "agent": self.AGENT_ID, "status": "unavailable",
+                "balance_uah": None, "balance_usd": None,
+                "runway_days": None, "runway_months": None,
+                "tax_alerts_count": len(tax_data["upcoming_taxes"]),
+                "urgent_tax": tax_data["urgent"],
+                "warning": "Баланс недоступний: немає дозволеного читання банку (not estimated).",
+            }
         runway_data = await self._calculate_runway({
             "total_balance": bank_data["total_uah"],
             "monthly_burn": 35000.0,
@@ -352,8 +377,8 @@ class FinAgent:
         report_text = (
             f"📊 ФІНАНСОВИЙ ЗВІТ ({period.upper()})\n"
             f"━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"💰 Загальний баланс UAH: {morning['balance_uah']:,.2f} грн\n"
-            f"💵 Валютний резерв USD: ${morning['balance_usd']:,.2f}\n"
+            f"💰 Загальний баланс UAH: {_fmt_money(morning['balance_uah'])} грн\n"
+            f"💵 Валютний резерв USD: ${_fmt_money(morning['balance_usd'])}\n"
             f"⏳ Runway: {morning['runway_months']} міс ({morning['runway_days']} днів)\n"
             f"📌 Податкові дедлайни: {morning['tax_alerts_count']} на горизонті 45 днів\n"
         )

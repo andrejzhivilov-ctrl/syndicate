@@ -33,22 +33,22 @@ def test_basket_audit_is_advisory_only():
     assert fp.basket_audit(D("1"), D("5"))["advisory_only"] is True
 
 
-def test_allocate_food_from_consumables_only():
-    funds = {"consumables": D("800"), "rest": D("300"), "goals": D("0"), "safety": D("9000")}
+def test_allocate_food_from_groceries_only():
+    funds = {"groceries": D("800"), "leisure": D("300"), "goals": D("0"), "safety": D("9000")}
     ok = fp.allocate_purchase(D("500"), "food", funds, "groceries")
-    assert ok["status"] == "funds_allocated" and ok["source_fund"] == "consumables"
+    assert ok["status"] == "funds_allocated" and ok["source_fund"] == "groceries"
     assert fp.allocate_purchase(D("900"), "food", funds, "groceries")["status"] == "next_period"
 
 
 def test_allocate_never_uses_safety_fund():
-    funds = {"consumables": D("0"), "rest": D("0"), "goals": D("0"), "safety": D("9000")}
-    res = fp.allocate_purchase(D("100"), "other", funds, "gadget", next_period_ok=False)
+    funds = {"groceries": D("0"), "leisure": D("0"), "goals": D("0"), "safety": D("9000")}
+    res = fp.allocate_purchase(D("100"), "other", funds, "gadget", fund="safety")
     assert res["status"] == "reserve_blocked"
     assert "source_fund" not in res
 
 
 def test_allocate_is_always_advisory():
-    funds = {"consumables": D("800"), "rest": D("0"), "goals": D("0"), "safety": D("0")}
+    funds = {"groceries": D("800"), "leisure": D("0"), "goals": D("0"), "safety": D("0")}
     assert fp.allocate_purchase(D("100"), "food", funds, "x")["advisory_only"] is True
 
 

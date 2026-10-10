@@ -19,7 +19,7 @@ def test_fin_has_no_grants():
 
 def test_fin_skills_are_drafts_only():
     skills = _p()["skills"]
-    assert len(skills) == 9
+    assert len(skills) == 14
     assert all(s["activation"] == "draft" for s in skills)
 
 
@@ -35,6 +35,7 @@ def test_fin_money_movement_forbidden_and_no_payment_data():
     assert p["banking"]["status"] == "not_granted"
     assert p["banking"]["write_allowed"] is False
     assert p["banking"]["payment_data_stored"] is False
+    assert p["banking"]["bank_read_grants"] == []  # рішення A: за замовчуванням закрито
 
 
 def test_fin_token_budget_matches_dossier():
@@ -47,9 +48,22 @@ def test_fin_token_budget_matches_dossier():
 def test_fin_proposed_expansions_pending_and_never_items_present():
     pe = _p()["proposed_expansions"]
     assert pe["status"] == "requires_andrii_approval"
-    assert len(pe["items"]) == 10
+    assert len(pe["items"]) == 12
     never_ids = {i["id"] for i in pe["never"]}
     assert never_ids == {"fin.payment_data", "fin.money_write"}
+
+
+def test_fin_routing_only_eva_and_andrii():
+    r = _p()["purchase_flow"]["routing"]
+    assert set(r["eva"]) == {"funds_check", "basket_status", "expense_note", "report_request"}
+    assert r["andrii"] == ["*"]
+    assert r["doc"] == "no_direct_contact_with_fin"
+
+
+def test_fin_full_report_and_skills_have_code():
+    assert all("code" in s for s in _p()["skills"])
+    assert "full" in _p()["reports"] and "planned_block" in _p()["reports"]
+    assert _p()["funds"]["safety"].startswith("Фонд безпеки")
 
 
 def test_fin_docs_and_prompt_exist():
