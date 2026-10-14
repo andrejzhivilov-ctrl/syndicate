@@ -124,6 +124,10 @@ class EvaOrchestrator:
         "micro_quiz": "kira",
         "academy_overview": "kira",
         "morning_data_kira": "kira",
+        "micro_quiz_answer": "kira",
+        "learning_status": "kira",
+        "propose_learning": "kira",
+        "decide_proposal": "kira",
         "kira_socratic_next": "kira_socratic",
         "kira_socratic_solve": "kira_socratic",
 
@@ -757,7 +761,10 @@ class EvaOrchestrator:
         # ``mentor_code_review`` used to fall through to Kira's default handler
         # (socratic_dialogue), silently answering a code-review request with a
         # dialogue. Map routed task types onto Kira's real action names.
-        action_map = {"mentor_code_review": "code_review"}
+        action_map = {
+            "mentor_code_review": "code_review",
+            "morning_data_kira": "morning_data",
+        }
         payload.setdefault("action", action_map.get(state["task_type"], state["task_type"]))
         result = await agent.execute(payload)
         state["result"] = result

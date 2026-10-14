@@ -25,6 +25,37 @@
 
 ---
 
+## 2026-10-14 — Arena Agent: Кіра — самонавчання без вигаданих відповідей
+
+**Гілка:** arena/ce93afb9-syndicate  **Ворота:** ✅ `bash tools/check.sh` (exit 0), `tests/test_kira_academy.py` 27/27
+
+### Зроблено
+- `kira.py` переписано: прибрано вигадані відповіді (`status: reviewed`, `confidence: 0.95`, «План … підготовлено», «Бриф готовий»). Без LLM дії повертають `status: unavailable` з причиною; `lesson_plan` без LLM — `partial` зі скелетом тем з каталогу, без змісту.
+- Дисципліни і банк питань винесено в `src/agents/kira_catalog_seed.json` (у `src/`, бо образ agent-контейнера копіює `src/`, а не `config/`). П'ять дисциплін з досьє, вісім питань зі статусом `seed_needs_andrii_review`.
+- `kira_catalog.py`: валідація схеми (`CatalogError`). `kira_learning.py`: облік відповідей у `KIRA_DATA_DIR`, статистика (`accuracy` = None до 3 відповідей), слабкі теми, пропозиції нових дисциплін/питань/ранкових елементів, схвалює лише `andrii`.
+- Нові дії: `micro_quiz` (з банку, ключ відповіді не віддається), `micro_quiz_answer`, `learning_status`, `propose_learning`, `decide_proposal`. `morning_data` ротує каталог за датою.
+- `kira_buttons.py`: розмітка і розбір callback для Telegram, доступ лише власнику; порожній allowlist = відмова.
+- `orchestrator.py`: маршрути нових дій; `morning_data_kira` тепер мапиться на `morning_data` (раніше невідома дія мовчки падала в діалог).
+- Профіль `kira.profile.json`: додано `proposed_grants` (сховище навчання, не застосовано). `grants`, `capabilities`, `services_enabled` порожні. `export_permissions.py` виконано.
+- `docs/KIRA_SKILL_CANDIDATES.md`: пошук на GitHub (FSRS, obsidian-spaced-repetition, orbit тощо). Нічого не встановлено.
+
+### Не дороблено / свідомо залишено
+- Telegram-бот-раннер не підключено (немає токена). Голос і транскрибація — провайдер не обрано.
+- Реальні відповіді LLM для socratic/code_review/тощо не перевірялись на живій моделі; тести використовують заглушку.
+- Дисципліни й питання з `seed_needs_andrii_review` ще не схвалені Андрієм.
+- Скіли з GitHub не інтегровано.
+
+### Наступне
+1. Андрій переглядає каталог і схвалює/править питання (через `propose_learning` + `decide_proposal`).
+2. Вибрати LLM-модель для Кіри (перевірити актуальність і вартість; назви в документації не підтверджені).
+3. Підключити бот-раннер з кнопками після отримання токена від Андрія.
+
+### Ризики й спостереження
+- Тест purge у `kodex_telegram` (`test_trash_is_purged_on_next_update_after_30_days`) зараз проходить (9 тестів `-k "purge or trash"`). Відкриту червону відмітку з попередньої сесії не відтворено.
+- `_llm_ask` у `kira.py` тепер повертає `(текст, причина)`; внутрішній виклик лише з цього файлу.
+
+---
+
 ## 2026-10-14 — Arena Agent: домашній ПК зараз, сервер пізніше
 
 **Гілка:** arena/ce93afb9-syndicate  **Ворота:** ✅ `bash tools/check.sh` (exit 0)

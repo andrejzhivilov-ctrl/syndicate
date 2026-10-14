@@ -1,0 +1,188 @@
+{
+  "_comment": "Каталог Академії Кіри (Поверх 8). Дані, не код: дисципліни, банк питань, ранкові елементи. Джерело — досьє KIRA (2026-10-14). Нові дисципліни й питання додає Андрій через схвалення пропозицій (kira_learning). Файл лежить у src/, бо образ agent-контейнера копіює src/, а не config/.",
+  "schema_version": 1,
+  "disciplines": {
+    "english": {
+      "title": "Англійська мова (English Mastery)",
+      "icon": "🇬🇧",
+      "focus": "Business English, Tech Discussions, Silicon Valley Pitching, Nuance & Precision",
+      "topics": ["Investor Negotiations", "Technical Architecture Defense", "Idioms & Executive Presence", "Accent & Pronunciation Nuance"]
+    },
+    "programming": {
+      "title": "Програмування (Software Engineering)",
+      "icon": "💻",
+      "focus": "System Architecture, High-Load, Python/Async, Design Patterns & Clean Code",
+      "topics": ["Distributed Systems", "Concurrency & AsyncIO", "Microservices & Event-Driven Architecture", "Data Structures & Algorithmic Optimization"]
+    },
+    "ai_engineering": {
+      "title": "Нейромережі (AI Engineering & Agents)",
+      "icon": "🧠",
+      "focus": "Autonomous Agent Swarms, LangGraph, Advanced RAG, Reasoning Models",
+      "topics": ["Multi-Agent Orchestration", "Vector Databases & Semantic Routing", "Prompt Engineering & Guardrails", "Local Model Deployment (Ollama/vLLM)"]
+    },
+    "vibecoding": {
+      "title": "Вайбкодинг (Rapid AI Prototyping)",
+      "icon": "⚡",
+      "focus": "Prompt-Driven Development, Cursor & Claude Workflows, Zero-Friction MVP Shipping",
+      "topics": ["Spec-Driven Generation", "Agentic Debugging Loops", "Full-Stack MVP in 60 Minutes", "AI Copilot Synergy"]
+    },
+    "history": {
+      "title": "Історія (Strategy & Mental Models)",
+      "icon": "🏛️",
+      "focus": "Geopolitics, Civilizational Cycles, Military Strategy, Lessons of Empire & Power",
+      "topics": ["Roman Republic & Imperial Decay", "Sun Tzu & The Art of War", "Cold War Intelligence Doctrines", "Monetary Crises & Industrial Revolutions"]
+    }
+  },
+  "quiz_bank": [
+    {
+      "id": "prog-gather-01",
+      "discipline": "programming",
+      "topic": "Concurrency & AsyncIO",
+      "question": "Ви викликаєте asyncio.gather(a(), b(), c()) без return_exceptions=True. Задача b() кидає виняток. Що станеться?",
+      "options": {
+        "A": "gather поверне список, де на місці b() стоїть виняток",
+        "B": "Виняток підніметься в місці await; інші задачі не скасовуються і продовжують працювати",
+        "C": "Усі задачі скасуються автоматично, а виняток з'явиться лише в логах",
+        "D": "Програма завершиться без повідомлення"
+      },
+      "answer": "B",
+      "explanation": "Без return_exceptions=True перший виняток піднімається у викликаючий код. Інші awaitable не скасовуються автоматично: вони продовжують виконуватися у фоні, якщо їх не скасувати явно.",
+      "status": "seed_needs_andrii_review"
+    },
+    {
+      "id": "prog-taskgroup-01",
+      "discipline": "programming",
+      "topic": "Concurrency & AsyncIO",
+      "question": "У async with asyncio.TaskGroup() одна задача кидає виняток. Що відбувається з рештою задач?",
+      "options": {
+        "A": "Решта задач продовжують працювати, виняток ігнорується",
+        "B": "Решта задач скасовуються, а після виходу з блоку піднімається ExceptionGroup",
+        "C": "Решта задач перезапускаються з початку",
+        "D": "TaskGroup повертає виняток як результат"
+      },
+      "answer": "B",
+      "explanation": "TaskGroup (Python 3.11+) структурує конкурентність: при помилці в одній задачі решта скасовуються, а винятки збираються в ExceptionGroup.",
+      "status": "seed_needs_andrii_review"
+    },
+    {
+      "id": "prog-breaker-01",
+      "discipline": "programming",
+      "topic": "Distributed Systems",
+      "question": "Навіщо потрібен патерн Circuit Breaker у розподіленій системі?",
+      "options": {
+        "A": "Щоб прискорити всі запити до сервісу",
+        "B": "Щоб тимчасово перестати викликати ненадійний сервіс після серії помилок",
+        "C": "Щоб зашифрувати дані між сервісами",
+        "D": "Щоб кешувати відповіді назавжди"
+      },
+      "answer": "B",
+      "explanation": "Після серії помилок breaker розмикає ланцюг: виклики швидко відхиляються, сервіс отримує час відновитися, а система не накопичує черги очікувань.",
+      "status": "seed_needs_andrii_review"
+    },
+    {
+      "id": "ai-rag-01",
+      "discipline": "ai_engineering",
+      "topic": "Vector Databases & Semantic Routing",
+      "question": "Що робить етап retrieval у RAG перед генерацією відповіді?",
+      "options": {
+        "A": "Генерує відповідь без жодного контексту",
+        "B": "Знаходить релевантні фрагменти в сховищі і додає їх до контексту моделі",
+        "C": "Перенавчає модель на нових даних",
+        "D": "Стискає модель до меншого розміру"
+      },
+      "answer": "B",
+      "explanation": "Retrieval вибирає фрагменти, релевантні запиту. Генерація спирається на них, тому якість відповіді залежить від якості пошуку.",
+      "status": "seed_needs_andrii_review"
+    },
+    {
+      "id": "ai-injection-01",
+      "discipline": "ai_engineering",
+      "topic": "Prompt Engineering & Guardrails",
+      "question": "Що таке prompt injection?",
+      "options": {
+        "A": "Оптимізація швидкості відповіді моделі",
+        "B": "Вбудовування інструкцій у недовірений вхід, щоб змінити поведінку моделі",
+        "C": "Навчання моделі на внутрішніх документах",
+        "D": "Стиснення промпту до мінімальної довжини"
+      },
+      "answer": "B",
+      "explanation": "Недовірений текст (документ, веб-сторінка, повідомлення) може містити інструкції. Захист: розділяти дані й інструкції, не виконувати інструкції з даних, обмежувати інструменти.",
+      "status": "seed_needs_andrii_review"
+    },
+    {
+      "id": "vibe-spec-01",
+      "discipline": "vibecoding",
+      "topic": "Spec-Driven Generation",
+      "question": "Перед тим як просити ШІ згенерувати модуль, що найкраще?",
+      "options": {
+        "A": "Одразу просити весь застосунок одним запитом",
+        "B": "Написати коротку специфікацію: входи, виходи, обмеження і критерії приймання",
+        "C": "Не вказувати мову програмування",
+        "D": "Приховати від моделі, для чого потрібен код"
+      },
+      "answer": "B",
+      "explanation": "Чітка специфікація зменшує простір помилкових рішень і дає критерій, за яким можна перевірити результат.",
+      "status": "seed_needs_andrii_review"
+    },
+    {
+      "id": "vibe-loop-01",
+      "discipline": "vibecoding",
+      "topic": "Agentic Debugging Loops",
+      "question": "Що таке agentic debugging loop?",
+      "options": {
+        "A": "Вручну копіювати кожну помилку в чат",
+        "B": "Запускати тести, передавати помилку назад агенту і повторювати, доки тести не пройдуть",
+        "C": "Вимкнути тести, щоб швидше рухатися",
+        "D": "Перезапускати комп'ютер після кожної помилки"
+      },
+      "answer": "B",
+      "explanation": "Цикл автоматизує виправлення: результат перевіряється тестами, а не довірою до відповіді моделі.",
+      "status": "seed_needs_andrii_review"
+    },
+    {
+      "id": "hist-suntzu-01",
+      "discipline": "history",
+      "topic": "Sun Tzu & The Art of War",
+      "question": "Яка з цих ідей приписується Сунь-цзи у «Мистецтві війни»?",
+      "options": {
+        "A": "Найвища майстерність — перемогти, не вступаючи в бій",
+        "B": "Головне — максимальна кількість піхоти",
+        "C": "Облога завжди краща за маневр",
+        "D": "Розвідка не має значення"
+      },
+      "answer": "A",
+      "explanation": "Ця ідея є в третьому розділі трактату. Авторство і дата тексту дискусійні серед істориків, тому ідею варто перевіряти за першоджерелом.",
+      "status": "seed_needs_andrii_review"
+    },
+    {
+      "id": "hist-tetrarchy-01",
+      "discipline": "history",
+      "topic": "Roman Republic & Imperial Decay",
+      "question": "Яку мету переслідувала тетрархія Діоклетіана за традиційною інтерпретацією?",
+      "options": {
+        "A": "Повернути республіканські вибори",
+        "B": "Розподілити управління імперією між чотирма співправителями",
+        "C": "Скасувати армію",
+        "D": "Перенести столицю на острів"
+      },
+      "answer": "B",
+      "explanation": "Тетрархія розділила керування між двома августами і двома цезарями. Це зменшувало навантаження на один центр влади.",
+      "status": "seed_needs_andrii_review"
+    }
+  ],
+  "morning_items": {
+    "word_of_the_day": [
+      {"text": "Antifragile (adj) — здатність ставати сильнішим від хаосу і стресу.", "source": "dossier"},
+      {"text": "Idempotent (adj) — операція, повторний виклик якої дає той самий результат.", "source": "seed_needs_andrii_review"},
+      {"text": "Leverage (noun) — вплив, який множить зусилля.", "source": "seed_needs_andrii_review"}
+    ],
+    "coding_spark": [
+      {"text": "Використовуйте asyncio.TaskGroup (Python 3.11+) замість gather там, де потрібна структурована конкурентність.", "source": "dossier"},
+      {"text": "Не ловіть Exception широко: спочатку вирішіть, які помилки відновлювані, і обробляйте лише їх.", "source": "seed_needs_andrii_review"}
+    ],
+    "history_model": [
+      {"text": "Карфаген проти Риму: логістика й інституційна витривалість зазвичай перемагають ситуативний тактичний геній.", "source": "dossier"},
+      {"text": "Тетрархія Діоклетіана: розподіл навантаження між кількома центрами зменшує єдину точку відмови.", "source": "seed_needs_andrii_review"}
+    ]
+  }
+}
