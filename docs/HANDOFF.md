@@ -28,6 +28,19 @@
 ## 2026-10-14 — Arena Agent: Antigravity Studio, підготовка без активації
 
 **Гілка:** arena/9e3cefbf-syndicate. **База:** c0b9ef5 (PR #10).
+**Каркас:** 0ff2f9f, PR #11 (Antigravity, не голосовий 5e96a86).
+**Локальні ворота після змін:** `bash tools/check.sh` exit 0, включно з pgserver.
+
+### CI спостереження
+- Перший run `38585534450`: Gates (no database) pass; PostgreSQL + pgvector fail.
+- Анотації PostgreSQL: лише `Process completed with exit code 1` на workflow line 88
+  (крок Gates with a live database); конкретний тест/причину не встановлено.
+- `gh run view --log-failed` не завантажив лог (EOF від results-receiver host).
+- `gh run rerun 38585534450 --failed` відмовив: `cannot be rerun; its workflow file
+  may be broken`. Це повідомлення gh, не підтверджений діагноз workflow.
+- PR не зливати без усіх зелених checks. Порожніх комітів і змін логіки тестів
+  для обходу CI не робили; цей запис зберігає діагностику для наступної сесії.
+
 
 ### Зроблено
 - Перевірено гілку/log/status: чистий shallow checkout; локальний `5e96a86`
