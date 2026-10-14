@@ -7,6 +7,7 @@
 
 | Агент | Активація | Роль | Capabilities | Resource scopes | Сервіси | Skills | Telegram |
 |---|---|---|---|---|---|---|---|
+| antigravity | prepared_not_enabled | identity_draft | — | — | — | 0 (активних: 0) | not_connected |
 | architect | prepared_not_enabled | identity_draft | n8n.workflow.design, n8n.workflow.mount | n8n/live | n8n | 3 (активних: 0) | — |
 | doc | prepared_not_enabled | not_agreed | — | — | — | 0 (активних: 0) | buttons_ready_bot_pending_token |
 | eva | prepared_not_enabled | agreed_draft | — | — | — | 5 (активних: 0) | — |

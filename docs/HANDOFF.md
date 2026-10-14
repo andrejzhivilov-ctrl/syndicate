@@ -25,6 +25,79 @@
 
 ---
 
+## 2026-10-14 — Arena Agent: Google One handoff та локальні інструменти Antigravity
+
+**Гілка:** arena/9e3cefbf-syndicate. **PR:** #11, оновлення до каркаса.
+
+### Зроблено
+- Андрій уточнив: використовуємо його Google One. Профіль описує manual handoff,
+  а не API-entitlement; точний тариф/квоти не перевірені, додаткові витрати не ввімкнено.
+- Додано owner-run `tools/antigravity_studio.py`: init/status, task/packet/receive,
+  локальна HTML-чернетка, детермінований PNG, PNG → MP4 через FFmpeg,
+  індексація reviewed приватної копії та локальний SQLite FTS5 пошук із source_hash.
+- Workspace лише поза Git в абсолютному EVA_DATA_DIR; owner-only permissions,
+  без symlinks/path traversal/overwrite; евристика секретів і PII до збереження brief.
+  Евристика не гарантує очищення всіх особистих даних: перед export потрібен review.
+- Повернені файли untrusted, без виконання/публікації. Жодних Google cookies/API,
+  автоматичного GitHub доступу, платежів або live Hermes adapter не додано.
+- Локальний audit записує IDs/операції, не вміст; передача Єві поки ручна.
+- Новий deploy checklist створено за доступним кодом (не відновлення 5e96a86);
+  операторська інструкція — docs/ANTIGRAVITY_OPERATOR_GUIDE.md.
+- До deploy Dockerfile додано DejaVu для українських PNG; build образу не запускався.
+
+### Вказівки Андрія / межі
+- Злити поточні зміни через зелений PR у main. Паспорт/PDF **скасовано** останнім повідомленням.
+- Production deployment і активація агентів не виконуються; grants порожні.
+- Нічого «зайвого» з чужих файлів/архівів/історії/гілок не видалено.
+- Недоступний локальний голосовий 5e96a86 досі не перенесено; не стверджувати,
+  що цей voice-path або весь початковий план автономної фабрики реалізовано.
+
+### Наступне
+- CI/checks поточного head, явний `gh pr merge 11 --merge`, перевірити merge commit.
+- Після merge потрібні сервер/TLS, A/B контейнеризація та конкретні grants,
+  якщо Андрій хоче активацію; підписка Google One не є згодою на API-витрати.
+
+## 2026-10-14 — Arena Agent: Antigravity Studio, підготовка без активації
+
+**Гілка:** arena/9e3cefbf-syndicate. **База:** c0b9ef5 (PR #10).
+**Каркас:** 0ff2f9f, PR #11 (Antigravity, не голосовий 5e96a86).
+**Локальні ворота після змін:** `bash tools/check.sh` exit 0, включно з pgserver.
+
+### CI спостереження
+- Перший run `38585534450`: Gates (no database) pass; PostgreSQL + pgvector fail.
+- Анотації PostgreSQL: лише `Process completed with exit code 1` на workflow line 88
+  (крок Gates with a live database); конкретний тест/причину не встановлено.
+- `gh run view --log-failed` не завантажив лог (EOF від results-receiver host).
+- `gh run rerun 38585534450 --failed` відмовив: `cannot be rerun; its workflow file
+  may be broken`. Це повідомлення gh, не підтверджений діагноз workflow.
+- PR не зливати без усіх зелених checks. Порожніх комітів і змін логіки тестів
+  для обходу CI не робили; цей запис зберігає діагностику для наступної сесії.
+
+
+### Зроблено
+- Перевірено гілку/log/status: чистий shallow checkout; локальний `5e96a86`
+  відсутній, fetch короткого SHA не знаходить ref, GitHub commits API повертає 422.
+  Коміт не cherry-picked, голосовий PR не створено й не злито.
+- Встановлено test dependencies у ignored `.venv`; baseline `bash tools/check.sh` exit 0.
+- Підготовлено Antigravity profile, runtime prompt, offline `execute` контракт:
+  статус підготовки, сім заблокованих операцій, жодних живих провайдерів.
+  Payload grants/activation не надають прав. 16 нових тестів пройшли.
+- Явний реєстр у test_prepared_agent_profiles розширено новим agent ID/чернеткою
+  ідентичності; перевірки прав та ізоляції не послаблювали.
+- Матрицю прав перегенеровано; docs/ANTIGRAVITY_STUDIO.md описує етапи,
+  RAG/privacy, billing/webhook gates, GitHub least privilege і deployment-блокери.
+- Записано чинні рішення з повідомлення Андрія; grants порожні, activation не змінено.
+
+### Не зроблено / наступне
+1. Андрій надає patch/bundle з `5e96a86` із попереднього середовища (без секретів).
+   Потім перевірка, PR, зелені checks та merge з явним номером.
+2. Потрібні відповіді про A/B контейнери, сервер/TLS, grants, голос та значення підписки.
+3. Antigravity ще не в orchestrator/Telegram/FastAPI; немає live Hermes adapter,
+   runtime, port 8007, API providers, billing, GitHub доступу чи history ingest.
+4. `EVA_SYNDICATE_FULL_DIALOGUE.txt` tracked, але вміст тут не читали/не передавали.
+   Новий ingest лише з приватної копії, ACL/PII та погодженим embedding-provider.
+5. `docs/DEPLOY_CHECKLIST.md` у checkout відсутній; production deployment не виконувати.
+
 ## 2026-10-14 — Arena Agent: Кіра — самонавчання без вигаданих відповідей
 
 **Гілка:** arena/ce93afb9-syndicate  **Ворота:** ✅ `bash tools/check.sh` (exit 0), `tests/test_kira_academy.py` 27/27
