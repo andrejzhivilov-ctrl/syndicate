@@ -13,8 +13,8 @@
 - Відновити локальний `5e96a86` із попереднього середовища через patch/bundle:
   у цій копії та GitHub його немає. Voice/deploy checklist ще не перенесено.
 - Узгодити сервер/TLS, контейнеризацію A/B, перші grants і голосовий тест.
-- **Antigravity Studio:** профіль, offline-контракт та тести готові; усі live-функції
-  не підключені. Після уточнення підписки обрати перший напрям, бюджети,
+- **Antigravity Studio:** профіль, offline-контракт, operator CLI (HTML/PNG/MP4, task handoff, local FTS)
+  готові; live-функції не підключені. Google One обрано для manual handoff. Далі — бюджети,
   repo/domain scopes, приватну історію й ACL; план — `docs/ANTIGRAVITY_STUDIO.md`.
 
 ## 🔴 Пріоритет 0 — підготовка бекенду під клієнтський додаток

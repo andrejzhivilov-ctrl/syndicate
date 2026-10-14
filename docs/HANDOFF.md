@@ -25,6 +25,38 @@
 
 ---
 
+## 2026-10-14 — Arena Agent: Google One handoff та локальні інструменти Antigravity
+
+**Гілка:** arena/9e3cefbf-syndicate. **PR:** #11, оновлення до каркаса.
+
+### Зроблено
+- Андрій уточнив: використовуємо його Google One. Профіль описує manual handoff,
+  а не API-entitlement; точний тариф/квоти не перевірені, додаткові витрати не ввімкнено.
+- Додано owner-run `tools/antigravity_studio.py`: init/status, task/packet/receive,
+  локальна HTML-чернетка, детермінований PNG, PNG → MP4 через FFmpeg,
+  індексація reviewed приватної копії та локальний SQLite FTS5 пошук із source_hash.
+- Workspace лише поза Git в абсолютному EVA_DATA_DIR; owner-only permissions,
+  без symlinks/path traversal/overwrite; евристика секретів і PII до збереження brief.
+  Евристика не гарантує очищення всіх особистих даних: перед export потрібен review.
+- Повернені файли untrusted, без виконання/публікації. Жодних Google cookies/API,
+  автоматичного GitHub доступу, платежів або live Hermes adapter не додано.
+- Локальний audit записує IDs/операції, не вміст; передача Єві поки ручна.
+- Новий deploy checklist створено за доступним кодом (не відновлення 5e96a86);
+  операторська інструкція — docs/ANTIGRAVITY_OPERATOR_GUIDE.md.
+- До deploy Dockerfile додано DejaVu для українських PNG; build образу не запускався.
+
+### Вказівки Андрія / межі
+- Злити поточні зміни через зелений PR у main. Паспорт/PDF **скасовано** останнім повідомленням.
+- Production deployment і активація агентів не виконуються; grants порожні.
+- Нічого «зайвого» з чужих файлів/архівів/історії/гілок не видалено.
+- Недоступний локальний голосовий 5e96a86 досі не перенесено; не стверджувати,
+  що цей voice-path або весь початковий план автономної фабрики реалізовано.
+
+### Наступне
+- CI/checks поточного head, явний `gh pr merge 11 --merge`, перевірити merge commit.
+- Після merge потрібні сервер/TLS, A/B контейнеризація та конкретні grants,
+  якщо Андрій хоче активацію; підписка Google One не є згодою на API-витрати.
+
 ## 2026-10-14 — Arena Agent: Antigravity Studio, підготовка без активації
 
 **Гілка:** arena/9e3cefbf-syndicate. **База:** c0b9ef5 (PR #10).

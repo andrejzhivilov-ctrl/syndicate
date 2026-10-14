@@ -1,7 +1,13 @@
 # Antigravity — Venture & Media Factory
 
-Стан на 2026-10-14: **каркас підготовлено, не активовано**. Це агент SYNDICATE,
-не інтеграція з підпискою Google Antigravity IDE. Старий `ANTIGRAVITY_BRIEF.md`
+Стан на 2026-10-14: **каркас підготовлено, не активовано**.
+
+Оновлення: Андрій обрав свою підписку Google One. Додано робочі локальні
+інструменти й ручний subscription-handoff — `docs/ANTIGRAVITY_OPERATOR_GUIDE.md`.
+Це не API-backend Google і не автономний runtime. Розділ «що реально є» нижче
+описує agent-контракт; окремий owner-run CLI вже створює task packets, HTML,
+PNG, MP4 через FFmpeg та приватний local FTS index. Це агент SYNDICATE з ручною передачею завдань у Google-продукт,
+не автоматичний API-конектор до Google Antigravity IDE. Старий `ANTIGRAVITY_BRIEF.md`
 описує співпрацю із зовнішнім coding-інструментом, а не цей runtime.
 
 ## Що реально є
@@ -61,12 +67,12 @@ source hash + chunk ID + дата + версія embedding для ідемпот
 із широкими правами або весь Vault у build sandbox.
 
 Перед сервером: `DEPLOYMENT_RUNBOOK.md`, `docs/DEPLOY_SYNDICATE.md` та
-`docs/DEPLOY_CHECKLIST.md`. Останній у цьому checkout **відсутній**: він є частиною
-недоступного локального коміта `5e96a86`. Не вважати розгортання готовим.
+`docs/DEPLOY_CHECKLIST.md`. Чеклист у цій сесії створено заново за доступним
+кодом; це не відновлення недоступного `5e96a86`. Не вважати розгортання виконаним.
 
 ## Потрібні рішення
 
-1. Підписка — оплата інструмента, SaaS-білінг продуктів чи обидва?
+1. Підписка — Google One (погоджено); точний AI-тариф і квоти Андрій перевіряє у своєму акаунті. SaaS-білінг не замовлено як окрема платіжна інтеграція.
 2. Перший напрям, provider/model + бюджет; фактичні API і ціни перевірити перед вибором.
 3. Конкретні grants/resource scopes, repo/domain allowlists і ліміти; запропоновані
    можливості не вмикаються автоматично.

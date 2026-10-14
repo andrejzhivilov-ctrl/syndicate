@@ -23,20 +23,58 @@
     "production_deployment": false,
     "telegram_bot": false
   },
-  "telegram": {"status": "not_connected", "allowlist": []},
+  "telegram": {
+    "status": "not_connected",
+    "allowlist": []
+  },
   "history": {
     "status": "not_ingested",
     "private_copy_required": true,
     "external_embeddings": false
   },
-  "subscription": {"status": "needs_clarification"},
+  "subscription": {
+    "status": "operator_google_one_requested",
+    "provider": "google_one",
+    "mode": "manual_handoff",
+    "exact_plan": "not_verified",
+    "api_entitlement": "not_assumed",
+    "automatic_credit_topups": false
+  },
   "proposed_grants": [
-    {"capability": "antigravity.app.build", "status": "proposed_not_applied", "purpose": "Генерація коду у приватному workspace; окремий sandbox без production-секретів"},
-    {"capability": "antigravity.image.generate", "status": "proposed_not_applied", "purpose": "Зображення після вибору провайдера, вартості та бюджету"},
-    {"capability": "antigravity.video.render", "status": "proposed_not_applied", "purpose": "Відео у sandbox з погодженими ресурсними лімітами"},
-    {"capability": "antigravity.research.read", "status": "proposed_not_applied", "purpose": "Дослідження з погодженим domain allowlist; без обходу авторизації"},
-    {"capability": "antigravity.github.pr", "status": "proposed_not_applied", "purpose": "Репозиторії та гілки за allowlist; PR без автоматичного merge"},
-    {"capability": "antigravity.billing.read", "status": "proposed_not_applied", "purpose": "Статистика лише обраного платіжного провайдера; без списань"},
-    {"capability": "antigravity.history.read", "status": "proposed_not_applied", "purpose": "Приватна очищена історія з ACL, без глобального доступу до медичних даних"}
+    {
+      "capability": "antigravity.app.build",
+      "status": "proposed_not_applied",
+      "purpose": "Генерація коду у приватному workspace; окремий sandbox без production-секретів"
+    },
+    {
+      "capability": "antigravity.image.generate",
+      "status": "proposed_not_applied",
+      "purpose": "Зображення після вибору провайдера, вартості та бюджету"
+    },
+    {
+      "capability": "antigravity.video.render",
+      "status": "proposed_not_applied",
+      "purpose": "Відео у sandbox з погодженими ресурсними лімітами"
+    },
+    {
+      "capability": "antigravity.research.read",
+      "status": "proposed_not_applied",
+      "purpose": "Дослідження з погодженим domain allowlist; без обходу авторизації"
+    },
+    {
+      "capability": "antigravity.github.pr",
+      "status": "proposed_not_applied",
+      "purpose": "Репозиторії та гілки за allowlist; PR без автоматичного merge"
+    },
+    {
+      "capability": "antigravity.billing.read",
+      "status": "proposed_not_applied",
+      "purpose": "Статистика лише обраного платіжного провайдера; без списань"
+    },
+    {
+      "capability": "antigravity.history.read",
+      "status": "proposed_not_applied",
+      "purpose": "Приватна очищена історія з ACL, без глобального доступу до медичних даних"
+    }
   ]
 }
