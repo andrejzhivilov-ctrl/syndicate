@@ -25,6 +25,32 @@
 
 ---
 
+## 2026-10-14 — Arena Agent: домашній ПК зараз, сервер пізніше
+
+**Гілка:** arena/ce93afb9-syndicate  **Ворота:** ✅ `bash tools/check.sh` (exit 0)
+
+### Зроблено
+- **Інструкція:** `docs/HOME_DEPLOYMENT.md`. Відповідь: домашній ПК придатний як LAN-стенд для стеку (postgres, redis, vault, embeddings, eva-agent, n8n, whisper, nginx). Для 24/7 і продакшну — ні. Агенти не запускаються: Hermes-runtime лише як контракти.
+- **`DATA_ROOT`** у `docker-compose.yml` і `deploy/docker-compose.yml` (копії ідентичні): усі хост-шляхи `/data/*` тепер `${DATA_ROOT:-/data}/*`. Сервер не змінюється (за замовчуванням `/data`).
+- **`.env.example`:** `DATA_ROOT`, коментар про `ASR_MODEL` для слабкого ПК.
+- **Посилання** з `docs/DEPLOY_SYNDICATE.md` (розділ 7a).
+
+### Не перевірено
+- Жодного запуску `docker compose` у sandbox: Docker немає. Перший реальний запуск — на ПК.
+- Характеристики ПК невідомі. Вимоги в документі — мінімум і рекомендація.
+- Розмір сервера для поточного стеку — оцінка, не вимірювання.
+- Тест `test_trash_is_purged_on_next_update_after_30_days` мав дефект: змішував фіксований годинник (2026-10-10) з реальним. Годинник сховища в тесті зафіксовано на NOW. Логіку очищення не змінювано.
+
+### Інцидент з середовищем
+- Під час сесії sandbox переклонували: локальні коміти зникли з локальної гілки, але були на `origin/arena/ce93afb9-syndicate` (до `b532e11`). Локальна гілка переведена на origin через `reset --mixed` після перевірки, що робоче дерево збігається з origin. Втрат немає.
+
+### Наступне
+1. Ти: характеристики ПК (CPU, RAM, диск, ОС, годин роботи на добу).
+2. Перший запуск стеку на ПК за розділом 4 `docs/HOME_DEPLOYMENT.md`; результат `docker stats` і `verify_deployment.sh` — у HANDOFF.
+3. Hermes-клієнт і образ runtime (план у `docs/AGENT_CONTAINERS.md`).
+
+---
+
 ## 2026-10-10 — Arena Agent: вечірній звіт Єві о 21:00 з файлами KODEX
 
 **Гілка:** arena/ce93afb9-syndicate  **Ворота:** ✅ `bash tools/check.sh` (exit 0)
