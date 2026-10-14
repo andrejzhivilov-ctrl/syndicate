@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "agent_id": "antigravity",
+  "activation": "prepared_not_enabled",
+  "runtime": "hermes",
+  "hermes_profile": "antigravity",
+  "memory_namespace": "agents/antigravity",
+  "prompt_file": "src/agents/antigravity_runtime_prompt.md",
+  "prompt_status": "draft",
+  "role_status": "identity_draft",
+  "model_status": "not_selected",
+  "task_source": "andrii_only",
+  "capabilities": [],
+  "grants": [],
+  "resource_scopes": [],
+  "services_enabled": [],
+  "skills": [],
+  "live_modes": {
+    "internet": false,
+    "github": false,
+    "billing": false,
+    "history_ingest": false,
+    "production_deployment": false,
+    "telegram_bot": false
+  },
+  "telegram": {"status": "not_connected", "allowlist": []},
+  "history": {
+    "status": "not_ingested",
+    "private_copy_required": true,
+    "external_embeddings": false
+  },
+  "subscription": {"status": "needs_clarification"},
+  "proposed_grants": [
+    {"capability": "antigravity.app.build", "status": "proposed_not_applied", "purpose": "Генерація коду у приватному workspace; окремий sandbox без production-секретів"},
+    {"capability": "antigravity.image.generate", "status": "proposed_not_applied", "purpose": "Зображення після вибору провайдера, вартості та бюджету"},
+    {"capability": "antigravity.video.render", "status": "proposed_not_applied", "purpose": "Відео у sandbox з погодженими ресурсними лімітами"},
+    {"capability": "antigravity.research.read", "status": "proposed_not_applied", "purpose": "Дослідження з погодженим domain allowlist; без обходу авторизації"},
+    {"capability": "antigravity.github.pr", "status": "proposed_not_applied", "purpose": "Репозиторії та гілки за allowlist; PR без автоматичного merge"},
+    {"capability": "antigravity.billing.read", "status": "proposed_not_applied", "purpose": "Статистика лише обраного платіжного провайдера; без списань"},
+    {"capability": "antigravity.history.read", "status": "proposed_not_applied", "purpose": "Приватна очищена історія з ACL, без глобального доступу до медичних даних"}
+  ]
+}

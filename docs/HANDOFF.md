@@ -25,6 +25,34 @@
 
 ---
 
+## 2026-10-14 — Arena Agent: Antigravity Studio, підготовка без активації
+
+**Гілка:** arena/9e3cefbf-syndicate. **База:** c0b9ef5 (PR #10).
+
+### Зроблено
+- Перевірено гілку/log/status: чистий shallow checkout; локальний `5e96a86`
+  відсутній, fetch короткого SHA не знаходить ref, GitHub commits API повертає 422.
+  Коміт не cherry-picked, голосовий PR не створено й не злито.
+- Встановлено test dependencies у ignored `.venv`; baseline `bash tools/check.sh` exit 0.
+- Підготовлено Antigravity profile, runtime prompt, offline `execute` контракт:
+  статус підготовки, сім заблокованих операцій, жодних живих провайдерів.
+  Payload grants/activation не надають прав. 16 нових тестів пройшли.
+- Явний реєстр у test_prepared_agent_profiles розширено новим agent ID/чернеткою
+  ідентичності; перевірки прав та ізоляції не послаблювали.
+- Матрицю прав перегенеровано; docs/ANTIGRAVITY_STUDIO.md описує етапи,
+  RAG/privacy, billing/webhook gates, GitHub least privilege і deployment-блокери.
+- Записано чинні рішення з повідомлення Андрія; grants порожні, activation не змінено.
+
+### Не зроблено / наступне
+1. Андрій надає patch/bundle з `5e96a86` із попереднього середовища (без секретів).
+   Потім перевірка, PR, зелені checks та merge з явним номером.
+2. Потрібні відповіді про A/B контейнери, сервер/TLS, grants, голос та значення підписки.
+3. Antigravity ще не в orchestrator/Telegram/FastAPI; немає live Hermes adapter,
+   runtime, port 8007, API providers, billing, GitHub доступу чи history ingest.
+4. `EVA_SYNDICATE_FULL_DIALOGUE.txt` tracked, але вміст тут не читали/не передавали.
+   Новий ingest лише з приватної копії, ACL/PII та погодженим embedding-provider.
+5. `docs/DEPLOY_CHECKLIST.md` у checkout відсутній; production deployment не виконувати.
+
 ## 2026-10-14 — Arena Agent: Кіра — самонавчання без вигаданих відповідей
 
 **Гілка:** arena/ce93afb9-syndicate  **Ворота:** ✅ `bash tools/check.sh` (exit 0), `tests/test_kira_academy.py` 27/27
