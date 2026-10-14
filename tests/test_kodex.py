@@ -265,3 +265,23 @@ def test_state_and_blobs_survive_reload(tmp_path: Path) -> None:
     again = KodexStore(tmp_path / "k.json")
     assert again.records[r["id"]].kind == "audio"
     assert again.read_bytes(r["id"]) == b"mp3-data"
+
+
+def test_agent_ingest_is_in_report_andrii_upload_is_not(store: KodexStore) -> None:
+    since = datetime.now() - timedelta(minutes=1)
+    store.ingest("від_агента.md", b"a1", origin="agent", actor="doc", text="харчування")
+    store.ingest("від_андрія.md", b"a2", origin="andrii_direct", actor="kodex")
+    rep = store.report_for_eva(since)
+    assert [e["name"] for e in rep["agent_ingests"]] == ["від_агента.md"]
+    assert rep["agent_ingests"][0]["actor"] == "doc"
+
+
+def test_automatic_purge_is_reported_with_name(store: KodexStore) -> None:
+    since = datetime.now() - timedelta(minutes=1)
+    u = store.ingest("кошик.md", b"k", origin="agent", actor="sam")
+    store.request_delete(u["id"], actor="sam")
+    store.purge_expired(datetime.now() + timedelta(days=kodex.TRASH_RETENTION_DAYS + 1))
+    rep = store.report_for_eva(since)
+    assert len(rep["auto_purged"]) == 1
+    assert rep["auto_purged"][0]["name"] == "кошик.md"
+    assert rep["auto_purged"][0]["actor"] == "kodex"

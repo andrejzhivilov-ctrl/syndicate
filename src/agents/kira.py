@@ -4,20 +4,24 @@ Floor 8: Enlightenment, Academy & Mentorship.
 
 Strict Domain Isolation:
 Dedicated solely to education, cognitive elevation, and skill mastery for Andriy.
-Zero cross-domain distractions. Kira focuses exclusively on 5 core disciplines:
-1. 🇬🇧 English Mastery (Business, Tech, Pitching, Idioms)
-2. 💻 Programming & System Architecture (Python, Go, Distributed Systems, Clean Code)
-3. 🧠 AI Engineering & Agents (LLMs, RAG, Swarms, LangGraph, Embeddings)
-4. ⚡ Vibecoding & Rapid Prototyping (Prompt-to-Code, Cursor/Claude workflows, MVP shipping)
-5. 🏛️ World History, Strategy & Mental Models (Geopolitics, Roman Empire, Machiavelli, Sun Tzu)
+Дисципліни, банк питань і ранкові елементи — у каталозі (``kira_catalog_seed.json``),
+доповнення схвалює Андрій (``kira_learning``). Нові дисципліни додаються даними, не кодом.
+
+Правила чесності (AGENTS.md, розділ 1):
+- Без LLM дії, що потребують генерації тексту, повертають ``unavailable`` без вигаданого змісту.
+- Квізи — лише з банку з ключем відповіді. Відповіді, які LLM генерує без перевірки, не дають
+  оцінки знань.
+- Метрики (accuracy) з'являються лише від реальних відповідей і лише після мінімальної кількості.
 """
 
 from __future__ import annotations
 
 import json
+import os
 from contextvars import ContextVar
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from datetime import date, datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
 
 import structlog
 from langchain_core.messages import HumanMessage
@@ -29,42 +33,16 @@ from src.agent_memory import (
     recall_agent_memory,
     save_agent_episode,
 )
+from src.agents.kira_catalog import MORNING_KINDS, load_seed
+from src.agents.kira_learning import KiraLearningStore
 
 logger = structlog.get_logger(__name__)
 
+#: Статуси, після яких результат має сенс зберігати в пам'ять (не «порожні» відповіді).
+SAVEABLE_STATUSES = ("ok", "partial", "completed")
 
-DISCIPLINES = {
-    "english": {
-        "title": "Англійська мова (English Mastery)",
-        "icon": "🇬🇧",
-        "focus": "Business English, Tech Discussions, Silicon Valley Pitching, Nuance & Precision",
-        "topics": ["Investor Negotiations", "Technical Architecture Defense", "Idioms & Executive Presence", "Accent & Pronunciation Nuance"],
-    },
-    "programming": {
-        "title": "Програмування (Software Engineering)",
-        "icon": "💻",
-        "focus": "System Architecture, High-Load, Python/Async, Rust/Go, Design Patterns & Clean Code",
-        "topics": ["Distributed Systems", "Concurrency & AsyncIO", "Microservices & Event-Driven Architecture", "Data Structures & Algorithmic Optimization"],
-    },
-    "ai_engineering": {
-        "title": "Нейромережі (AI Engineering & Agents)",
-        "icon": "🧠",
-        "focus": "Autonomous Agent Swarms, LangGraph, Advanced RAG, Fine-Tuning, Reasoning Models",
-        "topics": ["Multi-Agent Orchestration", "Vector Databases & Semantic Routing", "Prompt Engineering & Guardrails", "Local Model Deployment (Ollama/vLLM)"],
-    },
-    "vibecoding": {
-        "title": "Вайбкодинг (Rapid AI Prototyping)",
-        "icon": "⚡",
-        "focus": "Prompt-Driven Development, Cursor & Claude Workflows, Zero-Friction MVP Shipping",
-        "topics": ["Spec-Driven Generation", "Agentic Debugging Loops", "Full-Stack MVP in 60 Minutes", "AI Copilot Synergy"],
-    },
-    "history": {
-        "title": "Історія (Strategy & Mental Models)",
-        "icon": "🏛️",
-        "focus": "Geopolitics, Civilizational Cycles, Military Strategy, Lessons of Empire & Power",
-        "topics": ["Roman Republic & Imperial Decay", "Sun Tzu & The Art of War", "Cold War Intelligence Doctrines", "Monetary Crises & Industrial Revolutions"],
-    },
-}
+# Сумісність: попередній імпорт DISCIPLINES з цього модуля працює і зараз.
+DISCIPLINES: Dict[str, Any] = load_seed()["disciplines"]
 
 
 class KiraAgent:
@@ -82,19 +60,39 @@ class KiraAgent:
         llm: Optional[Any] = None,
         config: Optional[Dict[str, Any]] = None,
         registry: Optional[Any] = None,
+        learning: Optional[KiraLearningStore] = None,
     ) -> None:
         self._memory = memory
         self._llm = llm
         self._config = config or {}
         self._registry = registry
+        if learning is None:
+            data_dir = os.getenv("KIRA_DATA_DIR")
+            learning = KiraLearningStore(Path(data_dir) / "kira_learning.json" if data_dir else None)
+        self._learning = learning
         self._memory_context: ContextVar[Optional[Dict[str, Any]]] = ContextVar(
             f"kira_memory_context_{id(self)}", default=None
         )
 
-    async def _llm_ask(self, prompt: str, fallback: str) -> str:
-        """Invoke the LLM with bounded, untrusted historical context."""
+    # ------------------------------------------------------------ допоміжні
+    def _catalog(self) -> Dict[str, Any]:
+        return self._learning.catalog()
+
+    def _unavailable(self, action: str, reason: str, **extra: Any) -> Dict[str, Any]:
+        out: Dict[str, Any] = {
+            "status": "unavailable",
+            "agent": self.AGENT_ID,
+            "action": action,
+            "reason": reason,
+            "floor": self.FLOOR,
+        }
+        out.update(extra)
+        return out
+
+    async def _llm_ask(self, prompt: str) -> Tuple[Optional[str], Optional[str]]:
+        """Повертає (текст, None) або (None, причина). Фолбек-тексту немає."""
         if not self._llm:
-            return fallback
+            return None, "llm_not_configured"
         prompt = append_memory_context(
             prompt,
             self._memory_context.get() or {},
@@ -105,10 +103,10 @@ class KiraAgent:
         )
         try:
             resp = await self._llm.ainvoke([HumanMessage(content=prompt)])
-            return str(getattr(resp, "content", resp))
+            return str(getattr(resp, "content", resp)), None
         except Exception as exc:  # noqa: BLE001
-            logger.warning("kira_llm_ainvoke_failed", error=str(exc))
-            return fallback
+            logger.warning("kira_llm_ainvoke_failed", error_type=type(exc).__name__)
+            return None, "llm_error"
 
     async def _save(self, payload: Dict[str, Any], category: str, data: Dict[str, Any]) -> None:
         """Save a redacted educational episode without blocking the lesson."""
@@ -126,6 +124,7 @@ class KiraAgent:
             },
         )
 
+    # ------------------------------------------------------------ диспетчер
     async def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Dispatch academic or mentorship action."""
         action = payload.get("action", "socratic_dialogue")
@@ -139,6 +138,10 @@ class KiraAgent:
             "history_synthesis": self.history_synthesis,
             "vibecoding_session": self.vibecoding_session,
             "micro_quiz": self.micro_quiz,
+            "micro_quiz_answer": self.micro_quiz_answer,
+            "learning_status": self.learning_status,
+            "propose_learning": self.propose_learning,
+            "decide_proposal": self.decide_proposal,
             "disciplines_overview": self.disciplines_overview,
             "academy_overview": self.disciplines_overview,
             "morning_data": self.morning_data,
@@ -171,33 +174,38 @@ class KiraAgent:
             result = await handler(payload)
             if isinstance(result, dict):
                 result["memory"] = memory_status(memory_context)
-            await self._save(payload, f"academy_{action}", result)
-            if action == "socratic_dialogue" and result.get("socratic_response"):
-                result["skill_candidate"] = {
-                    "name": "Socratic dialogue for deliberate learning",
-                    "when_to_use": "When helping a learner examine a claim or difficult concept.",
-                    "procedure": (
-                        "Clarify the learner's claim and topic; surface hidden assumptions; "
-                        "ask two or three focused questions; offer one useful analogy; "
-                        "finish by inviting the learner to test or refine their reasoning."
-                    ),
-                }
+                if result.get("status") in SAVEABLE_STATUSES:
+                    await self._save(payload, f"academy_{action}", result)
+                if action == "socratic_dialogue" and result.get("socratic_response"):
+                    result["skill_candidate"] = {
+                        "name": "Socratic dialogue for deliberate learning",
+                        "when_to_use": "When helping a learner examine a claim or difficult concept.",
+                        "procedure": (
+                            "Clarify the learner's claim and topic; surface hidden assumptions; "
+                            "ask two or three focused questions; offer one useful analogy; "
+                            "finish by inviting the learner to test or refine their reasoning."
+                        ),
+                    }
             return result
         finally:
             self._memory_context.reset(token)
 
+    # ------------------------------------------------------------ каталог
     async def disciplines_overview(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Return structured catalogue of all active Academy disciplines."""
+        catalog = self._catalog()
         return {
             "status": "ok",
             "agent": self.AGENT_ID,
             "floor": self.FLOOR,
             "title": "SYNDICATE Academy — Поверх 8",
-            "disciplines": DISCIPLINES,
+            "disciplines": catalog["disciplines"],
+            "quiz_items": len(catalog["quiz_bank"]),
             "active_students": ["Андрій (Founder & Sovereign)"],
             "philosophy": "Сувора спеціалізація. Сократівський метод. Миттєве застосування знань у практиці.",
         }
 
+    # ------------------------------------------------------------ LLM-дії (без LLM — unavailable)
     async def socratic_dialogue(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """
         Socratic Sparring: Challenges assumptions, deconstructs mental models,
@@ -206,11 +214,12 @@ class KiraAgent:
         topic = payload.get("topic", "Architectural tradeoffs in autonomous agent swarms")
         statement = payload.get("statement", "We should use microservices for all agent communication.")
         discipline = payload.get("discipline", "programming")
+        disciplines = self._catalog()["disciplines"]
 
         prompt = f"""Ви — Кіра, інтелектуальний наставник та академічний ментор 8-го поверху синдикату SYNDICATE.
 Ваш студент — Андрій (засновник синдикату). Ви спілкуєтесь на рівних, із глибокою повагою, інтелектуальною гостротою та сократівською іронією.
 
-Дисципліна: {DISCIPLINES.get(discipline, {}).get('title', discipline)}
+Дисципліна: {disciplines.get(discipline, {}).get('title', discipline)}
 Тема розмови: {topic}
 Твердження студента: "{statement}"
 
@@ -221,31 +230,30 @@ class KiraAgent:
 4. Наведіть одну сильну аналогію (з інженерії, військової історії або когнітивних наук).
 5. Формат: чіткий, захоплюючий, вишуканий стиль українською мовою."""
 
-        fallback = (
-            f"«Андрію, твоє твердження щодо '{topic}' звучить переконливо, але давай розберемо його фундамент. "
-            f"Якщо ми приймемо це як аксіому, що станеться з системою при десятикратному навантаженні? "
-            f"Яке приховане припущення ти тут робиш щодо затримки мережі та узгодженості даних?»"
-        )
-
-        response = await self._llm_ask(prompt, fallback)
+        text, reason = await self._llm_ask(prompt)
+        if text is None:
+            return self._unavailable("socratic_dialogue", reason or "llm_not_configured", discipline=discipline, topic=topic)
         return {
+            "status": "ok",
             "discipline": discipline,
             "topic": topic,
-            "socratic_response": response,
-            "confidence": 0.95,
+            "socratic_response": text,
             "floor": self.FLOOR,
         }
 
     async def lesson_plan(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Generate a high-density, tailored curriculum for Andriy.
+        Generate a curriculum. Без LLM — лише каркас із тем каталогу (без змісту, status=partial).
         """
         discipline = payload.get("discipline", "ai_engineering")
         goal = payload.get("goal", "Побудова агентної пам'яті на базі pgvector та GraphRAG")
         depth = payload.get("depth", "advanced")
+        disciplines = self._catalog()["disciplines"]
+        if discipline not in disciplines:
+            return self._unavailable("lesson_plan", "unknown_discipline", discipline=discipline)
 
         prompt = f"""Ви — Кіра, ментор SYNDICATE Academy. Складіть інтенсивний навчальний план для Андрія.
-Дисципліна: {discipline}
+Дисципліна: {disciplines[discipline]['title']}
 Ціль: {goal}
 Рівень: {depth}
 
@@ -256,28 +264,42 @@ class KiraAgent:
 4. 🥊 Модуль 3: Стрес-тест та Hardcore завдання.
 5. 💡 Менторська порада від Кіри (на що звернути критичну увагу)."""
 
-        fallback = (
-            f"План для цілі '{goal}' підготовлено:\n"
-            "1. Фундамент векторних індексів HNSW та косинусної близькості.\n"
-            "2. Практика: розгортання LangGraph StateGraph з рекурентним завантаженням уроків.\n"
-            "3. Hardcore: симуляція збоїв та виявлення галюцинацій через Sentinel."
-        )
-
-        response = await self._llm_ask(prompt, fallback)
+        text, reason = await self._llm_ask(prompt)
+        topics = disciplines[discipline]["topics"]
+        skeleton = {
+            "module_1_fundamentals": topics[:2],
+            "module_2_practice": topics[2:3],
+            "module_3_stress_test": topics[3:4],
+        }
+        if text is None:
+            return {
+                "status": "partial",
+                "agent": self.AGENT_ID,
+                "discipline": discipline,
+                "goal": goal,
+                "skeleton": skeleton,
+                "curriculum": None,
+                "reason": reason or "llm_not_configured",
+                "warning": "Лише каркас із каталогу теми; зміст плану не згенеровано (LLM недоступний).",
+                "floor": self.FLOOR,
+            }
         return {
+            "status": "ok",
+            "agent": self.AGENT_ID,
             "discipline": discipline,
             "goal": goal,
-            "curriculum": response,
+            "curriculum": text,
+            "skeleton": skeleton,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "floor": self.FLOOR,
         }
 
     async def code_review_mentor(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Educational code review focused on architectural beauty, elegance, and vibecoding flow.
-        """
-        code_snippet = payload.get("code", "def fetch_data(): pass")
+        """Educational code review focused on architectural beauty, elegance, and vibecoding flow."""
+        code_snippet = payload.get("code")
         language = payload.get("language", "python")
+        if not isinstance(code_snippet, str) or not code_snippet.strip():
+            return self._unavailable("code_review", "code_required", language=language)
 
         prompt = f"""Ви — Кіра. Проведіть навчальний менторський код-рев'ю для Андрія.
 Мова: {language}
@@ -293,21 +315,17 @@ class KiraAgent:
 4. Покращений рефакторинг коду.
 Будьте конструктивною, точковою та вимогливою."""
 
-        fallback = "Код перевірено. Рекомендується додати асинхронний контекстний менеджер та типізацію Pydantic."
-        response = await self._llm_ask(prompt, fallback)
-        return {
-            "language": language,
-            "review": response,
-            "status": "reviewed",
-            "floor": self.FLOOR,
-        }
+        text, reason = await self._llm_ask(prompt)
+        if text is None:
+            return self._unavailable("code_review", reason or "llm_not_configured", language=language)
+        return {"status": "ok", "language": language, "review": text, "floor": self.FLOOR}
 
     async def language_practice(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        English Immersion Drill for executive leadership, investor pitches, and tech negotiation.
-        """
+        """English Immersion Drill for executive leadership, investor pitches, and tech negotiation."""
         scenario = payload.get("scenario", "Pitching SYNDICATE autonomous multi-agent platform to Andreessen Horowitz (a16z)")
-        user_input = payload.get("user_input", "We build an autonomous agent holding that replaces human operations.")
+        user_input = payload.get("user_input")
+        if not isinstance(user_input, str) or not user_input.strip():
+            return self._unavailable("language_practice", "user_input_required", scenario=scenario)
 
         prompt = f"""You are Kira, executive English mentor for Andriy, founder of SYNDICATE.
 Scenario: {scenario}
@@ -318,23 +336,16 @@ Provide:
 2. 🔍 Nuance Breakdown (Why the change works: word choice, cadence, subtext).
 3. 💬 Follow-up Challenge Question (In character as the investor/partner asking a hard question in English for Andriy to answer next)."""
 
-        fallback = (
-            "Native Polish: 'SYNDICATE is an autonomous multi-agent holding company engineered to eliminate operational friction and scale sovereign enterprise execution.'\n"
-            "Challenge: 'How do you guarantee state consistency across your multi-agent layer during high-frequency volatility?'"
-        )
-
-        response = await self._llm_ask(prompt, fallback)
-        return {
-            "scenario": scenario,
-            "feedback": response,
-            "floor": self.FLOOR,
-        }
+        text, reason = await self._llm_ask(prompt)
+        if text is None:
+            return self._unavailable("language_practice", reason or "llm_not_configured", scenario=scenario)
+        return {"status": "ok", "scenario": scenario, "feedback": text, "floor": self.FLOOR}
 
     async def history_synthesis(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Strategic synthesis of historical lessons, mental models, and geopolitical precedents.
-        """
-        query = payload.get("query", "Як зберегти суверенітет та контроль у децентралізованій системі?")
+        """Strategic synthesis of historical lessons, mental models, and geopolitical precedents."""
+        query = payload.get("query")
+        if not isinstance(query, str) or not query.strip():
+            return self._unavailable("history_synthesis", "query_required")
 
         prompt = f"""Ви — Кіра, ментор з історії та стратегічного мислення 8-го поверху.
 Запит Андрія: "{query}"
@@ -344,24 +355,16 @@ Provide:
 2. 🧠 Фундаментальна модель влади та контролю (First Principles).
 3. ⚡ Прямий висновок для архітектури SYNDICATE сьогодні."""
 
-        fallback = (
-            "Прецедент: Реформи Діоклетіана (Тетрархія). Розподіл операційного тягаря за збереження єдиного ідеологічного центру. "
-            "Висновок для SYNDICATE: Ізоляція поверхів (Док, Сем, Кіра) захищає від єдиної точки відмови."
-        )
-
-        response = await self._llm_ask(prompt, fallback)
-        return {
-            "query": query,
-            "historical_synthesis": response,
-            "floor": self.FLOOR,
-        }
+        text, reason = await self._llm_ask(prompt)
+        if text is None:
+            return self._unavailable("history_synthesis", reason or "llm_not_configured")
+        return {"status": "ok", "query": query, "historical_synthesis": text, "floor": self.FLOOR}
 
     async def vibecoding_session(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Mentorship on rapid vibecoding: orchestrating AI models, crafting specs,
-        and turning ideas into production artifacts in single-digit minutes.
-        """
-        task_concept = payload.get("concept", "Telegram bot that parses financial PDFs and calls Fin agent")
+        """Mentorship on rapid vibecoding: orchestrating AI models, crafting specs, shipping artifacts."""
+        task_concept = payload.get("concept")
+        if not isinstance(task_concept, str) or not task_concept.strip():
+            return self._unavailable("vibecoding_session", "concept_required")
 
         prompt = f"""Ви — Кіра. Допоможіть Андрію у вайбкодинг-сесії для швидкого прототипування.
 Концепт задачі: "{task_concept}"
@@ -371,42 +374,110 @@ Provide:
 2. 🧱 Мінімальна схема файлів (Zero-bloat architecture).
 3. ⚡ Трик для швидкого тестування без ручного написання моків."""
 
-        fallback = "Вайбкодинг-бриф готовий: швидка специфікація на базі FastAPI та aiogram з прямим викликом src.agents.fin."
-        response = await self._llm_ask(prompt, fallback)
-        return {
-            "concept": task_concept,
-            "vibecoding_brief": response,
-            "floor": self.FLOOR,
-        }
+        text, reason = await self._llm_ask(prompt)
+        if text is None:
+            return self._unavailable("vibecoding_session", reason or "llm_not_configured", concept=task_concept)
+        return {"status": "ok", "concept": task_concept, "vibecoding_brief": text, "floor": self.FLOOR}
 
+    # ------------------------------------------------------------ квіз з банку (без LLM)
     async def micro_quiz(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate a 3-question rapid retention quiz on a chosen discipline."""
+        """Питання з перевіреного банку. Ключ відповіді не повертається, відповідь іде окремою дією."""
         discipline = payload.get("discipline", "programming")
-        topic = payload.get("topic", "Python Concurrency")
-
-        prompt = f"""Складіть експрес-тест із 3 запитань від Кіри для перевірки знань Андрія.
-Дисципліна: {discipline}, Тема: {topic}.
-Кожне запитання повинно бути практичним (не шкільна теорія, а реальний кейс), з 4 варіантами (A, B, C, D) та зазначенням правильної відповіді з коротким поясненням."""
-
-        fallback = "1. Що відбудеться при виклику asyncio.gather() без обробки винятків? A) Падіння B) Повернення винятку..."
-        response = await self._llm_ask(prompt, fallback)
+        topic = payload.get("topic")
+        catalog = self._catalog()
+        if discipline not in catalog["disciplines"]:
+            return self._unavailable("micro_quiz", "unknown_discipline", discipline=discipline)
+        item = self._learning.next_quiz_item(discipline, topic)
+        if item is None:
+            return self._unavailable(
+                "micro_quiz", "no_quiz_items_for_discipline", discipline=discipline, topic=topic
+            )
         return {
+            "status": "ok",
             "discipline": discipline,
-            "topic": topic,
-            "quiz": response,
+            "question": {
+                "id": item["id"],
+                "topic": item["topic"],
+                "question": item["question"],
+                "options": item["options"],
+            },
+            "recording": "saved" if self._learning.available else "not_recorded_no_store",
+            "weak_topics": self._learning.weak_topics(),
             "floor": self.FLOOR,
         }
 
+    async def micro_quiz_answer(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        question_id = payload.get("question_id")
+        choice = payload.get("choice")
+        if not isinstance(question_id, str) or not isinstance(choice, str):
+            return {"status": "rejected", "reason": "question_id_and_choice_required", "floor": self.FLOOR}
+        result = self._learning.record_answer(question_id, choice)
+        result["floor"] = self.FLOOR
+        return result
+
+    async def learning_status(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Реальні результати: статистика тільки з перевірених відповідей."""
+        return {
+            "status": "ok",
+            "floor": self.FLOOR,
+            "store": "configured" if self._learning.available else "not_configured",
+            "topic_stats": self._learning.topic_stats(),
+            "weak_topics": self._learning.weak_topics(),
+            "pending_proposals": self._learning.pending(),
+        }
+
+    # ------------------------------------------------------------ пропозиції (схвалює тільки Андрій)
+    async def propose_learning(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        result = self._learning.propose(
+            str(payload.get("kind", "")),
+            payload.get("payload") if isinstance(payload.get("payload"), dict) else {},
+            str(payload.get("reason", "")),
+        )
+        result["floor"] = self.FLOOR
+        return result
+
+    async def decide_proposal(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        result = self._learning.decide(
+            str(payload.get("proposal_id", "")),
+            str(payload.get("decision", "")),
+            str(payload.get("actor", "")),
+        )
+        result["floor"] = self.FLOOR
+        return result
+
+    # ------------------------------------------------------------ ранкова іскра (07:00)
     async def morning_data(self, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Compact educational spark for Eva's 07:00 daily executive briefing.
-        Provides a cognitive boost to start Andriy's day.
+        Ротація перевіреного каталогу за датою: однаковий день — однаковий елемент.
         """
+        payload = payload or {}
+        raw_date = payload.get("date")
+        try:
+            day = date.fromisoformat(raw_date) if isinstance(raw_date, str) else date.today()
+        except ValueError:
+            return {"status": "rejected", "reason": "date_must_be_ISO_YYYY-MM-DD", "floor": self.FLOOR}
+
+        items = self._catalog()["morning_items"]
+        spark: Dict[str, Any] = {}
+        sources: Dict[str, str] = {}
+        for kind in MORNING_KINDS:
+            pool = items[kind]
+            chosen = pool[day.toordinal() % len(pool)]
+            spark[kind] = chosen["text"]
+            sources[kind] = chosen["source"]
         return {
+            "status": "ok",
             "agent": self.AGENT_ID,
             "floor": self.FLOOR,
-            "word_of_the_day_en": "Antifragile (noun/adj) — Things that gain from disorder and volatility.",
-            "coding_spark": "Tip: Use asyncio.TaskGroup (Python 3.11+) instead of gather for structured concurrency.",
-            "history_model": "Carthage vs. Rome: Logistics and institutional endurance always overcome tactical genius.",
-            "academy_status": "Поверх 8 функціонує в штатному режимі. Готова до сесії.",
+            "date": day.isoformat(),
+            "word_of_the_day_en": spark["word_of_the_day"],
+            "coding_spark": spark["coding_spark"],
+            "history_model": spark["history_model"],
+            "sources": sources,
+            "academy_status": (
+                f"дисциплін: {len(self._catalog()['disciplines'])}, "
+                f"питань у банку: {len(self._catalog()['quiz_bank'])}, "
+                f"пропозицій на схваленні: {len(self._learning.pending())}"
+            ),
         }

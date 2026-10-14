@@ -3263,7 +3263,40 @@ class TestEvaBriefingReportsAbsence:
         assert out["status"] == "unavailable"
         assert "успішно завершено" not in out["response"]
         assert "немає" in out["response"]
-        assert sorted(out["missing_inputs"]) == ["doc", "kira.quiz"]
+        assert sorted(out["missing_inputs"]) == ["doc", "kira.quiz", "kodex"]
+
+    def test_reflection_reports_real_file_counts_from_kodex(self):
+        from datetime import datetime
+
+        from src.agents.kodex import evening_section, KodexStore
+
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as d:
+            store = KodexStore(Path(d) / "kodex.json", Path(d) / "blobs")
+            u = store.ingest("нотатка.md", b"n", origin="agent", actor="doc", text="ринок")
+            store.rewrite(u["id"], b"m", "очистка", actor="sam")
+            store.save()
+            section = evening_section(d, datetime.now())
+        assert section["status"] == "ok"
+        out = _run(self._eva().execute({
+            "action": "compose_reflection",
+            "evening_data": {"doc": {"x": 1}, "kira": {"quiz": {"score": 1}}, "kodex": section},
+        }))
+        assert out["status"] == "completed"
+        assert "kodex" not in out["missing_inputs"]
+        assert "завантажень агентами 1" in out["response"]
+        assert "змін 1" in out["response"]
+        assert out["kodex_report"]["agent_ingests"][0]["actor"] == "doc"
+
+    def test_evening_without_kodex_data_dir_is_absence_not_zero(self):
+        from datetime import datetime
+
+        from src.agents.kodex import evening_section
+
+        section = evening_section(None, datetime.now())
+        assert section["status"] == "unavailable" and "report" not in section
 
 
 # ─────────────────────────────────────────────────────────────────────────────

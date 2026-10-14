@@ -22,6 +22,20 @@ _PROMPT_PATH = Path(__file__).with_name("eva_runtime_prompt.md")
 EVA_SYSTEM_PROMPT = _PROMPT_PATH.read_text(encoding="utf-8")
 
 
+#: Дані, без яких вечірня рефлексія не оцінює день (звітує відсутність, не вердикт).
+EVENING_REQUIRED = ("doc", "kira.quiz", "kodex")
+
+
+def _file_summary(rep: Dict[str, Any]) -> str:
+    """Короткий підсумок файлової частини — з реальних лічильників звіту KODEX."""
+    awaiting = rep.get("awaiting_andrii", {}).get("permission", 0)
+    return (
+        f"змін {rep.get('rewritten', 0)}, переміщень {rep.get('moved', 0)}, "
+        f"у кошик {rep.get('trashed', 0)}, завантажень агентами {len(rep.get('agent_ingests', []))}, "
+        f"автоочищень кошика {len(rep.get('auto_purged', []))}, чекають дозволу Андрія: {awaiting}"
+    )
+
+
 class EvaAgent:
     """Conversational assistant implementation; it grants itself no tools or rights."""
 
@@ -460,6 +474,9 @@ class EvaAgent:
         doc_data = evening_data.get("doc", {})
         kira_data = evening_data.get("kira", {})
         kira_quiz = kira_data.get("quiz") if isinstance(kira_data, dict) else None
+        kodex_data = evening_data.get("kodex")
+        kodex_ok = isinstance(kodex_data, dict) and kodex_data.get("status") == "ok"
+        files_line = _file_summary(kodex_data["report"]) if kodex_ok else None
 
         # A canned "the day went well" or "quiz passed" belongs to nobody's data.
         missing = []
@@ -467,6 +484,8 @@ class EvaAgent:
             missing.append("doc")
         if kira_quiz is None:
             missing.append("kira.quiz")
+        if not kodex_ok:
+            missing.append("kodex")
         warnings = (
             ["missing inputs: " + ", ".join(missing) + " — reflection reports absence, not a verdict"]
             if missing
@@ -476,14 +495,15 @@ class EvaAgent:
         prompt = (
             f"Сформуй підсумкову вечірню рефлексію (21:00) для оператора:\n"
             f"- Відновлення та вегетативна система (Док): {doc_data if doc_data else 'дані відсутні'}\n"
-            f"- Мікро-квіз дня (Кіра): {kira_quiz if kira_quiz is not None else 'дані відсутні'}\n\n"
+            f"- Мікро-квіз дня (Кіра): {kira_quiz if kira_quiz is not None else 'дані відсутні'}\n"
+            f"- Файли за добу (KODEX): {files_line if files_line else 'дані відсутні'}\n\n"
             f"Якщо даних немає — прямо скажи, що їх немає, і не оцінюй день.\n"
             f"Склади коротке, заспокійливе резюме дня, порадивши перехід до фази відпочинку."
         )
 
         if missing:
             fallback_text = (
-                "Вечірня рефлексія: даних про відновлення та навчання за сьогодні немає "
+                "Вечірня рефлексія: даних про відновлення, навчання чи файли за сьогодні немає "
                 f"(немає: {', '.join(missing)}). Рекомендовано знизити екранний час і перейти до сну."
             )
         else:
@@ -491,6 +511,8 @@ class EvaAgent:
                 "Вечірня рефлексія: день завершено за наявними даними. "
                 "Рекомендовано знизити екранний час та перейти до сну."
             )
+        if files_line:
+            fallback_text += f" Файли за добу: {files_line}."
 
         if self._memory_policy.contains_secret_like_value(prompt):
             return {
@@ -513,10 +535,11 @@ class EvaAgent:
 
         return {
             "agent": self.AGENT_ID,
-            "status": "unavailable" if len(missing) == 2 else "completed",
+            "status": "unavailable" if len(missing) == len(EVENING_REQUIRED) else "completed",
             "response": reflection_text,
             "reflection": reflection_text,
             "evening_data": evening_data,
+            "kodex_report": kodex_data["report"] if kodex_ok else None,
             "missing_inputs": missing,
             "warnings": warnings,
         }

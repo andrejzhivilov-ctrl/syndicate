@@ -14,5 +14,14 @@
   "skills": [],
   "live_modes": {
     "geolocation": false
-  }
+  },
+  "proposed_grants": [
+    {
+      "capability": "kira.learning.store_local",
+      "scope": "KIRA_DATA_DIR/kira_learning.json",
+      "purpose": "Облік відповідей на мікро-квізи, статистика тем, пропозиції нових дисциплін і питань",
+      "status": "proposed_not_applied",
+      "needs": "рішення Андрія; до схвалення grants порожні (default-deny)"
+    }
+  ]
 }

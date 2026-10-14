@@ -165,6 +165,11 @@ def _payloads(tmp_path: Path) -> Dict[str, Dict[str, Any]]:
         "micro_quiz": {"topic": "asyncio"},
         "academy_overview": {"action": "academy_overview"},
         "morning_data_kira": {"action": "morning_data"},
+        # Безпечні проби: неіснуючі id і невалідна пропозиція нічого не записують.
+        "micro_quiz_answer": {"question_id": "no-such-question", "choice": "B"},
+        "learning_status": {},
+        "propose_learning": {"kind": "new_quiz_item", "reason": "probe", "payload": {}},
+        "decide_proposal": {"proposal_id": "no-such-proposal", "decision": "approve", "actor": "probe"},
         "kira_socratic_next": {
             "session_id": "s1", "user_message": "help", "problem_statement": "p", "solution": "s",
         },

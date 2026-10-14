@@ -7,7 +7,7 @@
 # Verify in CI with: python tools/export_openapi.py --check
 # ============================================================
 #
-# contract_sha256: 42e2ab0ea838b37f455a6c4b167a7c34be43866808283360783b157c5ab1c280
+# contract_sha256: ad4f126253596d4fab547316ca98a8cf520dbf30a9aa947da3a1c4b2e30a4a83
 # api_version:     4.1.0
 # paths:           26
 #
@@ -907,7 +907,12 @@ paths:
       summary: Health Check
   /proactive/evening:
     post:
-      description: Trigger 21:00 evening reflection (Floor 1 / Floor 8 / Floor 9).
+      description: 'Trigger 21:00 evening reflection (Floor 1 / Floor 8 / Floor 9).
+
+
+        Збираємо лише вже наявні звіти (файли KODEX за 24 год); жодного запуску агентів.
+
+        Без KODEX_DATA_DIR звіт файлів чесно позначається unavailable.'
       operationId: trigger_evening_reflection_proactive_evening_post
       parameters:
       - in: header

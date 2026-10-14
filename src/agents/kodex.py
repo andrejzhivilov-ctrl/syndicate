@@ -343,14 +343,16 @@ class KodexStore:
 
     def purge_expired(self, now: datetime) -> List[str]:
         gone = []
+        names: List[str] = []
         for rid, rec in list(self.records.items()):
             if rec.status == "trashed" and rec.trashed_at:
                 if now - datetime.fromisoformat(rec.trashed_at) >= timedelta(days=TRASH_RETENTION_DAYS):
                     del self.records[rid]
                     gone.append(rid)
+                    names.append(rec.name)
                     self._drop_blob_if_unused(rec)
         if gone:
-            self._log("purged", "kodex", ids=gone)
+            self._log("purged", "kodex", ids=gone, names=names)
         return gone
 
     # ------------------------------------------------------------ інтернет і формати (лише Андрій)
@@ -408,9 +410,15 @@ class KodexStore:
 
     def _agent_actions(self, entries: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
         """Дії KODEX і агентів (усе, крім дій Андрія) — для звіту Єві."""
-        out: Dict[str, List[Dict[str, Any]]] = {"edits": [], "deletes": [], "moves": []}
+        out: Dict[str, List[Dict[str, Any]]] = {"edits": [], "deletes": [], "moves": [],
+                                                "ingests": [], "purges": []}
         keys = ("at", "actor", "id", "name")
         for e in entries:
+            if e["action"] == "purged":
+                # Автоматичне очищення кошика — теж маніпуляція, виконавець — KODEX.
+                for rid, name in zip(e.get("ids", []), e.get("names", []), strict=True):
+                    out["purges"].append({"at": e["at"], "actor": e["actor"], "id": rid, "name": name})
+                continue
             if e["actor"] == OWNER:
                 continue
             if e["action"] == "rewrite":
@@ -419,6 +427,9 @@ class KodexStore:
                 out["deletes"].append({k: e.get(k) for k in keys + ("approved_by",)})
             elif e["action"] == "move":
                 out["moves"].append({k: e.get(k) for k in keys + ("frm", "to", "protected")})
+            elif e["action"] == "ingest" and e.get("origin") not in ("andrii_direct", "andrii_kodex"):
+                # Файл, який завантажив агент (не Андрій): теж іде в звіт Єві.
+                out["ingests"].append({k: e.get(k) for k in keys + ("origin", "domain", "status")})
         return out
 
     def _pending_counts(self) -> Dict[str, int]:
@@ -449,6 +460,25 @@ class KodexStore:
                 "duplicates_skipped": counts.get("duplicate_skipped", 0),
                 "actions_by_actor": by_actor, "agent_edits": agent["edits"],
                 "agent_deletes": agent["deletes"], "agent_moves": agent["moves"],
+                "agent_ingests": agent["ingests"], "auto_purged": agent["purges"],
                 "awaiting_andrii": self._pending_counts(),
                 "protected_files": sum(self._protected(r) for r in self.records.values() if r.status != "trashed"),
                 "active_records_by_status": by_status}
+
+
+# ------------------------------------------------------------ вечірній звіт Єві (21:00)
+EVENING_WINDOW = timedelta(hours=24)
+
+
+def evening_section(data_dir: Optional[str], now: datetime) -> Dict[str, Any]:
+    """Файлова частина вечірнього звіту: усі дії KODEX і агентів за 24 години.
+
+    Без KODEX_DATA_DIR — чесна відсутність (status=unavailable), а не нулі.
+    """
+    if not data_dir:
+        return {"status": "unavailable", "warning": "KODEX_DATA_DIR не задано: звіт файлів не зібрано"}
+    base = Path(data_dir)
+    store = KodexStore(base / "kodex.json", base / "blobs")
+    rep = store.report_for_eva(now - EVENING_WINDOW)
+    return {"status": "ok", "window_hours": int(EVENING_WINDOW.total_seconds() // 3600), "report": rep}
+

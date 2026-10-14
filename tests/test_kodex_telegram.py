@@ -405,6 +405,9 @@ def test_state_is_saved_after_each_update(bot: KodexBot, store: KodexStore, tmp_
 
 
 def test_trash_is_purged_on_next_update_after_30_days(store: KodexStore) -> None:
+    # Годинник сховища фіксуємо на NOW: інакше trashed_at береться з реального часу,
+    # і тест залежить від дати запуску (проходив лише поблизу 2026-10-10).
+    store._now = lambda: NOW.isoformat(timespec="seconds")
     rid = ingest(store, "тимчасове.md", b"t")
     store.request_delete(rid, actor="kodex")
     later = NOW + timedelta(days=kodex.TRASH_RETENTION_DAYS + 1)
