@@ -611,6 +611,8 @@ Brief → права/DPI → cost/margin → preview → approval. Зараз н
 
 ## 5. Скіли: встановлення, використання й аудит
 
+Три відомі редакційні помилки upstream (JSX fences, дубль onINP import, минулий період для Progress) описано у docs/SKILL_LIBRARY_ERRATA.md. Оригінальні pinned файли збережено; уточнення слід враховувати при використанні прикладів.
+
 SkillLibrary — бібліотека інструкцій, не механізм надання прав. Роль може завантажити тільки призначений скіл і відомий ресурс; перевіряються hashes, розмір, symlinks і межі шляху. Умови/allowed-tools стороннього SKILL.md не перекривають політику системи.
 
 SkillSpector2.12.0:21 встановлений скіл,21 finding,11 complete і 10 incomplete reports. Findings розглянуті в контексті; є спрацювання на приклади й заборони. security-and-hardening вилучено після score100/partial analysis. Це не сертифікація безпеки. Збережені config/skill_scan_report.json, skill_library.json та skill_sources_audit.json. Перед оновленням перевірити нову версію/ліцензію, перегенерувати hashes і пройти regression gate.
@@ -969,7 +971,7 @@ MCP для reverse engineering з Node і native engines. Потрібен ко�
 
 Єдине джерело шляхів — src/vault_paths.py. Integration worker читає secret/data/eva-syndicate/agents/<agent>/integrations. Запис KV: vault kv put secret/eva-syndicate/agents/<agent>/integrations @/secure/<agent>-integrations.json. JSON готується із config/integration_worker.example.json у приватному каталозі з mode0600; приклад із placeholder значеннями не придатний до запуску. Не комітити заповнений файл. Для KODEX/Antigravity, якщо готової policy немає, видати read лише власного integration path плюс token renewal, не wildcard усіх агентів.
 
-Coordinator читає лише worker API keys з secret/eva-syndicate/auth, поле integration_worker_keys з mapping agent→key. Provider keys живуть у власних worker secrets. Не перезаписувати інші auth поля при додаванні mapping; використовувати KV patch. Додайте не-секретний SYNDICATE_INTEGRATION_URLS JSON з agent→private-worker-origin до runtime coordinator.
+Coordinator читає лише worker API keys з secret/eva-syndicate/auth, поле integration_worker_keys з mapping agent→key. Provider keys живуть у власних worker secrets. Не перезаписувати інші auth поля при додаванні mapping; використовувати KV patch. Додайте не-секретний SYNDICATE_INTEGRATION_URLS JSON з agent→private-worker-origin до runtime coordinator. HTTPS дозволено за замовчуванням. Для HTTP у приватній Docker-мережі потрібен явний SYNDICATE_INTEGRATION_HTTP_HOSTS JSON зі списком точних приватних IP або однокомпонентних Docker aliases, наприклад ["fin-worker"]. Публічні IP та DNS-імена через HTTP відхиляються до читання API key; для зовнішніх адрес використовуйте HTTPS.
 
 ### Крок 4 — збірка й запуск інтеграцій
 

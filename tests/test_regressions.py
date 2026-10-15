@@ -3950,3 +3950,51 @@ def test_integration_route_requires_operator_master_key():
     from deploy.runtime.agent_runner import app, require_master_key
     route = next(route for route in app.routes if route.path == '/integrations/{agent_id}/execute')
     assert route.dependant.dependencies[0].call is require_master_key
+
+
+@pytest.mark.parametrize("url,approved,accepted", [
+    ("https://worker.example.com", [], True),
+    ("http://fin-worker:8000", [], False),
+    ("http://fin-worker:8000", ["fin-worker"], True),
+    ("http://192.168.20.5:8000", ["192.168.20.5"], True),
+    ("http://8.8.8.8:8000", ["8.8.8.8"], False),
+    ("http://example.com", ["example.com"], False),
+    ("http://0.0.0.0", ["0.0.0.0"], False),
+    ("http://2130706433", ["2130706433"], False),
+])
+def test_integration_http_requires_approved_private_destination(monkeypatch, url, approved, accepted):
+    from src.agent_platform.integration_client import worker_endpoint
+    monkeypatch.setenv('SYNDICATE_INTEGRATION_HTTP_HOSTS', json.dumps(approved))
+    if accepted:
+        assert worker_endpoint(url) == url
+    else:
+        with pytest.raises(ValueError):
+            worker_endpoint(url)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("anyio_backend", ["asyncio"])
+async def test_integration_rejects_public_http_before_reading_or_sending_key(monkeypatch, anyio_backend):
+    from src.agent_platform.integration_client import dispatch_integration
+    monkeypatch.setenv('SYNDICATE_INTEGRATION_URLS', '{"fin":"http://public.example.com"}')
+    monkeypatch.setenv('SYNDICATE_INTEGRATION_HTTP_HOSTS', '["public.example.com"]')
+    class Vault:
+        async def get_secret(self, path):
+            pytest.fail('Unapproved HTTP endpoint must be rejected before fetching a key')
+    result = await dispatch_integration('fin', 'skills.list', {}, Vault())
+    assert result['status'] == 'unavailable'
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("anyio_backend", ["asyncio"])
+async def test_tyler_shipping_countries_are_normalized_list(tmp_path, monkeypatch, anyio_backend):
+    from src.agents.tyler.agent import TylerAgent
+    monkeypatch.setenv('EVA_DATA_DIR', str(tmp_path))
+    agent = TylerAgent()
+    offer = {"supplier": "printify", "production": "10.00", "shipping": "4.00",
+             "delivery_days": 5, "ships_to": ["us"], "premium_verified": True, "currency": "USD"}
+    assert (await agent.route_order({"country": "US", "offers": [offer]}))['status'] == 'ok'
+    for invalid in ('USCA', {"US": True}, [None], [123]):
+        with pytest.raises(ValueError, match='invalid_ships_to'):
+            await agent.route_order({"country": "SC", "offers": [{**offer, 'ships_to': invalid}]})
+    assert (await agent.route_order({"country": "US", "offers": [{**offer, 'premium_verified': False}]}))['status'] == 'unavailable'

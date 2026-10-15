@@ -74,7 +74,10 @@ class TylerAgent(DirectorAgent):
                 raise ValueError("currency_mismatch")
             cost = money(offer["production"], "production") + money(offer["shipping"], "shipping")
             days = number(offer["delivery_days"], "delivery_days", 1, 180)
-            if destination in offer["ships_to"] and offer["premium_verified"] is True:
+            ships_to = offer["ships_to"]
+            if not isinstance(ships_to, list) or not all(isinstance(country, str) for country in ships_to):
+                raise ValueError("invalid_ships_to")
+            if destination in {country.upper() for country in ships_to} and offer["premium_verified"] is True:
                 eligible.append((cost, days, offer))
         if not eligible:
             return {"status": "unavailable", "value": None, "warning": "no_eligible_supplier_offer"}

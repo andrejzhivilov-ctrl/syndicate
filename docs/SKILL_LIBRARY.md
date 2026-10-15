@@ -78,3 +78,7 @@ Runtime може викликати `SkillLibrary().read(authenticated_agent_id,
 SkillSpector 2.12.0, commit `240421219409dc0bafef9f618a10d80c2d7e83a3`, ізольований Python 3.12.15, `--no-llm`. Початкова обгортка Маршала не читала `risk_assessment.score`/`issues`; виправлено парсер, unknown/failed report тепер scan_unavailable. Вилучено `security-and-hardening`: score 100, YARA match та неповний static analysis references. Це не доказ шкідливості; матеріал не включено до схваленого набору. Скіл `agent-security-hardening` з ECC пройшов скан із score 7; description trigger попередження розглянуто.
 
 Фінальні 21 скан завершилися з exit 0: 21 знахідка, 11 complete / 10 incomplete reports. Це переважно збіги в прикладах, заборонах і обмеження parser; оцінки та рішення збережено в `config/skill_scan_report.json`. Неповне покриття не приховується й не вважається сертифікацією. Повний `tools/check.sh` пройшов, включно з живим PostgreSQL; CI-only перевірка optional extensions локально skipped.
+
+## Уточнення до прикладів
+
+Див. [SKILL_LIBRARY_ERRATA.md](SKILL_LIBRARY_ERRATA.md): три редакційні помилки pinned upstream. Оригінальні файли та їх SHA256 збережені.

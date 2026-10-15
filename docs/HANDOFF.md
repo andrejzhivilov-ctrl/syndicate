@@ -25,6 +25,12 @@
 
 ---
 
+## 2026-10-15 — CodeRabbit Agent: зауваження PR13
+
+- Перший remote review: 5 actionable comments. Виправлено 2 у власному коді: HTTP worker endpoints потребують явного SYNDICATE_INTEGRATION_HTTP_HOSTS і приватної IP/однокомпонентної Docker alias; public HTTP відхиляється до читання ключа. Tyler ships_to приймає лише list[str], нормалізує uppercase, зберігає premium gate.
+- 3 редакційні помилки upstream задокументовано в docs/SKILL_LIBRARY_ERRATA.md; оригінальні pinned файли та hashes збережено.
+- Додано 10 цільових regression cases: passed. Вплив: integration coordinator transport і supplier routing. Повний tools/check.sh — exit 0 (включно з живим PostgreSQL); library integrity, MCP/render image checks повторно використовуються для незмінених inputs. Director image перебудовано (sha256:50006c469924fb420d0a2b4ef00630a826f6b35b091a29687dfe644211f0f388); API/auth, PNG/persistence та shipping regression smoke пройшли.
+
 ## 2026-10-15 — CodeRabbit Agent: відновлення GitHub і публікація
 
 **Гілка:** coderabbit/review-fix-errors/dc1f6bd4. **Пакет:** 60ba268f409ceae2dcaa14090787dfcaf13ac009.
