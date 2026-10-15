@@ -950,6 +950,24 @@ class TestPIIRedaction:
             out = self._redact(sample)
             assert secret not in out, f"{name} leaked: {out}"
 
+    def test_keys_are_fully_masked_before_overlapping_pii_patterns(self):
+        from src.pii import PIIRedactor
+
+        key = "sk-ant-synthetic-1234567890-tail"
+        out, events = PIIRedactor().redact(f"key {key} end")
+        assert out == "key [REDACTED_KEY] end"
+        assert [(e.pattern_name, e.original_match) for e in events] == [("api_key_sk_ant", key)]
+
+    def test_dict_redaction_handles_lists_inside_lists_without_mutation(self):
+        from copy import deepcopy
+        from src.pii import PIIRedactor
+
+        data = {"nested": [["test@example.test", {"phone": ["+380671234567"]}], 5, None]}
+        original = deepcopy(data)
+        out = PIIRedactor().redact_dict(data)
+        assert out == {"nested": [["t***@example.test", {"phone": ["+380***567"]}], 5, None]}
+        assert data == original
+
     def test_events_are_recorded_for_audit(self):
         from src.pii import PIIRedactor
 
@@ -970,6 +988,33 @@ class TestPIIRedaction:
             {"a": {"b": "andrii.test@example.com"}, "l": ["+380671234567", 5, None]}
         )
         assert out == {"a": {"b": "a***@example.com"}, "l": ["+380***567", 5, None]}
+
+
+class TestFinPDFFonts:
+    def test_export_preserves_ukrainian_text_with_discovered_fonts(self, tmp_path):
+        from datetime import date
+        from pypdf import PdfReader
+        from src.agents import fin_reports
+
+        report = fin_reports.build_report("eva", date(2026, 10, 15), [], [], {})
+        path = fin_reports.export(report, "pdf", tmp_path)
+        text = "\n".join(page.extract_text() for page in PdfReader(path).pages)
+        assert report["title"] in text
+        assert "Заплановано" in text
+
+    def test_export_fails_explicitly_when_fonts_are_unavailable(self, tmp_path, monkeypatch):
+        import pytest
+        from PIL import ImageFont
+        from src.agents import fin_reports
+
+        def missing_font(*args, **kwargs):
+            raise OSError("font unavailable")
+
+        monkeypatch.setattr(ImageFont, "truetype", missing_font)
+        output = tmp_path / "report.pdf"
+        with pytest.raises(RuntimeError, match="DejaVuSans"):
+            fin_reports.write_pdf({}, output)
+        assert not output.exists()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
