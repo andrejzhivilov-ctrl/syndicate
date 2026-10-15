@@ -16,8 +16,6 @@ from typing import Dict, List, Optional
 
 from src.agents import fin_ledger as L
 
-DEJAVU = Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
-DEJAVU_BOLD = Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")
 EXPORT_FORMATS = ("md", "xlsx", "docx", "pdf", "pptx")
 
 
@@ -210,6 +208,7 @@ def write_pptx(r: dict, path: Path) -> Path:
 
 # ---------------------------------------------------------------- PDF
 def write_pdf(r: dict, path: Path) -> Path:
+    from PIL import ImageFont
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet
@@ -218,10 +217,14 @@ def write_pdf(r: dict, path: Path) -> Path:
     from reportlab.pdfbase.ttfonts import TTFont
     from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-    if not DEJAVU.exists():
-        raise RuntimeError("PDF: немає шрифту з кирилицею (DejaVuSans)")
-    pdfmetrics.registerFont(TTFont("DejaVu", str(DEJAVU)))
-    pdfmetrics.registerFont(TTFont("DejaVu-Bold", str(DEJAVU_BOLD)))
+    # Pillow searches the platform's font directories, including non-Debian layouts.
+    try:
+        regular = ImageFont.truetype("DejaVuSans.ttf", 12).path
+        bold = ImageFont.truetype("DejaVuSans-Bold.ttf", 12).path
+    except OSError as exc:
+        raise RuntimeError("PDF: немає шрифту з кирилицею (DejaVuSans)") from exc
+    pdfmetrics.registerFont(TTFont("DejaVu", regular))
+    pdfmetrics.registerFont(TTFont("DejaVu-Bold", bold))
     st = getSampleStyleSheet()
     st["Title"].fontName = "DejaVu-Bold"
     st["Normal"].fontName = "DejaVu"

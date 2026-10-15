@@ -48,6 +48,10 @@ class PIIRedactor:
 
     # Pre-compiled regex patterns for performance
     PATTERNS = {
+        # Remove whole keys before PII patterns can rewrite pieces of them.
+        "api_key_sk_ant": re.compile(r"\bsk-ant-[A-Za-z0-9_-]+\b"),
+        "api_key_ghp": re.compile(r"\bghp_[A-Za-z0-9]+\b"),
+        "api_key_gsk": re.compile(r"\bgsk_[A-Za-z0-9]+\b"),
         "ukrainian_phone": re.compile(r"(\+380)(\d{3})(\d{3})(\d{3})"),
         "intl_phone": re.compile(r"(\+1)(\d{3})(\d{3})(\d{4})"),
         "email": re.compile(r"([a-zA-Z0-9])([a-zA-Z0-9._%+-]*)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})"),
@@ -58,9 +62,6 @@ class PIIRedactor:
         # The old pattern only spanned 27 of them, so real IBANs were never
         # masked at all — they went to the LLM verbatim.
         "iban": re.compile(r"\b(UA\d{2})[A-Z0-9]{21}([A-Z0-9]{4})\b"),
-        "api_key_sk_ant": re.compile(r"\bsk-ant-[A-Za-z0-9_-]+\b"),
-        "api_key_ghp": re.compile(r"\bghp_[A-Za-z0-9]+\b"),
-        "api_key_gsk": re.compile(r"\bgsk_[A-Za-z0-9]+\b"),
         "ipv4": re.compile(r"\b(\d{1,3}\.\d{1,3}\.)(\d{1,3}\.\d{1,3})\b"),
     }
 
@@ -102,25 +103,14 @@ class PIIRedactor:
         """
         Recursively redact all string values in a dict.
         """
-        result = {}
-        for key, value in data.items():
-            if isinstance(value, dict):
-                result[key] = self.redact_dict(value)
-            elif isinstance(value, list):
-                redacted_list = []
-                for item in value:
-                    if isinstance(item, dict):
-                        redacted_list.append(self.redact_dict(item))
-                    elif isinstance(item, str):
-                        redacted, _ = self.redact(item)
-                        redacted_list.append(redacted)
-                    else:
-                        redacted_list.append(item)
-                result[key] = redacted_list
-            elif isinstance(value, str):
-                redacted_str, _ = self.redact(value)
-                result[key] = redacted_str
-            else:
-                result[key] = value
+        return {key: self._redact_value(value) for key, value in data.items()}
 
-        return result
+    def _redact_value(self, value: Any) -> Any:
+        """Walk JSON containers at every depth without mutating the input."""
+        if isinstance(value, dict):
+            return self.redact_dict(value)
+        if isinstance(value, list):
+            return [self._redact_value(item) for item in value]
+        if isinstance(value, str):
+            return self.redact(value)[0]
+        return value
