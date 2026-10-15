@@ -25,6 +25,15 @@
 
 ---
 
+## 2026-10-15 — CodeRabbit Agent: відновлення GitHub і публікація
+
+**Гілка:** coderabbit/review-fix-errors/dc1f6bd4. **Пакет:** 60ba268f409ceae2dcaa14090787dfcaf13ac009.
+
+- `git fetch origin` і push із поточного підключення успішні; `gh api user` підтверджує andrejzhivilov-ctrl. Старий auth blocker нижче більше не актуальний.
+- Перевірено відповідність executable inputs збереженому SHA256 snapshot: змінено лише HANDOFF. Повний tools/check.sh, container/MCP/render checks попереднього запуску повторно використано; новий код не додавався.
+- Користувач раніше явно дозволив merge; PR13 переводиться з draft у ready і зливається після успішного CI без обходу gates. Фактичний статус і merge SHA дивитися в PR13/GitHub.
+- Live provider accounts, production Vault startup і розгортання на сервері залишаються невиконаними. PDF оновлюється після перевірки фінального remote status.
+
 ## 2026-10-15 — CodeRabbit Agent: інтеграційні workers і паспорт
 
 **Гілка:** coderabbit/review-fix-errors/dc1f6bd4. **База:** 742994da6e604c381e52f9a04347ef95ca80cb9c. **Ворота:** ✅ tools/check.sh (exit 0).

@@ -1021,7 +1021,7 @@ Rollback: зупинити нові виклики, повернути попе�
 
 Перевірено локальний HyperFrames render: справжній MP4, 640×360, 1 секунда, 10 кадрів, контейнер без мережі. Для Chromium потрібні HYPERFRAMES_BROWSER_PATH=/usr/bin/chromium і writable HOME=/tmp; tmpfs /tmp має бути щонайменше 4 GiB за поточної конфігурації. Actual SDK init/shutdown перевірено; бюджет реального користувача не синхронізувався. Усі 12 профілів пройшли authenticated skills API smoke.
 
-GitHub: PR https://github.com/andrejzhivilov-ctrl/syndicate/pull/13. Злиття нового пакета ще не виконане: Git відхилив персональну авторизацію; потрібне відновлення доступу на запис. Статус main перевіряється в GitHub, цей документ не є підтвердженням злиття.
+GitHub: PR https://github.com/andrejzhivilov-ctrl/syndicate/pull/13. Персональний доступ GitHub відновлено; пакет опубліковано з акаунта andrejzhivilov-ctrl. Поточний статус CI та злиття перевіряється на сторінці PR. Злиття коду не означає запуску production-сервера.
 
 Пакет містить реалізований код адаптерів, API boundary, образ і документацію. Локальні synthetic contract tests не підтверджують доступ до production budgets, LLM accounts, bookmaker coverage або social permissions. Сервера/домену/credentials від оператора ще не отримано, тому production activation не виконана.
 
