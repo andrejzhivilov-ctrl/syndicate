@@ -119,6 +119,29 @@
   - Канал з Євою: передача коротких дайджестів у загальний добовий звіт Синдикату.
 - **24/7 Zero-Waste токени:** 90% обчислень у чистому Python (`smartmoneyconcepts`, `Riskfolio-Lib`, `cot-reports`) за $0 токенів, швидкий синтез через Groq Cloud (Llama-3.3-70B) та Google AI Studio (Gemini Flash).
 
+### 🎬 7. ОСКАР (OSCAR) — Chief Media & Audience Director (Floor 2+)
+- **Роль:** Керівник автономної медіа-імперії (сайти-блоги, YouTube, соцмережі, розсилка).
+- **Multi-Persona Matrix:** 3 активні західні бренди (Marcus Vance — фітнес, Nicole «Nika» Sterling — ШІ/n8n, Julian Pierce — цифровий капітал).
+- **Tri-LLM Router:** xAI Grok (живий креатив/сарказм/хуки), Google Gemini (2M токенів пакетного аналізу YouTube-каналів), Claude Haiku (тріаж і черги).
+- **Inception Selling & Omni-Comment Engine:** Видобуток болей з коментарів, психологічний копірайтинг (продаж через розв'язання проблеми без агресивного нав'язування), активні авторські відповіді підписникам.
+- **Специфікація:** `docs/OSCAR_MEDIA_DIRECTOR_SPEC.md` та `oscar_core/OSCAR_FULL_SPEC.md`.
+
+### 👕 8. ТАЙЛЕР (TYLER) — Chief of Print-on-Demand & Custom Merch (Floor 2 / Operations)
+- **Роль:** Повний автономний цикл фізичного мерчу та POD (одяг, кераміка, аксесуари, поліграфія).
+- **Zero-Junk Policy:** Використання виключно преміальних бланків (Bella+Canvas 3001, Comfort Colors 1717) та сертифікованих принт-хабів.
+- **Custom Concierge Chat:** Інтерактивний чат із клієнтом для персоналізованих замовлень із миттєвим рендером мокапу за 10–15 секунд.
+- **Margin Guard >= 35%:** Залізна відсічка збиткових товарів, максимізація чистого прибутку (50–65% на кастомі).
+- **Pinterest Traffic Machine:** Автономний органічний трафік через Rich Pins та Idea Pins + медіа-підтримка з блогів Оскара.
+- **Специфікація:** `docs/TYLER_POD_DIRECTOR_SPEC.md` та `tyler_core/TYLER_FULL_SPEC.md`.
+
+### 🎲 9. ДЖЕК (JACK) — Quantitative Sports, Esports & Poker Analyst (Floor 7)
+- **Роль:** Квантовий моніторинг ліній (PariMatch, Vbet), розрахунок математичної переваги (+EV), кіберспорт, баскетбол, футбол, теніс, покер.
+- **Джерела ліній:** Парсинг коефіцієнтів PariMatch та Vbet, звірка з еталоном Pinnacle (Closing Line Value).
+- **Математичний шар:** Розподіл Пуассона, xG/xGA регресія, Dixon-Coles, NBA Pace-моделі, GTO спектри та ICM у покері.
+- **Bankroll Shield (0.25x Kelly):** Суворий контроль ризику (1–2.5% від банку), захист від просадок та Anti-Tilt стоп-кран на 24 години при серії з 3 поразок.
+- **Двоканальна дія:** Прямі +EV сповіщення Андрію в Telegram з кнопкою вибору контори + паралельний віртуальний Paper-trading трекер.
+- **Специфікація:** `docs/JACK_SPORTS_QUANT_SPEC.md` та `jack_core/JACK_FULL_SPEC.md`.
+
 ---
 
 ## 5. ЗАГАЛЬНІ КОДЕКСИ СИНДИКАТУ
