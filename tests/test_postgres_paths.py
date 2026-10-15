@@ -48,8 +48,8 @@ def _run(coro):
 
 
 def _tag(prefix: str) -> str:
-    """A unique per-test identifier — the session database is shared."""
-    return f"{prefix}-{uuid.uuid4().hex[:8]}"
+    """Bounded ID; trailing x prevents random suffixes matching passport PII."""
+    return f"{prefix}-{uuid.uuid4().hex[:8]}x"
 
 
 def _vector(axis: int) -> list:

@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "agent_id": "jack",
+  "activation": "prepared_not_enabled",
+  "runtime": "hermes",
+  "hermes_profile": "jack",
+  "memory_namespace": "agents/jack",
+  "prompt_file": "src/agents/jack_runtime_prompt.md",
+  "prompt_status": "draft",
+  "role_status": "agreed_draft",
+  "model_status": "not_selected",
+  "task_source": "andrii_only",
+  "capabilities": [],
+  "grants": [],
+  "resource_scopes": [],
+  "services_enabled": [],
+  "skills": [
+    {
+      "id": "jack-quant-models",
+      "path": "jack_core/skills/jack-quant-models/SKILL.md",
+      "activation": "draft"
+    },
+    {
+      "id": "jack-paper-risk",
+      "path": "jack_core/skills/jack-paper-risk/SKILL.md",
+      "activation": "draft"
+    },
+    {
+      "id": "jack-line-scout",
+      "path": "jack_core/skills/jack-line-scout/SKILL.md",
+      "activation": "draft"
+    }
+  ],
+  "telegram": {
+    "status": "not_connected",
+    "allowlist": []
+  }
+}

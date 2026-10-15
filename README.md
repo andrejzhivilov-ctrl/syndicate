@@ -128,3 +128,11 @@ Production-запуск, активація Hermes і підключення с�
 ## Розгортання
 
 Пакет розгортання, права і відкриті питання: [`docs/DEPLOY_SYNDICATE.md`](docs/DEPLOY_SYNDICATE.md). Матриця прав (генерується): [`docs/PERMISSIONS_MATRIX.md`](docs/PERMISSIONS_MATRIX.md). Серверні кроки: [`DEPLOYMENT_RUNBOOK.md`](DEPLOYMENT_RUNBOOK.md).
+
+## Oscar, Tyler та Jack: backend workers
+
+Додано локальні інструменти трьох директорів: медіа-драфти й дослідження Оскара, POD-маржа та персоналізація Тайлера, спортивні математичні моделі й paper-аудит Джека. Профілі та дев’ять власних скілів підготовлено без автоматичної активації.
+
+- [Розгортання, доступні дії та межі інтеграцій](docs/DIRECTORS_DEPLOYMENT.md)
+- [56 GitHub-кандидатів скілів із зафіксованими ревізіями](docs/DIRECTOR_SKILLS_CATALOG.md)
+- [Матриця прав](docs/PERMISSIONS_MATRIX.md)

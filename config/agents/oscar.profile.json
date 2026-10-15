@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "agent_id": "oscar",
+  "activation": "prepared_not_enabled",
+  "runtime": "hermes",
+  "hermes_profile": "oscar",
+  "memory_namespace": "agents/oscar",
+  "prompt_file": "src/agents/oscar_runtime_prompt.md",
+  "prompt_status": "draft",
+  "role_status": "agreed_draft",
+  "model_status": "not_selected",
+  "task_source": "andrii_only",
+  "capabilities": [],
+  "grants": [],
+  "resource_scopes": [],
+  "services_enabled": [],
+  "skills": [
+    {
+      "id": "oscar-editorial",
+      "path": "oscar_core/skills/oscar-editorial/SKILL.md",
+      "activation": "draft"
+    },
+    {
+      "id": "oscar-audience-research",
+      "path": "oscar_core/skills/oscar-audience-research/SKILL.md",
+      "activation": "draft"
+    },
+    {
+      "id": "oscar-community",
+      "path": "oscar_core/skills/oscar-community/SKILL.md",
+      "activation": "draft"
+    }
+  ],
+  "telegram": {
+    "status": "not_connected",
+    "allowlist": []
+  }
+}

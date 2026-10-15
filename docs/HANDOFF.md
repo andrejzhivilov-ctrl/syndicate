@@ -25,6 +25,35 @@
 
 ---
 
+## 2026-10-15 — CodeRabbit Agent: Oscar / Tyler / Jack backend workers
+
+**Гілка:** coderabbit/review-fix-errors/dc1f6bd4. **База:** f3773c2 (усі шість специфікацій отримано).
+
+### Зроблено
+- Oscar: 3 персони, Tri-LLM із per-agent Vault keys і PII, імпорт/дедуплікація коментарів, YouTube read adapter, перевірка класифікацій за source IDs, дослідження транскриптів, editorial drafts/replies/newsletters, відкладена pending queue, типографічний thumbnail, SVG-схеми та обчислення email-метрик із наданих даних.
+- Tyler: Decimal margin guard ≥35% із податками/доставкою/округленням комісії; Zero-Junk evidence checks; справжній PNG 300 DPI і схематичний preview; збереження concierge-концептів, порівняння наданих supplier quotes, Pinterest draft та негативні відгуки.
+- Jack: 6 математичних engines, exact EV≥4.5%, 0.25 Kelly з cap 1% за замовчуванням (макс 2.5%), контроль свіжості odds, vig removal, The Odds API scout з явним bookmaker coverage, SQLite paper tracker із транзакційними exposure/duplicate/settlement gates, 24h anti-tilt і ROI/sample size.
+- 9 власних draft skills та 56 GitHub-кандидатів: commit SHA, file SHA256, source/license/compatibility metadata. Сторонні скіли не встановлено. Наукові Python 3.12+ та Remotion з непідтвердженою ліцензією позначено окремо.
+- Профілі й least-privilege Vault ACL; окремі worker networks/volumes/AppRoles; FastAPI auth; allowlists на координаторі й worker; HTTP bridge LangGraph → worker; runtime routes за замовчуванням dormant.
+- Виправлено старий генератор HCL: подвійні лапки capability tokens робили ACL невалідними. Всі політики перегенеровано й незалежно розібрано python-hcl2.
+- Lazy exports src.agents зберігають публічні імена та не тягнуть усі LLM/спеціалістські залежності в мінімальний worker image.
+- Відтворено нестабільність SQL-fixture: короткий UUID міг збігтися з паспортним PII-патерном. Fixture тепер додає літерний суфікс до короткого UUID, зберігаючи SQL-ліміти довжини; privacy checks та SQL assertions збережено, додано регресію.
+
+### Перевірки
+- Перші 47 domain/profile/permissions tests пройшли; поточна цільова вибірка domain + нові regressions — 55 passed перед останнім regression fixture.
+- Docker build успішний; smoke у nonroot/read-only/network-none контейнері: API/auth/capabilities усіх трьох директорів і PNG/SQLite persistence пройшли. Сandbox потребує host cgroup namespace/root parent без CPU/memory flags; production resource limits ще не перевірені на цільовому хості.
+- Compose config та незалежний HCL parser пройшли. Provider contracts перевірено синтетичними HTTP transports; emulate v0.0.1 catalog не має потрібних LLM/YouTube/odds/Vault operations.
+- Остаточний `PATH=/home/vercel-sandbox/runtime/test-tools:$PATH bash tools/check.sh` — exit 0: pytest, обидва наскрізні suites, усі lint, API/Vault, живі SQL-шляхи PostgreSQL і compose green. CI-only assertion повноти optional DB extensions локально skipped. `git diff --check` — exit 0.
+
+### Не активовано / потрібні інтеграції
+- Цей образ — native tool worker, не Hermes runtime. Профілі prepared_not_enabled, grants порожні, зовнішні actions не виконуються.
+- LivePortrait/відеоконвеєр, subscriber database, full multi-platform live harvest, live trademark/trend sources, storefront/chat UI, Stripe/payment webhooks, фабричний submit, Pinterest publish, Telegram approval/delivery і центральний KODEX audit не завершені цим етапом.
+- Live accounts, model budgets, bookmaker coverage і калібрування моделей потребують окремої перевірки. Не стверджувати production readiness або прибутковість. Повний стан і запуск — docs/DIRECTORS_DEPLOYMENT.md.
+
+### Наступне
+1. Відновити персональну GitHub Git-авторизацію: fetch відхилено з Invalid username or token. API user ще повертає andrejzhivilov-ctrl. Передати локальні зміни через draft PR після зелених mandatory gates; не зливати новий feature автоматично за старим дозволом на PII/PDF fixes.
+2. Підключити Hermes policy/tool gateway, центральний audit та потрібні provider/account integrations згідно з deployment guide; production activation потребує окремого рішення оператора.
+
 ## 2026-10-15 — CodeRabbit Agent: виправлення PII та PDF
 
 **Гілка:** coderabbit/review-fix-errors/dc1f6bd4. **База:** 30974829b60413cccb5559299c40ce8a31528e9c.

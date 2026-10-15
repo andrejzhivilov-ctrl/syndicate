@@ -3706,3 +3706,58 @@ class TestVaultSecretPathHelpers:
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+class TestDirectorSafetyRegressions:
+    """Money boundaries, approval isolation and exact decision thresholds."""
+
+    def test_tyler_blocks_one_cent_below_net_margin_floor(self):
+        from src.agents.tyler.finance import calculate_margin
+        payload = {"currency": "USD", "price": "40.00", "blank": "7.00", "print": "4.00",
+                   "shipping": "4.00", "tax": "2.00"}
+        minimum = calculate_margin(payload)["minimum_price"]
+        from decimal import Decimal
+        payload["price"] = str(Decimal(minimum) - Decimal("0.01"))
+        assert calculate_margin(payload)["eligible"] is False
+        payload["price"] = minimum
+        assert calculate_margin(payload)["eligible"] is True
+
+    def test_jack_accepts_exact_ev_threshold_without_float_roundoff(self):
+        from src.agents.jack.quant import evaluate
+        from datetime import datetime, timezone
+        result = evaluate({"probability": 0.5225, "decimal_odds": 2, "bankroll": 1000,
+                           "observed_at": datetime.now(timezone.utc).isoformat(), "model_source": "regression"})
+        assert result["eligible"] is True
+        assert result["ev"] == 0.045
+
+    def test_jack_never_rounds_stake_above_event_cap(self):
+        from src.agents.jack.quant import evaluate
+        from datetime import datetime, timezone
+        result = evaluate({"probability": 0.6, "decimal_odds": 2, "bankroll": 0.55,
+                           "observed_at": datetime.now(timezone.utc).isoformat(), "model_source": "regression"})
+        assert result["stake"] <= result["bankroll"] * result["event_risk_cap"]
+
+    def test_director_vault_policies_cannot_read_shared_llm_keys(self):
+        from src.vault_paths import agent_policy_paths, secret_path, API_KEYS
+        for agent_id in ("oscar", "tyler", "jack"):
+            paths = agent_policy_paths(agent_id)
+            assert secret_path(API_KEYS) not in paths
+            assert all(f"/agents/{agent_id}/" in path for path in paths)
+
+
+def test_vault_policy_generator_does_not_double_quote_capability_tokens():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("director_vault_policy_regression", REPO_ROOT / "tools/vault_policies.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    for policy in module.build_policies().values():
+        assert '""read""' not in policy
+        assert '""list""' not in policy
+        assert 'capabilities = ["read"]' in policy
+
+
+def test_audit_labels_keep_bounded_ids_but_reject_passport_shaped_short_ids():
+    from src.memory import _audit_label
+    assert _audit_label("audit-ab123456", limit=64) == "unknown"
+    bounded_id = "audit-ab123456x"
+    assert _audit_label(bounded_id, limit=64) == bounded_id

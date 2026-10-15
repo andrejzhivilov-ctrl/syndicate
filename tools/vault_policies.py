@@ -54,7 +54,7 @@ def _policy_text(title: str, paths: List[Tuple[str, str]]) -> str:
     """Render one policy. Metadata paths get ``list,read`` in a single block."""
     merged: Dict[str, List[str]] = {}
     for path, capabilities in paths:
-        caps = [c.strip() for c in capabilities.strip("[]").split(",") if c.strip()]
+        caps = [c.strip().strip('"') for c in capabilities.strip("[]").split(",") if c.strip()]
         if "/metadata/" in path and "list" not in caps:
             caps = ["list"] + caps
         merged[path] = sorted(set(merged.get(path, []) + caps))
@@ -97,7 +97,7 @@ def agent_policy(agent_id: str) -> Tuple[str, str]:
     services = vault_paths.AGENT_SERVICES.get(agent_id, ())
     title = (
         f"Agent policy: {agent_id}.\n"
-        f"# Infrastructure: {', '.join(vault_paths.INFRA_SERVICES)}.\n"
+        f"# Infrastructure: {', '.join(vault_paths.INFRA_SERVICES) if agent_id not in {'oscar', 'tyler', 'jack'} else 'none'}.\n"
         f"# Own subtree: {vault_paths.agent_secret_path(agent_id, '<name>')}.\n"
         f"# Extra services: {', '.join(services) if services else 'none (default deny)'}.\n"
         "# Cannot read other agents' subtrees or the server's own API key."

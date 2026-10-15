@@ -1,0 +1,933 @@
+{
+  "schema_version": 1,
+  "retrieved_at": "2026-10-15",
+  "skills": [
+    {
+      "id": "coreyhaines31:ab-testing",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/ab-testing/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/ab-testing/SKILL.md",
+      "sha256": "fba679be14a9b21a06cde009caf17a652b92040c6f78a520a5d4baec0a5bd5da",
+      "license": "MIT",
+      "description": "When the user wants to plan, design, or implement an A/B test or experiment, or build a growth experimentation program. Also use when the user mentions \"A/B test,\" \"split test,\" \"experiment,\" \"test this change,\" \"variant copy,\" \"multivariate test,\" \"hypothesis,\" \"should I test this,\" \"which version is better,\" \"test two versions,\" \"statistical significance,\" \"how long should I run this test,\" \"growth experiments,\" \"experiment velocity,\" \"experiment backlog,\" \"ICE score,\" \"experimentation program",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:analytics",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/analytics/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/analytics/SKILL.md",
+      "sha256": "d52ee77ddd9d98f23c4b4f76c46bc13acf74c7581f160f64dc3260013547b207",
+      "license": "MIT",
+      "description": "When the user wants to set up, improve, or audit analytics tracking and measurement. Also use when the user mentions \"set up tracking,\" \"GA4,\" \"Google Analytics,\" \"conversion tracking,\" \"event tracking,\" \"UTM parameters,\" \"tag manager,\" \"GTM,\" \"analytics implementation,\" \"tracking plan,\" \"how do I measure this,\" \"track conversions,\" \"Mixpanel,\" \"Segment,\" \"are my events firing,\" or \"analytics isn't working.\" Use this whenever someone asks how to know if something is working or wants to measure m",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:attribution",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/attribution/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/attribution/SKILL.md",
+      "sha256": "f1479e6e2bc47aeb583dfe774224fff6aa7ab43c304379bad61d3b7e176dc5d1",
+      "license": "MIT",
+      "description": "When the user wants to figure out which marketing actually drives conversions and revenue, choose or interpret an attribution model, or reconcile conflicting numbers across tools. Also use when the user mentions \"attribution,\" \"attribution model,\" \"first-touch vs last-touch,\" \"multi-touch,\" \"which channel drives revenue,\" \"what's my real CAC,\" \"my dashboards disagree,\" \"Google/Meta says X but GA says Y,\" \"media mix model,\" \"MMM,\" \"incrementality,\" \"geo lift,\" \"holdout test,\" \"how did you hear ab",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:churn-prevention",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/churn-prevention/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/churn-prevention/SKILL.md",
+      "sha256": "425497b9c3415fa91a5cc4a7140a1bee727d3b6398beed1bb4fa4880503c0355",
+      "license": "MIT",
+      "description": "When the user wants to reduce churn, build cancellation flows, set up save offers, recover failed payments, or implement retention strategies. Also use when the user mentions 'churn,' 'cancel flow,' 'offboarding,' 'save offer,' 'dunning,' 'failed payment recovery,' 'win-back,' 'retention,' 'exit survey,' 'pause subscription,' 'involuntary churn,' 'people keep canceling,' 'churn rate is too high,' 'how do I keep users,' or 'customers are leaving.' Use this whenever someone is losing subscribers o",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:co-marketing",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/co-marketing/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/co-marketing/SKILL.md",
+      "sha256": "1073aad4a1452b735e4f70ccb28b7b778658d2eb3b49946eb56265f00a69598c",
+      "license": "MIT",
+      "description": "When the user wants to find co-marketing partners, plan joint campaigns, or brainstorm partnership opportunities. Use when the user says 'co-marketing,' 'partner marketing,' 'joint campaign,' 'who should we partner with,' 'integration marketing,' 'cross-promotion,' 'collaborate with another company,' 'partnership ideas,' or 'co-brand.' For customer referral programs, see referrals. For launch-specific partnerships, see launch.",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:community-marketing",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/community-marketing/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/community-marketing/SKILL.md",
+      "sha256": "e4c4a21e82a04e8ef6e2845fa34ebaf5512ba59ae1c9c74d8caa9f045628f4da",
+      "license": "MIT",
+      "description": "Build and leverage online communities to drive product growth and brand loyalty. Use when the user wants to create a community strategy, grow a Discord or Slack community, manage a forum or subreddit, build brand advocates, increase word-of-mouth, drive community-led growth, engage users post-signup, or turn customers into evangelists. Trigger phrases: \"build a community,\" \"community strategy,\" \"Discord community,\" \"Slack community,\" \"community-led growth,\" \"brand advocates,\" \"user community,\" \"",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:competitor-profiling",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/competitor-profiling/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/competitor-profiling/SKILL.md",
+      "sha256": "ed74677eb8dfe4a3c97ccb0f7f1a1070dc6aed1d93836ed9322d99d86e558928",
+      "license": "MIT",
+      "description": "When the user wants to research, profile, or analyze competitors from their URLs. Also use when the user mentions 'competitor profile,' 'competitor research,' 'competitor analysis,' 'profile this competitor,' 'analyze competitor,' 'competitive intelligence,' 'competitor deep dive,' 'who are my competitors,' 'competitor landscape,' 'competitor dossier,' 'competitive audit,' or 'research these competitors.' Input is a list of competitor URLs. Output is structured competitor profile markdown files.",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:competitors",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/competitors/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/competitors/SKILL.md",
+      "sha256": "ff77b76dfe43158b2fc248bb8c41fe94745d1264abb0a0c665b2c55318287a35",
+      "license": "MIT",
+      "description": "When the user wants to create competitor comparison or alternative pages for SEO and buyer-facing use. Also use when the user mentions 'alternative page,' 'vs page,' 'competitor comparison,' 'comparison page,' '[Product] vs [Product],' '[Product] alternative,' 'competitive landing pages,' 'how do we compare to X,' 'competitor teardown,' 'audit our competitor pages,' 'are our comparison pages out of date,' or 'competitive asset audit.' Use this for any content that positions your product against ",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:content-strategy",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/content-strategy/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/content-strategy/SKILL.md",
+      "sha256": "dce9f4027ae129691e92623541a360bee9356137a7eecf68afa95674af118e68",
+      "license": "MIT",
+      "description": "When the user wants to plan a content strategy, decide what content to create, or figure out what topics to cover. Also use when the user mentions \"content strategy,\" \"what should I write about,\" \"content ideas,\" \"blog strategy,\" \"topic clusters,\" \"content planning,\" \"editorial calendar,\" \"content marketing,\" \"content roadmap,\" \"what content should I create,\" \"blog topics,\" \"content pillars,\" or \"I don't know what to write.\" Use this whenever someone needs help deciding what content to produce, ",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:copy-editing",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/copy-editing/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/copy-editing/SKILL.md",
+      "sha256": "d23184ad62cbe29f64684b934c99d4ae8c7f03dec9c5a5d6bd492d645f5b9719",
+      "license": "MIT",
+      "description": "When the user wants to edit, review, or improve existing marketing copy, or refresh outdated content. Also use when the user mentions 'edit this copy,' 'review my copy,' 'copy feedback,' 'proofread,' 'polish this,' 'make this better,' 'copy sweep,' 'tighten this up,' 'this reads awkwardly,' 'clean up this text,' 'too wordy,' 'sharpen the messaging,' 'refresh this content,' 'update this page,' 'this content is outdated,' or 'content audit,' 'this sounds like AI,' 'AI slop,' 'de-slop this,' or 'ma",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:copywriting",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/copywriting/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/copywriting/SKILL.md",
+      "sha256": "ecb4693fba9cc4f8841ec20f179574f04f69cbb1fb4cc66c59d955a22eccea6f",
+      "license": "MIT",
+      "description": "When the user wants to write, rewrite, or improve marketing copy for any page, including homepage, landing pages, pricing pages, feature pages, about pages, or product pages. Also use when the user says \"write copy for,\" \"improve this copy,\" \"rewrite this page,\" \"marketing copy,\" \"headline help,\" \"CTA copy,\" \"value proposition,\" \"tagline,\" \"hero section copy,\" \"this copy is weak,\" \"this sounds like AI,\" \"AI slop,\" \"make it sound human,\" or \"help me describe my product.\" Use this whenever someone",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:cro",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/cro/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/cro/SKILL.md",
+      "sha256": "6e172cc38178c800ff41ceb097f36c6a1db8035fb88a1fee53043f8ec38a6f35",
+      "license": "MIT",
+      "description": "When the user wants to optimize, improve, or increase conversions on any marketing page or form — including homepage, landing pages, pricing pages, feature pages, lead capture forms, or contact forms. Also use when the user says 'CRO,' 'conversion rate optimization,' 'this page isn't converting,' 'improve conversions,' 'why isn't this page working,' 'my landing page sucks,' 'form abandonment,' 'nobody's converting,' 'low conversion rate,' or 'this page needs work.' Use this even if the user just",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:customer-research",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/customer-research/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/customer-research/SKILL.md",
+      "sha256": "905e65e67268448d88b3b96cf045c6b3615cdd87c1060e129b148a31aa627669",
+      "license": "MIT",
+      "description": "When the user wants to conduct, analyze, or synthesize customer research. Use when the user mentions \"customer research,\" \"ICP research,\" \"talk to customers,\" \"analyze transcripts,\" \"customer interviews,\" \"survey analysis,\" \"support ticket analysis,\" \"voice of customer,\" \"VOC,\" \"build personas,\" \"customer personas,\" \"jobs to be done,\" \"JTBD,\" \"what do customers say,\" \"what are customers struggling with,\" \"Reddit mining,\" \"G2 reviews,\" \"review mining,\" \"digital watering holes,\" \"community researc",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:emails",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/emails/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/emails/SKILL.md",
+      "sha256": "8709631cc21717d17db9bb7e787ea44768d77182daf9846de8718a2ae7433b91",
+      "license": "MIT",
+      "description": "When the user wants to create or optimize an email sequence, drip campaign, automated email flow, or lifecycle email program. Also use when the user mentions \"email sequence,\" \"drip campaign,\" \"nurture sequence,\" \"onboarding emails,\" \"welcome sequence,\" \"re-engagement emails,\" \"email automation,\" \"lifecycle emails,\" \"trigger-based emails,\" \"email funnel,\" \"email workflow,\" \"what emails should I send,\" \"welcome series,\" or \"email cadence.\" Use this for any multi-email automated flow. Emails avoid",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:free-tools",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/free-tools/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/free-tools/SKILL.md",
+      "sha256": "e82f89534359242297b3406eba5acdbd6eb4a4ec45aa1628f30101fa13f6d8c2",
+      "license": "MIT",
+      "description": "When the user wants to plan, evaluate, or build a free tool for marketing purposes — lead generation, SEO value, or brand awareness. Also use when the user mentions \"engineering as marketing,\" \"free tool,\" \"marketing tool,\" \"calculator,\" \"generator,\" \"interactive tool,\" \"lead gen tool,\" \"build a tool for leads,\" \"free resource,\" \"ROI calculator,\" \"grader tool,\" \"audit tool,\" \"should I build a free tool,\" or \"tools for lead gen.\" Use this whenever someone wants to build something useful and give ",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:image",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/image/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/image/SKILL.md",
+      "sha256": "a03da6dd4aed940f2fb8df1337a8dbe0f4108b3bef864e996f759fa4d94e2600",
+      "license": "MIT",
+      "description": "When the user wants to create, generate, edit, or optimize images for marketing — blog heroes, social graphics, product mockups, profile banners, listing visuals, or brand assets. Also use when the user mentions 'AI image generation,' 'generate an image,' 'create a graphic,' 'product mockup,' 'hero image,' 'social media graphic,' 'banner image,' 'cover photo,' 'profile banner,' 'listing screenshot,' 'Flux,' 'Flux Kontext,' 'Midjourney,' 'DALL-E,' 'GPT Image,' 'ChatGPT Images,' 'Ideogram,' 'Gemin",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:influencer-marketing",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/influencer-marketing/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/influencer-marketing/SKILL.md",
+      "sha256": "4a0de63b182b11d98cf3d2871198045f92edb678e0af8536a2c0f4f075cba702",
+      "license": "MIT",
+      "description": "When the user wants to run influencer, creator, or ambassador partnerships to promote their product — finding and vetting partners, structuring deals, briefing creators, disclosure compliance, and measuring ROI. Also use when the user mentions 'influencer marketing,' 'creator partnerships,' 'sponsorships,' 'YouTube sponsorships,' 'podcast sponsorships,' 'brand ambassador,' 'ambassador program,' 'creator program,' 'UGC creators,' 'tech UGC,' 'UGC creator program,' 'creator network,' 'B2B influenc",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:lead-magnets",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/lead-magnets/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/lead-magnets/SKILL.md",
+      "sha256": "190a64c72a9a36fdde3a6b0888798e1bb9dd4e7406b00a6bbf90dba5e64c047b",
+      "license": "MIT",
+      "description": "When the user wants to create, plan, or optimize a lead magnet for email capture or lead generation. Also use when the user mentions \"lead magnet,\" \"gated content,\" \"content upgrade,\" \"downloadable,\" \"ebook,\" \"cheat sheet,\" \"checklist,\" \"template download,\" \"opt-in,\" \"freebie,\" \"PDF download,\" \"resource library,\" \"content offer,\" \"email capture content,\" \"Notion template,\" \"spreadsheet template,\" \"what should I give away for emails,\" \"course as a skill,\" or \"package our content as an agent skill",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:marketing-loops",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/marketing-loops/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/marketing-loops/SKILL.md",
+      "sha256": "9e090974051a168999bb6c7670d611445836b0582aa45aa4ef29f78f3477fa65",
+      "license": "MIT",
+      "description": "When the user wants to set up a recurring, self-running marketing workflow — a repeatable loop an AI agent runs on a cadence (weekly, daily, on a trigger) rather than a one-off task. Also use when the user mentions 'marketing loop,' 'recurring marketing workflow,' 'automate my marketing,' 'marketing on autopilot,' 'weekly marketing review,' 'ad fatigue check,' 'weekly ads check,' 'content refresh loop,' 'churn watch,' 'ranking drop alert,' 'run my SEO,' 'SEO operator,' 'daily SEO agent,' 'run my",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:marketing-plan",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/marketing-plan/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/marketing-plan/SKILL.md",
+      "sha256": "2b75dfae852bdb61fd96eebe3d2b373f99f67c86ff830f796310f662ba8906e8",
+      "license": "MIT",
+      "description": "When the user needs a comprehensive marketing plan for a client, a company they advise, or their own product. Also use when the user mentions \"marketing plan,\" \"growth plan,\" \"GTM plan,\" \"go-to-market plan,\" \"AARRR plan,\" \"90-day marketing plan,\" \"12-month marketing roadmap,\" \"fractional CMO plan,\" \"fCMO plan,\" \"market sizing,\" \"TAM SAM SOM,\" \"how big is this market,\" or \"market research.\" Generates an exhaustive 13-section plan structured by AARRR (Acquisition, Activation, Retention, Referral, ",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:marketing-psychology",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/marketing-psychology/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/marketing-psychology/SKILL.md",
+      "sha256": "573bbe4f6e300e7fb75299e314f56e26382d284782caa2ae0e0f33eb2e646548",
+      "license": "MIT",
+      "description": "When the user wants to apply psychological principles, mental models, or behavioral science to marketing. Also use when the user mentions 'psychology,' 'mental models,' 'cognitive bias,' 'persuasion,' 'behavioral science,' 'why people buy,' 'decision-making,' 'consumer behavior,' 'anchoring,' 'social proof,' 'scarcity,' 'loss aversion,' 'framing,' or 'nudge.' Use this whenever someone wants to understand or leverage how people think and make decisions in a marketing context. For applying psychol",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:offers",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/offers/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/offers/SKILL.md",
+      "sha256": "40f4fa702b982dbda83c2592e2546afe6d919e95384eedc0ac8b211c728e05b2",
+      "license": "MIT",
+      "description": "When the user wants to design, construct, or improve an offer — the thing they actually sell — including value framing, bonus stacking, guarantee design, scarcity/urgency, naming, and payment structure. Also use when the user mentions 'offer,' 'offer design,' 'build an offer,' 'grand slam offer,' 'irresistible offer,' 'value stack,' 'bonus stack,' 'guarantee,' 'risk reversal,' 'money-back guarantee,' 'scarcity,' 'urgency,' 'high-ticket offer,' 'productize a service,' 'naming an offer,' 'payment ",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:onboarding",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/onboarding/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/onboarding/SKILL.md",
+      "sha256": "61b808c85207e6567f39e5d6b7876fdad77b5f17f5811afcd8b28cfce6dcbe31",
+      "license": "MIT",
+      "description": "When the user wants to optimize post-signup onboarding, user activation, first-run experience, or time-to-value. Also use when the user mentions \"onboarding flow,\" \"activation rate,\" \"user activation,\" \"first-run experience,\" \"empty states,\" \"onboarding checklist,\" \"aha moment,\" \"new user experience,\" \"users aren't activating,\" \"nobody completes setup,\" \"low activation rate,\" \"users sign up but don't use the product,\" \"time to value,\" or \"first session experience.\" Use this whenever users are si",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:pricing",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/pricing/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/pricing/SKILL.md",
+      "sha256": "b0318f64140e60a28d0cf71b1a6bf2aa214b96ef2bc3253c60d16ae480367d25",
+      "license": "MIT",
+      "description": "When the user wants help with pricing decisions, packaging, or monetization strategy. Also use when the user mentions 'pricing,' 'pricing tiers,' 'freemium,' 'free trial,' 'packaging,' 'price increase,' 'value metric,' 'Van Westendorp,' 'willingness to pay,' 'monetization,' 'how much should I charge,' 'my pricing is wrong,' 'pricing page,' 'annual vs monthly,' 'per seat pricing,' 'should I offer a free plan,' 'pricing page teardown,' 'pricing page audit,' 'is my pricing page AI-readable,' or 'ca",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:product-marketing",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/product-marketing/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/product-marketing/SKILL.md",
+      "sha256": "19ece0fa75c72a5a8b6e90db80f506586f54cc93bae6bffbb1bd2ef4ae7d603c",
+      "license": "MIT",
+      "description": "When the user wants to create or update their product marketing context document. Also use when the user mentions 'product context,' 'marketing context,' 'set up context,' 'positioning,' 'who is my target audience,' 'describe my product,' 'ICP,' 'ideal customer profile,' 'brand voice,' 'tone of voice,' 'brand guidelines,' 'what have we learned,' 'log this learning,' or wants to avoid repeating foundational information across marketing tasks. Use this at the start of any new project before using ",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:programmatic-seo",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/programmatic-seo/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/programmatic-seo/SKILL.md",
+      "sha256": "b31208c88e2b018214f61f514bce9bbc7724ceef794c0bcf6a9f762cb91cf254",
+      "license": "MIT",
+      "description": "When the user wants to create SEO-driven pages at scale using templates and data. Also use when the user mentions \"programmatic SEO,\" \"template pages,\" \"pages at scale,\" \"directory pages,\" \"location pages,\" \"[keyword] + [city] pages,\" \"comparison pages,\" \"integration pages,\" \"building many pages for SEO,\" \"pSEO,\" \"generate 100 pages,\" \"data-driven pages,\" \"templated landing pages,\" or \"which CMS for pSEO.\" Use this whenever someone wants to create many similar pages targeting different keywords ",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:referrals",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/referrals/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/referrals/SKILL.md",
+      "sha256": "d1b9e0840b0bc788b51decd5283fba505be29ae22ec8d92e912ebee36020d7fb",
+      "license": "MIT",
+      "description": "When the user wants to create, optimize, or analyze a referral program, affiliate program, or word-of-mouth strategy. Also use when the user mentions 'referral,' 'affiliate,' 'ambassador,' 'word of mouth,' 'viral loop,' 'refer a friend,' 'partner program,' 'referral incentive,' 'how to get referrals,' 'customers referring customers,' 'affiliate payout,' 'get more reviews,' 'G2 reviews,' 'review campaign,' or 'respond to a bad review.' Use this whenever someone wants existing users or partners to",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:schema",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/schema/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/schema/SKILL.md",
+      "sha256": "d298f5d6e1b33b6825f38ecaa05c4d33ba9e45e346b224bd86f9834e46f67a94",
+      "license": "MIT",
+      "description": "When the user wants to add, fix, or optimize schema markup and structured data on their site. Also use when the user mentions \"schema markup,\" \"structured data,\" \"JSON-LD,\" \"rich snippets,\" \"schema.org,\" \"FAQ schema,\" \"product schema,\" \"review schema,\" \"breadcrumb schema,\" \"Google rich results,\" \"knowledge panel,\" \"star ratings in search,\" or \"add structured data.\" Use this whenever someone wants their pages to show enhanced results in Google. For broader SEO issues, see seo-audit. For AI search",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:seo-audit",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/seo-audit/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/seo-audit/SKILL.md",
+      "sha256": "bd5f6fca1334fc960d54403f7142e6d9da066eac7eb2b1ae194b7304bcf76d67",
+      "license": "MIT",
+      "description": "When the user wants to audit, review, or diagnose SEO issues on their site. Also use when the user mentions \"SEO audit,\" \"technical SEO,\" \"why am I not ranking,\" \"SEO issues,\" \"on-page SEO,\" \"meta tags review,\" \"SEO health check,\" \"my traffic dropped,\" \"lost rankings,\" \"not showing up in Google,\" \"site isn't ranking,\" \"Google update hit me,\" \"page speed,\" \"core web vitals,\" \"crawl errors,\" \"indexing issues,\" \"stuck on page 2,\" \"striking distance keywords,\" \"title tag rewrite,\" \"low CTR,\" \"local ",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:social",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/social/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/social/SKILL.md",
+      "sha256": "dd4c01d0925f571562d4e8dea4af6b60bd9d491149187d94927e65280fad1bee",
+      "license": "MIT",
+      "description": "When the user wants help creating, scheduling, or optimizing social media content for LinkedIn, Twitter/X, Instagram, TikTok, or Facebook, or wants to do social listening and engagement triage. Also use when the user mentions 'LinkedIn post,' 'Twitter thread,' 'social media,' 'content calendar,' 'social scheduling,' 'engagement,' 'viral content,' 'what should I post,' 'repurpose this content,' 'tweet ideas,' 'LinkedIn carousel,' 'social media strategy,' 'grow my following,' 'TikTok video,' 'Reel",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "coreyhaines31:video",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "repository": "coreyhaines31/marketingskills",
+      "commit": "445c147a28847bddb17458cbe6b0025b394e6bcf",
+      "path": "skills/video/SKILL.md",
+      "url": "https://github.com/coreyhaines31/marketingskills/blob/445c147a28847bddb17458cbe6b0025b394e6bcf/skills/video/SKILL.md",
+      "sha256": "0a35e32dda553707996bf383c00ecf971d05127d35d5d814577457c23a3ab591",
+      "license": "MIT",
+      "description": "When the user wants to create, generate, or produce video content using AI tools or programmatic frameworks. Also use when the user mentions 'video production,' 'AI video,' 'Remotion,' 'Hyperframes,' 'HeyGen,' 'Synthesia,' 'Veo,' 'Sora,' 'Runway,' 'Kling,' 'Seedance,' 'Hailuo,' 'MiniMax,' 'Pika,' 'Hunyuan,' 'Wan,' 'video generation,' 'AI avatar,' 'talking head video,' 'programmatic video,' 'video template,' 'explainer video,' 'product demo video,' 'record a product demo,' 'feature demo video,' '",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "K-Dense-AI:exploratory-data-analysis",
+      "agents": [
+        "jack"
+      ],
+      "repository": "K-Dense-AI/claude-scientific-skills",
+      "commit": "a1043ef544e3a100c28e70a736b6cf32554d0677",
+      "path": "skills/exploratory-data-analysis/SKILL.md",
+      "url": "https://github.com/K-Dense-AI/claude-scientific-skills/blob/a1043ef544e3a100c28e70a736b6cf32554d0677/skills/exploratory-data-analysis/SKILL.md",
+      "sha256": "955c4cefa49106dd03b55cbd62603bab2d2fb678e627dd452ba62040c7128484",
+      "license": "MIT",
+      "description": "Performs bounded, local exploratory analysis of explicitly supported scientific files. Supports redacted CSV/TSV/JSON profiles; optional NumPy, HDF5, FASTA/FASTQ, and basic image metadata inspection; missingness/leakage audits; outlier and transformation sensitivity; and rigorous EDA report scaffolds. Other domain formats are reference-only and unknown formats fail closed.",
+      "compatibility": "Bundled core CLIs require Python 3.11+ and are local/network-free; the complete pinned optional snapshot requires Python 3.12+, uv, and format-specific libraries listed below.",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "K-Dense-AI:hypothesis-generation",
+      "agents": [
+        "jack"
+      ],
+      "repository": "K-Dense-AI/claude-scientific-skills",
+      "commit": "a1043ef544e3a100c28e70a736b6cf32554d0677",
+      "path": "skills/hypothesis-generation/SKILL.md",
+      "url": "https://github.com/K-Dense-AI/claude-scientific-skills/blob/a1043ef544e3a100c28e70a736b6cf32554d0677/skills/hypothesis-generation/SKILL.md",
+      "sha256": "5bccec0437d96d61821ec2095e7e32b61e8634cd8c02f11f42da953121e92719",
+      "license": "MIT",
+      "description": "Formulates evidence-bounded scientific questions, candidate hypotheses, rival explanations, causal or associational claims, discriminating predictions, measurements, and preregistration-ready analysis plans. Used when turning observations or preliminary findings into transparent, testable research plans without treating hypotheses as facts.",
+      "compatibility": "Python 3.11+ standard library. Bundled CLIs are deterministic and local-only; they accept bounded JSON, CSV, or Markdown and require no network, credentials, models, image services, or external packages.",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "K-Dense-AI:matplotlib",
+      "agents": [
+        "jack"
+      ],
+      "repository": "K-Dense-AI/claude-scientific-skills",
+      "commit": "a1043ef544e3a100c28e70a736b6cf32554d0677",
+      "path": "skills/matplotlib/SKILL.md",
+      "url": "https://github.com/K-Dense-AI/claude-scientific-skills/blob/a1043ef544e3a100c28e70a736b6cf32554d0677/skills/matplotlib/SKILL.md",
+      "sha256": "60b80aaa802e1a88db30729611789bf5ee92b3f2a7bb695502bac10dd255ee86",
+      "license": "MIT",
+      "description": "Creates and customizes scientific plots with Matplotlib. Used for fine-grained control over plot elements, novel plot types, and scientific workflows. Export to PNG/PDF/SVG for publication. For quick statistical plots use seaborn; for interactive plots use plotly; for publication-ready multi-panel figures with journal styling, use scientific-visualization.",
+      "compatibility": "Requires Python 3.11+ and Matplotlib 3.11.2. Bundled examples also use NumPy and SciPy; pandas examples need pandas, and Jupyter widgets need ipympl. Installation needs network access; local plotting needs no credentials.",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "K-Dense-AI:networkx",
+      "agents": [
+        "jack"
+      ],
+      "repository": "K-Dense-AI/claude-scientific-skills",
+      "commit": "a1043ef544e3a100c28e70a736b6cf32554d0677",
+      "path": "skills/networkx/SKILL.md",
+      "url": "https://github.com/K-Dense-AI/claude-scientific-skills/blob/a1043ef544e3a100c28e70a736b6cf32554d0677/skills/networkx/SKILL.md",
+      "sha256": "981a213f33ddca21ec327ecee13e8ef8b85b7986274b84a10268ee73310df5be",
+      "license": "MIT",
+      "description": "Creates, analyzes, and visualizes complex networks and graphs in Python with NetworkX. Use when working with network/graph data structures, computing graph algorithms (shortest paths, centrality, clustering), detecting communities, generating synthetic networks (random, scale-free, small-world), reading/writing graph file formats, or drawing network topologies. Common applications include social, biological, transportation, and citation networks.",
+      "compatibility": "Requires Python >=3.12 (excluding 3.14.1) and NetworkX 3.7. NumPy, SciPy, pandas and Matplotlib support numerical, tabular and drawing examples; optional integrations need their own packages. No credentials; network needed only for installation or remote data.",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "K-Dense-AI:pymc",
+      "agents": [
+        "jack"
+      ],
+      "repository": "K-Dense-AI/claude-scientific-skills",
+      "commit": "a1043ef544e3a100c28e70a736b6cf32554d0677",
+      "path": "skills/pymc/SKILL.md",
+      "url": "https://github.com/K-Dense-AI/claude-scientific-skills/blob/a1043ef544e3a100c28e70a736b6cf32554d0677/skills/pymc/SKILL.md",
+      "sha256": "77d29ba7adf73d822329eab576d15a748811633a60bca88f5e93954793b3ea8a",
+      "license": "MIT",
+      "description": "Builds and checks Bayesian models with PyMC, including hierarchical models, NUTS MCMC, variational inference, mutable-data predictions, posterior predictive checks, diagnostics, and PSIS-LOO model comparison. Use for probabilistic modeling and uncertainty inference in PyMC.",
+      "compatibility": "Requires Python 3.12+ with PyMC 6.3.2, PyTensor 3.3.2 and ArviZ 1.3-compatible dependencies; NumPy, pandas, Matplotlib, h5netcdf and h5py for bundled helpers/artifacts. Network access for installation only. Optional nutpie, NumPyro and BlackJAX samplers need separate dependencies.",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "K-Dense-AI:scientific-visualization",
+      "agents": [
+        "jack"
+      ],
+      "repository": "K-Dense-AI/claude-scientific-skills",
+      "commit": "a1043ef544e3a100c28e70a736b6cf32554d0677",
+      "path": "skills/scientific-visualization/SKILL.md",
+      "url": "https://github.com/K-Dense-AI/claude-scientific-skills/blob/a1043ef544e3a100c28e70a736b6cf32554d0677/skills/scientific-visualization/SKILL.md",
+      "sha256": "8cbde7cdc10d959cf72cfd08335cc8ce996247eee6ebdb900eb64a4cb0ff34a3",
+      "license": "MIT",
+      "description": "Creates and audits truthful, accessible, publication-ready scientific figures with Matplotlib, Seaborn, or Plotly. Use it for figure design, multi-panel layouts, uncertainty and missing-data displays, color/contrast review, image metadata validation, and journal export planning.",
+      "compatibility": "Requires Python 3.11+ and uv for pinned examples. Bundled CLIs are network-free and load Matplotlib, Pillow, or pypdf only when needed. Plotly static export with Kaleido v1 requires a compatible Chrome/Chromium installation.",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "K-Dense-AI:scikit-learn",
+      "agents": [
+        "jack"
+      ],
+      "repository": "K-Dense-AI/claude-scientific-skills",
+      "commit": "a1043ef544e3a100c28e70a736b6cf32554d0677",
+      "path": "skills/scikit-learn/SKILL.md",
+      "url": "https://github.com/K-Dense-AI/claude-scientific-skills/blob/a1043ef544e3a100c28e70a736b6cf32554d0677/skills/scikit-learn/SKILL.md",
+      "sha256": "a1765797d072ab40094522abe68fb04505d0881f66b7dfceeb8582422dbe488d",
+      "license": "MIT",
+      "description": "Supports machine learning in Python with scikit-learn. Applies when working with supervised learning (classification, regression), unsupervised learning (clustering, dimensionality reduction), model evaluation, hyperparameter tuning, preprocessing, or building ML pipelines. Provides comprehensive reference documentation for algorithms, preprocessing techniques, pipelines, and best practices.",
+      "compatibility": "Requires Python 3.11+ and scikit-learn 1.9.1. NumPy, SciPy, and joblib are dependencies; bundled scripts also require pandas and matplotlib. Installation needs network access; bundled examples use local datasets without credentials.",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "K-Dense-AI:simpy",
+      "agents": [
+        "jack"
+      ],
+      "repository": "K-Dense-AI/claude-scientific-skills",
+      "commit": "a1043ef544e3a100c28e70a736b6cf32554d0677",
+      "path": "skills/simpy/SKILL.md",
+      "url": "https://github.com/K-Dense-AI/claude-scientific-skills/blob/a1043ef544e3a100c28e70a736b6cf32554d0677/skills/simpy/SKILL.md",
+      "sha256": "027244a3587e70c3e2f1aed4bfb5d737cb24fdc6b2ad276302ed81c02e38a7fc",
+      "license": "MIT",
+      "description": "Builds, inspects, tests, and analyzes bounded process-based discrete-event simulations with SimPy. Use for event scheduling, resource queues, interrupts, monitoring, independent replications, warm-up, and reproducible output analysis.",
+      "compatibility": "Upstream SimPy 4.1.2 supports Python 3.8+; bundled CLIs require Python 3.10+, uv, and SimPy 4.1.2. They use only SimPy and the standard library, operate on local bounded inputs, and make no network calls.",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "K-Dense-AI:statistical-analysis",
+      "agents": [
+        "jack"
+      ],
+      "repository": "K-Dense-AI/claude-scientific-skills",
+      "commit": "a1043ef544e3a100c28e70a736b6cf32554d0677",
+      "path": "skills/statistical-analysis/SKILL.md",
+      "url": "https://github.com/K-Dense-AI/claude-scientific-skills/blob/a1043ef544e3a100c28e70a736b6cf32554d0677/skills/statistical-analysis/SKILL.md",
+      "sha256": "e112848726b3713267cac65e4e2c15491a0a26ee1ed628db01195f7e43f97997",
+      "license": "MIT",
+      "description": "Guided statistical analysis for research data - test selection, assumption checking, effect sizes, power analysis, Bayesian alternatives, and APA-formatted reporting. Use whenever a user wants to compare groups, test a hypothesis, analyze experimental or survey data, check statistical assumptions, compute required sample sizes, or write up results - even if they never name a specific test. Covers t-tests, ANOVA, chi-square, correlation, regression, non-parametric and Bayesian methods. For low-le",
+      "compatibility": "Requires Python 3.12+ and the documented isolated scientific Python environment; network access only for installation and documentation.",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "K-Dense-AI:statsmodels",
+      "agents": [
+        "jack"
+      ],
+      "repository": "K-Dense-AI/claude-scientific-skills",
+      "commit": "a1043ef544e3a100c28e70a736b6cf32554d0677",
+      "path": "skills/statsmodels/SKILL.md",
+      "url": "https://github.com/K-Dense-AI/claude-scientific-skills/blob/a1043ef544e3a100c28e70a736b6cf32554d0677/skills/statsmodels/SKILL.md",
+      "sha256": "9e6c034bb4acbf0972fda18892d2feea907885ac5ad7194d220182d8810295a3",
+      "license": "MIT",
+      "description": "Fits and diagnoses Python statistical models including OLS, GLM, discrete and mixed models, ARIMA and SARIMAX. Supports coefficient inference, marginal effects, model comparison and time series forecasting with explicit design and uncertainty checks. Used for econometrics and statistical modeling; for guided test selection with APA reporting, see statistical-analysis.",
+      "compatibility": "Requires Python 3.10+ and statsmodels 0.15.0; the tested NumPy 2.5.3/SciPy 1.18.1 stack needs Python 3.12+. Plotting needs matplotlib; predictive metrics need scikit-learn. Network access is needed only for installation or documentation; no credentials.",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "K-Dense-AI:sympy",
+      "agents": [
+        "jack"
+      ],
+      "repository": "K-Dense-AI/claude-scientific-skills",
+      "commit": "a1043ef544e3a100c28e70a736b6cf32554d0677",
+      "path": "skills/sympy/SKILL.md",
+      "url": "https://github.com/K-Dense-AI/claude-scientific-skills/blob/a1043ef544e3a100c28e70a736b6cf32554d0677/skills/sympy/SKILL.md",
+      "sha256": "bb97087bdddccc845401737ddc7f7a8da1c14ced5e8d40da01271c991ac46e23",
+      "license": "MIT",
+      "description": "Performs exact symbolic mathematics with SymPy for algebra, calculus, equation solving, symbolic linear algebra, physics, and lambdify or LaTeX code generation. Use when a task needs symbolic results, explicit assumptions, or exact arithmetic; use NumPy or SciPy for purely numerical workloads.",
+      "compatibility": "Requires Python 3.9+ and SymPy 1.14.0. Optional NumPy/SciPy/Matplotlib, IPython/ipywidgets, or ANTLR 4.11 parser runtime for relevant examples. Compiled wrappers need a C/Fortran compiler and backend packages; emitting source needs no compiler. Network only for installation/docs.",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "K-Dense-AI:timesfm-forecasting",
+      "agents": [
+        "jack"
+      ],
+      "repository": "K-Dense-AI/claude-scientific-skills",
+      "commit": "a1043ef544e3a100c28e70a736b6cf32554d0677",
+      "path": "skills/timesfm-forecasting/SKILL.md",
+      "url": "https://github.com/K-Dense-AI/claude-scientific-skills/blob/a1043ef544e3a100c28e70a736b6cf32554d0677/skills/timesfm-forecasting/SKILL.md",
+      "sha256": "6f785fe73b133e9af7720fa46cf9013645198950155624889ef611b7b0dc74b8",
+      "license": "MIT",
+      "description": "Performs zero-shot time-series forecasting with Google's TimesFM, including regular-grid CSV preparation, quantile forecasts, XReg covariates, and held-out evaluation. Uses the Apache-licensed TimesFM 2.5 checkpoint by default and documents the distinct TimesFM 3.0 multivariate API and weight-license requirements.",
+      "compatibility": "Requires Python 3.10+ and timesfm 3.0.2 with PyTorch; CSV tooling also needs NumPy and pandas. Network access and cache space are needed for initial Hugging Face checkpoint download. Optional XReg needs JAX and scikit-learn; current JAX requires Python 3.12+.",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "K-Dense-AI:uncertainty-and-units",
+      "agents": [
+        "jack"
+      ],
+      "repository": "K-Dense-AI/claude-scientific-skills",
+      "commit": "a1043ef544e3a100c28e70a736b6cf32554d0677",
+      "path": "skills/uncertainty-and-units/SKILL.md",
+      "url": "https://github.com/K-Dense-AI/claude-scientific-skills/blob/a1043ef544e3a100c28e70a736b6cf32554d0677/skills/uncertainty-and-units/SKILL.md",
+      "sha256": "caaafa079a4eaac6012717bcf705dec0417b5434f5dbd1af934a3a36ad375722",
+      "license": "MIT",
+      "description": "Tracks physical units and propagates measurement uncertainty in scientific calculations using pint and uncertainties. Use for unit conversion and dimensional checking, GUM uncertainty budgets, Type A and Type B evaluation, coverage factors and expanded uncertainty, Monte Carlo propagation, significant-figure and plus-minus reporting, error propagation through curve fits, CODATA constants, auditing Python code for stripped units or broken uncertainty propagation, and order-of-magnitude plausibili",
+      "compatibility": "Requires Python 3.12+. The numeric CLIs need pint, uncertainties, NumPy, and SciPy; the static auditor is standard-library only. All bundled tooling runs locally with no network access.",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "remotion-dev:remotion-best-practices",
+      "agents": [
+        "oscar"
+      ],
+      "repository": "remotion-dev/skills",
+      "commit": "7ba4dcf8ebe1626b00baa41e1f2478113719b60b",
+      "path": "skills/remotion-best-practices/SKILL.md",
+      "url": "https://github.com/remotion-dev/skills/blob/7ba4dcf8ebe1626b00baa41e1f2478113719b60b/skills/remotion-best-practices/SKILL.md",
+      "sha256": "22948fb13615aee79d02187ce1fb8ab79be296fb029d28f872466eeb8d0fc86b",
+      "license": "not_confirmed",
+      "description": "Router for all Remotion skills",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "remotion-dev:remotion-captions",
+      "agents": [
+        "oscar"
+      ],
+      "repository": "remotion-dev/skills",
+      "commit": "7ba4dcf8ebe1626b00baa41e1f2478113719b60b",
+      "path": "skills/remotion-captions/SKILL.md",
+      "url": "https://github.com/remotion-dev/skills/blob/7ba4dcf8ebe1626b00baa41e1f2478113719b60b/skills/remotion-captions/SKILL.md",
+      "sha256": "76c2e044a006d3ada9cc820b6a208d0ca993bccbc5b1b5e12bdc8bf5b071f9ce",
+      "license": "not_confirmed",
+      "description": "Transcribing, displaying and animating captions",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "remotion-dev:remotion-create",
+      "agents": [
+        "oscar"
+      ],
+      "repository": "remotion-dev/skills",
+      "commit": "7ba4dcf8ebe1626b00baa41e1f2478113719b60b",
+      "path": "skills/remotion-create/SKILL.md",
+      "url": "https://github.com/remotion-dev/skills/blob/7ba4dcf8ebe1626b00baa41e1f2478113719b60b/skills/remotion-create/SKILL.md",
+      "sha256": "c3479cf12efe9d79d900532acaab7512065b33785172aa278e5fccf639394eb3",
+      "license": "not_confirmed",
+      "description": "Create a new Remotion video",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "remotion-dev:remotion-docs",
+      "agents": [
+        "oscar"
+      ],
+      "repository": "remotion-dev/skills",
+      "commit": "7ba4dcf8ebe1626b00baa41e1f2478113719b60b",
+      "path": "skills/remotion-docs/SKILL.md",
+      "url": "https://github.com/remotion-dev/skills/blob/7ba4dcf8ebe1626b00baa41e1f2478113719b60b/skills/remotion-docs/SKILL.md",
+      "sha256": "5595bed0eb7d8bb4fe5307f04950513e436b8fc71a1202199e2533366cf81588",
+      "license": "not_confirmed",
+      "description": "Search Remotion documentation",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "remotion-dev:remotion-interactivity",
+      "agents": [
+        "oscar"
+      ],
+      "repository": "remotion-dev/skills",
+      "commit": "7ba4dcf8ebe1626b00baa41e1f2478113719b60b",
+      "path": "skills/remotion-interactivity/SKILL.md",
+      "url": "https://github.com/remotion-dev/skills/blob/7ba4dcf8ebe1626b00baa41e1f2478113719b60b/skills/remotion-interactivity/SKILL.md",
+      "sha256": "0495256915726f0825471194e60bd133528b9a38720c9e54b40370a7b0d6c8f4",
+      "license": "not_confirmed",
+      "description": "Structure Remotion markup for interactivity",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "remotion-dev:remotion-maps",
+      "agents": [
+        "oscar"
+      ],
+      "repository": "remotion-dev/skills",
+      "commit": "7ba4dcf8ebe1626b00baa41e1f2478113719b60b",
+      "path": "skills/remotion-maps/SKILL.md",
+      "url": "https://github.com/remotion-dev/skills/blob/7ba4dcf8ebe1626b00baa41e1f2478113719b60b/skills/remotion-maps/SKILL.md",
+      "sha256": "5237237d87917300905049ad2d20eb13d54d0a93d264e5cb4439947305cae279",
+      "license": "not_confirmed",
+      "description": "Remotion Map animation knowledge",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "remotion-dev:remotion-markup",
+      "agents": [
+        "oscar"
+      ],
+      "repository": "remotion-dev/skills",
+      "commit": "7ba4dcf8ebe1626b00baa41e1f2478113719b60b",
+      "path": "skills/remotion-markup/SKILL.md",
+      "url": "https://github.com/remotion-dev/skills/blob/7ba4dcf8ebe1626b00baa41e1f2478113719b60b/skills/remotion-markup/SKILL.md",
+      "sha256": "9de745835f04339dcf149e115619b640428e6940d3ca7a6d3d578fbebc16a023",
+      "license": "not_confirmed",
+      "description": "Content, animation and effects best practices",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "remotion-dev:remotion-multimedia",
+      "agents": [
+        "oscar"
+      ],
+      "repository": "remotion-dev/skills",
+      "commit": "7ba4dcf8ebe1626b00baa41e1f2478113719b60b",
+      "path": "skills/remotion-multimedia/SKILL.md",
+      "url": "https://github.com/remotion-dev/skills/blob/7ba4dcf8ebe1626b00baa41e1f2478113719b60b/skills/remotion-multimedia/SKILL.md",
+      "sha256": "e29aa045943cdad6cc71dc2c7c2b0df7f27b92402e6709f177ebe1afc36fb3b5",
+      "license": "not_confirmed",
+      "description": "Interacting with Mediabunny",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "remotion-dev:remotion-render",
+      "agents": [
+        "oscar"
+      ],
+      "repository": "remotion-dev/skills",
+      "commit": "7ba4dcf8ebe1626b00baa41e1f2478113719b60b",
+      "path": "skills/remotion-render/SKILL.md",
+      "url": "https://github.com/remotion-dev/skills/blob/7ba4dcf8ebe1626b00baa41e1f2478113719b60b/skills/remotion-render/SKILL.md",
+      "sha256": "4f7e905682d2b4ca4b33629ad7c3fcb406618b1d1df05aecc1b0519e0eefb8d1",
+      "license": "not_confirmed",
+      "description": "Export a Remotion video",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "remotion-dev:remotion-saas",
+      "agents": [
+        "oscar"
+      ],
+      "repository": "remotion-dev/skills",
+      "commit": "7ba4dcf8ebe1626b00baa41e1f2478113719b60b",
+      "path": "skills/remotion-saas/SKILL.md",
+      "url": "https://github.com/remotion-dev/skills/blob/7ba4dcf8ebe1626b00baa41e1f2478113719b60b/skills/remotion-saas/SKILL.md",
+      "sha256": "42eaef12be7de128d01d394540eaf72f1c7c35abfda605eb50dbcf611bbdea0c",
+      "license": "not_confirmed",
+      "description": "Build an app with Remotion",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "remotion-dev:remotion-studio",
+      "agents": [
+        "oscar"
+      ],
+      "repository": "remotion-dev/skills",
+      "commit": "7ba4dcf8ebe1626b00baa41e1f2478113719b60b",
+      "path": "skills/remotion-studio/SKILL.md",
+      "url": "https://github.com/remotion-dev/skills/blob/7ba4dcf8ebe1626b00baa41e1f2478113719b60b/skills/remotion-studio/SKILL.md",
+      "sha256": "c3f91d99d1467241dadabf3832b706d0265e9c3b3c86e33b95deb80667860093",
+      "license": "not_confirmed",
+      "description": "Preview a Remotion video",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    },
+    {
+      "id": "remotion-dev:remotion-upgrade",
+      "agents": [
+        "oscar"
+      ],
+      "repository": "remotion-dev/skills",
+      "commit": "7ba4dcf8ebe1626b00baa41e1f2478113719b60b",
+      "path": "skills/remotion-upgrade/SKILL.md",
+      "url": "https://github.com/remotion-dev/skills/blob/7ba4dcf8ebe1626b00baa41e1f2478113719b60b/skills/remotion-upgrade/SKILL.md",
+      "sha256": "409e6767abeb56b440e2e711942ac86e12d5249bc8a266af0f4eb4f57635f0c8",
+      "license": "not_confirmed",
+      "description": "Upgrade Remotion, and related packages",
+      "compatibility": "Requires manual dependency and tool review",
+      "status": "candidate_not_installed",
+      "review": "source_exists_and_hash_verified_not_execution_reviewed"
+    }
+  ]
+}

@@ -9,107 +9,107 @@
 # container: this token can read every floor's secrets by design.
 
 path "secret/data/eva-syndicate/database" {
-  capabilities = [""read""]
+  capabilities = ["read"]
 }
 
 path "secret/metadata/eva-syndicate/database" {
-  capabilities = [""list"", ""read"", "list"]
+  capabilities = ["list", "read"]
 }
 
 path "secret/data/eva-syndicate/redis" {
-  capabilities = [""read""]
+  capabilities = ["read"]
 }
 
 path "secret/metadata/eva-syndicate/redis" {
-  capabilities = [""list"", ""read"", "list"]
+  capabilities = ["list", "read"]
 }
 
 path "secret/data/eva-syndicate/api-keys" {
-  capabilities = [""read""]
+  capabilities = ["read"]
 }
 
 path "secret/metadata/eva-syndicate/api-keys" {
-  capabilities = [""list"", ""read"", "list"]
+  capabilities = ["list", "read"]
 }
 
 path "secret/data/eva-syndicate/auth" {
-  capabilities = [""read""]
+  capabilities = ["read"]
 }
 
 path "secret/metadata/eva-syndicate/auth" {
-  capabilities = [""list"", ""read"", "list"]
+  capabilities = ["list", "read"]
 }
 
 path "secret/data/eva-syndicate/google_workspace" {
-  capabilities = [""read""]
+  capabilities = ["read"]
 }
 
 path "secret/metadata/eva-syndicate/google_workspace" {
-  capabilities = [""list"", ""read"", "list"]
+  capabilities = ["list", "read"]
 }
 
 path "secret/data/eva-syndicate/mcp" {
-  capabilities = [""read""]
+  capabilities = ["read"]
 }
 
 path "secret/metadata/eva-syndicate/mcp" {
-  capabilities = [""list"", ""read"", "list"]
+  capabilities = ["list", "read"]
 }
 
 path "secret/data/eva-syndicate/telegram" {
-  capabilities = [""read""]
+  capabilities = ["read"]
 }
 
 path "secret/metadata/eva-syndicate/telegram" {
-  capabilities = [""list"", ""read"", "list"]
+  capabilities = ["list", "read"]
 }
 
 path "secret/data/eva-syndicate/youtube" {
-  capabilities = [""read""]
+  capabilities = ["read"]
 }
 
 path "secret/metadata/eva-syndicate/youtube" {
-  capabilities = [""list"", ""read"", "list"]
+  capabilities = ["list", "read"]
 }
 
 path "secret/data/eva-syndicate/elevenlabs" {
-  capabilities = [""read""]
+  capabilities = ["read"]
 }
 
 path "secret/metadata/eva-syndicate/elevenlabs" {
-  capabilities = [""list"", ""read"", "list"]
+  capabilities = ["list", "read"]
 }
 
 path "secret/data/eva-syndicate/groq" {
-  capabilities = [""read""]
+  capabilities = ["read"]
 }
 
 path "secret/metadata/eva-syndicate/groq" {
-  capabilities = [""list"", ""read"", "list"]
+  capabilities = ["list", "read"]
 }
 
 path "secret/data/eva-syndicate/openai" {
-  capabilities = [""read""]
+  capabilities = ["read"]
 }
 
 path "secret/metadata/eva-syndicate/openai" {
-  capabilities = [""list"", ""read"", "list"]
+  capabilities = ["list", "read"]
 }
 
 path "secret/data/eva-syndicate/xai" {
-  capabilities = [""read""]
+  capabilities = ["read"]
 }
 
 path "secret/metadata/eva-syndicate/xai" {
-  capabilities = [""list"", ""read"", "list"]
+  capabilities = ["list", "read"]
 }
 
 path "secret/data/eva-syndicate/agents/*" {
-  capabilities = [""read""]
+  capabilities = ["read"]
 }
 
 path "secret/metadata/eva-syndicate/agents/*" {
-  capabilities = [""list"", ""read"", "list"]
+  capabilities = ["list", "read"]
 }
 
 path "auth/token/renew-self" {
