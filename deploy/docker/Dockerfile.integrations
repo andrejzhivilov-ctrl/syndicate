@@ -1,0 +1,27 @@
+FROM node:24.21.0-bookworm-slim AS node
+FROM python:3.12-slim-bookworm
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && apt-get update && apt-get install -y --no-install-recommends \
+       ca-certificates ffmpeg fonts-dejavu-core chromium build-essential \
+    && rm -rf /var/lib/apt/lists/*
+ENV PYTHONPATH=/app PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
+    HYPERFRAMES_BROWSER_PATH=/usr/bin/chromium HOME=/tmp
+WORKDIR /app
+COPY deploy/requirements-integrations.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+COPY deploy/integrations/package*.json /app/deploy/integrations/
+RUN cd /app/deploy/integrations && npm ci --omit=dev --no-audit --no-fund
+COPY deploy/integrations/actual_snapshot.mjs /app/deploy/integrations/actual_snapshot.mjs
+COPY src /app/src
+COPY config/agents /app/config/agents
+COPY config/skill_library.json /app/config/skill_library.json
+COPY skills /app/skills
+COPY deploy/runtime /app/runtime
+RUN useradd --uid 1001 --create-home worker && mkdir -p /data/integrations \
+    && chown -R 1001:1001 /app /data/integrations
+USER 1001:1001
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=5s CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=3)"
+CMD ["uvicorn", "runtime.integration_runner:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]

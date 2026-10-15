@@ -1,0 +1,29 @@
+# Reuse this service with a distinct project name/volume/AppRole for each agent.
+# No host ports; connect the coordinator to this private network explicitly.
+services:
+  integration-worker:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.integrations
+    environment:
+      SYNDICATE_INTEGRATION_AGENT: ${SYNDICATE_INTEGRATION_AGENT:?select agent}
+      VAULT_ADDR: ${VAULT_ADDR:?configure Vault}
+      VAULT_ROLE_ID: ${INTEGRATION_VAULT_ROLE_ID:?configure per-agent AppRole}
+      VAULT_SECRET_ID: ${INTEGRATION_VAULT_SECRET_ID:?configure per-agent AppRole}
+      EVA_DATA_DIR: /data/integrations
+    read_only: true
+    user: '1001:1001'
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ['/tmp:rw,nosuid,size=4g']
+    volumes:
+      - integration_data:/data/integrations
+    networks: [integrations]
+    mem_limit: 4g
+    cpus: 2
+    pids_limit: 256
+    restart: unless-stopped
+networks:
+  integrations: {}
+volumes:
+  integration_data: {}

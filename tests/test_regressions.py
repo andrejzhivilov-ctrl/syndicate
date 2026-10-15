@@ -3839,3 +3839,114 @@ def test_marshal_scan_preserves_nested_findings_and_fails_closed(tmp_path, repor
         assert result['recommendation'] == 'do_not_install'
     else:
         assert result['recommendation'] == 'unknown'
+
+
+class TestServiceIntegrations:
+    @pytest.fixture
+    def anyio_backend(self):
+        return "asyncio"
+
+    @pytest.mark.anyio
+    async def test_grants_and_identity_are_not_payload_controlled(self, tmp_path, monkeypatch):
+        from src.integrations.service_hub import ServiceHub
+        monkeypatch.setenv('EVA_DATA_DIR', str(tmp_path))
+        hub = ServiceHub('oscar', {'grants': ['skills.read']})
+        assert (await hub.execute('hindsight.retain', {'grants': ['hindsight.retain']}))['status'] == 'denied'
+        result = await hub.execute('skills.read', {'agent': 'marshal', 'skill': 'agent-security-hardening'})
+        assert result['status'] == 'unavailable'
+        assert (await hub.execute('skills.read', {'skill': 'content-engine'}))['value']['agent_id'] == 'oscar'
+
+    @pytest.mark.anyio
+    async def test_hindsight_masks_pii_and_owns_bank(self, tmp_path, monkeypatch):
+        import httpx
+        from src.integrations.service_hub import ServiceHub
+        monkeypatch.setenv('EVA_DATA_DIR', str(tmp_path))
+        seen = []
+        def handle(request):
+            seen.append(request)
+            assert b'person@example.com' not in request.content
+            return httpx.Response(200, json={'results': []})
+        hub = ServiceHub('kodex', {'grants': ['hindsight.recall', 'hindsight.retain'],
+                                  'hindsight': {'url': 'https://memory.invalid'}}, transport=httpx.MockTransport(handle))
+        for operation in ('hindsight.recall', 'hindsight.retain'):
+            result = await hub.execute(operation, {'text': 'person@example.com', 'bank_id': 'other-agent'})
+            assert result['status'] == 'ok'
+        assert all('/banks/syndicate-kodex/' in str(r.url) for r in seen)
+
+    @pytest.mark.anyio
+    async def test_omniroute_models_and_response_validation(self, tmp_path, monkeypatch):
+        import httpx
+        from src.integrations.service_hub import ServiceHub
+        monkeypatch.setenv('EVA_DATA_DIR', str(tmp_path))
+        def handle(request):
+            assert request.url.path == '/v1/chat/completions'
+            return httpx.Response(200, json={'choices': [{'message': {'content': 'verified response'}}]})
+        hub = ServiceHub('oscar', {'grants': ['omniroute.chat'], 'omniroute': {
+            'url': 'https://models.invalid/v1', 'model': 'selected'}}, transport=httpx.MockTransport(handle))
+        assert (await hub.execute('omniroute.chat', {'text': 'hello', 'model': 'expensive'}))['status'] == 'unavailable'
+        assert (await hub.execute('omniroute.chat', {'text': 'hello'}))['value']['text'] == 'verified response'
+
+    @pytest.mark.anyio
+    async def test_actual_preserves_minor_units_and_account_scope(self, tmp_path, monkeypatch):
+        from src.integrations.service_hub import ServiceHub
+        monkeypatch.setenv('EVA_DATA_DIR', str(tmp_path))
+        async def runner(argv, body, **kwargs):
+            assert body['account'] == 'owned'
+            assert 'password' not in ' '.join(argv)
+            return b'{"status":"ok","transactions":[{"id":"t1","amount":-123}]}'
+        hub = ServiceHub('fin', {'grants': ['actual.snapshot'], 'actual': {'accounts': ['owned']}}, process_runner=runner)
+        args = {'start': '2026-01-01', 'end': '2026-01-31', 'account': 'owned'}
+        assert (await hub.execute('actual.snapshot', args))['value']['transactions'][0]['amount'] == -123
+        assert (await hub.execute('actual.snapshot', {**args, 'account': 'other'}))['status'] == 'unavailable'
+
+    @pytest.mark.anyio
+    async def test_renderer_rejects_escape_and_requires_real_new_file(self, tmp_path, monkeypatch):
+        from src.integrations.service_hub import ServiceHub
+        monkeypatch.setenv('EVA_DATA_DIR', str(tmp_path))
+        folder = tmp_path / 'integrations/render_projects/oscar/demo'
+        folder.mkdir(parents=True)
+        async def no_output(*args, **kwargs):
+            return b''
+        hub = ServiceHub('oscar', {'grants': ['hyperframes.render'], 'hyperframes': {'binary': '/synthetic/hyperframes'}}, process_runner=no_output)
+        for project in ('../demo', 'demo'):
+            assert (await hub.execute('hyperframes.render', {'project': project}))['status'] == 'unavailable'
+
+    def test_worker_requires_key(self, tmp_path, monkeypatch):
+        from fastapi.testclient import TestClient
+        from deploy.runtime.integration_runner import create_app
+        from src.integrations.service_hub import ServiceHub
+        monkeypatch.setenv('EVA_DATA_DIR', str(tmp_path))
+        app = create_app(ServiceHub('oscar', {'grants': ['skills.list']}), api_key='synthetic-key')
+        with TestClient(app) as client:
+            assert client.post('/execute', json={'operation': 'skills.list'}).status_code == 401
+            response = client.post('/execute', headers={'X-API-Key': 'synthetic-key'}, json={'operation': 'skills.list'})
+            assert response.json()['agent'] == 'oscar'
+
+    @pytest.mark.anyio
+    async def test_process_timeout_and_output_bound(self, tmp_path):
+        import sys
+        from src.integrations.service_transport import run_process
+        with pytest.raises(TimeoutError):
+            await run_process([sys.executable, '-c', 'import time; time.sleep(5)'], {}, cwd=str(tmp_path), timeout=1)
+        with pytest.raises(ValueError, match='output_too_large'):
+            await run_process([sys.executable, '-c', 'print("x"*2100000)'], {}, cwd=str(tmp_path))
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("anyio_backend", ["asyncio"])
+async def test_integration_gateway_rejects_worker_identity_mismatch(monkeypatch, anyio_backend):
+    import httpx
+    from src.agent_platform.integration_client import dispatch_integration
+    monkeypatch.setenv('SYNDICATE_INTEGRATION_URLS', '{"fin":"https://worker.invalid"}')
+    class Vault:
+        async def get_secret(self, path):
+            return {'integration_worker_keys': {'fin': 'synthetic-' * 4}}
+    result = await dispatch_integration('fin', 'actual.snapshot', {}, Vault(),
+                                        transport=httpx.MockTransport(lambda r: httpx.Response(200, json={'agent': 'sam', 'status': 'ok'})))
+    assert result['status'] == 'unavailable'
+
+
+def test_integration_route_requires_operator_master_key():
+    from deploy.runtime.agent_runner import app, require_master_key
+    route = next(route for route in app.routes if route.path == '/integrations/{agent_id}/execute')
+    assert route.dependant.dependencies[0].call is require_master_key

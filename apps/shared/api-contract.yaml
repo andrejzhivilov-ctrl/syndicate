@@ -7,9 +7,9 @@
 # Verify in CI with: python tools/export_openapi.py --check
 # ============================================================
 #
-# contract_sha256: ad4f126253596d4fab547316ca98a8cf520dbf30a9aa947da3a1c4b2e30a4a83
+# contract_sha256: bcf87e40764a5231a83e2e7a61c1c4a1b2ceac9e3bf0a0984f4747b3098a42ff
 # api_version:     4.1.0
-# paths:           26
+# paths:           27
 #
 ---
 components:
@@ -160,6 +160,19 @@ components:
       - memory_ready
       - orchestrator_ready
       title: HealthResponse
+      type: object
+    IntegrationDispatchRequest:
+      properties:
+        operation:
+          maxLength: 64
+          title: Operation
+          type: string
+        payload:
+          title: Payload
+          type: object
+      required:
+      - operation
+      title: IntegrationDispatchRequest
       type: object
     ValidationError:
       properties:
@@ -905,6 +918,52 @@ paths:
                 $ref: '#/components/schemas/HealthResponse'
           description: Successful Response
       summary: Health Check
+  /integrations/{agent_id}/execute:
+    post:
+      description: Operator entry point; worker grants remain independently enforced.
+      operationId: execute_integration_integrations__agent_id__execute_post
+      parameters:
+      - in: path
+        name: agent_id
+        required: true
+        schema:
+          title: Agent Id
+          type: string
+      - in: header
+        name: X-API-Key
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Api-Key
+      - in: header
+        name: Authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntegrationDispatchRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Execute Integration
   /proactive/evening:
     post:
       description: 'Trigger 21:00 evening reflection (Floor 1 / Floor 8 / Floor 9).

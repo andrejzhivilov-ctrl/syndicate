@@ -1,0 +1,15 @@
+{
+  "name": "syndicate-integration-workers",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@actual-app/api": "26.10.0",
+    "context-mode": "1.0.169",
+    "hyperframes": "0.8.162",
+    "rea-agents": "6.5.0"
+  },
+  "allowScripts": {
+    "better-sqlite3@13.0.3": true,
+    "esbuild@0.25.12": true
+  }
+}

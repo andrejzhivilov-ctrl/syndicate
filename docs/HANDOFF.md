@@ -25,6 +25,27 @@
 
 ---
 
+## 2026-10-15 — CodeRabbit Agent: інтеграційні workers і паспорт
+
+**Гілка:** coderabbit/review-fix-errors/dc1f6bd4. **База:** 742994da6e604c381e52f9a04347ef95ca80cb9c. **Ворота:** ✅ tools/check.sh (exit 0).
+
+### Зроблено
+- Додано ізольований ServiceHub для 12 профілів: runtime читання pinned skills, Hindsight retain/recall/reflect, OmniRoute chat, Actual snapshot через офіційний SDK, HyperFrames MP4 render, MCP stdio через офіційний SDK.
+- Per-agent identity/grants, Vault AppRole, auth ключ worker, приватна мережа/volume, PII redaction, обмеження відповіді/часу, fixed endpoints/argv. Новий coordinator endpoint POST /integrations/{agent_id}/execute вимагає operator master key; API контракт перегенеровано.
+- Окремий integration image: Python 3.12, Node 24.21.0, Chromium/FFmpeg, pinned npm lock; core Python 3.11 не змінювався. Context Mode 1.0.169, REA 6.5.0, Skill Seekers 3.10.0: мінімальні MCP examples із діагностичними allowlists. Hooks/global plugins не встановлювались.
+- docs/SYSTEM_PASSPORT.md: усі агенти, джерела/скіли, required/recommended services, 26 upstream repositories, deployment, backup/rollback і межі реалізації. PDF на 25 сторінок надано в Outputs, поза git.
+
+### Перевірки
+- Усі обов’язкові ворота пройшли, включно з живим PostgreSQL. 9 нових цільових regression checks пройшли; новий образ зібрано.
+- Final image sha256:a38fa298b748865077e2df078105cee38f10e8606b7f57e562ef6c115983cb2e: усі 12 authenticated skills APIs; справжні MCP list/call для Context Mode, REA, Skill Seekers; справжній HyperFrames MP4 через ServiceHub. Контейнер UID1001/read-only/network-none. Actual SDK init/shutdown перевірено, live budget sync не виконано.
+- PDF: кириличні шрифти вбудовані; pypdf extraction і візуальний перегляд 4 сторінок пройшли. Live provider accounts/target server не перевірені; ресурсні cgroup limits не підтримуються sandbox (залишені в production compose).
+
+### Не дороблено / наступне
+- Користувач явно дозволив merge в main. Проте Git повторно відхилив персональний доступ: default askpass і gh credential helper обидва не працюють. API показує правильний personal user. Не використовувати іншу identity. PR13 має старі director/skills коміти; CI для 742994d зелений, новий пакет ще не push/merge. Після відновлення доступу: fetch/sync → push → CI → merge PR13.
+- Заповнити власні Vault secrets, серверні URL, allowlists, моделі й account IDs; перевірити справжній AppRole startup та кожен provider. Не комітити secrets. README/passport містять порядок запуску.
+- Повний Hermes business-tool gateway, storefront/concierge UI, Stripe→factory, social publishing, Telegram approval delivery та desktop/native bridges лишаються окремою незавершеною роботою. Prepared profiles не активовано автоматично. MCP example grants дозволяють лише перевірені діагностичні tools; небезпечні tools не мають HITL реалізації в цьому generic adapter, їх не надавати.
+- Audit intent записується перед операцією; result записується при успіху. Intent без result потребує reconciliation, це не доказ відсутності side effect. Не повторювати фінансові/публікаційні дії через generic transport.
+
 ## 2026-10-15 — CodeRabbit Agent: GitHub та бібліотека скілів усіх агентів
 
 **Гілка:** coderabbit/review-fix-errors/dc1f6bd4. **База:** 385b901.

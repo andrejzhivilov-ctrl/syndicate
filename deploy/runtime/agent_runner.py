@@ -1319,6 +1319,21 @@ async def apply_cr(request: Request, state: AppState = Depends(require_hitl)):
     return result
 
 
+
+
+class IntegrationDispatchRequest(BaseModel):
+    operation: str = Field(max_length=64)
+    payload: dict = Field(default_factory=dict)
+
+
+@app.post("/integrations/{agent_id}/execute")
+async def execute_integration(agent_id: str, request: IntegrationDispatchRequest,
+                              state: AppState = Depends(require_master_key)):
+    """Operator entry point; worker grants remain independently enforced."""
+    from src.agent_platform.integration_client import dispatch_integration
+    return await dispatch_integration(agent_id, request.operation, request.payload, state.vault_client)
+
+
 # ─── Graceful Shutdown ───────────────────────────────────────────────────────
 # NOTE: this module previously installed its own SIGTERM/SIGINT handler that only
 # logged the signal and returned. Handlers registered at import time override the

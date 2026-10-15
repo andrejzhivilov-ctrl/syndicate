@@ -141,3 +141,7 @@ Production-запуск, активація Hermes і підключення с�
 
 [Розподіл між 12 агентами, аудит 26 GitHub-джерел та використання](docs/SKILL_LIBRARY.md).
 Локальні матеріали перевіряються за pinned commit/SHA256; встановлення скіла не активує зовнішні сервіси.
+
+## Паспорт системи та інтеграції
+
+[Детальний паспорт усіх агентів](docs/SYSTEM_PASSPORT.md): можливості, скіли, обов’язкові й рекомендовані сервіси, розгортання та межі готовності. Integration worker: `deploy/docker-compose.integrations.yml`; приклади Vault/MCP: `config/integration_worker.example.json`, `config/integration_mcp.example.json`.
