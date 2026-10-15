@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "agent_id": "tyler",
+  "activation": "prepared_not_enabled",
+  "runtime": "hermes",
+  "hermes_profile": "tyler",
+  "memory_namespace": "agents/tyler",
+  "prompt_file": "src/agents/tyler_runtime_prompt.md",
+  "prompt_status": "draft",
+  "role_status": "agreed_draft",
+  "model_status": "not_selected",
+  "task_source": "andrii_only",
+  "capabilities": [],
+  "grants": [],
+  "resource_scopes": [],
+  "services_enabled": [],
+  "skills": [
+    {
+      "id": "tyler-margin-quality",
+      "path": "tyler_core/skills/tyler-margin-quality/SKILL.md",
+      "activation": "draft"
+    },
+    {
+      "id": "tyler-concierge",
+      "path": "tyler_core/skills/tyler-concierge/SKILL.md",
+      "activation": "draft"
+    },
+    {
+      "id": "tyler-pinterest",
+      "path": "tyler_core/skills/tyler-pinterest/SKILL.md",
+      "activation": "draft"
+    }
+  ],
+  "telegram": {
+    "status": "not_connected",
+    "allowlist": []
+  },
+  "reference_skills": [
+    "frontend-design",
+    "replica-recon",
+    "content-engine",
+    "market-research",
+    "brand-voice"
+  ]
+}

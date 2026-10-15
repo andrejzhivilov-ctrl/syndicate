@@ -1,0 +1,44 @@
+{
+  "context-mode": {
+    "command": "/usr/local/bin/node",
+    "args": [
+      "/app/deploy/integrations/node_modules/context-mode/server.bundle.mjs"
+    ],
+    "cwd": "/tmp",
+    "env": {
+      "HOME": "/tmp",
+      "DO_NOT_TRACK": "1"
+    },
+    "tools": [
+      "ctx_stats"
+    ]
+  },
+  "rea": {
+    "command": "/usr/local/bin/node",
+    "args": [
+      "/app/deploy/integrations/node_modules/rea-agents/scripts/rea.mjs",
+      "mcp"
+    ],
+    "cwd": "/tmp",
+    "env": {
+      "HOME": "/tmp"
+    },
+    "tools": [
+      "list_unknowns"
+    ]
+  },
+  "skill-seekers": {
+    "command": "/usr/local/bin/python",
+    "args": [
+      "-m",
+      "skill_seekers.mcp.server_fastmcp"
+    ],
+    "cwd": "/tmp",
+    "env": {
+      "HOME": "/tmp"
+    },
+    "tools": [
+      "list_configs"
+    ]
+  }
+}

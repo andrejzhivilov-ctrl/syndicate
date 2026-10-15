@@ -9,43 +9,43 @@
 # Cannot read other agents' subtrees or the server's own API key.
 
 path "secret/data/eva-syndicate/database" {
-  capabilities = [""read""]
+  capabilities = ["read"]
 }
 
 path "secret/metadata/eva-syndicate/database" {
-  capabilities = [""list"", ""read"", "list"]
+  capabilities = ["list", "read"]
 }
 
 path "secret/data/eva-syndicate/redis" {
-  capabilities = [""read""]
+  capabilities = ["read"]
 }
 
 path "secret/metadata/eva-syndicate/redis" {
-  capabilities = [""list"", ""read"", "list"]
+  capabilities = ["list", "read"]
 }
 
 path "secret/data/eva-syndicate/api-keys" {
-  capabilities = [""read""]
+  capabilities = ["read"]
 }
 
 path "secret/metadata/eva-syndicate/api-keys" {
-  capabilities = [""list"", ""read"", "list"]
+  capabilities = ["list", "read"]
 }
 
 path "secret/data/eva-syndicate/mcp" {
-  capabilities = [""read""]
+  capabilities = ["read"]
 }
 
 path "secret/metadata/eva-syndicate/mcp" {
-  capabilities = [""list"", ""read"", "list"]
+  capabilities = ["list", "read"]
 }
 
 path "secret/data/eva-syndicate/agents/architect/*" {
-  capabilities = [""read""]
+  capabilities = ["read"]
 }
 
 path "secret/metadata/eva-syndicate/agents/architect/*" {
-  capabilities = [""list"", ""read"", "list"]
+  capabilities = ["list", "read"]
 }
 
 path "auth/token/renew-self" {

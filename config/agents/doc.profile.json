@@ -75,5 +75,8 @@
     "Фітнес-годинник",
     "Передача медичних файлів і шлях архіву",
     "NotebookLM / Vision OCR / Perplexity — перевірка і вибір"
+  ],
+  "reference_skills": [
+    "scientific-critical-thinking"
   ]
 }

@@ -23,5 +23,8 @@
       "status": "proposed_not_applied",
       "needs": "рішення Андрія; до схвалення grants порожні (default-deny)"
     }
+  ],
+  "reference_skills": [
+    "scientific-critical-thinking"
   ]
 }

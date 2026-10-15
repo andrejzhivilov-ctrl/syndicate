@@ -25,6 +25,93 @@
 
 ---
 
+## 2026-10-15 — CodeRabbit Agent: зауваження PR13
+
+- Перший remote review: 5 actionable comments. Виправлено 2 у власному коді: HTTP worker endpoints потребують явного SYNDICATE_INTEGRATION_HTTP_HOSTS і приватної IP/однокомпонентної Docker alias; public HTTP відхиляється до читання ключа. Tyler ships_to приймає лише list[str], нормалізує uppercase, зберігає premium gate.
+- 3 редакційні помилки upstream задокументовано в docs/SKILL_LIBRARY_ERRATA.md; оригінальні pinned файли та hashes збережено.
+- Додано 10 цільових regression cases: passed. Вплив: integration coordinator transport і supplier routing. Повний tools/check.sh — exit 0 (включно з живим PostgreSQL); library integrity, MCP/render image checks повторно використовуються для незмінених inputs. Director image перебудовано (sha256:50006c469924fb420d0a2b4ef00630a826f6b35b091a29687dfe644211f0f388); API/auth, PNG/persistence та shipping regression smoke пройшли.
+
+## 2026-10-15 — CodeRabbit Agent: відновлення GitHub і публікація
+
+**Гілка:** coderabbit/review-fix-errors/dc1f6bd4. **Пакет:** 60ba268f409ceae2dcaa14090787dfcaf13ac009.
+
+- `git fetch origin` і push із поточного підключення успішні; `gh api user` підтверджує andrejzhivilov-ctrl. Старий auth blocker нижче більше не актуальний.
+- Перевірено відповідність executable inputs збереженому SHA256 snapshot: змінено лише HANDOFF. Повний tools/check.sh, container/MCP/render checks попереднього запуску повторно використано; новий код не додавався.
+- Користувач раніше явно дозволив merge; PR13 переводиться з draft у ready і зливається після успішного CI без обходу gates. Фактичний статус і merge SHA дивитися в PR13/GitHub.
+- Live provider accounts, production Vault startup і розгортання на сервері залишаються невиконаними. PDF оновлюється після перевірки фінального remote status.
+
+## 2026-10-15 — CodeRabbit Agent: інтеграційні workers і паспорт
+
+**Гілка:** coderabbit/review-fix-errors/dc1f6bd4. **База:** 742994da6e604c381e52f9a04347ef95ca80cb9c. **Ворота:** ✅ tools/check.sh (exit 0).
+
+### Зроблено
+- Додано ізольований ServiceHub для 12 профілів: runtime читання pinned skills, Hindsight retain/recall/reflect, OmniRoute chat, Actual snapshot через офіційний SDK, HyperFrames MP4 render, MCP stdio через офіційний SDK.
+- Per-agent identity/grants, Vault AppRole, auth ключ worker, приватна мережа/volume, PII redaction, обмеження відповіді/часу, fixed endpoints/argv. Новий coordinator endpoint POST /integrations/{agent_id}/execute вимагає operator master key; API контракт перегенеровано.
+- Окремий integration image: Python 3.12, Node 24.21.0, Chromium/FFmpeg, pinned npm lock; core Python 3.11 не змінювався. Context Mode 1.0.169, REA 6.5.0, Skill Seekers 3.10.0: мінімальні MCP examples із діагностичними allowlists. Hooks/global plugins не встановлювались.
+- docs/SYSTEM_PASSPORT.md: усі агенти, джерела/скіли, required/recommended services, 26 upstream repositories, deployment, backup/rollback і межі реалізації. PDF на 25 сторінок надано в Outputs, поза git.
+
+### Перевірки
+- Усі обов’язкові ворота пройшли, включно з живим PostgreSQL. 9 нових цільових regression checks пройшли; новий образ зібрано.
+- Final image sha256:a38fa298b748865077e2df078105cee38f10e8606b7f57e562ef6c115983cb2e: усі 12 authenticated skills APIs; справжні MCP list/call для Context Mode, REA, Skill Seekers; справжній HyperFrames MP4 через ServiceHub. Контейнер UID1001/read-only/network-none. Actual SDK init/shutdown перевірено, live budget sync не виконано.
+- PDF: кириличні шрифти вбудовані; pypdf extraction і візуальний перегляд 4 сторінок пройшли. Live provider accounts/target server не перевірені; ресурсні cgroup limits не підтримуються sandbox (залишені в production compose).
+
+### Не дороблено / наступне
+- Користувач явно дозволив merge в main. Проте Git повторно відхилив персональний доступ: default askpass і gh credential helper обидва не працюють. API показує правильний personal user. Не використовувати іншу identity. PR13 має старі director/skills коміти; CI для 742994d зелений, новий пакет ще не push/merge. Після відновлення доступу: fetch/sync → push → CI → merge PR13.
+- Заповнити власні Vault secrets, серверні URL, allowlists, моделі й account IDs; перевірити справжній AppRole startup та кожен provider. Не комітити secrets. README/passport містять порядок запуску.
+- Повний Hermes business-tool gateway, storefront/concierge UI, Stripe→factory, social publishing, Telegram approval delivery та desktop/native bridges лишаються окремою незавершеною роботою. Prepared profiles не активовано автоматично. MCP example grants дозволяють лише перевірені діагностичні tools; небезпечні tools не мають HITL реалізації в цьому generic adapter, їх не надавати.
+- Audit intent записується перед операцією; result записується при успіху. Intent без result потребує reconciliation, це не доказ відсутності side effect. Не повторювати фінансові/публікаційні дії через generic transport.
+
+## 2026-10-15 — CodeRabbit Agent: GitHub та бібліотека скілів усіх агентів
+
+**Гілка:** coderabbit/review-fix-errors/dc1f6bd4. **База:** 385b901.
+
+### Зроблено
+- GitHub fetch/pull працює, особистий API user andrejzhivilov-ctrl підтверджено. Попередній auth blocker більше не актуальний.
+- Переглянуто 12 профілів та 26 наданих GitHub-джерел. Рішення, ліцензії, pinned revisions: config/skill_sources_audit.json і docs/SKILL_LIBRARY.md.
+- Вендорено 21 reference skill із 8 першоджерел, супровідні матеріали та ліцензії. Профілі отримали reference_skills без нових grants/активації.
+- SkillLibrary + CLI: явна agent/resource allowlist, bounded reads, SHA256, відхилення symlinks/traversal, відокремлення сторонніх інструкцій від policy. Не запускає сторонні scripts.
+- Встановлено isolated host SkillSpector 2.12.0 за pinned commit; Python 3.12.15 лише для сканера, application venv 3.11 незмінний.
+- Виявлено і виправлено parser Marshal: підтримка реальних risk_assessment.score/issues, відмова при failed/malformed scan, збереження completeness. Missing-binary test тепер ізолює і локальний binary, і env.
+- security-and-hardening вилучено після score 100 / incomplete analysis. Це не доказ malware, але він не входить до встановленого набору. Інші upstream файли не редагувалися.
+
+### Перевірки
+- Focused library/profile tests: 8 passed. Library/scanner regressions: 16 passed. Фінальний повний tools/check.sh — exit 0 (pytest, legacy suites, lint, API/Vault, live PostgreSQL, compose). Лише CI-only assertion optional extensions skipped. Фінальні 21 scan — exit 0; знахідки й incomplete coverage збережено у config/skill_scan_report.json.
+
+### Межі й наступне
+- Це read-only reference library і loader API/CLI, не автоматичний Hermes prompt injection або активний browser/MCP. Profiles лишаються prepared_not_enabled.
+- Actual, Hindsight, HyperFrames, OmniRoute та інші service candidates потребують окремих інтеграцій і runtime tests; статус кожного описаний. Не заявляти, що вони вже працюють.
+- Для production runtime: завантажувати лише вибраний скіл за довіреною agent identity; монтувати library/catalog/profiles read-only; перевіряти tool gateway. Дані/секрети нікуди не мігрувалися.
+- Новий feature передати draft PR; старий дозвіл на main стосувався завершених PII/PDF fixes.
+
+## 2026-10-15 — CodeRabbit Agent: Oscar / Tyler / Jack backend workers
+
+**Гілка:** coderabbit/review-fix-errors/dc1f6bd4. **База:** f3773c2 (усі шість специфікацій отримано).
+
+### Зроблено
+- Oscar: 3 персони, Tri-LLM із per-agent Vault keys і PII, імпорт/дедуплікація коментарів, YouTube read adapter, перевірка класифікацій за source IDs, дослідження транскриптів, editorial drafts/replies/newsletters, відкладена pending queue, типографічний thumbnail, SVG-схеми та обчислення email-метрик із наданих даних.
+- Tyler: Decimal margin guard ≥35% із податками/доставкою/округленням комісії; Zero-Junk evidence checks; справжній PNG 300 DPI і схематичний preview; збереження concierge-концептів, порівняння наданих supplier quotes, Pinterest draft та негативні відгуки.
+- Jack: 6 математичних engines, exact EV≥4.5%, 0.25 Kelly з cap 1% за замовчуванням (макс 2.5%), контроль свіжості odds, vig removal, The Odds API scout з явним bookmaker coverage, SQLite paper tracker із транзакційними exposure/duplicate/settlement gates, 24h anti-tilt і ROI/sample size.
+- 9 власних draft skills та 56 GitHub-кандидатів: commit SHA, file SHA256, source/license/compatibility metadata. Сторонні скіли не встановлено. Наукові Python 3.12+ та Remotion з непідтвердженою ліцензією позначено окремо.
+- Профілі й least-privilege Vault ACL; окремі worker networks/volumes/AppRoles; FastAPI auth; allowlists на координаторі й worker; HTTP bridge LangGraph → worker; runtime routes за замовчуванням dormant.
+- Виправлено старий генератор HCL: подвійні лапки capability tokens робили ACL невалідними. Всі політики перегенеровано й незалежно розібрано python-hcl2.
+- Lazy exports src.agents зберігають публічні імена та не тягнуть усі LLM/спеціалістські залежності в мінімальний worker image.
+- Відтворено нестабільність SQL-fixture: короткий UUID міг збігтися з паспортним PII-патерном. Fixture тепер додає літерний суфікс до короткого UUID, зберігаючи SQL-ліміти довжини; privacy checks та SQL assertions збережено, додано регресію.
+
+### Перевірки
+- Перші 47 domain/profile/permissions tests пройшли; поточна цільова вибірка domain + нові regressions — 55 passed перед останнім regression fixture.
+- Docker build успішний; smoke у nonroot/read-only/network-none контейнері: API/auth/capabilities усіх трьох директорів і PNG/SQLite persistence пройшли. Сandbox потребує host cgroup namespace/root parent без CPU/memory flags; production resource limits ще не перевірені на цільовому хості.
+- Compose config та незалежний HCL parser пройшли. Provider contracts перевірено синтетичними HTTP transports; emulate v0.0.1 catalog не має потрібних LLM/YouTube/odds/Vault operations.
+- Остаточний `PATH=/home/vercel-sandbox/runtime/test-tools:$PATH bash tools/check.sh` — exit 0: pytest, обидва наскрізні suites, усі lint, API/Vault, живі SQL-шляхи PostgreSQL і compose green. CI-only assertion повноти optional DB extensions локально skipped. `git diff --check` — exit 0.
+
+### Не активовано / потрібні інтеграції
+- Цей образ — native tool worker, не Hermes runtime. Профілі prepared_not_enabled, grants порожні, зовнішні actions не виконуються.
+- LivePortrait/відеоконвеєр, subscriber database, full multi-platform live harvest, live trademark/trend sources, storefront/chat UI, Stripe/payment webhooks, фабричний submit, Pinterest publish, Telegram approval/delivery і центральний KODEX audit не завершені цим етапом.
+- Live accounts, model budgets, bookmaker coverage і калібрування моделей потребують окремої перевірки. Не стверджувати production readiness або прибутковість. Повний стан і запуск — docs/DIRECTORS_DEPLOYMENT.md.
+
+### Наступне
+1. Відновити персональну GitHub Git-авторизацію: fetch відхилено з Invalid username or token. API user ще повертає andrejzhivilov-ctrl. Передати локальні зміни через draft PR після зелених mandatory gates; не зливати новий feature автоматично за старим дозволом на PII/PDF fixes.
+2. Підключити Hermes policy/tool gateway, центральний audit та потрібні provider/account integrations згідно з deployment guide; production activation потребує окремого рішення оператора.
+
 ## 2026-10-15 — CodeRabbit Agent: виправлення PII та PDF
 
 **Гілка:** coderabbit/review-fix-errors/dc1f6bd4. **База:** 30974829b60413cccb5559299c40ce8a31528e9c.

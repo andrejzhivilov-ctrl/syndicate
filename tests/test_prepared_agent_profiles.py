@@ -18,8 +18,8 @@ from src.agent_platform.registry import AgentRegistry
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILES_DIR = ROOT / "config" / "agents"
-EXPECTED_IDS = frozenset({"eva", "architect", "marshal", "fin", "doc", "kira", "sam", "kodex", "antigravity"})
-FORMED_IDENTITY = frozenset({"eva", "architect", "marshal", "sam", "fin", "antigravity"})
+EXPECTED_IDS = frozenset({"eva", "architect", "marshal", "fin", "doc", "kira", "sam", "kodex", "antigravity", "oscar", "tyler", "jack"})
+FORMED_IDENTITY = frozenset({"eva", "architect", "marshal", "sam", "fin", "antigravity", "oscar", "tyler", "jack"})
 
 
 def _manifests() -> dict[str, dict]:
@@ -73,7 +73,7 @@ def test_all_prepared_manifests_are_default_deny_and_isolated() -> None:
             assert manifest["capabilities"] == []
             assert manifest["resource_scopes"] == []
             assert manifest["services_enabled"] == []
-        if agent_id in {"eva", "architect", "sam", "fin"}:
+        if agent_id in {"eva", "architect", "sam", "fin", "oscar", "tyler", "jack"}:
             assert manifest["skills"]
             assert all(item.get("activation") == "draft" for item in manifest["skills"])
         else:

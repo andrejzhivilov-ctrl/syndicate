@@ -21,6 +21,9 @@ ENV_VAR = "EVA_DATA_DIR"
 
 #: Logical sub-directories below the data root.
 DIRS = {
+    "oscar": "oscar",
+    "tyler": "tyler",
+    "jack": "jack",
     "vault": "vault_md",
     "videos": "media/videos",
     "mockups": "media/mockups",

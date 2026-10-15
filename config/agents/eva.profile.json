@@ -99,5 +99,14 @@
         "неофіційний доступ до бібліотеки (ризик акаунта, потребує рішення)"
       ]
     }
-  }
+  },
+  "reference_skills": [
+    "grill-me",
+    "handoff",
+    "grilling",
+    "context-engineering",
+    "planning-breakdown",
+    "internal-comms",
+    "market-research"
+  ]
 }

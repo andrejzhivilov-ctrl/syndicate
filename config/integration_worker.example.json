@@ -1,0 +1,9 @@
+{
+  "worker_api_key": "REPLACE_WITH_RANDOM_32_PLUS_CHAR_SECRET_IN_VAULT",
+  "grants": ["skills.list", "skills.read"],
+  "hindsight": {"url": "http://hindsight:8888", "api_key": "SET_IN_VAULT"},
+  "omniroute": {"url": "http://omniroute:20128/v1", "api_key": "SET_IN_VAULT", "model": "OPERATOR_SELECTED_MODEL", "allowed_models": ["OPERATOR_SELECTED_MODEL"]},
+  "actual": {"url": "http://actual:5006", "password": "SET_IN_VAULT", "budget_id": "SET_SYNC_ID", "accounts": [], "node": "/usr/local/bin/node"},
+  "hyperframes": {"binary": "/app/deploy/integrations/node_modules/.bin/hyperframes"},
+  "mcp": {}
+}

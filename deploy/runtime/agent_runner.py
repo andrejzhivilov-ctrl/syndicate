@@ -50,6 +50,7 @@ from src.lessons import LessonsStore  # noqa: E402
 from src.embeddings import build_embedding_provider  # noqa: E402
 from src.memory import MemoryManager  # noqa: E402
 from src.orchestrator import EvaOrchestrator  # noqa: E402
+from src.agent_platform.director_client import build_director_clients  # noqa: E402
 from src.pii import PIIRedactor  # noqa: E402
 from src.runtime_config import build_runtime_config  # noqa: E402
 from src.vault_client import VaultClient, is_placeholder_secret  # noqa: E402
@@ -302,6 +303,7 @@ async def lifespan(app: FastAPI):
             memory_manager=app_state.memory_manager,
             sentinel=app_state.sentinel,
             llm_config=llm_secrets,
+            director_clients=build_director_clients(runtime_config, app_state.vault_client),
             config=runtime_config,
             registry=app_state.registry,
             voice_manager=app_state.voice_manager,
@@ -1315,6 +1317,21 @@ async def apply_cr(request: Request, state: AppState = Depends(require_hitl)):
     body = await request.json()
     result = await state.orchestrator.execute("apply_change_request", body)
     return result
+
+
+
+
+class IntegrationDispatchRequest(BaseModel):
+    operation: str = Field(max_length=64)
+    payload: dict = Field(default_factory=dict)
+
+
+@app.post("/integrations/{agent_id}/execute")
+async def execute_integration(agent_id: str, request: IntegrationDispatchRequest,
+                              state: AppState = Depends(require_master_key)):
+    """Operator entry point; worker grants remain independently enforced."""
+    from src.agent_platform.integration_client import dispatch_integration
+    return await dispatch_integration(agent_id, request.operation, request.payload, state.vault_client)
 
 
 # ─── Graceful Shutdown ───────────────────────────────────────────────────────

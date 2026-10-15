@@ -2,7 +2,7 @@
 
 **Рішення Андрія 2026-10-10** (`docs/DECISIONS_ANDRII.md`): при розгортанні кожен агент запускається у власному контейнері. LangGraph — зовнішній координатор.
 
-**Статус:** план, не реалізація. У `docker-compose.yml` зараз тільки `eva-agent` (контейнер Єви з `deploy/docker/Dockerfile.agent`).
+**Статус:** основний `docker-compose.yml` містить `eva-agent`. Окремий `deploy/docker-compose.directors.yml` тепер готує Oscar/Tyler/Jack tool workers: ізольовані мережі, томи, Vault AppRole, API auth і operator action allowlists. Образ збирається; локальні сценарії перевірено в контейнері. Це не Hermes runtime і не активація директорів. Інструкція та точні межі — [DIRECTORS_DEPLOYMENT.md](DIRECTORS_DEPLOYMENT.md).
 
 **Платформа агентів:** runtime — **Hermes Agent**, координація — **LangGraph** (підтверджено Андрієм). Що є в репозиторії:
 - LangGraph: `src/orchestrator.py` (наявна оркестрація, `StateGraph`).

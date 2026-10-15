@@ -413,5 +413,11 @@
       "Obsidian vault (шлях)"
     ],
     "note": "Андрій 2026-10-10: підключимо при розгортанні разом із налаштуванням зв'язків."
-  }
+  },
+  "reference_skills": [
+    "internal-comms",
+    "scientific-critical-thinking",
+    "behavioral-finance",
+    "market-research"
+  ]
 }

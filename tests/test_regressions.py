@@ -3706,3 +3706,295 @@ class TestVaultSecretPathHelpers:
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+class TestDirectorSafetyRegressions:
+    """Money boundaries, approval isolation and exact decision thresholds."""
+
+    def test_tyler_blocks_one_cent_below_net_margin_floor(self):
+        from src.agents.tyler.finance import calculate_margin
+        payload = {"currency": "USD", "price": "40.00", "blank": "7.00", "print": "4.00",
+                   "shipping": "4.00", "tax": "2.00"}
+        minimum = calculate_margin(payload)["minimum_price"]
+        from decimal import Decimal
+        payload["price"] = str(Decimal(minimum) - Decimal("0.01"))
+        assert calculate_margin(payload)["eligible"] is False
+        payload["price"] = minimum
+        assert calculate_margin(payload)["eligible"] is True
+
+    def test_jack_accepts_exact_ev_threshold_without_float_roundoff(self):
+        from src.agents.jack.quant import evaluate
+        from datetime import datetime, timezone
+        result = evaluate({"probability": 0.5225, "decimal_odds": 2, "bankroll": 1000,
+                           "observed_at": datetime.now(timezone.utc).isoformat(), "model_source": "regression"})
+        assert result["eligible"] is True
+        assert result["ev"] == 0.045
+
+    def test_jack_never_rounds_stake_above_event_cap(self):
+        from src.agents.jack.quant import evaluate
+        from datetime import datetime, timezone
+        result = evaluate({"probability": 0.6, "decimal_odds": 2, "bankroll": 0.55,
+                           "observed_at": datetime.now(timezone.utc).isoformat(), "model_source": "regression"})
+        assert result["stake"] <= result["bankroll"] * result["event_risk_cap"]
+
+    def test_director_vault_policies_cannot_read_shared_llm_keys(self):
+        from src.vault_paths import agent_policy_paths, secret_path, API_KEYS
+        for agent_id in ("oscar", "tyler", "jack"):
+            paths = agent_policy_paths(agent_id)
+            assert secret_path(API_KEYS) not in paths
+            assert all(f"/agents/{agent_id}/" in path for path in paths)
+
+
+def test_vault_policy_generator_does_not_double_quote_capability_tokens():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("director_vault_policy_regression", REPO_ROOT / "tools/vault_policies.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    for policy in module.build_policies().values():
+        assert '""read""' not in policy
+        assert '""list""' not in policy
+        assert 'capabilities = ["read"]' in policy
+
+
+def test_audit_labels_keep_bounded_ids_but_reject_passport_shaped_short_ids():
+    from src.memory import _audit_label
+    assert _audit_label("audit-ab123456", limit=64) == "unknown"
+    bounded_id = "audit-ab123456x"
+    assert _audit_label(bounded_id, limit=64) == bounded_id
+
+
+class TestPinnedSkillLibrary:
+    """Third-party context must stay assigned, bounded and immutable."""
+
+    def test_installed_library_covers_all_profiles_without_grants(self):
+        from src.agent_platform.skill_library import ROOT, SkillLibrary
+        library = SkillLibrary()
+        assert library.verify()['scripts_executed'] is False
+        for path in (ROOT / 'config/agents').glob('*.profile.json'):
+            profile = json.loads(path.read_text())
+            assert profile['activation'] == 'prepared_not_enabled'
+            assert library.for_agent(profile['agent_id'])
+        result = library.read('oscar', 'content-engine')
+        assert result['mode'] == 'reference_only'
+        assert 'grant no permissions' in result['policy']
+        assert len(result['commit']) == 40
+
+    def test_agent_and_resource_boundaries(self):
+        from src.agent_platform.skill_library import SkillLibrary
+        library = SkillLibrary()
+        for agent, skill, resource in [
+            ('../oscar', 'content-engine', 'SKILL.md'),
+            ('doc', 'content-engine', 'SKILL.md'),
+            ('oscar', 'content-engine', '../../.env'),
+        ]:
+            with pytest.raises(ValueError):
+                library.read(agent, skill, resource)
+
+    @pytest.mark.parametrize('change', ['tamper', 'oversize', 'symlink'])
+    def test_modified_resource_is_rejected(self, tmp_path, change):
+        import shutil
+        from src.agent_platform.skill_library import MAX_RESOURCE_BYTES, ROOT, SkillLibrary
+        shutil.copytree(ROOT / 'config', tmp_path / 'config')
+        library = SkillLibrary(tmp_path)
+        relative = library.entries['content-engine']['resources']['SKILL.md']
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True)
+        if change == 'symlink':
+            path.symlink_to(ROOT / relative)
+        else:
+            path.write_text('x' * (MAX_RESOURCE_BYTES + 1) if change == 'oversize' else 'altered')
+        with pytest.raises(ValueError):
+            library.read('oscar', 'content-engine')
+
+    def test_catalog_resource_paths_cannot_escape(self, tmp_path):
+        from src.agent_platform.skill_library import _contained_file
+        for name in ('../outside', '/etc/passwd', 'a\\b'):
+            with pytest.raises(ValueError):
+                _contained_file(tmp_path, name)
+        assert _contained_file(tmp_path, 'safe/file.md') == tmp_path / 'safe/file.md'
+
+
+@pytest.mark.parametrize('report,returncode,expected', [
+    ({'risk_assessment': {'score': 100}, 'issues': [{'id': 'YR4'}],
+      'analysis_completeness': {'is_complete': False}}, 1, 'scanned'),
+    ({'risk_score': 0, 'findings': [], 'execution_successful': False}, 2, 'scan_unavailable'),
+    ({'risk_score': True, 'findings': []}, 0, 'scan_unavailable'),
+    ({'risk_score': 0, 'findings': []}, 2, 'scan_unavailable'),
+    ({'unexpected': 'schema'}, 0, 'scan_unavailable'),
+    ('invalid JSON', 0, 'scan_unavailable'),
+])
+def test_marshal_scan_preserves_nested_findings_and_fails_closed(tmp_path, report, returncode, expected):
+    from types import SimpleNamespace
+    from src.agents.marshal_skill_scan import scan_skill_proposal
+    body = report if isinstance(report, str) else json.dumps(report)
+    result = scan_skill_proposal(
+        tmp_path, which=lambda _: '/synthetic/skillspector',
+        runner=lambda *a, **kw: SimpleNamespace(stdout=body, stderr='', returncode=returncode),
+    )
+    assert result['status'] == expected
+    if expected == 'scanned':
+        assert result['risk_score'] == 100
+        assert result['findings_count'] == 1
+        assert result['analysis_complete'] is False
+        assert result['recommendation'] == 'do_not_install'
+    else:
+        assert result['recommendation'] == 'unknown'
+
+
+class TestServiceIntegrations:
+    @pytest.fixture
+    def anyio_backend(self):
+        return "asyncio"
+
+    @pytest.mark.anyio
+    async def test_grants_and_identity_are_not_payload_controlled(self, tmp_path, monkeypatch):
+        from src.integrations.service_hub import ServiceHub
+        monkeypatch.setenv('EVA_DATA_DIR', str(tmp_path))
+        hub = ServiceHub('oscar', {'grants': ['skills.read']})
+        assert (await hub.execute('hindsight.retain', {'grants': ['hindsight.retain']}))['status'] == 'denied'
+        result = await hub.execute('skills.read', {'agent': 'marshal', 'skill': 'agent-security-hardening'})
+        assert result['status'] == 'unavailable'
+        assert (await hub.execute('skills.read', {'skill': 'content-engine'}))['value']['agent_id'] == 'oscar'
+
+    @pytest.mark.anyio
+    async def test_hindsight_masks_pii_and_owns_bank(self, tmp_path, monkeypatch):
+        import httpx
+        from src.integrations.service_hub import ServiceHub
+        monkeypatch.setenv('EVA_DATA_DIR', str(tmp_path))
+        seen = []
+        def handle(request):
+            seen.append(request)
+            assert b'person@example.com' not in request.content
+            return httpx.Response(200, json={'results': []})
+        hub = ServiceHub('kodex', {'grants': ['hindsight.recall', 'hindsight.retain'],
+                                  'hindsight': {'url': 'https://memory.invalid'}}, transport=httpx.MockTransport(handle))
+        for operation in ('hindsight.recall', 'hindsight.retain'):
+            result = await hub.execute(operation, {'text': 'person@example.com', 'bank_id': 'other-agent'})
+            assert result['status'] == 'ok'
+        assert all('/banks/syndicate-kodex/' in str(r.url) for r in seen)
+
+    @pytest.mark.anyio
+    async def test_omniroute_models_and_response_validation(self, tmp_path, monkeypatch):
+        import httpx
+        from src.integrations.service_hub import ServiceHub
+        monkeypatch.setenv('EVA_DATA_DIR', str(tmp_path))
+        def handle(request):
+            assert request.url.path == '/v1/chat/completions'
+            return httpx.Response(200, json={'choices': [{'message': {'content': 'verified response'}}]})
+        hub = ServiceHub('oscar', {'grants': ['omniroute.chat'], 'omniroute': {
+            'url': 'https://models.invalid/v1', 'model': 'selected'}}, transport=httpx.MockTransport(handle))
+        assert (await hub.execute('omniroute.chat', {'text': 'hello', 'model': 'expensive'}))['status'] == 'unavailable'
+        assert (await hub.execute('omniroute.chat', {'text': 'hello'}))['value']['text'] == 'verified response'
+
+    @pytest.mark.anyio
+    async def test_actual_preserves_minor_units_and_account_scope(self, tmp_path, monkeypatch):
+        from src.integrations.service_hub import ServiceHub
+        monkeypatch.setenv('EVA_DATA_DIR', str(tmp_path))
+        async def runner(argv, body, **kwargs):
+            assert body['account'] == 'owned'
+            assert 'password' not in ' '.join(argv)
+            return b'{"status":"ok","transactions":[{"id":"t1","amount":-123}]}'
+        hub = ServiceHub('fin', {'grants': ['actual.snapshot'], 'actual': {'accounts': ['owned']}}, process_runner=runner)
+        args = {'start': '2026-01-01', 'end': '2026-01-31', 'account': 'owned'}
+        assert (await hub.execute('actual.snapshot', args))['value']['transactions'][0]['amount'] == -123
+        assert (await hub.execute('actual.snapshot', {**args, 'account': 'other'}))['status'] == 'unavailable'
+
+    @pytest.mark.anyio
+    async def test_renderer_rejects_escape_and_requires_real_new_file(self, tmp_path, monkeypatch):
+        from src.integrations.service_hub import ServiceHub
+        monkeypatch.setenv('EVA_DATA_DIR', str(tmp_path))
+        folder = tmp_path / 'integrations/render_projects/oscar/demo'
+        folder.mkdir(parents=True)
+        async def no_output(*args, **kwargs):
+            return b''
+        hub = ServiceHub('oscar', {'grants': ['hyperframes.render'], 'hyperframes': {'binary': '/synthetic/hyperframes'}}, process_runner=no_output)
+        for project in ('../demo', 'demo'):
+            assert (await hub.execute('hyperframes.render', {'project': project}))['status'] == 'unavailable'
+
+    def test_worker_requires_key(self, tmp_path, monkeypatch):
+        from fastapi.testclient import TestClient
+        from deploy.runtime.integration_runner import create_app
+        from src.integrations.service_hub import ServiceHub
+        monkeypatch.setenv('EVA_DATA_DIR', str(tmp_path))
+        app = create_app(ServiceHub('oscar', {'grants': ['skills.list']}), api_key='synthetic-key')
+        with TestClient(app) as client:
+            assert client.post('/execute', json={'operation': 'skills.list'}).status_code == 401
+            response = client.post('/execute', headers={'X-API-Key': 'synthetic-key'}, json={'operation': 'skills.list'})
+            assert response.json()['agent'] == 'oscar'
+
+    @pytest.mark.anyio
+    async def test_process_timeout_and_output_bound(self, tmp_path):
+        import sys
+        from src.integrations.service_transport import run_process
+        with pytest.raises(TimeoutError):
+            await run_process([sys.executable, '-c', 'import time; time.sleep(5)'], {}, cwd=str(tmp_path), timeout=1)
+        with pytest.raises(ValueError, match='output_too_large'):
+            await run_process([sys.executable, '-c', 'print("x"*2100000)'], {}, cwd=str(tmp_path))
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("anyio_backend", ["asyncio"])
+async def test_integration_gateway_rejects_worker_identity_mismatch(monkeypatch, anyio_backend):
+    import httpx
+    from src.agent_platform.integration_client import dispatch_integration
+    monkeypatch.setenv('SYNDICATE_INTEGRATION_URLS', '{"fin":"https://worker.invalid"}')
+    class Vault:
+        async def get_secret(self, path):
+            return {'integration_worker_keys': {'fin': 'synthetic-' * 4}}
+    result = await dispatch_integration('fin', 'actual.snapshot', {}, Vault(),
+                                        transport=httpx.MockTransport(lambda r: httpx.Response(200, json={'agent': 'sam', 'status': 'ok'})))
+    assert result['status'] == 'unavailable'
+
+
+def test_integration_route_requires_operator_master_key():
+    from deploy.runtime.agent_runner import app, require_master_key
+    route = next(route for route in app.routes if route.path == '/integrations/{agent_id}/execute')
+    assert route.dependant.dependencies[0].call is require_master_key
+
+
+@pytest.mark.parametrize("url,approved,accepted", [
+    ("https://worker.example.com", [], True),
+    ("http://fin-worker:8000", [], False),
+    ("http://fin-worker:8000", ["fin-worker"], True),
+    ("http://192.168.20.5:8000", ["192.168.20.5"], True),
+    ("http://8.8.8.8:8000", ["8.8.8.8"], False),
+    ("http://example.com", ["example.com"], False),
+    ("http://0.0.0.0", ["0.0.0.0"], False),
+    ("http://2130706433", ["2130706433"], False),
+])
+def test_integration_http_requires_approved_private_destination(monkeypatch, url, approved, accepted):
+    from src.agent_platform.integration_client import worker_endpoint
+    monkeypatch.setenv('SYNDICATE_INTEGRATION_HTTP_HOSTS', json.dumps(approved))
+    if accepted:
+        assert worker_endpoint(url) == url
+    else:
+        with pytest.raises(ValueError):
+            worker_endpoint(url)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("anyio_backend", ["asyncio"])
+async def test_integration_rejects_public_http_before_reading_or_sending_key(monkeypatch, anyio_backend):
+    from src.agent_platform.integration_client import dispatch_integration
+    monkeypatch.setenv('SYNDICATE_INTEGRATION_URLS', '{"fin":"http://public.example.com"}')
+    monkeypatch.setenv('SYNDICATE_INTEGRATION_HTTP_HOSTS', '["public.example.com"]')
+    class Vault:
+        async def get_secret(self, path):
+            pytest.fail('Unapproved HTTP endpoint must be rejected before fetching a key')
+    result = await dispatch_integration('fin', 'skills.list', {}, Vault())
+    assert result['status'] == 'unavailable'
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("anyio_backend", ["asyncio"])
+async def test_tyler_shipping_countries_are_normalized_list(tmp_path, monkeypatch, anyio_backend):
+    from src.agents.tyler.agent import TylerAgent
+    monkeypatch.setenv('EVA_DATA_DIR', str(tmp_path))
+    agent = TylerAgent()
+    offer = {"supplier": "printify", "production": "10.00", "shipping": "4.00",
+             "delivery_days": 5, "ships_to": ["us"], "premium_verified": True, "currency": "USD"}
+    assert (await agent.route_order({"country": "US", "offers": [offer]}))['status'] == 'ok'
+    for invalid in ('USCA', {"US": True}, [None], [123]):
+        with pytest.raises(ValueError, match='invalid_ships_to'):
+            await agent.route_order({"country": "SC", "offers": [{**offer, 'ships_to': invalid}]})
+    assert (await agent.route_order({"country": "US", "offers": [{**offer, 'premium_verified': False}]}))['status'] == 'unavailable'

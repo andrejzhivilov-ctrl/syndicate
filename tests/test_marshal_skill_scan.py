@@ -20,10 +20,12 @@ def test_skill_scan_config_is_not_a_grant() -> None:
     assert marshal_skill_scan_allowed(manifest) is True
 
 
-def test_missing_binary_is_unavailable_not_safe(tmp_path) -> None:
+def test_missing_binary_is_unavailable_not_safe(tmp_path, monkeypatch) -> None:
     skill = tmp_path / "demo"
     skill.mkdir()
     (skill / "SKILL.md").write_text("# demo\n", encoding="utf-8")
+    monkeypatch.delenv("MARSHAL_SKILLSPECTOR_BIN", raising=False)
+    monkeypatch.setattr("src.agents.marshal_skill_scan._LOCAL_BIN", tmp_path / "missing")
     result = scan_skill_proposal(skill, which=lambda _name: None)
     assert result["status"] == "scan_unavailable"
     assert result["error"] == "skillspector_not_installed"

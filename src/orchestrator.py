@@ -71,6 +71,9 @@ class EvaOrchestrator:
     """Central orchestrator coordinating all 10 floors of EVA SYNDICATE."""
 
     TASK_ROUTING = {
+        "oscar_task": "oscar",
+        "tyler_task": "tyler",
+        "jack_task": "jack",
         # ─── Floor 1: Server & n8n ──────────────────────────────────────────
         "sensory_split_audio": "sensory",
         "sensory_extract_doc": "sensory",
@@ -228,11 +231,13 @@ class EvaOrchestrator:
         humanizer: Optional[Humanizer] = None,
         video_prompt_enhancer: Optional[VideoPromptEnhancer] = None,
         release_pack_builder: Optional[ReleasePackBuilder] = None,
+        director_clients: Optional[Dict[str, Any]] = None,
     ) -> None:
         self._memory = memory_manager
         self._sentinel = sentinel
         self._llm_config = dict(llm_config or {})
         self._config = dict(config or {})
+        self._director_clients = dict(director_clients or {})
         self._registry = registry
         self._voice = voice_manager
         self._lessons = lessons_store
@@ -350,6 +355,9 @@ class EvaOrchestrator:
         builder = StateGraph(AgentState)
 
         # Base and routing nodes
+        builder.add_node("oscar_agent", self._director_handler)
+        builder.add_node("tyler_agent", self._director_handler)
+        builder.add_node("jack_agent", self._director_handler)
         builder.add_node("router", self._route_task)
         builder.add_node("lessons_check", self._lessons_check)
 
@@ -403,6 +411,9 @@ class EvaOrchestrator:
 
         # Conditional dispatch from lessons_check to target agent/service
         agent_node_map = {
+            "oscar": "oscar_agent",
+            "tyler": "tyler_agent",
+            "jack": "jack_agent",
             "sensory": "sensory",
             "error_collector": "error_collector",
             "n8n_templates": "n8n_templates",
@@ -720,6 +731,27 @@ class EvaOrchestrator:
             "active_floors": active_floors(),
             "reserved_floors": reserved_floors(),
         }
+        state["status"] = "completed"
+        return state
+
+    async def _director_handler(self, state: AgentState) -> AgentState:
+        from src.agents.oscar import OscarAgent
+        from src.agents.tyler import TylerAgent
+        from src.agents.jack import JackAgent
+
+        agent_id = state["current_agent"]
+        classes = {"oscar": OscarAgent, "tyler": TylerAgent, "jack": JackAgent}
+        config = self._config.get(agent_id, {})
+        if config.get("enabled") is not True:
+            state["result"] = {"agent": agent_id, "status": "unavailable", "value": None,
+                               "warning": "director_prepared_not_enabled"}
+        elif state["payload"].get("action", "capabilities") not in config.get("allowed_actions", ["capabilities"]):
+            state["result"] = {"agent": agent_id, "status": "denied", "reason": "action_not_granted"}
+        else:
+            agent = self._director_clients.get(agent_id)
+            if agent is None:
+                agent = classes[agent_id](memory=self._memory, config=config)
+            state["result"] = await agent.execute(dict(state["payload"]))
         state["status"] = "completed"
         return state
 

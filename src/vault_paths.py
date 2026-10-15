@@ -53,7 +53,7 @@ CONNECTOR_SERVICES: Tuple[str, ...] = ("google_workspace", "mcp", "telegram", "y
 VOICE_SERVICES: Tuple[str, ...] = ("elevenlabs", "groq", "openai", "xai")
 
 #: Canonical agent ids (``src/floors.py`` holds the floor mapping).
-AGENTS_IDS: Tuple[str, ...] = ("eva", "marshal", "architect", "fin", "doc", "kira", "sam")
+AGENTS_IDS: Tuple[str, ...] = ("eva", "marshal", "architect", "fin", "doc", "kira", "sam", "oscar", "tyler", "jack")
 
 #: Which *extra* services each agent may read, on top of ``INFRA_SERVICES`` and
 #: its own ``agents/<id>/*`` subtree. Default deny: an agent without an entry
@@ -146,7 +146,9 @@ def policy_paths() -> List[str]:
 
 def agent_policy_paths(agent_id: str) -> List[str]:
     """Read globs for one agent's policy (future per-agent container)."""
-    services = INFRA_SERVICES + AGENT_SERVICES.get(agent_id, ())
+    # Domain tool workers need only their own auth/provider subtree.
+    infra = () if agent_id in {"oscar", "tyler", "jack"} else INFRA_SERVICES
+    services = infra + AGENT_SERVICES.get(agent_id, ())
     grants: List[str] = []
     for service in services:
         grants.extend(policy_paths_for_service(service))

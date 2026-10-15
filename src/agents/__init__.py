@@ -1,26 +1,28 @@
-"""EVA SYNDICATE Specialist Agents package."""
+"""EVA SYNDICATE specialists, loaded on demand for isolated workers."""
+from importlib import import_module
 
-from src.agents.architect.agent import ArchitectAgent
-from src.agents.doc import DocAgent
-from src.agents.eva import EvaAgent
-from src.agents.eva_curator import EvaCurator
-from src.agents.fin import FinAgent
-from src.agents.sam.agent import SamAgent
-from src.agents.sentinel import SentinelAgent
-from src.agents.office_copilot import OfficeCopilotAgent, OfficeKnowledgeBase
-from src.agents.marshal import MarshalAgent
-from src.agents.kira import KiraAgent
+_EXPORTS = {
+    "ArchitectAgent": "src.agents.architect.agent",
+    "DocAgent": "src.agents.doc",
+    "EvaAgent": "src.agents.eva",
+    "EvaCurator": "src.agents.eva_curator",
+    "FinAgent": "src.agents.fin",
+    "SamAgent": "src.agents.sam.agent",
+    "SentinelAgent": "src.agents.sentinel",
+    "OfficeCopilotAgent": "src.agents.office_copilot",
+    "OfficeKnowledgeBase": "src.agents.office_copilot",
+    "MarshalAgent": "src.agents.marshal",
+    "KiraAgent": "src.agents.kira",
+    "OscarAgent": "src.agents.oscar",
+    "TylerAgent": "src.agents.tyler",
+    "JackAgent": "src.agents.jack",
+}
+__all__ = list(_EXPORTS)
 
-__all__ = [
-    "ArchitectAgent",
-    "DocAgent",
-    "EvaAgent",
-    "EvaCurator",
-    "FinAgent",
-    "SamAgent",
-    "SentinelAgent",
-    "OfficeCopilotAgent",
-    "OfficeKnowledgeBase",
-    "MarshalAgent",
-    "KiraAgent",
-]
+
+def __getattr__(name):
+    if name not in _EXPORTS:
+        raise AttributeError(name)
+    value = getattr(import_module(_EXPORTS[name]), name)
+    globals()[name] = value
+    return value

@@ -99,21 +99,25 @@ def _local_path(target: str | Path) -> Path | None:
     return path.resolve()
 
 
-def _parse_report(stdout: str) -> tuple[int | None, int]:
+def _parse_report(stdout: str) -> tuple[int | None, int, bool | None]:
     try:
-        payload = json.loads(stdout) if stdout.strip() else {}
+        payload = json.loads(stdout)
     except json.JSONDecodeError:
-        payload = {}
-    if not isinstance(payload, dict):
-        return None, 0
-    score = None
-    for key in ("risk_score", "score", "risk"):
-        value = payload.get(key)
-        if isinstance(value, (int, float)):
-            score = int(value)
-            break
-    findings = payload.get("findings") if isinstance(payload.get("findings"), list) else []
-    return score, len(findings)
+        return None, 0, None
+    if not isinstance(payload, dict) or payload.get("execution_successful") is False:
+        return None, 0, None
+    assessment = payload.get("risk_assessment", payload)
+    if not isinstance(assessment, dict):
+        return None, 0, None
+    score = next((assessment[k] for k in ("risk_score", "score", "risk") if k in assessment), None)
+    if isinstance(score, bool) or not isinstance(score, (int, float)) or not 0 <= score <= 100:
+        return None, 0, None
+    findings = payload.get("issues", payload.get("findings"))
+    if not isinstance(findings, list):
+        return None, 0, None
+    completeness = payload.get("analysis_completeness", {})
+    complete = completeness.get("is_complete") if isinstance(completeness, dict) else None
+    return int(score), len(findings), complete if isinstance(complete, bool) else None
 
 
 def _unavailable(base: dict[str, Any], error: str, path: str | None = None) -> dict[str, Any]:
@@ -162,7 +166,10 @@ def scan_skill_proposal(
     except (OSError, subprocess.TimeoutExpired) as exc:
         return _unavailable(base, type(exc).__name__, str(path))
 
-    score, findings_count = _parse_report(_redact(completed.stdout or ""))
+    score, findings_count, complete = _parse_report(_redact(completed.stdout or ""))
+    if completed.returncode not in (0, 1) or score is None:
+        return {**_unavailable(base, "invalid_or_failed_scan", str(path)),
+                "returncode": completed.returncode}
     recommendation = "unknown"
     if isinstance(score, int):
         recommendation = "do_not_install" if score > 50 else "review"
@@ -172,6 +179,7 @@ def scan_skill_proposal(
         "path": str(path),
         "risk_score": score,
         "findings_count": findings_count,
+        "analysis_complete": complete,
         "recommendation": recommendation,
         "returncode": completed.returncode,
         "stderr_redacted": _redact(completed.stderr or "")[:2000],
