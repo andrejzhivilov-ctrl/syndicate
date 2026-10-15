@@ -380,5 +380,10 @@
     "readiness": "sam_core/SAM_DEPLOYMENT_READINESS.md",
     "merge_to_main": "requires_andrii_approval",
     "push": "not_yet"
-  }
+  },
+  "reference_skills": [
+    "scientific-critical-thinking",
+    "behavioral-finance",
+    "market-research"
+  ]
 }

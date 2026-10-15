@@ -63,5 +63,20 @@
     "host_control": false,
     "telegram_bot": false,
     "geolocation": false
-  }
+  },
+  "reference_skills": [
+    "grill-me",
+    "handoff",
+    "grilling",
+    "api-and-interface-design",
+    "debugging-and-error-recovery",
+    "context-engineering",
+    "documentation-and-adrs",
+    "source-driven-development",
+    "test-driven-development",
+    "planning-breakdown",
+    "ponytail",
+    "replica-recon",
+    "agent-security-hardening"
+  ]
 }

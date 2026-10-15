@@ -76,5 +76,17 @@
       "status": "proposed_not_applied",
       "purpose": "Приватна очищена історія з ACL, без глобального доступу до медичних даних"
     }
+  ],
+  "reference_skills": [
+    "handoff",
+    "api-and-interface-design",
+    "debugging-and-error-recovery",
+    "context-engineering",
+    "source-driven-development",
+    "test-driven-development",
+    "ponytail",
+    "frontend-design",
+    "replica-recon",
+    "replica-test"
   ]
 }

@@ -34,5 +34,12 @@
   "telegram": {
     "status": "not_connected",
     "allowlist": []
-  }
+  },
+  "reference_skills": [
+    "internal-comms",
+    "frontend-design",
+    "content-engine",
+    "market-research",
+    "brand-voice"
+  ]
 }

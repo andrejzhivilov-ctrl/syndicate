@@ -1,0 +1,489 @@
+{
+  "schema_version": 1,
+  "skills": [
+    {
+      "id": "grill-me",
+      "source": "https://github.com/mattpocock/skills",
+      "commit": "49dd158d1076134a641b33efb035946536778336",
+      "source_path": "skills/productivity/grill-me",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "eva",
+        "architect"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/mattpocock/skills/skills/productivity/grill-me/SKILL.md",
+        "agents/openai.yaml": "skills/vendor/mattpocock/skills/skills/productivity/grill-me/agents/openai.yaml"
+      },
+      "review": "Instructions and dependencies inspected; not a certification or runtime permission grant."
+    },
+    {
+      "id": "handoff",
+      "source": "https://github.com/mattpocock/skills",
+      "commit": "49dd158d1076134a641b33efb035946536778336",
+      "source_path": "skills/productivity/handoff",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "eva",
+        "architect",
+        "kodex",
+        "antigravity"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/mattpocock/skills/skills/productivity/handoff/SKILL.md",
+        "agents/openai.yaml": "skills/vendor/mattpocock/skills/skills/productivity/handoff/agents/openai.yaml"
+      },
+      "review": "Instructions and dependencies inspected; not a certification or runtime permission grant."
+    },
+    {
+      "id": "grilling",
+      "source": "https://github.com/mattpocock/skills",
+      "commit": "49dd158d1076134a641b33efb035946536778336",
+      "source_path": "skills/productivity/grilling",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "eva",
+        "architect"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/mattpocock/skills/skills/productivity/grilling/SKILL.md",
+        "agents/openai.yaml": "skills/vendor/mattpocock/skills/skills/productivity/grilling/agents/openai.yaml"
+      },
+      "review": "Instructions and dependencies inspected; not a certification or runtime permission grant."
+    },
+    {
+      "id": "api-and-interface-design",
+      "source": "https://github.com/addyosmani/agent-skills",
+      "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
+      "source_path": "skills/api-and-interface-design",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "architect",
+        "antigravity"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/api-and-interface-design/SKILL.md",
+        "../../references/accessibility-checklist.md": "skills/vendor/addyosmani/agent-skills/references/accessibility-checklist.md",
+        "../../references/definition-of-done.md": "skills/vendor/addyosmani/agent-skills/references/definition-of-done.md",
+        "../../references/observability-checklist.md": "skills/vendor/addyosmani/agent-skills/references/observability-checklist.md",
+        "../../references/orchestration-patterns.md": "skills/vendor/addyosmani/agent-skills/references/orchestration-patterns.md",
+        "../../references/performance-checklist.md": "skills/vendor/addyosmani/agent-skills/references/performance-checklist.md",
+        "../../references/security-checklist.md": "skills/vendor/addyosmani/agent-skills/references/security-checklist.md",
+        "../../references/testing-patterns.md": "skills/vendor/addyosmani/agent-skills/references/testing-patterns.md"
+      },
+      "review": "Instructions and dependencies inspected; not a certification or runtime permission grant."
+    },
+    {
+      "id": "debugging-and-error-recovery",
+      "source": "https://github.com/addyosmani/agent-skills",
+      "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
+      "source_path": "skills/debugging-and-error-recovery",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "architect",
+        "antigravity"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/debugging-and-error-recovery/SKILL.md",
+        "../../references/accessibility-checklist.md": "skills/vendor/addyosmani/agent-skills/references/accessibility-checklist.md",
+        "../../references/definition-of-done.md": "skills/vendor/addyosmani/agent-skills/references/definition-of-done.md",
+        "../../references/observability-checklist.md": "skills/vendor/addyosmani/agent-skills/references/observability-checklist.md",
+        "../../references/orchestration-patterns.md": "skills/vendor/addyosmani/agent-skills/references/orchestration-patterns.md",
+        "../../references/performance-checklist.md": "skills/vendor/addyosmani/agent-skills/references/performance-checklist.md",
+        "../../references/security-checklist.md": "skills/vendor/addyosmani/agent-skills/references/security-checklist.md",
+        "../../references/testing-patterns.md": "skills/vendor/addyosmani/agent-skills/references/testing-patterns.md"
+      },
+      "review": "Instructions and dependencies inspected; not a certification or runtime permission grant."
+    },
+    {
+      "id": "context-engineering",
+      "source": "https://github.com/addyosmani/agent-skills",
+      "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
+      "source_path": "skills/context-engineering",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "eva",
+        "architect",
+        "kodex",
+        "antigravity"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/context-engineering/SKILL.md",
+        "../../references/accessibility-checklist.md": "skills/vendor/addyosmani/agent-skills/references/accessibility-checklist.md",
+        "../../references/definition-of-done.md": "skills/vendor/addyosmani/agent-skills/references/definition-of-done.md",
+        "../../references/observability-checklist.md": "skills/vendor/addyosmani/agent-skills/references/observability-checklist.md",
+        "../../references/orchestration-patterns.md": "skills/vendor/addyosmani/agent-skills/references/orchestration-patterns.md",
+        "../../references/performance-checklist.md": "skills/vendor/addyosmani/agent-skills/references/performance-checklist.md",
+        "../../references/security-checklist.md": "skills/vendor/addyosmani/agent-skills/references/security-checklist.md",
+        "../../references/testing-patterns.md": "skills/vendor/addyosmani/agent-skills/references/testing-patterns.md"
+      },
+      "review": "Instructions and dependencies inspected; not a certification or runtime permission grant."
+    },
+    {
+      "id": "documentation-and-adrs",
+      "source": "https://github.com/addyosmani/agent-skills",
+      "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
+      "source_path": "skills/documentation-and-adrs",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "architect",
+        "kodex"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/documentation-and-adrs/SKILL.md",
+        "../../references/accessibility-checklist.md": "skills/vendor/addyosmani/agent-skills/references/accessibility-checklist.md",
+        "../../references/definition-of-done.md": "skills/vendor/addyosmani/agent-skills/references/definition-of-done.md",
+        "../../references/observability-checklist.md": "skills/vendor/addyosmani/agent-skills/references/observability-checklist.md",
+        "../../references/orchestration-patterns.md": "skills/vendor/addyosmani/agent-skills/references/orchestration-patterns.md",
+        "../../references/performance-checklist.md": "skills/vendor/addyosmani/agent-skills/references/performance-checklist.md",
+        "../../references/security-checklist.md": "skills/vendor/addyosmani/agent-skills/references/security-checklist.md",
+        "../../references/testing-patterns.md": "skills/vendor/addyosmani/agent-skills/references/testing-patterns.md"
+      },
+      "review": "Instructions and dependencies inspected; not a certification or runtime permission grant."
+    },
+    {
+      "id": "source-driven-development",
+      "source": "https://github.com/addyosmani/agent-skills",
+      "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
+      "source_path": "skills/source-driven-development",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "architect",
+        "antigravity"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/source-driven-development/SKILL.md",
+        "../../references/accessibility-checklist.md": "skills/vendor/addyosmani/agent-skills/references/accessibility-checklist.md",
+        "../../references/definition-of-done.md": "skills/vendor/addyosmani/agent-skills/references/definition-of-done.md",
+        "../../references/observability-checklist.md": "skills/vendor/addyosmani/agent-skills/references/observability-checklist.md",
+        "../../references/orchestration-patterns.md": "skills/vendor/addyosmani/agent-skills/references/orchestration-patterns.md",
+        "../../references/performance-checklist.md": "skills/vendor/addyosmani/agent-skills/references/performance-checklist.md",
+        "../../references/security-checklist.md": "skills/vendor/addyosmani/agent-skills/references/security-checklist.md",
+        "../../references/testing-patterns.md": "skills/vendor/addyosmani/agent-skills/references/testing-patterns.md"
+      },
+      "review": "Instructions and dependencies inspected; not a certification or runtime permission grant."
+    },
+    {
+      "id": "test-driven-development",
+      "source": "https://github.com/addyosmani/agent-skills",
+      "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
+      "source_path": "skills/test-driven-development",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "architect",
+        "antigravity"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/test-driven-development/SKILL.md",
+        "../../references/accessibility-checklist.md": "skills/vendor/addyosmani/agent-skills/references/accessibility-checklist.md",
+        "../../references/definition-of-done.md": "skills/vendor/addyosmani/agent-skills/references/definition-of-done.md",
+        "../../references/observability-checklist.md": "skills/vendor/addyosmani/agent-skills/references/observability-checklist.md",
+        "../../references/orchestration-patterns.md": "skills/vendor/addyosmani/agent-skills/references/orchestration-patterns.md",
+        "../../references/performance-checklist.md": "skills/vendor/addyosmani/agent-skills/references/performance-checklist.md",
+        "../../references/security-checklist.md": "skills/vendor/addyosmani/agent-skills/references/security-checklist.md",
+        "../../references/testing-patterns.md": "skills/vendor/addyosmani/agent-skills/references/testing-patterns.md"
+      },
+      "review": "Instructions and dependencies inspected; not a certification or runtime permission grant."
+    },
+    {
+      "id": "planning-breakdown",
+      "source": "https://github.com/addyosmani/agent-skills",
+      "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
+      "source_path": "skills/planning-and-task-breakdown",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "eva",
+        "architect"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/planning-and-task-breakdown/SKILL.md",
+        "../../references/accessibility-checklist.md": "skills/vendor/addyosmani/agent-skills/references/accessibility-checklist.md",
+        "../../references/definition-of-done.md": "skills/vendor/addyosmani/agent-skills/references/definition-of-done.md",
+        "../../references/observability-checklist.md": "skills/vendor/addyosmani/agent-skills/references/observability-checklist.md",
+        "../../references/orchestration-patterns.md": "skills/vendor/addyosmani/agent-skills/references/orchestration-patterns.md",
+        "../../references/performance-checklist.md": "skills/vendor/addyosmani/agent-skills/references/performance-checklist.md",
+        "../../references/security-checklist.md": "skills/vendor/addyosmani/agent-skills/references/security-checklist.md",
+        "../../references/testing-patterns.md": "skills/vendor/addyosmani/agent-skills/references/testing-patterns.md"
+      },
+      "review": "Instructions and dependencies inspected; not a certification or runtime permission grant."
+    },
+    {
+      "id": "ponytail",
+      "source": "https://github.com/DietrichGebert/ponytail",
+      "commit": "84740e3d344b69b4a133201fa519eb37a62a2b2a",
+      "source_path": "skills/ponytail",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "architect",
+        "antigravity"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/DietrichGebert/ponytail/skills/ponytail/SKILL.md"
+      },
+      "review": "Instructions and dependencies inspected; not a certification or runtime permission grant."
+    },
+    {
+      "id": "internal-comms",
+      "source": "https://github.com/anthropics/skills",
+      "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+      "source_path": "skills/internal-comms",
+      "license": "Apache-2.0 (skill-local LICENSE.txt)",
+      "mode": "reference_only",
+      "agents": [
+        "eva",
+        "fin",
+        "kodex",
+        "oscar"
+      ],
+      "resources": {
+        "LICENSE.txt": "skills/vendor/anthropics/skills/skills/internal-comms/LICENSE.txt",
+        "SKILL.md": "skills/vendor/anthropics/skills/skills/internal-comms/SKILL.md",
+        "examples/3p-updates.md": "skills/vendor/anthropics/skills/skills/internal-comms/examples/3p-updates.md",
+        "examples/company-newsletter.md": "skills/vendor/anthropics/skills/skills/internal-comms/examples/company-newsletter.md",
+        "examples/faq-answers.md": "skills/vendor/anthropics/skills/skills/internal-comms/examples/faq-answers.md",
+        "examples/general-comms.md": "skills/vendor/anthropics/skills/skills/internal-comms/examples/general-comms.md"
+      },
+      "review": "Instructions and dependencies inspected; not a certification or runtime permission grant."
+    },
+    {
+      "id": "frontend-design",
+      "source": "https://github.com/anthropics/skills",
+      "commit": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+      "source_path": "skills/frontend-design",
+      "license": "Apache-2.0 (skill-local LICENSE.txt)",
+      "mode": "reference_only",
+      "agents": [
+        "antigravity",
+        "tyler",
+        "oscar"
+      ],
+      "resources": {
+        "LICENSE.txt": "skills/vendor/anthropics/skills/skills/frontend-design/LICENSE.txt",
+        "SKILL.md": "skills/vendor/anthropics/skills/skills/frontend-design/SKILL.md"
+      },
+      "review": "Instructions and dependencies inspected; not a certification or runtime permission grant."
+    },
+    {
+      "id": "scientific-critical-thinking",
+      "source": "https://github.com/K-Dense-AI/scientific-agent-skills",
+      "commit": "a1043ef544e3a100c28e70a736b6cf32554d0677",
+      "source_path": "skills/scientific-critical-thinking",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "doc",
+        "kira",
+        "jack",
+        "sam",
+        "fin"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking/SKILL.md",
+        "references/common_biases.md": "skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking/references/common_biases.md",
+        "references/core_capabilities.md": "skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking/references/core_capabilities.md",
+        "references/evidence_hierarchy.md": "skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking/references/evidence_hierarchy.md",
+        "references/experimental_design.md": "skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking/references/experimental_design.md",
+        "references/logical_fallacies.md": "skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking/references/logical_fallacies.md",
+        "references/review_sources.md": "skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking/references/review_sources.md",
+        "references/scientific_method.md": "skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking/references/scientific_method.md",
+        "references/statistical_pitfalls.md": "skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking/references/statistical_pitfalls.md"
+      },
+      "review": "Instructions and dependencies inspected; not a certification or runtime permission grant."
+    },
+    {
+      "id": "behavioral-finance",
+      "source": "https://github.com/HKUDS/Vibe-Trading",
+      "commit": "29aa084fb7866087c612ddd55ef5449824374e22",
+      "source_path": "agent/src/skills/behavioral-finance",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam",
+        "fin",
+        "jack"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/HKUDS/Vibe-Trading/agent/src/skills/behavioral-finance/SKILL.md"
+      },
+      "review": "Instructions and dependencies inspected; not a certification or runtime permission grant."
+    },
+    {
+      "id": "replica-recon",
+      "source": "https://github.com/Jakeschincariol/replica-skill",
+      "commit": "77c9436fb3d18c3d58169efb8caf4fe906b0dc51",
+      "source_path": "replica-recon",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "architect",
+        "antigravity",
+        "tyler"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/Jakeschincariol/replica-skill/replica-recon/SKILL.md",
+        "features.csv": "skills/vendor/Jakeschincariol/replica-skill/replica-recon/features.csv",
+        "recon-map.md": "skills/vendor/Jakeschincariol/replica-skill/replica-recon/recon-map.md"
+      },
+      "review": "Instructions and dependencies inspected; not a certification or runtime permission grant."
+    },
+    {
+      "id": "replica-test",
+      "source": "https://github.com/Jakeschincariol/replica-skill",
+      "commit": "77c9436fb3d18c3d58169efb8caf4fe906b0dc51",
+      "source_path": "replica-test",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "antigravity",
+        "marshal"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/Jakeschincariol/replica-skill/replica-test/SKILL.md",
+        "bug-report.md": "skills/vendor/Jakeschincariol/replica-skill/replica-test/bug-report.md",
+        "e2e.example.spec.ts": "skills/vendor/Jakeschincariol/replica-skill/replica-test/e2e.example.spec.ts",
+        "test-plan.md": "skills/vendor/Jakeschincariol/replica-skill/replica-test/test-plan.md"
+      },
+      "review": "Instructions and dependencies inspected; not a certification or runtime permission grant."
+    },
+    {
+      "id": "content-engine",
+      "source": "https://github.com/affaan-m/ECC",
+      "commit": "b92f181b3b748d1abbc2afd94af6aa7d8c8fca29",
+      "source_path": "skills/content-engine",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/affaan-m/ECC/skills/content-engine/SKILL.md"
+      },
+      "review": "Instructions and dependencies inspected; not a certification or runtime permission grant."
+    },
+    {
+      "id": "market-research",
+      "source": "https://github.com/affaan-m/ECC",
+      "commit": "b92f181b3b748d1abbc2afd94af6aa7d8c8fca29",
+      "source_path": "skills/market-research",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "eva",
+        "fin",
+        "sam",
+        "oscar",
+        "tyler"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/affaan-m/ECC/skills/market-research/SKILL.md"
+      },
+      "review": "Instructions and dependencies inspected; not a certification or runtime permission grant."
+    },
+    {
+      "id": "agent-security-hardening",
+      "source": "https://github.com/affaan-m/ECC",
+      "commit": "b92f181b3b748d1abbc2afd94af6aa7d8c8fca29",
+      "source_path": "skills/agent-security-hardening",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "marshal",
+        "architect"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/affaan-m/ECC/skills/agent-security-hardening/SKILL.md"
+      },
+      "review": "Instructions and dependencies inspected; not a certification or runtime permission grant."
+    },
+    {
+      "id": "brand-voice",
+      "source": "https://github.com/affaan-m/ECC",
+      "commit": "b92f181b3b748d1abbc2afd94af6aa7d8c8fca29",
+      "source_path": "skills/brand-voice",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "oscar",
+        "tyler"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/affaan-m/ECC/skills/brand-voice/SKILL.md",
+        "references/voice-profile-schema.md": "skills/vendor/affaan-m/ECC/skills/brand-voice/references/voice-profile-schema.md"
+      },
+      "review": "Instructions and dependencies inspected; not a certification or runtime permission grant."
+    }
+  ],
+  "files": {
+    "skills/vendor/DietrichGebert/ponytail/LICENSE": "fb1bc6909ac3ef82d5c22106e32ef682b0cff66788fa915fb9b53b15c9d2f3ab",
+    "skills/vendor/DietrichGebert/ponytail/skills/ponytail/SKILL.md": "ba68ff26239c3c3b05b2a9a47ee0d9a6b93a69639a2555ec87a5d44bffaf2f0c",
+    "skills/vendor/HKUDS/Vibe-Trading/LICENSE": "b155549b8bc4e43a9b96b2288dbf4eb1bc0c697f14b3f5ec6b36bf64d5a18679",
+    "skills/vendor/HKUDS/Vibe-Trading/NOTICE": "a898503c041b27d1046748144666a1309b6b25fa4d75a1b0a06ce2f8acd3b07c",
+    "skills/vendor/HKUDS/Vibe-Trading/agent/src/skills/behavioral-finance/SKILL.md": "1ecc91cc4d5cf5b45a1ef8cac2430a08cbab2cb76b52ceb09ec41c6a512650ba",
+    "skills/vendor/Jakeschincariol/replica-skill/LICENSE": "857c8d5276809c8196b3cd7cb3300324768bfc562b2b6281b06d6865058e186c",
+    "skills/vendor/Jakeschincariol/replica-skill/replica-recon/SKILL.md": "b1fd6a60cf0bcd481f6828453da24b9d9f0935ec6e883741e5f620259f13ff40",
+    "skills/vendor/Jakeschincariol/replica-skill/replica-recon/features.csv": "7903cc4887fc8f8a3b5d47de5d038b3fd05e79f2d990527b9d3b6123c3985ab0",
+    "skills/vendor/Jakeschincariol/replica-skill/replica-recon/recon-map.md": "5864395958d147ef8a9b96019591fdd3943a230e7ee4d977e7a7b053728b4d3e",
+    "skills/vendor/Jakeschincariol/replica-skill/replica-test/SKILL.md": "dd27a6fe4d95ea1267c80dbecd05848f13ea837fe15277dcd7ac44e88bede81f",
+    "skills/vendor/Jakeschincariol/replica-skill/replica-test/bug-report.md": "53572b3a7b09914644903f982f8206fb667be41095601507e26238f59d9e25c3",
+    "skills/vendor/Jakeschincariol/replica-skill/replica-test/e2e.example.spec.ts": "20f2c1778027d0c5d42bf6017392701e0e6ce628c170dad1fc14599c99c5ac6c",
+    "skills/vendor/Jakeschincariol/replica-skill/replica-test/test-plan.md": "284ff8b60ebc86c3ab0e797c628cb5d0f870ca1e4bdba02ba53853d83b32dc26",
+    "skills/vendor/K-Dense-AI/scientific-agent-skills/LICENSE.md": "09b02a3c9df3053c55531d503357a9c7cde275970e6c3ceaa1ddf5f0e90b40c1",
+    "skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking/SKILL.md": "563af70571b7dcd6a96bf2e303bedfdcba623b4e9f082d58f04aacbc961fdae4",
+    "skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking/references/common_biases.md": "641e8e8e6dfadac1643ea8691b7d3e4e58cf013f134cd42c71301878096a5a39",
+    "skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking/references/core_capabilities.md": "0f337b96aa2d7453433a17824368fbd0638b9469d4f90a5fd23f4167c9dee180",
+    "skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking/references/evidence_hierarchy.md": "534fbe991ecfb2d162f755004dc528118ce74a78862917c2911595a522d76e6c",
+    "skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking/references/experimental_design.md": "eca7e42025393984c07676f3d4bc354d217e5604dc2209c76215d31953a7c74c",
+    "skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking/references/logical_fallacies.md": "becfc5bfac7b831dca67cc442cd0fcb42d8eea527a6fc2921c1b704e592ff593",
+    "skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking/references/review_sources.md": "71e75106f36f3e69b28959ad1fec503ccdb21b7f5361ab230173e4812accbf62",
+    "skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking/references/scientific_method.md": "5aa925b97c7a916f819dafc8b42a9c24e4bd3eb2836594e724f1e7f9ae75ea0f",
+    "skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking/references/statistical_pitfalls.md": "0c43204a0a81110cfeb7c982fa4caa89f274bdcebf096e09e5adfccf31241cb9",
+    "skills/vendor/addyosmani/agent-skills/LICENSE": "6f202f8bd568cd730dbb2b0d1f8e243bc74c2fa1f64dbce9b2c7ea08bd5c9fd7",
+    "skills/vendor/addyosmani/agent-skills/references/accessibility-checklist.md": "61c759d94d52296231f5f310b92b401f56c44e4430dc3cc95ebac5d7b1d5ffac",
+    "skills/vendor/addyosmani/agent-skills/references/definition-of-done.md": "d1c75d2ae65d2c7a9cd01f93fa8de63e00e75f2fe5d08be224d576157054dcee",
+    "skills/vendor/addyosmani/agent-skills/references/observability-checklist.md": "25fcd0e854596a5ab6f11b002050d245bf78f5ae0fcbd1df699b89451ae0e1e8",
+    "skills/vendor/addyosmani/agent-skills/references/orchestration-patterns.md": "61e543d86f19f86b83074f8c1c769455c7085a2c72dd47b1da21a8c63785be4a",
+    "skills/vendor/addyosmani/agent-skills/references/performance-checklist.md": "fffc38b8f3b328a973aab8b1a2efdd72b65710d8f4b57f28f8374ddae7f8a88b",
+    "skills/vendor/addyosmani/agent-skills/references/security-checklist.md": "37774056502fe8970dcd2fd27dca5fa31f2a55232649fc3056c89c3af7d62755",
+    "skills/vendor/addyosmani/agent-skills/references/testing-patterns.md": "f0bf05acd0edcadc27297ad5b74f104c8103ccfedba1a05cd6d6ae4af8364c56",
+    "skills/vendor/addyosmani/agent-skills/skills/api-and-interface-design/SKILL.md": "e83d34f52ff12dd8a7c5134cd7e8140ea4541ec65e204f8a1e4cd366e30c4192",
+    "skills/vendor/addyosmani/agent-skills/skills/context-engineering/SKILL.md": "8b736cb9e55b82b265ab6ff78349c0e826e8a6df550deddf665b7fb3ff858b63",
+    "skills/vendor/addyosmani/agent-skills/skills/debugging-and-error-recovery/SKILL.md": "21f3960f5d7ae2cc95c40896545004dbbcbbd752ea65fc2d53962554d4174220",
+    "skills/vendor/addyosmani/agent-skills/skills/documentation-and-adrs/SKILL.md": "b60d503925bbaacee7fd63935db70b9ced5b2514ff5a56a672130e01b9690bc5",
+    "skills/vendor/addyosmani/agent-skills/skills/planning-and-task-breakdown/SKILL.md": "ed0f90cc5951ddd4bcab7f871f64efec93a49af9279ef93bc470da77ad8da3f7",
+    "skills/vendor/addyosmani/agent-skills/skills/source-driven-development/SKILL.md": "c59faf851377f0eeda45306398d16eb96d77ab1c2fd3e1a7fb58e9a0af33c1e9",
+    "skills/vendor/addyosmani/agent-skills/skills/test-driven-development/SKILL.md": "a3aa6ba95638497025577469eda10ed17918698209615aeafbc26f131bf2469d",
+    "skills/vendor/affaan-m/ECC/LICENSE": "326146379f01bb137c0a5d3c54770c1aa31076705c8b88a7f6b26a460f6221b2",
+    "skills/vendor/affaan-m/ECC/skills/agent-security-hardening/SKILL.md": "0e0895ada90aa8fa085e4257961ebe15f2dff43b843785b1533d4c731186ad81",
+    "skills/vendor/affaan-m/ECC/skills/brand-voice/SKILL.md": "57c7f8440b7bd4c91c0d325640b5c6fb7a3dc7fc05595946c7bc705761a987a7",
+    "skills/vendor/affaan-m/ECC/skills/brand-voice/references/voice-profile-schema.md": "3c5c2b04fd4b68642d2d3279829541bc56d211fdefc3498e86c1486abee8261b",
+    "skills/vendor/affaan-m/ECC/skills/content-engine/SKILL.md": "a1ccc0ecfe30ae53db26a73159a80ecad8c63a6a96c461a297789d889bf9ad2c",
+    "skills/vendor/affaan-m/ECC/skills/market-research/SKILL.md": "8cfc36dc8a93476d092115f3fc70c631dcab14fcd6e04371160fc4fb29547800",
+    "skills/vendor/anthropics/skills/skills/frontend-design/LICENSE.txt": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+    "skills/vendor/anthropics/skills/skills/frontend-design/SKILL.md": "d91970639e9f5c37682ac7ab60094d35f1c7c1f38d731bd56396563aee10c1d3",
+    "skills/vendor/anthropics/skills/skills/internal-comms/LICENSE.txt": "bc6b3af2f331cbc7fb0da1344efb2cbe5877a31498b4d70dbc7000f3405a1362",
+    "skills/vendor/anthropics/skills/skills/internal-comms/SKILL.md": "067b7587a344a928fc6534ef66b1bcd591fc7c26d207ea7ca3334aeb678d6475",
+    "skills/vendor/anthropics/skills/skills/internal-comms/examples/3p-updates.md": "087e4363c0f3513728a7e695eeb9ead5c3ecd12a4681b59340691180e65b68fc",
+    "skills/vendor/anthropics/skills/skills/internal-comms/examples/company-newsletter.md": "30f81cfbdb03858a006169c72169024089c7c5d3d32611d337782da4f38c86b5",
+    "skills/vendor/anthropics/skills/skills/internal-comms/examples/faq-answers.md": "5ecd3356cd6666937f2ebefa753253edfdbdca15e368d07baf398bfcced72484",
+    "skills/vendor/anthropics/skills/skills/internal-comms/examples/general-comms.md": "4d3a4bb198a77626bcf018e96b2b45a2dbabed172d4ade0fcd70d23ae8a47a47",
+    "skills/vendor/mattpocock/skills/LICENSE": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
+    "skills/vendor/mattpocock/skills/skills/productivity/grill-me/SKILL.md": "caaf8b8de1684f96e26b28f3c29189db5c89cce4b73e1c93d86164f66ef88637",
+    "skills/vendor/mattpocock/skills/skills/productivity/grill-me/agents/openai.yaml": "c061e39c3e0f9d865fb1b97556d485704af2a8a58f4b8221a8917a5c2074a32b",
+    "skills/vendor/mattpocock/skills/skills/productivity/grilling/SKILL.md": "befdff1e27a1dfe2a294d5871169ac1afe16d983911daa4f32627514a48c1e15",
+    "skills/vendor/mattpocock/skills/skills/productivity/grilling/agents/openai.yaml": "1411d7df7d99b7e621a1ff8283c8133cc2464be63d064e52d8ce169c6800ee9b",
+    "skills/vendor/mattpocock/skills/skills/productivity/handoff/SKILL.md": "4cbb043950dad2ffd3662ff1a5a0b51ae676004b5cae10e3787e8ee7a4ee69d3",
+    "skills/vendor/mattpocock/skills/skills/productivity/handoff/agents/openai.yaml": "5c479fd562c691851690e8b18c8501045bef0943c10743d636b2fae26add1d28"
+  }
+}

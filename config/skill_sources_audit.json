@@ -1,0 +1,292 @@
+{
+  "reviewed_at": "2026-10-15",
+  "scope": "Repository metadata, README, license and selected skill content/dependencies; not a complete source-code security audit.",
+  "repositories": [
+    {
+      "requested": "Lum1104/Understand-Anything",
+      "repo": "Egonex-AI/Understand-Anything",
+      "sha": "f2d0164f72fe678805c34245a6df36acededfebd",
+      "archived": false,
+      "license": "MIT",
+      "skill_files_discovered": 9,
+      "decision": "integration_candidate",
+      "agents": "Architect, KODEX",
+      "reason": "GitHub перенаправляє на Egonex-AI. Плагін має граф, dashboard та власні залежності; потрібен окремий запуск і адаптер, копія SKILL.md не створить карту коду."
+    },
+    {
+      "requested": "nexu-io/open-design",
+      "repo": "nexu-io/open-design",
+      "sha": "7abd6fc2b11987c3940eb4ffc461478ff37c0b33",
+      "archived": false,
+      "license": "Apache-2.0",
+      "skill_files_discovered": 552,
+      "decision": "integration_candidate",
+      "agents": "Antigravity, Oscar, Tyler",
+      "reason": "Окремий collaborative workspace/daemon; не замінюємо наявний apps/. Потрібні preview/export smoke tests та окрема конфігурація."
+    },
+    {
+      "requested": "mattpocock/skills",
+      "repo": "mattpocock/skills",
+      "sha": "49dd158d1076134a641b33efb035946536778336",
+      "archived": false,
+      "license": "MIT",
+      "skill_files_discovered": 38,
+      "decision": "installed_reference",
+      "agents": "Eva, Architect, KODEX, Antigravity",
+      "reason": "Встановлено grill-me разом із залежністю grilling та handoff. Інтерв’ю лише коли потрібне користувачу; інструкції делегування не є дозволом запускати агентів."
+    },
+    {
+      "requested": "JuliusBrussee/caveman",
+      "repo": "JuliusBrussee/caveman",
+      "sha": "d262ab3882952a59312ff3537cd86d894523c5ab",
+      "archived": false,
+      "license": "Apache-2.0",
+      "skill_files_discovered": 28,
+      "decision": "not_selected",
+      "agents": "Eva",
+      "reason": "Стиль може втрачати пояснення та змінювати поведінку всієї сесії. CLI також змінює налаштування/проксі. Стислість забезпечується без глобального переписування інструкцій."
+    },
+    {
+      "requested": "yusufkaraaslan/Skill_Seekers",
+      "repo": "yusufkaraaslan/Skill_Seekers",
+      "sha": "5b5d8dfca263fa76e6daae9f292890b311ef36aa",
+      "archived": false,
+      "license": "MIT",
+      "skill_files_discovered": 27,
+      "decision": "integration_candidate",
+      "agents": "KODEX, Architect",
+      "reason": "SKILL.md очікує MCP із 40 інструментами; він тут не налаштований. Генерацію знань слід запускати окремо з перевіркою джерел, ліцензій та PII."
+    },
+    {
+      "requested": "heygen-com/hyperframes",
+      "repo": "heygen-com/hyperframes",
+      "sha": "cea8aa8a7dee9d669e47e4b488213008bbe305cd",
+      "archived": false,
+      "license": "Apache-2.0",
+      "skill_files_discovered": 40,
+      "decision": "integration_candidate",
+      "agents": "Oscar",
+      "reason": "Переглянуто hyperframes-core та pr-to-video: залежності на sibling skills, CLI/render та frame workers. Потрібен цілісний окремий відеоконвеєр; два файли не дадуть робочий рендер."
+    },
+    {
+      "requested": "leonxlnx/taste-skill",
+      "repo": "Leonxlnx/taste-skill",
+      "sha": "f624f37a8c650b9cc550253104925efe4c8de246",
+      "archived": false,
+      "license": "MIT",
+      "skill_files_discovered": 14,
+      "decision": "integration_candidate",
+      "agents": "Antigravity, Tyler",
+      "reason": "Поточний v2 містить Node scripts, завантаження зображень і browser inspector. Потребує окремої перевірки JS та браузерного середовища; базовий дизайн покрито frontend-design."
+    },
+    {
+      "requested": "vercel-labs/agent-browser",
+      "repo": "vercel-labs/agent-browser",
+      "sha": "dac13bb87468fe9d74a040d862720f6cc17a9565",
+      "archived": false,
+      "license": "Apache-2.0",
+      "skill_files_discovered": 10,
+      "decision": "integration_candidate",
+      "agents": "Antigravity, Oscar, Tyler",
+      "reason": "SKILL.md тепер є bootstrap для CLI skills get core. Для цієї пісочниці використовується coderabbit-agent-browser; production browser isolation і tool gateway ще не підключені."
+    },
+    {
+      "requested": "mksglu/context-mode",
+      "repo": "mksglu/context-mode",
+      "sha": "40813fe886798bad07c69a43d2ae00a52b4b934d",
+      "archived": false,
+      "license": "NOASSERTION",
+      "skill_files_discovered": 11,
+      "decision": "integration_candidate",
+      "agents": "Architect, KODEX",
+      "reason": "MCP та hooks із Node >=22.5; LICENSE — Elastic License 2.0, не MIT. Потрібна окрема інтеграція, збереження помилок і аудит routing hooks."
+    },
+    {
+      "requested": "ddavv1d/compact-guard-plugin",
+      "repo": "ddavv1d/compact-guard-plugin",
+      "sha": "7dcda79f97957e9c8ad2ab02e25a14d5be4c8cbb",
+      "archived": false,
+      "license": "MIT",
+      "skill_files_discovered": 5,
+      "decision": "integration_candidate",
+      "agents": "Marshal, KODEX",
+      "reason": "Claude Code hooks, Node >=20; не універсальний Hermes skill. Наявний validation record зберігає помилки; production hooks ще не інтегровані."
+    },
+    {
+      "requested": "malishomen/bdc-bridge-passport",
+      "repo": "malishomen/bdc-bridge-passport",
+      "sha": "fdf684b54688c6c937984183b010e85ef49d0757",
+      "archived": false,
+      "license": "MIT",
+      "skill_files_discovered": 0,
+      "decision": "integration_candidate",
+      "agents": "Marshal, Eva",
+      "reason": "Starter kit для зовнішнього BDC verdict API, не набір скілів. Потрібні account/token та окреме рішення щодо надсилання workflow evidence."
+    },
+    {
+      "requested": "actualbudget/actual",
+      "repo": "actualbudget/actual",
+      "sha": "d5d6035a8f5867717a80635d270fbe64e370ea08",
+      "archived": false,
+      "license": "MIT",
+      "skill_files_discovered": 5,
+      "decision": "integration_candidate",
+      "agents": "Fin",
+      "reason": "Повноцінний бюджетний застосунок, Node і сховище/sync. Його .claude skills призначені для розробки Actual. Наступна інтеграція: read-only імпорт транзакцій із reconciliation; баланс не вигадувати."
+    },
+    {
+      "requested": "oriveo/oriveo",
+      "repo": "oriveo/oriveo",
+      "sha": "284505910591ccaa2cbf81d352138db9afb9cb4a",
+      "archived": false,
+      "license": "AGPL-3.0",
+      "skill_files_discovered": 0,
+      "decision": "not_selected",
+      "agents": "Antigravity",
+      "reason": "Окремий BYOK клієнт, AGPL-3.0. Не дублюємо наявний клієнт та не переносимо код без плану ліцензій і синхронізації."
+    },
+    {
+      "requested": "vectorize-io/hindsight",
+      "repo": "vectorize-io/hindsight",
+      "sha": "9a499b1759084a86598eff8af30ed59f7354e76c",
+      "archived": false,
+      "license": "MIT",
+      "skill_files_discovered": 19,
+      "decision": "integration_candidate",
+      "agents": "KODEX, Eva",
+      "reason": "Сервіс retain/recall/reflect; потрібні isolated banks, PII redaction, retention та перевірка provider costs. Наявну пам’ять автоматично не мігрували."
+    },
+    {
+      "requested": "Oldcircle/geo-sleuth",
+      "repo": "Oldcircle/geo-sleuth",
+      "sha": "836d70eea196b194391017e6e018e04ccc85aaa4",
+      "archived": false,
+      "license": "MIT",
+      "skill_files_discovered": 1,
+      "decision": "integration_candidate",
+      "agents": "Marshal",
+      "reason": "Скіл містить OCR, reverse image search, OSM, CLIP/DINO та мережеві скрипти. Потрібні окремі залежності й дозволи на передавання фото; геолокація в профілі лишається вимкненою."
+    },
+    {
+      "requested": "Jakeschincariol/replica-skill",
+      "repo": "Jakeschincariol/replica-skill",
+      "sha": "77c9436fb3d18c3d58169efb8caf4fe906b0dc51",
+      "archived": false,
+      "license": "MIT",
+      "skill_files_discovered": 11,
+      "decision": "installed_reference",
+      "agents": "Architect, Antigravity, Tyler, Marshal",
+      "reason": "Встановлено replica-recon та replica-test з шаблонами. Лише дослідження функцій і перевірка власного застосунку; браузерні тести не запускались цим встановленням."
+    },
+    {
+      "requested": "DietrichGebert/ponytail",
+      "repo": "DietrichGebert/ponytail",
+      "sha": "84740e3d344b69b4a133201fa519eb37a62a2b2a",
+      "archived": false,
+      "license": "MIT",
+      "skill_files_discovered": 13,
+      "decision": "installed_reference",
+      "agents": "Architect, Antigravity",
+      "reason": "Встановлено основну інструкцію мінімальних повних змін, без CLI та session hooks."
+    },
+    {
+      "requested": "diegosouzapw/OmniRoute",
+      "repo": "diegosouzapw/OmniRoute",
+      "sha": "c4d1f3edabdcc7e3e51c2c90e1d36859bbc560a1",
+      "archived": false,
+      "license": "MIT",
+      "skill_files_discovered": 52,
+      "decision": "integration_candidate",
+      "agents": "Architect, Eva, Oscar",
+      "reason": "Gateway потребує окремого сервісу, provider accounts, allowlist та перевірки fallback/PII. Безкоштовний код не означає безкоштовні моделі або гарантовані квоти."
+    },
+    {
+      "requested": "addyosmani/agent-skills",
+      "repo": "addyosmani/agent-skills",
+      "sha": "aeac41d4d005999432bb7312f7ff06383a91d59d",
+      "archived": false,
+      "license": "MIT",
+      "skill_files_discovered": 25,
+      "decision": "installed_reference",
+      "agents": "Architect, Antigravity, Marshal, Eva, KODEX",
+      "reason": "Сім engineering skills; security-and-hardening вилучено після SkillSpector score 100 та неповного static analysis."
+    },
+    {
+      "requested": "anthropics/skills",
+      "repo": "anthropics/skills",
+      "sha": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+      "archived": false,
+      "license": null,
+      "skill_files_discovered": 20,
+      "decision": "installed_reference",
+      "agents": "Eva, Fin, KODEX, Oscar, Tyler, Antigravity",
+      "reason": "internal-comms та frontend-design мають локальні Apache-2.0 LICENSE. Office document skills мають інші source-available умови; їх не вендорили."
+    },
+    {
+      "requested": "Shubhamsaboo/awesome-llm-apps",
+      "repo": "Shubhamsaboo/awesome-llm-apps",
+      "sha": "4bf51ab704fb2c5b3803cd5191b30d7dcdb51dc2",
+      "archived": false,
+      "license": "Apache-2.0",
+      "skill_files_discovered": 10,
+      "decision": "reference_catalog",
+      "agents": "Architect",
+      "reason": "Каталог прикладів і окремих skills. Не переносимо демонстраційні оркестратори, їхні провайдери та гаманці в production; інженерні функції вже покриті вибраними skills."
+    },
+    {
+      "requested": "K-Dense-AI/scientific-agent-skills",
+      "repo": "K-Dense-AI/scientific-agent-skills",
+      "sha": "a1043ef544e3a100c28e70a736b6cf32554d0677",
+      "archived": false,
+      "license": "MIT",
+      "skill_files_discovered": 177,
+      "decision": "installed_reference",
+      "agents": "Doc, Kira, Jack, Sam, Fin",
+      "reason": "Встановлено scientific-critical-thinking та всі його references. Statistical-analysis потребує Python >=3.12 й ізольованого наукового оточення; clinical claims не стають діагнозами."
+    },
+    {
+      "requested": "VoltAgent/awesome-agent-skills",
+      "repo": "VoltAgent/awesome-agent-skills",
+      "sha": "3cd17ca9f40796a5dc564ebc6d76b4aa1303ff07",
+      "archived": false,
+      "license": "MIT",
+      "skill_files_discovered": 0,
+      "decision": "reference_catalog",
+      "agents": "Architect",
+      "reason": "Індекс посилань, не первинний автор усіх скілів. Встановлюємо з оригінальних джерел, не весь каталог."
+    },
+    {
+      "requested": "HKUDS/Vibe-Trading",
+      "repo": "HKUDS/Vibe-Trading",
+      "sha": "29aa084fb7866087c612ddd55ef5449824374e22",
+      "archived": false,
+      "license": "MIT",
+      "skill_files_discovered": 91,
+      "decision": "installed_reference",
+      "agents": "Sam, Fin, Jack",
+      "reason": "Встановлено behavioral-finance як методичний матеріал. Backtest-diagnose прив’язаний до чужого SignalEngine/artifacts; live trading не підключено, твердження про прибутковість не перевірені."
+    },
+    {
+      "requested": "affaan-m/ECC",
+      "repo": "affaan-m/ECC",
+      "sha": "b92f181b3b748d1abbc2afd94af6aa7d8c8fca29",
+      "archived": false,
+      "license": "MIT",
+      "skill_files_discovered": 1062,
+      "decision": "installed_reference",
+      "agents": "Oscar, Tyler, Eva, Fin, Sam, Marshal, Architect",
+      "reason": "content-engine, залежність brand-voice, market-research та agent-security-hardening. Hooks, автопублікація та автонавчання політик не встановлювались."
+    },
+    {
+      "requested": "morluto/rea",
+      "repo": "morluto/rea",
+      "sha": "08a897b2cd7b359fcb0674c82baec3f1a74af632",
+      "archived": false,
+      "license": "MIT",
+      "skill_files_discovered": 4,
+      "decision": "integration_candidate",
+      "agents": "Architect, Marshal",
+      "reason": "MCP для reverse engineering з Node і native engines. Потрібен конкретний дозволений об’єкт аналізу та окреме середовище; для поточної системи не обов’язковий."
+    }
+  ]
+}

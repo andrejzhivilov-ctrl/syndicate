@@ -25,6 +25,28 @@
 
 ---
 
+## 2026-10-15 — CodeRabbit Agent: GitHub та бібліотека скілів усіх агентів
+
+**Гілка:** coderabbit/review-fix-errors/dc1f6bd4. **База:** 385b901.
+
+### Зроблено
+- GitHub fetch/pull працює, особистий API user andrejzhivilov-ctrl підтверджено. Попередній auth blocker більше не актуальний.
+- Переглянуто 12 профілів та 26 наданих GitHub-джерел. Рішення, ліцензії, pinned revisions: config/skill_sources_audit.json і docs/SKILL_LIBRARY.md.
+- Вендорено 21 reference skill із 8 першоджерел, супровідні матеріали та ліцензії. Профілі отримали reference_skills без нових grants/активації.
+- SkillLibrary + CLI: явна agent/resource allowlist, bounded reads, SHA256, відхилення symlinks/traversal, відокремлення сторонніх інструкцій від policy. Не запускає сторонні scripts.
+- Встановлено isolated host SkillSpector 2.12.0 за pinned commit; Python 3.12.15 лише для сканера, application venv 3.11 незмінний.
+- Виявлено і виправлено parser Marshal: підтримка реальних risk_assessment.score/issues, відмова при failed/malformed scan, збереження completeness. Missing-binary test тепер ізолює і локальний binary, і env.
+- security-and-hardening вилучено після score 100 / incomplete analysis. Це не доказ malware, але він не входить до встановленого набору. Інші upstream файли не редагувалися.
+
+### Перевірки
+- Focused library/profile tests: 8 passed. Library/scanner regressions: 16 passed. Фінальний повний tools/check.sh — exit 0 (pytest, legacy suites, lint, API/Vault, live PostgreSQL, compose). Лише CI-only assertion optional extensions skipped. Фінальні 21 scan — exit 0; знахідки й incomplete coverage збережено у config/skill_scan_report.json.
+
+### Межі й наступне
+- Це read-only reference library і loader API/CLI, не автоматичний Hermes prompt injection або активний browser/MCP. Profiles лишаються prepared_not_enabled.
+- Actual, Hindsight, HyperFrames, OmniRoute та інші service candidates потребують окремих інтеграцій і runtime tests; статус кожного описаний. Не заявляти, що вони вже працюють.
+- Для production runtime: завантажувати лише вибраний скіл за довіреною agent identity; монтувати library/catalog/profiles read-only; перевіряти tool gateway. Дані/секрети нікуди не мігрувалися.
+- Новий feature передати draft PR; старий дозвіл на main стосувався завершених PII/PDF fixes.
+
 ## 2026-10-15 — CodeRabbit Agent: Oscar / Tyler / Jack backend workers
 
 **Гілка:** coderabbit/review-fix-errors/dc1f6bd4. **База:** f3773c2 (усі шість специфікацій отримано).

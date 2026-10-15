@@ -1,0 +1,617 @@
+{
+  "scanner": "NVIDIA/skillspector",
+  "commit": "240421219409dc0bafef9f618a10d80c2d7e83a3",
+  "version": "2.12.0",
+  "mode": "no_llm",
+  "installed": [
+    {
+      "skill": "grill-me",
+      "agent": "marshal",
+      "tool": "skillspector",
+      "mode": "no_llm",
+      "installs_skill": false,
+      "llm_pass": false,
+      "status": "scanned",
+      "risk_score": 0,
+      "findings_count": 0,
+      "analysis_complete": true,
+      "recommendation": "review",
+      "returncode": 0,
+      "stderr_redacted": "",
+      "disposition": "reference_only",
+      "review_note": "Лише reference context. Exit 0 не є гарантією безпеки; враховувати completeness."
+    },
+    {
+      "skill": "handoff",
+      "agent": "marshal",
+      "tool": "skillspector",
+      "mode": "no_llm",
+      "installs_skill": false,
+      "llm_pass": false,
+      "status": "scanned",
+      "risk_score": 0,
+      "findings_count": 0,
+      "analysis_complete": true,
+      "recommendation": "review",
+      "returncode": 0,
+      "stderr_redacted": "",
+      "disposition": "reference_only",
+      "review_note": "Лише reference context. Exit 0 не є гарантією безпеки; враховувати completeness."
+    },
+    {
+      "skill": "grilling",
+      "agent": "marshal",
+      "tool": "skillspector",
+      "mode": "no_llm",
+      "installs_skill": false,
+      "llm_pass": false,
+      "status": "scanned",
+      "risk_score": 8,
+      "findings_count": 1,
+      "analysis_complete": true,
+      "recommendation": "review",
+      "returncode": 0,
+      "stderr_redacted": "",
+      "disposition": "reference_only",
+      "review_note": "Інструкція досліджувати факти замість питати користувача; делегування не дозволене самим скілом.",
+      "issues": [
+        {
+          "id": "EA2",
+          "severity": "MEDIUM",
+          "finding": "don't ask the user",
+          "location": {
+            "file": "SKILL.md",
+            "start_line": 28,
+            "end_line": null,
+            "start_column": 166
+          }
+        }
+      ]
+    },
+    {
+      "skill": "api-and-interface-design",
+      "agent": "marshal",
+      "tool": "skillspector",
+      "mode": "no_llm",
+      "installs_skill": false,
+      "llm_pass": false,
+      "status": "scanned",
+      "risk_score": 20,
+      "findings_count": 1,
+      "analysis_complete": false,
+      "recommendation": "review",
+      "returncode": 0,
+      "stderr_redacted": "",
+      "disposition": "reference_only",
+      "review_note": "DELETE — приклад контракту API, не виконуваний запит.",
+      "issues": [
+        {
+          "id": "TM1",
+          "severity": "HIGH",
+          "finding": "DELETE /api/tasks/:id",
+          "location": {
+            "file": "SKILL.md",
+            "start_line": 226,
+            "end_line": null,
+            "start_column": 0
+          }
+        }
+      ]
+    },
+    {
+      "skill": "debugging-and-error-recovery",
+      "agent": "marshal",
+      "tool": "skillspector",
+      "mode": "no_llm",
+      "installs_skill": false,
+      "llm_pass": false,
+      "status": "scanned",
+      "risk_score": 0,
+      "findings_count": 0,
+      "analysis_complete": true,
+      "recommendation": "review",
+      "returncode": 0,
+      "stderr_redacted": "",
+      "disposition": "reference_only",
+      "review_note": "Лише reference context. Exit 0 не є гарантією безпеки; враховувати completeness."
+    },
+    {
+      "skill": "context-engineering",
+      "agent": "marshal",
+      "tool": "skillspector",
+      "mode": "no_llm",
+      "installs_skill": false,
+      "llm_pass": false,
+      "status": "scanned",
+      "risk_score": 33,
+      "findings_count": 4,
+      "analysis_complete": false,
+      "recommendation": "review",
+      "returncode": 0,
+      "stderr_redacted": "",
+      "disposition": "reference_only",
+      "review_note": "Збіги у заборонах commit .env / unverified input і прикладі npx; команди не виконуються.",
+      "issues": [
+        {
+          "id": "PE3",
+          "severity": "HIGH",
+          "finding": ".env ",
+          "location": {
+            "file": "SKILL.md",
+            "start_line": 65,
+            "end_line": null,
+            "start_column": 15
+          }
+        },
+        {
+          "id": "RP1",
+          "severity": "MEDIUM",
+          "finding": "npx tsc",
+          "location": {
+            "file": "SKILL.md",
+            "start_line": 55,
+            "end_line": null
+          }
+        },
+        {
+          "id": "EA2",
+          "severity": "MEDIUM",
+          "finding": "without checking",
+          "location": {
+            "file": "SKILL.md",
+            "start_line": 66,
+            "end_line": null,
+            "start_column": 25
+          }
+        },
+        {
+          "id": "EA2",
+          "severity": "MEDIUM",
+          "finding": "without verification",
+          "location": {
+            "file": "SKILL.md",
+            "start_line": 342,
+            "end_line": null,
+            "start_column": 64
+          }
+        }
+      ]
+    },
+    {
+      "skill": "documentation-and-adrs",
+      "agent": "marshal",
+      "tool": "skillspector",
+      "mode": "no_llm",
+      "installs_skill": false,
+      "llm_pass": false,
+      "status": "scanned",
+      "risk_score": 0,
+      "findings_count": 0,
+      "analysis_complete": false,
+      "recommendation": "review",
+      "returncode": 0,
+      "stderr_redacted": "",
+      "disposition": "reference_only",
+      "review_note": "Лише reference context. Exit 0 не є гарантією безпеки; враховувати completeness."
+    },
+    {
+      "skill": "source-driven-development",
+      "agent": "marshal",
+      "tool": "skillspector",
+      "mode": "no_llm",
+      "installs_skill": false,
+      "llm_pass": false,
+      "status": "scanned",
+      "risk_score": 47,
+      "findings_count": 3,
+      "analysis_complete": false,
+      "recommendation": "review",
+      "returncode": 0,
+      "stderr_redacted": "",
+      "disposition": "reference_only",
+      "review_note": "Prompt-injection фрази наведені як приклади того, що слід ігнорувати. Посилання на вилучений security-and-hardening не слід автоматично встановлювати; застосувати політику SYNDICATE/ECC.",
+      "issues": [
+        {
+          "id": "YR4",
+          "severity": "HIGH",
+          "finding": "model; ignore previous instructions",
+          "location": {
+            "file": "SKILL.md",
+            "start_line": 101,
+            "end_line": null
+          }
+        },
+        {
+          "id": "P1",
+          "severity": "HIGH",
+          "finding": "ignore previous instructions",
+          "location": {
+            "file": "SKILL.md",
+            "start_line": 110,
+            "end_line": 110,
+            "start_column": 96,
+            "end_column": 124
+          }
+        },
+        {
+          "id": "EA2",
+          "severity": "MEDIUM",
+          "finding": "without checking",
+          "location": {
+            "file": "SKILL.md",
+            "start_line": 194,
+            "end_line": null,
+            "start_column": 34
+          }
+        }
+      ]
+    },
+    {
+      "skill": "test-driven-development",
+      "agent": "marshal",
+      "tool": "skillspector",
+      "mode": "no_llm",
+      "installs_skill": false,
+      "llm_pass": false,
+      "status": "scanned",
+      "risk_score": 7,
+      "findings_count": 1,
+      "analysis_complete": false,
+      "recommendation": "review",
+      "returncode": 0,
+      "stderr_redacted": "",
+      "disposition": "reference_only",
+      "review_note": "Збіг у переліку anti-patterns; перевіряти команди репозиторію.",
+      "issues": [
+        {
+          "id": "EA2",
+          "severity": "MEDIUM",
+          "finding": "without checking",
+          "location": {
+            "file": "SKILL.md",
+            "start_line": 378,
+            "end_line": null,
+            "start_column": 51
+          }
+        }
+      ]
+    },
+    {
+      "skill": "planning-breakdown",
+      "agent": "marshal",
+      "tool": "skillspector",
+      "mode": "no_llm",
+      "installs_skill": false,
+      "llm_pass": false,
+      "status": "scanned",
+      "risk_score": 11,
+      "findings_count": 2,
+      "analysis_complete": false,
+      "recommendation": "review",
+      "returncode": 0,
+      "stderr_redacted": "",
+      "disposition": "reference_only",
+      "review_note": "Збіги у red flags про відсутність перевірок і непогоджене перезаписування.",
+      "issues": [
+        {
+          "id": "EA2",
+          "severity": "MEDIUM",
+          "finding": "without asking",
+          "location": {
+            "file": "SKILL.md",
+            "start_line": 234,
+            "end_line": null,
+            "start_column": 102
+          }
+        },
+        {
+          "id": "EA2",
+          "severity": "MEDIUM",
+          "finding": "No verification",
+          "location": {
+            "file": "SKILL.md",
+            "start_line": 237,
+            "end_line": null,
+            "start_column": 2
+          }
+        }
+      ]
+    },
+    {
+      "skill": "ponytail",
+      "agent": "marshal",
+      "tool": "skillspector",
+      "mode": "no_llm",
+      "installs_skill": false,
+      "llm_pass": false,
+      "status": "scanned",
+      "risk_score": 0,
+      "findings_count": 0,
+      "analysis_complete": true,
+      "recommendation": "review",
+      "returncode": 0,
+      "stderr_redacted": "",
+      "disposition": "reference_only",
+      "review_note": "Лише reference context. Exit 0 не є гарантією безпеки; враховувати completeness."
+    },
+    {
+      "skill": "internal-comms",
+      "agent": "marshal",
+      "tool": "skillspector",
+      "mode": "no_llm",
+      "installs_skill": false,
+      "llm_pass": false,
+      "status": "scanned",
+      "risk_score": 0,
+      "findings_count": 0,
+      "analysis_complete": true,
+      "recommendation": "review",
+      "returncode": 0,
+      "stderr_redacted": "",
+      "disposition": "reference_only",
+      "review_note": "Лише reference context. Exit 0 не є гарантією безпеки; враховувати completeness."
+    },
+    {
+      "skill": "frontend-design",
+      "agent": "marshal",
+      "tool": "skillspector",
+      "mode": "no_llm",
+      "installs_skill": false,
+      "llm_pass": false,
+      "status": "scanned",
+      "risk_score": 13,
+      "findings_count": 1,
+      "analysis_complete": true,
+      "recommendation": "review",
+      "returncode": 0,
+      "stderr_redacted": "",
+      "disposition": "reference_only",
+      "review_note": "Текст про UX error messages, не заборона повідомляти помилки.",
+      "issues": [
+        {
+          "id": "AR2",
+          "severity": "HIGH",
+          "finding": "don't apologize",
+          "location": {
+            "file": "SKILL.md",
+            "start_line": 69,
+            "end_line": 69,
+            "start_column": 163,
+            "end_column": 178
+          }
+        }
+      ]
+    },
+    {
+      "skill": "scientific-critical-thinking",
+      "agent": "marshal",
+      "tool": "skillspector",
+      "mode": "no_llm",
+      "installs_skill": false,
+      "llm_pass": false,
+      "status": "scanned",
+      "risk_score": 45,
+      "findings_count": 3,
+      "analysis_complete": false,
+      "recommendation": "review",
+      "returncode": 0,
+      "stderr_redacted": "",
+      "disposition": "reference_only",
+      "review_note": "Static parser не повністю охопив experimental_design.md; лише методичне читання, не clinical execution.",
+      "issues": [
+        {
+          "id": "AE1",
+          "severity": "HIGH",
+          "finding": "references/experimental_design.md (partial)",
+          "location": {
+            "file": "SKILL.md",
+            "start_line": 101,
+            "end_line": null
+          }
+        },
+        {
+          "id": "AE1",
+          "severity": "HIGH",
+          "finding": "references/experimental_design.md (partial)",
+          "location": {
+            "file": "SKILL.md",
+            "start_line": 186,
+            "end_line": null
+          }
+        },
+        {
+          "id": "EA2",
+          "severity": "MEDIUM",
+          "finding": "without checking",
+          "location": {
+            "file": "references/statistical_pitfalls.md",
+            "start_line": 263,
+            "end_line": null,
+            "start_column": 37
+          }
+        }
+      ]
+    },
+    {
+      "skill": "behavioral-finance",
+      "agent": "marshal",
+      "tool": "skillspector",
+      "mode": "no_llm",
+      "installs_skill": false,
+      "llm_pass": false,
+      "status": "scanned",
+      "risk_score": 0,
+      "findings_count": 0,
+      "analysis_complete": true,
+      "recommendation": "review",
+      "returncode": 0,
+      "stderr_redacted": "",
+      "disposition": "reference_only",
+      "review_note": "Лише reference context. Exit 0 не є гарантією безпеки; враховувати completeness."
+    },
+    {
+      "skill": "replica-recon",
+      "agent": "marshal",
+      "tool": "skillspector",
+      "mode": "no_llm",
+      "installs_skill": false,
+      "llm_pass": false,
+      "status": "scanned",
+      "risk_score": 0,
+      "findings_count": 0,
+      "analysis_complete": false,
+      "recommendation": "review",
+      "returncode": 0,
+      "stderr_redacted": "",
+      "disposition": "reference_only",
+      "review_note": "Лише reference context. Exit 0 не є гарантією безпеки; враховувати completeness."
+    },
+    {
+      "skill": "replica-test",
+      "agent": "marshal",
+      "tool": "skillspector",
+      "mode": "no_llm",
+      "installs_skill": false,
+      "llm_pass": false,
+      "status": "scanned",
+      "risk_score": 48,
+      "findings_count": 4,
+      "analysis_complete": false,
+      "recommendation": "review",
+      "returncode": 0,
+      "stderr_redacted": "",
+      "disposition": "reference_only",
+      "review_note": "Playwright template і install examples; TS не виконується й browser не встановлюється. Потрібна адаптація до власного застосунку.",
+      "issues": [
+        {
+          "id": "AE1",
+          "severity": "HIGH",
+          "finding": "e2e.example.spec.ts (partial)",
+          "location": {
+            "file": "SKILL.md",
+            "start_line": 17,
+            "end_line": null
+          }
+        },
+        {
+          "id": "AE1",
+          "severity": "HIGH",
+          "finding": "e2e.example.spec.ts (partial)",
+          "location": {
+            "file": "SKILL.md",
+            "start_line": 45,
+            "end_line": null
+          }
+        },
+        {
+          "id": "RP1",
+          "severity": "MEDIUM",
+          "finding": "npx playwright",
+          "location": {
+            "file": "SKILL.md",
+            "start_line": 48,
+            "end_line": null
+          }
+        },
+        {
+          "id": "RP1",
+          "severity": "MEDIUM",
+          "finding": "npx playwright",
+          "location": {
+            "file": "SKILL.md",
+            "start_line": 49,
+            "end_line": null
+          }
+        }
+      ]
+    },
+    {
+      "skill": "content-engine",
+      "agent": "marshal",
+      "tool": "skillspector",
+      "mode": "no_llm",
+      "installs_skill": false,
+      "llm_pass": false,
+      "status": "scanned",
+      "risk_score": 0,
+      "findings_count": 0,
+      "analysis_complete": true,
+      "recommendation": "review",
+      "returncode": 0,
+      "stderr_redacted": "",
+      "disposition": "reference_only",
+      "review_note": "Лише reference context. Exit 0 не є гарантією безпеки; враховувати completeness."
+    },
+    {
+      "skill": "market-research",
+      "agent": "marshal",
+      "tool": "skillspector",
+      "mode": "no_llm",
+      "installs_skill": false,
+      "llm_pass": false,
+      "status": "scanned",
+      "risk_score": 0,
+      "findings_count": 0,
+      "analysis_complete": true,
+      "recommendation": "review",
+      "returncode": 0,
+      "stderr_redacted": "",
+      "disposition": "reference_only",
+      "review_note": "Лише reference context. Exit 0 не є гарантією безпеки; враховувати completeness."
+    },
+    {
+      "skill": "agent-security-hardening",
+      "agent": "marshal",
+      "tool": "skillspector",
+      "mode": "no_llm",
+      "installs_skill": false,
+      "llm_pass": false,
+      "status": "scanned",
+      "risk_score": 7,
+      "findings_count": 1,
+      "analysis_complete": false,
+      "recommendation": "review",
+      "returncode": 0,
+      "stderr_redacted": "",
+      "disposition": "reference_only",
+      "review_note": "Description згадує write; збіг trigger detector, не дозвіл на запис.",
+      "issues": [
+        {
+          "id": "TR2",
+          "severity": "MEDIUM",
+          "finding": null,
+          "location": {
+            "file": "SKILL.md",
+            "start_line": 1,
+            "end_line": null
+          }
+        }
+      ]
+    },
+    {
+      "skill": "brand-voice",
+      "agent": "marshal",
+      "tool": "skillspector",
+      "mode": "no_llm",
+      "installs_skill": false,
+      "llm_pass": false,
+      "status": "scanned",
+      "risk_score": 0,
+      "findings_count": 0,
+      "analysis_complete": true,
+      "recommendation": "review",
+      "returncode": 0,
+      "stderr_redacted": "",
+      "disposition": "reference_only",
+      "review_note": "Лише reference context. Exit 0 не є гарантією безпеки; враховувати completeness."
+    }
+  ],
+  "excluded": [
+    {
+      "skill": "security-and-hardening",
+      "risk_score": 100,
+      "analysis_complete": false,
+      "reason": "YARA and incomplete static analysis; not installed"
+    }
+  ]
+}

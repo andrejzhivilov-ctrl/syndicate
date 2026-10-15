@@ -63,5 +63,9 @@
     "telegram_bot": false,
     "voice": false,
     "geolocation": false
-  }
+  },
+  "reference_skills": [
+    "replica-test",
+    "agent-security-hardening"
+  ]
 }

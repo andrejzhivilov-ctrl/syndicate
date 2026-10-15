@@ -3761,3 +3761,81 @@ def test_audit_labels_keep_bounded_ids_but_reject_passport_shaped_short_ids():
     assert _audit_label("audit-ab123456", limit=64) == "unknown"
     bounded_id = "audit-ab123456x"
     assert _audit_label(bounded_id, limit=64) == bounded_id
+
+
+class TestPinnedSkillLibrary:
+    """Third-party context must stay assigned, bounded and immutable."""
+
+    def test_installed_library_covers_all_profiles_without_grants(self):
+        from src.agent_platform.skill_library import ROOT, SkillLibrary
+        library = SkillLibrary()
+        assert library.verify()['scripts_executed'] is False
+        for path in (ROOT / 'config/agents').glob('*.profile.json'):
+            profile = json.loads(path.read_text())
+            assert profile['activation'] == 'prepared_not_enabled'
+            assert library.for_agent(profile['agent_id'])
+        result = library.read('oscar', 'content-engine')
+        assert result['mode'] == 'reference_only'
+        assert 'grant no permissions' in result['policy']
+        assert len(result['commit']) == 40
+
+    def test_agent_and_resource_boundaries(self):
+        from src.agent_platform.skill_library import SkillLibrary
+        library = SkillLibrary()
+        for agent, skill, resource in [
+            ('../oscar', 'content-engine', 'SKILL.md'),
+            ('doc', 'content-engine', 'SKILL.md'),
+            ('oscar', 'content-engine', '../../.env'),
+        ]:
+            with pytest.raises(ValueError):
+                library.read(agent, skill, resource)
+
+    @pytest.mark.parametrize('change', ['tamper', 'oversize', 'symlink'])
+    def test_modified_resource_is_rejected(self, tmp_path, change):
+        import shutil
+        from src.agent_platform.skill_library import MAX_RESOURCE_BYTES, ROOT, SkillLibrary
+        shutil.copytree(ROOT / 'config', tmp_path / 'config')
+        library = SkillLibrary(tmp_path)
+        relative = library.entries['content-engine']['resources']['SKILL.md']
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True)
+        if change == 'symlink':
+            path.symlink_to(ROOT / relative)
+        else:
+            path.write_text('x' * (MAX_RESOURCE_BYTES + 1) if change == 'oversize' else 'altered')
+        with pytest.raises(ValueError):
+            library.read('oscar', 'content-engine')
+
+    def test_catalog_resource_paths_cannot_escape(self, tmp_path):
+        from src.agent_platform.skill_library import _contained_file
+        for name in ('../outside', '/etc/passwd', 'a\\b'):
+            with pytest.raises(ValueError):
+                _contained_file(tmp_path, name)
+        assert _contained_file(tmp_path, 'safe/file.md') == tmp_path / 'safe/file.md'
+
+
+@pytest.mark.parametrize('report,returncode,expected', [
+    ({'risk_assessment': {'score': 100}, 'issues': [{'id': 'YR4'}],
+      'analysis_completeness': {'is_complete': False}}, 1, 'scanned'),
+    ({'risk_score': 0, 'findings': [], 'execution_successful': False}, 2, 'scan_unavailable'),
+    ({'risk_score': True, 'findings': []}, 0, 'scan_unavailable'),
+    ({'risk_score': 0, 'findings': []}, 2, 'scan_unavailable'),
+    ({'unexpected': 'schema'}, 0, 'scan_unavailable'),
+    ('invalid JSON', 0, 'scan_unavailable'),
+])
+def test_marshal_scan_preserves_nested_findings_and_fails_closed(tmp_path, report, returncode, expected):
+    from types import SimpleNamespace
+    from src.agents.marshal_skill_scan import scan_skill_proposal
+    body = report if isinstance(report, str) else json.dumps(report)
+    result = scan_skill_proposal(
+        tmp_path, which=lambda _: '/synthetic/skillspector',
+        runner=lambda *a, **kw: SimpleNamespace(stdout=body, stderr='', returncode=returncode),
+    )
+    assert result['status'] == expected
+    if expected == 'scanned':
+        assert result['risk_score'] == 100
+        assert result['findings_count'] == 1
+        assert result['analysis_complete'] is False
+        assert result['recommendation'] == 'do_not_install'
+    else:
+        assert result['recommendation'] == 'unknown'

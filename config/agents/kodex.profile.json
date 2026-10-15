@@ -110,5 +110,11 @@
     "labeled": "andrii_permission_required",
     "confirm_by": "andrii"
   },
-  "agent_actions": "усі дії агентів (редагування, переміщення, видалення) — у звіті для Єви"
+  "agent_actions": "усі дії агентів (редагування, переміщення, видалення) — у звіті для Єви",
+  "reference_skills": [
+    "handoff",
+    "context-engineering",
+    "documentation-and-adrs",
+    "internal-comms"
+  ]
 }

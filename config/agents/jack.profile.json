@@ -34,5 +34,9 @@
   "telegram": {
     "status": "not_connected",
     "allowlist": []
-  }
+  },
+  "reference_skills": [
+    "scientific-critical-thinking",
+    "behavioral-finance"
+  ]
 }
