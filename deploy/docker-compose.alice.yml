@@ -1,0 +1,97 @@
+# Optional Alice API runtime overlay.
+# Use with deploy/docker-compose.yml only after creating an externally
+# firewalled provider-egress network. This overlay never publishes a host port.
+services:
+  eva-agent:
+    networks:
+      - db_net
+      - backend
+      - alice_control
+
+  vault:
+    networks:
+      - backend
+      - alice_vault
+
+  alice-agent:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.alice
+    command: ["uvicorn", "runtime.alice_runner:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
+    profiles:
+      - alice
+    restart: unless-stopped
+    user: "1001:1001"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m,uid=1001,gid=1001
+    environment:
+      SYNDICATE_DIRECTOR_ID: alice
+      SYNDICATE_DIRECTOR_ACTIONS: ${ALICE_ACTIONS:-capabilities}
+      ALICE_PROVIDERS: ${ALICE_PROVIDERS:-}
+      VAULT_ADDR: ${VAULT_ADDR:-http://vault:8200}
+      VAULT_ROLE_ID: ${ALICE_VAULT_ROLE_ID:-}
+      VAULT_SECRET_ID: ${ALICE_VAULT_SECRET_ID:-}
+      EVA_DATA_DIR: /data/eva
+      ALICE_WORKSPACE: /data/eva/data/alice/workspace
+      ALICE_PROFILE_PATH: /app/config/agents/alice.profile.json
+      ALICE_API_ENABLED: ${ALICE_API_ENABLED:-false}
+      ALICE_EGRESS_ALLOWLIST_VERIFIED: ${ALICE_EGRESS_ALLOWLIST_VERIFIED:-false}
+      ALICE_MAX_REQUESTS_PER_DAY: ${ALICE_MAX_REQUESTS_PER_DAY:-0}
+      ALICE_MAX_TOKENS_PER_DAY: ${ALICE_MAX_TOKENS_PER_DAY:-0}
+      ALICE_MAX_INPUT_TOKENS_PER_REQUEST: ${ALICE_MAX_INPUT_TOKENS_PER_REQUEST:-12000}
+      ALICE_MAX_OUTPUT_TOKENS_PER_REQUEST: ${ALICE_MAX_OUTPUT_TOKENS_PER_REQUEST:-2048}
+      ALICE_MAX_MODEL_CALLS_PER_REQUEST: ${ALICE_MAX_MODEL_CALLS_PER_REQUEST:-3}
+      ALICE_MAX_TOOL_CALLS_PER_REQUEST: ${ALICE_MAX_TOOL_CALLS_PER_REQUEST:-8}
+      GOOGLE_GENAI_USE_VERTEXAI: "false"
+      GOOGLE_GENAI_USE_ENTERPRISE: "false"
+      HOME: /tmp/alice-home
+    volumes:
+      - alice_data:/data/eva/data/alice
+    networks:
+      - alice_control
+      - alice_vault
+      - alice_provider_egress
+    depends_on:
+      vault:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    mem_limit: 1g
+    cpus: 1.0
+    pids_limit: 128
+    ulimits:
+      nofile:
+        soft: 1024
+        hard: 2048
+
+networks:
+  alice_control:
+    driver: bridge
+    internal: true
+  alice_vault:
+    driver: bridge
+    internal: true
+  alice_provider_egress:
+    external: true
+    name: ${ALICE_PROVIDER_EGRESS_NETWORK:-alice-provider-egress}
+
+volumes:
+  alice_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_ROOT:-/data}/eva/data/alice

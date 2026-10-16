@@ -1,6 +1,6 @@
 """
 SYNDIKAT Chief Security Officer (CSO) — Marshal Agent.
-Supreme Security Commander of EVA SYNDICATE (Floor 10).
+Supreme Security Commander of SYNDICATE (Floor 10).
 
 Marshal is the sole security agent of the Syndicate.
 All security functions (Zero-Trust checks, prompt injection scanning,
@@ -141,7 +141,7 @@ class ValidationResult:
 
 class MarshalAgent:
     """
-    Marshal — Chief Security Officer (CSO) of EVA SYNDICATE.
+    Marshal — Chief Security Officer (CSO) of SYNDICATE.
     Supreme security authority executing all Zero-Trust checks directly.
     """
 

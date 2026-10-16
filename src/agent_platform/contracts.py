@@ -1,7 +1,7 @@
 """Neutral contracts for the SYNDICATE agent control plane.
 
 This module deliberately describes no business roles and grants no default
-capabilities. A Hermes profile, its permissions, and its resource scopes must
+capabilities. A runtime profile, its permissions, and its resource scopes must
 be explicitly configured before a runtime can be dispatched.
 """
 
@@ -21,9 +21,10 @@ _MAX_PROMPT_CHARS = 120_000
 
 
 class RuntimeKind(str, Enum):
-    """Agent runtime mandated by the current SYNDICATE design."""
+    """Supported runtime adapters; selecting one does not activate an agent."""
 
     HERMES = "hermes"
+    ANTIGRAVITY_SDK = "antigravity_sdk"
 
 
 class ActionClass(str, Enum):
@@ -112,7 +113,7 @@ def _freeze_identifiers(values: object, *, label: str, pattern: re.Pattern[str])
 
 @dataclass(frozen=True, slots=True)
 class AgentProfile:
-    """An isolated Hermes profile and its explicit, immutable grants.
+    """An isolated runtime profile and its explicit, immutable grants.
 
     ``role``, prompts, model selection, and service credentials are intentionally
     absent: those agent-specific decisions are made later. Secret values must
@@ -120,7 +121,7 @@ class AgentProfile:
     """
 
     agent_id: str
-    hermes_profile: str
+    runtime_profile: str
     memory_namespace: str
     capabilities: frozenset[str] = frozenset()
     resource_scopes: frozenset[str] = frozenset()
@@ -129,14 +130,14 @@ class AgentProfile:
     def __post_init__(self) -> None:
         if not isinstance(self.agent_id, str) or not _PROFILE_ID_RE.fullmatch(self.agent_id):
             raise ValueError("invalid_agent_id")
-        if not isinstance(self.hermes_profile, str) or not _PROFILE_ID_RE.fullmatch(self.hermes_profile):
-            raise ValueError("invalid_hermes_profile")
+        if not isinstance(self.runtime_profile, str) or not _PROFILE_ID_RE.fullmatch(self.runtime_profile):
+            raise ValueError("invalid_runtime_profile")
         if not isinstance(self.memory_namespace, str) or not _SCOPE_ID_RE.fullmatch(self.memory_namespace):
             raise ValueError("invalid_memory_namespace")
         if "*" in self.memory_namespace or ".." in self.memory_namespace.split("/"):
             raise ValueError("wildcards_or_parent_paths_forbidden_in_memory_namespace")
-        if self.runtime is not RuntimeKind.HERMES:
-            raise ValueError("syndicate_agents_require_hermes_runtime")
+        if not isinstance(self.runtime, RuntimeKind):
+            raise ValueError("invalid_runtime_kind")
 
         capabilities = _freeze_identifiers(
             self.capabilities, label="capabilities", pattern=_CAPABILITY_ID_RE
@@ -198,7 +199,7 @@ class PolicyDecision:
 
 
 class AgentRuntime(Protocol):
-    """Transport boundary for a Hermes instance; not a live adapter by itself."""
+    """Transport boundary for a configured agent runtime; not an adapter by itself."""
 
     async def invoke(self, *, profile: AgentProfile, request: AgentInvocation) -> str:
         """Run one bounded turn and return assistant text without logging it."""

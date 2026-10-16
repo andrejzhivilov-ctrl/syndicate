@@ -16,7 +16,7 @@ def test_eva_manifest_is_prepared_but_not_enabled_and_has_no_grants() -> None:
     manifest = json.loads(PROFILE_PATH.read_text(encoding="utf-8"))
     profile = AgentProfile(
         agent_id=manifest["agent_id"],
-        hermes_profile=manifest["hermes_profile"],
+        runtime_profile=manifest["runtime_profile"],
         memory_namespace=manifest["memory_namespace"],
         capabilities=frozenset(manifest["capabilities"]),
         resource_scopes=frozenset(manifest["resource_scopes"]),

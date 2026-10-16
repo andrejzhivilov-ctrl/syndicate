@@ -1,6 +1,6 @@
 #!/bin/bash
 # ===============================================================
-# EVA SYNDICATE — server_bootstrap.sh
+# SYNDICATE — server_bootstrap.sh
 # Підготовка Contabo VPS Ubuntu 24.04 LTS до розгортання
 # Запускати: sudo bash server_bootstrap.sh
 # ===============================================================
@@ -18,6 +18,16 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 section() { echo -e "\n${BLUE}══════════════════════════════════════${NC}"; echo -e "${BLUE} $1${NC}"; echo -e "${BLUE}══════════════════════════════════════${NC}"; }
 
 [[ $EUID -ne 0 ]] && error "Запускай від root: sudo bash $0"
+
+PROJECT_DIR="/opt/syndicate"
+LEGACY_PROJECT_DIR="/opt/eva-syndicate"
+if [[ -e "$PROJECT_DIR" && -e "$LEGACY_PROJECT_DIR" ]]; then
+    error "Both $PROJECT_DIR and $LEGACY_PROJECT_DIR exist; refusing to choose an installation path"
+fi
+if [[ -e "$LEGACY_PROJECT_DIR" && ! -e "$PROJECT_DIR" ]]; then
+    PROJECT_DIR="$LEGACY_PROJECT_DIR"
+    warn "Збережено наявний шлях розгортання для сумісності: $PROJECT_DIR"
+fi
 
 # ── КРОК 1: ОНОВЛЕННЯ СИСТЕМИ ──────────────────────────────────
 section "КРОК 1: Оновлення Ubuntu 24.04 LTS"
@@ -118,13 +128,13 @@ log "✅ SSH захищено: root login = NO, password auth = NO"
 
 # ── КРОК 7: СТРУКТУРА ДИРЕКТОРІЙ ──────────────────────────────
 section "КРОК 7: Створення структури директорій"
-mkdir -p /opt/eva-syndicate/{deploy,config,scripts,secrets,logs}
-mkdir -p /opt/eva-syndicate/config/{postgres,nginx,vault}
-mkdir -p /opt/eva-syndicate/config/nginx/conf.d
+mkdir -p "$PROJECT_DIR"/{deploy,config,scripts,secrets,logs}
+mkdir -p "$PROJECT_DIR"/config/{postgres,nginx,vault}
+mkdir -p "$PROJECT_DIR"/config/nginx/conf.d
 mkdir -p /data/{eva,marshal,architect,fin,doc,sam,n8n,postgres,redis,vault,audit,clamav,suricata/logs,nginx-certs}
-chown -R syndicate:syndicate /opt/eva-syndicate /data
-chmod 700 /opt/eva-syndicate/secrets
-log "✅ Директорії створено у /opt/eva-syndicate та /data"
+chown -R syndicate:syndicate "$PROJECT_DIR" /data
+chmod 700 "$PROJECT_DIR/secrets"
+log "✅ Директорії створено у $PROJECT_DIR та /data"
 
 # ── КРОК 7b: ПЕРВИННИЙ SSL БУТСТРАП ДЛЯ NGINX ───────────────────
 section "КРОК 7b: Первинний SSL бутстрап (захист від збою Nginx)"
@@ -134,7 +144,7 @@ if [ ! -f "$DUMMY_CERT_DIR/fullchain.pem" ]; then
     openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
         -keyout "$DUMMY_CERT_DIR/privkey.pem" \
         -out "$DUMMY_CERT_DIR/fullchain.pem" \
-        -subj "/C=UA/ST=Kyiv/L=Kyiv/O=EvaSyndicate/CN=localhost" 2>/dev/null
+        -subj "/C=UA/ST=Kyiv/L=Kyiv/O=SYNDICATE/CN=localhost" 2>/dev/null
     log "✅ Створено початковий SSL-сертифікат (Nginx не впаде при першому старті)"
     log "   Після прив'язки домену запусти certbot для бойового Let's Encrypt / Cloudflare"
 else
@@ -142,17 +152,17 @@ else
 fi
 
 # ── КРОК 8: КЛОНУВАННЯ РЕПОЗИТОРІЮ ────────────────────────────
-section "КРОК 8: Клонування репозиторію EVA SYNDICATE"
-if [ ! -d "/opt/eva-syndicate/.git" ]; then
+section "КРОК 8: Клонування репозиторію SYNDICATE"
+if [ ! -d "$PROJECT_DIR/.git" ]; then
     GITHUB_TOKEN="${1:-}"
     if [ -z "$GITHUB_TOKEN" ]; then
         warn "GitHub токен не передано. Клонуй вручну:"
-        warn "  cd /opt/eva-syndicate"
-        warn "  git clone https://<TOKEN>@github.com/andrejzhivilov-ctrl/eva-syndicate.git ."
+        warn "  cd $PROJECT_DIR"
+        warn "  git clone https://<TOKEN>@github.com/andrejzhivilov-ctrl/syndicate.git ."
     else
-        cd /opt/eva-syndicate
-        git clone "https://${GITHUB_TOKEN}@github.com/andrejzhivilov-ctrl/eva-syndicate.git" .
-        chown -R syndicate:syndicate /opt/eva-syndicate
+        cd "$PROJECT_DIR"
+        git clone "https://${GITHUB_TOKEN}@github.com/andrejzhivilov-ctrl/syndicate.git" .
+        chown -R syndicate:syndicate "$PROJECT_DIR"
         log "✅ Репозиторій клоновано"
     fi
 else
@@ -204,11 +214,11 @@ echo "  UFW:         Активний (SSH + HTTPS)"
 echo "  Fail2ban:    Активний"
 echo "  SSH:         Тільки по ключу"
 echo ""
-echo "  📂 Проект:   /opt/eva-syndicate/"
+echo "  📂 Проект:   $PROJECT_DIR/"
 echo "  📂 Дані:     /data/"
 echo ""
 echo "  НАСТУПНИЙ КРОК:"
-echo "  cd /opt/eva-syndicate/deploy"
+echo "  cd $PROJECT_DIR/deploy"
 echo "  cp .env.example .env"
 echo "  nano .env  (заповни значення)"
 echo "  docker compose up -d postgres redis vault nginx"

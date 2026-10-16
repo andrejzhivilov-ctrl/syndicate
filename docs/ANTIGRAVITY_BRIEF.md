@@ -1,4 +1,8 @@
-# Бриф для Google Antigravity
+# Legacy бриф для зовнішнього Google Antigravity (не runtime Аліси)
+
+**Важливо:** цей історичний бриф описує окремий клієнтський handoff. Аліса — агентка
+SYNDICATE, Antigravity — технологія. Поточний API-first runtime/профіль Аліси —
+`docs/ALICE_RUNTIME.md`; цей документ його не налаштовує і не активує.
 
 **Як користуватись:** скопіюй блок «ПРОМПТ ДЛЯ ANTIGRAVITY» нижче в новий чат Antigravity.
 Він самодостатній — містить усе, що треба знати, щоб почати, і не покладається на пам'ять
@@ -9,8 +13,8 @@
 ## ПРОМПТ ДЛЯ ANTIGRAVITY
 
 ```
-ТИ ПРАЦЮЄШ НАД EVA SYNDICATE — автономним AI-холдингом з 10-поверховою архітектурою
-агентів. Репозиторій: https://github.com/andrejzhivilov-ctrl/eva-syndicate
+ТИ ПРАЦЮЄШ НАД SYNDICATE — автономним AI-холдингом з 10-поверховою архітектурою
+агентів. Репозиторій: https://github.com/andrejzhivilov-ctrl/SYNDICATE
 Основна гілка: main. Поточний коміт: 0e6bc4c.
 
 ЩО ЦЕ ЗА СИСТЕМА

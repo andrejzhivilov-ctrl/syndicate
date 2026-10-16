@@ -1,4 +1,4 @@
-# EVA SYNDICATE — embeddings service (self-hosted BGE-M3)
+# SYNDICATE — embeddings service (self-hosted BGE-M3)
 #
 # Why a separate container instead of a library inside eva-agent:
 #   * eva-agent runs read-only with a 3 GB limit; a ~2 GB model does not belong there;

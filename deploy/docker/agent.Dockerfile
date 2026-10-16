@@ -1,5 +1,5 @@
 # ===============================================================
-# EVA SYNDICATE — Production Universal Agent Dockerfile
+# SYNDICATE — Production Universal Agent Dockerfile
 # Multi-stage, hardened, non-root Python 3.11 agent runtime
 # ===============================================================
 

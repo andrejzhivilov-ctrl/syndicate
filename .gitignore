@@ -1,4 +1,4 @@
-# EVA SYNDICATE — Git ignore rules
+# SYNDICATE — Git ignore rules
 
 # Secrets & environment
 .env
@@ -43,9 +43,10 @@ backup/
 *.zip
 *.patch
 
-# Generated document previews (not source)
+# Generated document previews (not source). Passport PDFs are explicit deliverables.
 *.pdf
 *.docx
+!docs/SYSTEM_PASSPORT_*.pdf
 
 # Writable runtime artefacts produced by agents (see src/data_paths.py).
 # EVA_DATA_DIR relocates these in production; locally they land in the tree.

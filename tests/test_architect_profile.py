@@ -30,7 +30,7 @@ def _architect_profile(manifest: dict | None = None) -> AgentProfile:
     manifest = manifest or _load(ARCHITECT_PROFILE_PATH)
     return AgentProfile(
         agent_id=manifest["agent_id"],
-        hermes_profile=manifest["hermes_profile"],
+        runtime_profile=manifest["runtime_profile"],
         memory_namespace=manifest["memory_namespace"],
         capabilities=frozenset(manifest["capabilities"]),
         resource_scopes=frozenset(manifest["resource_scopes"]),
@@ -95,13 +95,13 @@ def test_architect_and_eva_namespaces_are_isolated() -> None:
     architect = _load(ARCHITECT_PROFILE_PATH)
     eva = _load(EVA_PROFILE_PATH)
     assert architect["agent_id"] != eva["agent_id"]
-    assert architect["hermes_profile"] != eva["hermes_profile"]
+    assert architect["runtime_profile"] != eva["runtime_profile"]
     assert architect["memory_namespace"] != eva["memory_namespace"]
 
     registry = AgentRegistry(
         [_architect_profile(architect), AgentProfile(
             agent_id=eva["agent_id"],
-            hermes_profile=eva["hermes_profile"],
+            runtime_profile=eva["runtime_profile"],
             memory_namespace=eva["memory_namespace"],
             capabilities=frozenset(eva["capabilities"]),
             resource_scopes=frozenset(eva["resource_scopes"]),

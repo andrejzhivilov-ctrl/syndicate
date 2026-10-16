@@ -1,6 +1,6 @@
 #!/bin/bash
 # ===============================================================
-# EVA SYNDICATE — setup_ssl.sh (v4.1 Verified)
+# SYNDICATE — setup_ssl.sh (v4.1 Verified)
 # Налаштування HTTPS сертифікатів для Nginx (/data/nginx-certs/live/default)
 # Опція 1: Cloudflare Origin CA (15 років без ротації)
 # Опція 2: Let's Encrypt через Certbot
@@ -29,7 +29,7 @@ if [[ "${1:-}" == "--self-signed" ]]; then
     exit 0
 fi
 
-echo "=== EVA SYNDICATE: НАЛАШТУВАННЯ SSL СЕРТИФІКАТІВ ==="
+echo "=== SYNDICATE: НАЛАШТУВАННЯ SSL СЕРТИФІКАТІВ ==="
 echo "Оберіть метод генерації SSL:"
 echo "1) Cloudflare Origin Certificate (Рекомендовано для Cloudflare Proxy)"
 echo "2) Let's Encrypt через Certbot (Прямий вебхук без Cloudflare Proxy)"

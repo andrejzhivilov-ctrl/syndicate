@@ -1,5 +1,5 @@
 # 🎬 АГЕНТ «ОСКАР» (OSCAR) — CHIEF MEDIA & AUDIENCE DIRECTOR
-## Специфікація автономної медіа-директорії (Floor 2+) для EVA SYNDICATE
+## Специфікація автономної медіа-директорії (Floor 2+) для SYNDICATE
 
 > **Agent ID:** `oscar`  
 > **Повна назва:** **OSCAR** (*Omni-channel Syndicate Content & Audience Robot*)  

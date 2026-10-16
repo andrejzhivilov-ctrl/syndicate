@@ -1,4 +1,4 @@
-"""Antigravity Director Worker Package — Floor 2+ Meta-Developer & Autonomous Engine."""
+"""Legacy import-compatibility package; Antigravity is runtime technology, not an agent."""
 
 from .agent import AntigravityDirectorAgent
 

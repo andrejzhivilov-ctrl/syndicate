@@ -81,7 +81,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="EVA SYNDICATE Embeddings", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="SYNDICATE Embeddings", version="1.0.0", lifespan=lifespan)
 
 
 class EmbedRequest(BaseModel):

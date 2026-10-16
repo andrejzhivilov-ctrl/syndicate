@@ -76,7 +76,7 @@ def test_memory_capability_would_still_deny_foreign_namespace() -> None:
     """Proposed boundary: even with a future own-namespace grant, others stay deny."""
     profile = AgentProfile(
         agent_id="eva",
-        hermes_profile="eva",
+        runtime_profile="eva",
         memory_namespace="agents/eva",
         capabilities=frozenset({"memory.read", "memory.write"}),
         runtime=RuntimeKind.HERMES,

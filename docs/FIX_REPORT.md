@@ -1,7 +1,7 @@
-# EVA SYNDICATE — Повний звіт про виявлені та виправлені помилки
+# SYNDICATE — Повний звіт про виявлені та виправлені помилки
 
 **Дата завершення:** 2026-10-05
-**Гілка:** `arena/01a10abd-eva-syndicate` (база `5c85712`)
+**Гілка:** `arena/01a10abd-SYNDICATE` (база `5c85712`)
 **Коміти аудиту:** `3b31663`, `31082f9`, `7baa409` + поточний (другий прохід)
 **Обсяг:** весь репозиторій — `src/`, `deploy/`, `tests/`, `config/`, `static/`, Docker/compose, FastAPI-рантайм
 
@@ -120,14 +120,15 @@ IBAN має рівно 29**. Реальний IBAN (`UA21 3223 1300 0002 6007 23
 патерн, тест впаде.
 
 ### 3.5. Витік секретів через невірні шляхи Vault
-`src/integrations/base.py` читав `secret/data/eva-syndicate/<SERVICE>`,
+`src/integrations/base.py` читав Vault шлях із legacy-prefix,
 а `agent_runner.py` — `eva/database`, `eva/config`, `eva/api-keys`.
 Хтось із них гарантовано не знаходив секрет у продакшені.
 
 **Виправлено:** єдине джерело істини `src/vault_paths.py`
-(`secret_path(svc) -> f"secret/data/eva-syndicate/{svc}"`, ключі
-`database`, `redis`, `auth`, `api-keys`, `agents`). Усі виклики — через нього.
-Заблоковано тестом `TestVaultSecretPaths`.
+(`secret_path(svc) -> f"secret/data/syndicate/{svc}"`, ключі
+`database`, `redis`, `auth`, `api-keys`, `agents`). Усі виклики — через нього;
+під час нинішньої міграції старий префікс тимчасово підтримується за планом
+`docs/NAMESPACE_MIGRATION.md`. Заблоковано тестом `TestVaultSecretPaths`.
 
 ### 3.6. Приватний метод і мертва гілка в `create()`
 `self._vault._resolve()` (приватний API) і `if ...: pass`.
@@ -339,7 +340,7 @@ ffmpeg, UID 1001, `/data/eva`, healthcheck); посилання в compose он�
 ## 9. Як перевірити
 
 ```bash
-cd /home/user/eva-syndicate
+cd /home/user/SYNDICATE
 
 .venv/bin/python -m pytest tests/ -q
 #   210 passed   (100 регресійних + 110 маршрутизації)

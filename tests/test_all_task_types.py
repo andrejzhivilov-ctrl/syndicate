@@ -1,5 +1,5 @@
 """
-EVA SYNDICATE — Task-routing smoke suite.
+SYNDICATE — Task-routing smoke suite.
 
 Exercises **every** task type in ``EvaOrchestrator.TASK_ROUTING`` with a mocked
 LLM and a mocked database session. The point is not to assert on the answers,
@@ -119,6 +119,9 @@ def _payloads(tmp_path: Path) -> Dict[str, Dict[str, Any]]:
         "oscar_task": {"action": "capabilities"},
         "tyler_task": {"action": "capabilities"},
         "jack_task": {"action": "capabilities"},
+        "alice_engineer": {"action": "engineer", "prompt": "test"},
+        "alice_code_review": {"action": "review", "prompt": "test"},
+        "alice_status": {"action": "capabilities"},
         "sensory_split_audio": {"audio_bytes": b"\x00" * 10, "filename": "a.ogg"},
         "sensory_extract_doc": {"file_bytes": b"hello world", "filename": "d.txt"},
         "sensory_chunk_text": {"text": "hello world this is a longer chunk of text for embedding"},

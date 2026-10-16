@@ -1,5 +1,5 @@
 """
-EVA SYNDICATE — HITL client surface (backend blocker 0.5).
+SYNDICATE — HITL client surface (backend blocker 0.5).
 
 Motivation, so nobody "simplifies" this away:
 

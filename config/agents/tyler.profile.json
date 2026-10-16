@@ -3,7 +3,7 @@
   "agent_id": "tyler",
   "activation": "prepared_not_enabled",
   "runtime": "hermes",
-  "hermes_profile": "tyler",
+  "runtime_profile": "tyler",
   "memory_namespace": "agents/tyler",
   "prompt_file": "src/agents/tyler_runtime_prompt.md",
   "prompt_status": "draft",

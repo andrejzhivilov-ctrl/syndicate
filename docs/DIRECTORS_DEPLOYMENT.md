@@ -34,16 +34,16 @@
 
 Для кожного директора створити **власний** AppRole з політикою `eva-oscar`, `eva-tyler` або `eva-jack` (генератор `tools/vault_policies.py --write`). Ці політики дозволяють читання лише власного `agents/<id>/*` і self-renewal токена; спільних ключів LLM, інших агентів і server auth немає.
 
-Структура KV v2: mount `secret`, prefix `eva-syndicate`. Використовуються шляхи з `src/vault_paths.py`:
+Структура KV v2: mount `secret`, canonical prefix `syndicate`. На час сумісної міграції код і ACL також підтримують legacy-prefix згідно з `docs/NAMESPACE_MIGRATION.md`. Використовуються шляхи з `src/vault_paths.py`:
 
 | Логічний шлях | Обов’язкові поля |
 |---|---|
-| `eva-syndicate/agents/<id>/auth` | `api_key`: окремий випадковий ASCII ключ, щонайменше 32 символи |
-| `eva-syndicate/agents/oscar/grok` | `api_key`, `model` |
-| `eva-syndicate/agents/oscar/gemini` | `api_key`, `model` |
-| `eva-syndicate/agents/oscar/haiku` | `api_key`, `model` |
-| `eva-syndicate/agents/oscar/youtube` | `api_key` із YouTube Data API read-доступом |
-| `eva-syndicate/agents/jack/odds` | `api_key` The Odds API |
+| `syndicate/agents/<id>/auth` | `api_key`: окремий випадковий ASCII ключ, щонайменше 32 символи |
+| `syndicate/agents/oscar/grok` | `api_key`, `model` |
+| `syndicate/agents/oscar/gemini` | `api_key`, `model` |
+| `syndicate/agents/oscar/haiku` | `api_key`, `model` |
+| `syndicate/agents/oscar/youtube` | `api_key` із YouTube Data API read-доступом |
+| `syndicate/agents/jack/odds` | `api_key` The Odds API |
 
 Тільки `auth` потрібен для локальних інструментів. Provider secrets читаються лише для явно ввімкнених провайдерів. Порожні й placeholder ключі блокують запуск; запит API не може вмикати провайдери чи замінювати URL. Не записувати ключі в Git, лог, shell history чи приклади. AppRole environment передавати із секретного сховища платформи розгортання.
 
@@ -72,7 +72,7 @@ Compose не публікує host ports. Кожен директор має в�
 {"payload":{"action":"capabilities"}}
 ```
 
-API `/execute` основного EVA runtime приймає `task_type=oscar_task|tyler_task|jack_task` із таким самим внутрішнім payload. За замовчуванням ці маршрути не активовані.
+API `/execute` основного runtime Синдикату приймає `task_type=oscar_task|tyler_task|jack_task` із таким самим внутрішнім payload. За замовчуванням ці маршрути не активовані.
 
 ## Перевірки й активація
 

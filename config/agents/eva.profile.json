@@ -5,7 +5,7 @@
   "model_status": "not_selected",
   "agent_id": "eva",
   "runtime": "hermes",
-  "hermes_profile": "eva",
+  "runtime_profile": "eva",
   "memory_namespace": "agents/eva",
   "prompt_file": "src/agents/eva_runtime_prompt.md",
   "capabilities": [],

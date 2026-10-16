@@ -2,7 +2,7 @@
 Google Workspace connector — Gmail, Calendar, Drive.
 
 Auth: credentials are built from secrets stored in Vault at
-``secret/data/eva-syndicate/google_workspace``. Two credential modes are supported:
+``secret/data/syndicate/google_workspace``. Two credential modes are supported:
   1. OAuth2 installed-app refresh token:
      keys: oauth_client_id, oauth_client_secret, oauth_refresh_token
   2. Service account:

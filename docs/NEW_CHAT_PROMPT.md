@@ -6,7 +6,7 @@
 
 ---
 
-Продовжуємо роботу над репозиторієм `andrejzhivilov-ctrl/eva-syndicate` (публічний).
+Продовжуємо роботу над репозиторієм `andrejzhivilov-ctrl/SYNDICATE` (публічний).
 Назва всієї системи — **SYNDICATE (Синдикат)**. Єва — один з агентів і координатор.
 Ціль: Hermes runtime/profile для кожного агента та зовнішня координація LangGraph.
 Репозиторій містить історичну EVA/10-поверхову реалізацію; не вважати її автоматично
@@ -93,7 +93,7 @@
 
 6. **Vault — політики й ізоляція (пункт 32 закрито).** Політики генеруються з коду
    (`python tools/vault_policies.py --write` ← `src/vault_paths.py`) у `config/vault/policies/*.hcl`;
-   wildcard `secret/data/eva-syndicate/*` зник, на кожен поверх є least-privilege політика
+   wildcard `secret/data/syndicate/*` зник, на кожен поверх є least-privilege політика
    (default deny, без чужої гілки, без `auth` сервера) і своя AppRole. `vault_init.sh` не вигадує
    секретів: пароль БД/Redis береться з `.env` (і скрипт відмовляється працювати з
    `CHANGE_ME`/`PLACEHOLDER`), LLM-ключі — тільки передані, `api_key`/`webhook_secret` генеруються,
@@ -161,9 +161,9 @@
 ## Старт і перевірки
 
 ```bash
-cd /home/user/eva-syndicate
-git fetch origin arena/0f6034ef-eva-syndicate
-git branch --show-current                 # завжди arena/0f6034ef-eva-syndicate
+cd /home/user/SYNDICATE
+git fetch origin arena/0f6034ef-SYNDICATE
+git branch --show-current                 # завжди arena/0f6034ef-SYNDICATE
 git status --short --branch                # спочатку з'ясувати стан; не робити reset автоматично
 
 python3 -m venv .venv                       # якщо середовище ще не створене
@@ -212,7 +212,7 @@ bash tools/check.sh
   git diff --cached --check
   git diff --cached
   git commit -m "feat: describe the change in English"
-  git push origin arena/0f6034ef-eva-syndicate
+  git push origin arena/0f6034ef-SYNDICATE
   ```
 
 - Не створювати та не пушити іншу гілку. Живі PostgreSQL-тести працюють локально через

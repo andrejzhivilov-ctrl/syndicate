@@ -100,7 +100,7 @@ def _profile(
 ) -> AgentProfile:
     return AgentProfile(
         agent_id="generic-agent",
-        hermes_profile="generic-agent",
+        runtime_profile="generic-agent",
         memory_namespace="agents/generic-agent",
         capabilities=capabilities,
         resource_scopes=resource_scopes,
@@ -131,7 +131,7 @@ def _invocation(
 def test_profile_is_hermes_by_default_and_has_no_implicit_grants() -> None:
     profile = AgentProfile(
         agent_id="generic-agent",
-        hermes_profile="generic-agent",
+        runtime_profile="generic-agent",
         memory_namespace="agents/generic-agent",
     )
 
@@ -150,22 +150,22 @@ def test_profile_rejects_wildcards_and_prohibited_grants() -> None:
         _profile(resource_scopes=frozenset({"drive.folder:*"}))
 
 
-def test_registry_requires_isolated_hermes_profiles_and_memory_namespaces() -> None:
+def test_registry_requires_isolated_runtime_profiles_and_memory_namespaces() -> None:
     first = _profile()
     same_runtime_profile = AgentProfile(
         agent_id="other-agent",
-        hermes_profile=first.hermes_profile,
+        runtime_profile=first.runtime_profile,
         memory_namespace="agents/other-agent",
         capabilities=frozenset(),
     )
     same_memory = AgentProfile(
         agent_id="other-agent",
-        hermes_profile="other-agent",
+        runtime_profile="other-agent",
         memory_namespace=first.memory_namespace,
         capabilities=frozenset(),
     )
 
-    with pytest.raises(ValueError, match="hermes_profile_must_be_isolated"):
+    with pytest.raises(ValueError, match="runtime_profile_must_be_isolated"):
         AgentRegistry([first, same_runtime_profile])
     with pytest.raises(ValueError, match="memory_namespace_must_be_isolated"):
         AgentRegistry([first, same_memory])

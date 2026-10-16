@@ -4,9 +4,17 @@
 #
 # Agent policy: oscar.
 # Infrastructure: none.
-# Own subtree: secret/data/eva-syndicate/agents/oscar/<name>.
+# Own subtree: secret/data/syndicate/agents/oscar/<name>.
 # Extra services: none (default deny).
 # Cannot read other agents' subtrees or the server's own API key.
+
+path "secret/data/syndicate/agents/oscar/*" {
+  capabilities = ["read"]
+}
+
+path "secret/metadata/syndicate/agents/oscar/*" {
+  capabilities = ["list", "read"]
+}
 
 path "secret/data/eva-syndicate/agents/oscar/*" {
   capabilities = ["read"]

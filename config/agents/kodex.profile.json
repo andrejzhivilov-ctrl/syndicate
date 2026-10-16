@@ -4,7 +4,7 @@
   "agent_id": "kodex",
   "name": "K.O.D.E.K.S. (KODEX) — Knowledge Organization & Database Extraction System",
   "runtime": "hermes",
-  "hermes_profile": "kodex",
+  "runtime_profile": "kodex",
   "memory_namespace": "agents/kodex",
   "prompt_status": "not_prepared",
   "role_status": "not_agreed",

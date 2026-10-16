@@ -36,7 +36,7 @@ sys.path.insert(0, str(REPO_ROOT))
 def _banner() -> str:
     return (
         "# ============================================================\n"
-        "# EVA SYNDICATE — client API contract\n"
+        "# SYNDICATE — client API contract\n"
         "#\n"
         "# GENERATED FILE — DO NOT EDIT BY HAND.\n"
         "# Source of truth: deploy/runtime/agent_runner.py (FastAPI app).\n"

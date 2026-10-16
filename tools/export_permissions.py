@@ -32,12 +32,26 @@ def _telegram(m: Dict[str, Any]) -> str:
     return "enabled" if enabled else "—"
 
 
+def _proposed_grants(m: Dict[str, Any]) -> str:
+    grants = m.get("proposed_grants") or []
+    if not isinstance(grants, list):
+        return "—"
+    values = [
+        f"{item.get('capability')} ({item.get('status', 'unspecified')})"
+        for item in grants
+        if isinstance(item, dict) and isinstance(item.get("capability"), str)
+    ]
+    return ", ".join(sorted(values)) if values else "—"
+
+
 def _row(m: Dict[str, Any]) -> str:
     skills = m.get("skills") or []
     active = [s for s in skills if s.get("activation") == "active"]
+    reference_skills = m.get("reference_skills") or []
     return (f"| {m['agent_id']} | {m.get('activation', '—')} | {m.get('role_status', '—')} | "
             f"{_join(m.get('capabilities'))} | {_join(m.get('resource_scopes'))} | "
-            f"{_join(m.get('services_enabled'))} | {len(skills)} (активних: {len(active)}) | {_telegram(m)} |")
+            f"{_join(m.get('services_enabled'))} | {_proposed_grants(m)} | "
+            f"{len(skills)} (активних: {len(active)}) | {_join(reference_skills)} | {_telegram(m)} |")
 
 
 def build() -> str:
@@ -53,8 +67,8 @@ def build() -> str:
         "",
         "За замовчуванням — відмова (default-deny): усе, чого немає в колонках, заборонено.",
         "",
-        "| Агент | Активація | Роль | Capabilities | Resource scopes | Сервіси | Skills | Telegram |",
-        "|---|---|---|---|---|---|---|---|",
+        "| Агент | Активація | Роль | Capabilities | Resource scopes | Сервіси | Proposed grants (не застосовані) | Skills | Reference skills (read-only) | Telegram |",
+        "|---|---|---|---|---|---|---|---|---|---|",
     ]
     lines += [_row(m) for m in manifests]
     lines += [

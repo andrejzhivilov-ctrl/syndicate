@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# EVA SYNDICATE — Vault Unseal Script
+# SYNDICATE — Vault Unseal Script
 # Reads unseal keys from environment variables (never from disk)
 # Usage: VAULT_UNSEAL_KEY_1=... VAULT_UNSEAL_KEY_2=... VAULT_UNSEAL_KEY_3=... bash vault_unseal.sh
 

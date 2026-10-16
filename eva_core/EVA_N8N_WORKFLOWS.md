@@ -1,6 +1,6 @@
 # 🔄 EVA N8N WORKFLOW SPECS — Архітектура воркфлоу Єви (v1.0)
 
-> **Контекст:** Всі воркфлоу Eva Syndicate живуть у N8N v1.65+ (self-hosted, контейнер `n8n` у docker-compose).
+> **Контекст:** Всі воркфлоу SYNDICATE живуть у N8N v1.65+ (self-hosted, контейнер `n8n` у docker-compose).
 > N8N — це оркестратор, не розум. Розум — це Claude Sonnet/Haiku в HTTP Request нодах.
 > Усі секрети зберігаються у Vault та передаються в N8N через env-змінні.
 
@@ -30,7 +30,7 @@
 ---
 
 ## ВОРКФЛОУ 1: EVA-GATEWAY-INBOUND
-**Тригер:** Telegram Webhook (будь-яке повідомлення в @eva_syndicate_bot)
+**Тригер:** Telegram Webhook (будь-яке повідомлення в @syndicate_bot)
 **Призначення:** Розпізнати тип вхідного запиту і направити в потрібний воркфлоу або обробити безпосередньо.
 
 ```

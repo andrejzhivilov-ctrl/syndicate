@@ -3,7 +3,7 @@
   "activation": "prepared_not_enabled",
   "agent_id": "doc",
   "runtime": "hermes",
-  "hermes_profile": "doc",
+  "runtime_profile": "doc",
   "memory_namespace": "agents/doc",
   "prompt_status": "not_prepared",
   "role_status": "not_agreed",

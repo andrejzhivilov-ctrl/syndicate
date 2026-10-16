@@ -1,5 +1,5 @@
 """
-EVA SYNDICATE — Regression suite.
+SYNDICATE — Regression suite.
 
 Every test here pins down a defect that was found during the full-repository
 audit and has since been fixed. If one of these fails, a bug has come back.
@@ -1255,10 +1255,12 @@ class TestVaultSecretPaths:
     def test_single_convention(self):
         from src import vault_paths
 
-        assert vault_paths.secret_path("database") == "secret/data/eva-syndicate/database"
-        assert vault_paths.secret_path("api-keys") == "secret/data/eva-syndicate/api-keys"
+        assert vault_paths.secret_path("database") == "secret/data/syndicate/database"
+        assert vault_paths.secret_path("api-keys") == "secret/data/syndicate/api-keys"
+        assert vault_paths.legacy_secret_path("database") == "secret/data/eva-syndicate/database"
         for service in ("database", "redis", "auth", "api-keys"):
-            assert vault_paths.secret_path(service).startswith("secret/data/eva-syndicate/")
+            assert vault_paths.secret_path(service).startswith("secret/data/syndicate/")
+            assert vault_paths.legacy_secret_path(service).startswith("secret/data/eva-syndicate/")
 
     def test_empty_service_is_rejected(self):
         from src import vault_paths
@@ -2896,7 +2898,7 @@ class TestBackupTool:
 
     @staticmethod
     def _env(monkeypatch, tmp_path, **overrides):
-        monkeypatch.setenv("EVA_BACKUP_DATABASE_URL", "postgresql://eva:pw@postgres:5432/eva_syndicate")
+        monkeypatch.setenv("EVA_BACKUP_DATABASE_URL", "postgresql://eva:pw@postgres:5432/syndicate")
         monkeypatch.setenv("EVA_DOTENV_FILE", str(tmp_path / ".env"))
         (tmp_path / ".env").write_text("POSTGRES_PASSWORD=x\n", encoding="utf-8")
         for key in ("VAULT_ADDR", "VAULT_TOKEN", "RESTIC_REPOSITORY"):
@@ -3375,8 +3377,9 @@ class TestVaultPolicyGeneration:
     """Two failures motivated this: policies lived as heredocs inside the init
     script and drifted from the paths the code reads, and the runtime policy was
     a wildcard (``secret/data/eva-syndicate/*``) granting every secret to one
-    token — other agents' provider keys included. Policies are now generated
-    from ``src/vault_paths.py`` and every floor has its own least-privilege one.
+    token — other agents' provider keys included. That prefix is retained only
+    as a migration compatibility namespace. Policies are now generated from
+    ``src/vault_paths.py`` and every floor has its own least-privilege one.
     """
 
     def _policies(self):
@@ -3421,6 +3424,19 @@ class TestVaultPolicyGeneration:
                 if other == agent_id:
                     continue
                 assert f"{mod.vault_paths.AGENTS}/{other}/" not in text
+
+    def test_retired_antigravity_profile_has_no_vault_data_grants(self):
+        """Antigravity is runtime technology, not an agent identity or secret reader."""
+        mod = self._policies()
+        policy = mod.build_policies()["eva-antigravity"]
+        assert mod.vault_paths.AGENT_SERVICES["antigravity"] == ()
+        assert mod.vault_paths.agent_policy_paths("antigravity") == []
+        policy_paths = {
+            line.split('"')[1]
+            for line in policy.splitlines()
+            if line.startswith('path "')
+        }
+        assert policy_paths == {"auth/token/renew-self", "auth/token/lookup-self"}
 
     def test_agent_policies_cannot_read_the_server_api_key(self):
         """`auth` holds the server's API key + webhook HMAC. A floor container
@@ -3481,17 +3497,17 @@ class TestVaultInitScript:
         result, vault, secrets_dir = self._run(tmp_path, ANTHROPIC_API_KEY="sk-ant-real-key")
         assert result.returncode == 0, f"stdout={result.stdout}\nstderr={result.stderr}"
         stored = vault.secrets
-        assert stored["eva-syndicate/database"]["password"] == "db-pass-for-tests"
+        assert stored["syndicate/database"]["password"] == "db-pass-for-tests"
         # The DB user must match the one compose/.env.example create the cluster
         # with (`${POSTGRES_USER:-eva}`), or the DSN is rejected at boot.
         compose_text = (REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
         assert "POSTGRES_USER:-eva}" in compose_text
-        assert stored["eva-syndicate/database"]["user"] == "eva"
-        assert stored["eva-syndicate/redis"]["password"] == "redis-pass-for-tests"
-        assert stored["eva-syndicate/api-keys"] == {"anthropic_api_key": "sk-ant-real-key"}
+        assert stored["syndicate/database"]["user"] == "eva"
+        assert stored["syndicate/redis"]["password"] == "redis-pass-for-tests"
+        assert stored["syndicate/api-keys"] == {"anthropic_api_key": "sk-ant-real-key"}
         # The server API key is generated, not left as a placeholder.
-        assert len(stored["eva-syndicate/auth"]["api_key"]) == 64
-        assert len(stored["eva-syndicate/auth"]["webhook_secret"]) == 64
+        assert len(stored["syndicate/auth"]["api_key"]) == 64
+        assert len(stored["syndicate/auth"]["webhook_secret"]) == 64
         assert vault.placeholder_secrets() == {}
         # Unseal keys land in a 0600 file and nowhere else.
         init_file = secrets_dir / "vault-init.json"
@@ -3502,14 +3518,14 @@ class TestVaultInitScript:
         """Explicit POSTGRES_USER wins — the value must be the real cluster user."""
         result, vault, _ = self._run(tmp_path, POSTGRES_USER="custom_user")
         assert result.returncode == 0, result.stderr
-        assert vault.secrets["eva-syndicate/database"]["user"] == "custom_user"
+        assert vault.secrets["syndicate/database"]["user"] == "custom_user"
 
     def test_script_does_not_reinvent_secrets_that_were_not_supplied(self, tmp_path):
         """Previously it wrote CHANGE_ME_BEFORE_PRODUCTION / PLACEHOLDER_UPDATE_ME
         for anything the operator had not filled in — values that *look* set."""
         result, vault, _ = self._run(tmp_path)  # no provider keys at all
         assert result.returncode == 0, f"stdout={result.stdout}\nstderr={result.stderr}"
-        assert "eva-syndicate/api-keys" not in vault.secrets, "absent provider keys must stay absent"
+        assert "syndicate/api-keys" not in vault.secrets, "absent provider keys must stay absent"
         for path, data in vault.secrets.items():
             for value in data.values():
                 assert "CHANGE_ME" not in str(value).upper(), f"{path} got a placeholder"
@@ -3542,6 +3558,12 @@ class TestVaultInitScript:
             assert oct(creds.stat().st_mode)[-3:] == "600"
             text = creds.read_text(encoding="utf-8")
             assert f"role-id-{name}" in text and f"secret-id-{name}" in text
+            if name == "eva-alice":
+                lines = text.splitlines()
+                assert any(line.startswith("ALICE_VAULT_ROLE_ID=") for line in lines)
+                assert any(line.startswith("ALICE_VAULT_SECRET_ID=") for line in lines)
+                assert not any(line.startswith("VAULT_ROLE_ID=") for line in lines)
+                assert not any(line.startswith("VAULT_SECRET_ID=") for line in lines)
 
     def test_root_token_is_revoked_unless_explicitly_kept(self, tmp_path):
         _result, vault, _ = self._run(tmp_path)
@@ -3568,10 +3590,10 @@ class TestVaultInitScript:
 
         with FakeVault() as vault:
             run_vault_init(vault, tmp_path / "s")  # first run
-            vault.secrets["eva-syndicate/auth"]["api_key"] = "operator-managed-key"
+            vault.secrets["syndicate/auth"]["api_key"] = "operator-managed-key"
             vault.initialized = False  # pretend a fresh node but secrets survive
             run_vault_init(vault, tmp_path / "s2")
-            assert vault.secrets["eva-syndicate/auth"]["api_key"] == "operator-managed-key"
+            assert vault.secrets["syndicate/auth"]["api_key"] == "operator-managed-key"
 
     def test_script_is_syntactically_valid_bash(self):
         result = subprocess.run(
@@ -3635,13 +3657,13 @@ class TestVaultPlaceholderSecrets:
 
             client = VaultClient("http://vault:8200", "role", "secret")
             client._http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
-            data = await client.get_secret("secret/data/eva-syndicate/redis")
+            data = await client.get_secret("secret/data/syndicate/redis")
             await client.aclose()
             return data, client.placeholder_keys
 
         data, flagged = asyncio.run(run())
         assert data == {"user": "eva_agent"}, "placeholder key survived filtering"
-        assert flagged == [("secret/data/eva-syndicate/redis", "password")]
+        assert flagged == [("secret/data/syndicate/redis", "password")]
 
     def test_agent_runner_refuses_to_build_a_dsn_without_a_real_password(self):
         """`db_secrets['password']` used to raise a bare KeyError inside the
@@ -3652,9 +3674,9 @@ class TestVaultPlaceholderSecrets:
         import agent_runner
 
         with pytest.raises(RuntimeError) as excinfo:
-            agent_runner._require_secret({"user": "eva_agent"}, "password", "secret/data/eva-syndicate/database")
+            agent_runner._require_secret({"user": "eva_agent"}, "password", "secret/data/syndicate/database")
         message = str(excinfo.value)
-        assert "secret/data/eva-syndicate/database" in message
+        assert "secret/data/syndicate/database" in message
         assert "password" in message
         assert "CHANGE_ME" in message  # explains that placeholders count as absent
 
@@ -3670,17 +3692,27 @@ class TestVaultSecretPathHelpers:
         from src import vault_paths
 
         assert vault_paths.agent_secret_path("sam", "broker") == (
-            "secret/data/eva-syndicate/agents/sam/broker"
+            "secret/data/syndicate/agents/sam/broker"
         )
-        assert vault_paths.agent_secret_path("sam") == "secret/data/eva-syndicate/agents/sam"
+        assert vault_paths.agent_secret_path("sam") == "secret/data/syndicate/agents/sam"
 
     def test_metadata_and_service_paths(self):
         from src import vault_paths
 
-        assert vault_paths.metadata_path("database") == "secret/metadata/eva-syndicate/database"
+        assert vault_paths.metadata_path("database") == "secret/metadata/syndicate/database"
         assert vault_paths.policy_paths_for_service("redis") == [
+            "secret/data/syndicate/redis",
+            "secret/metadata/syndicate/redis",
             "secret/data/eva-syndicate/redis",
             "secret/metadata/eva-syndicate/redis",
+        ]
+        assert vault_paths.read_path_candidates("secret/data/syndicate/redis") == [
+            "secret/data/syndicate/redis",
+            "secret/data/eva-syndicate/redis",
+        ]
+        assert vault_paths.read_path_candidates("secret/data/eva-syndicate/redis") == [
+            "secret/data/syndicate/redis",
+            "secret/data/eva-syndicate/redis",
         ]
 
     def test_empty_arguments_are_rejected(self):
@@ -3737,12 +3769,26 @@ class TestDirectorSafetyRegressions:
                            "observed_at": datetime.now(timezone.utc).isoformat(), "model_source": "regression"})
         assert result["stake"] <= result["bankroll"] * result["event_risk_cap"]
 
-    def test_director_vault_policies_cannot_read_shared_llm_keys(self):
-        from src.vault_paths import agent_policy_paths, secret_path, API_KEYS
-        for agent_id in ("oscar", "tyler", "jack"):
+    def test_agent_vault_policies_cannot_read_shared_llm_keys(self):
+        from src.vault_paths import (
+            API_KEYS,
+            agent_policy_paths,
+            agent_secret_path,
+            legacy_agent_secret_path,
+            secret_path,
+        )
+        for agent_id in ("oscar", "tyler", "jack", "alice", "antigravity"):
             paths = agent_policy_paths(agent_id)
             assert secret_path(API_KEYS) not in paths
             assert all(f"/agents/{agent_id}/" in path for path in paths)
+        alice_paths = set(agent_policy_paths("alice"))
+        expected = set()
+        for path_builder in (agent_secret_path, legacy_agent_secret_path):
+            for secret_name in ("auth", "gemini"):
+                data_path = path_builder("alice", secret_name)
+                expected.add(data_path)
+                expected.add(data_path.replace("/data/", "/metadata/", 1))
+        assert alice_paths == expected
 
 
 def test_vault_policy_generator_does_not_double_quote_capability_tokens():

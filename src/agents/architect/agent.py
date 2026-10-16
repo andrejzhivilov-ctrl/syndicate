@@ -415,7 +415,7 @@ class ArchitectAgent:
     def verify_code_integrity(self, code: str) -> Dict[str, Any]:
         """Compiler-in-the-Loop verifier:
         1. Parses Python AST (`ast.parse`) to catch syntax errors.
-        2. Inspects method calls against core EVA Syndicate interfaces (`MemoryManager`, `LessonsStore`).
+        2. Inspects method calls against core SYNDICATE interfaces (`MemoryManager`, `LessonsStore`).
         3. Detects SQLAlchemy `:param::vector` bind conflicts and synchronous `.generate()` traps.
         """
         errors: List[Dict[str, Any]] = []
@@ -643,7 +643,7 @@ class ArchitectAgent:
     async def generate_ui_scaffold(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """App Generator / UI Scaffold Engine (inspired by Abacus Vibe Coding):
         Generates production-ready frontend boilerplate (Next.js / Tailwind / Tauri / Flutter)
-        specifically configured to communicate with EVA Syndicate agent REST/WebSocket APIs.
+        specifically configured to communicate with SYNDICATE agent REST/WebSocket APIs.
         """
         framework = payload.get("framework", "nextjs").lower()  # nextjs, flutter, tauri
         app_name = payload.get("app_name", "syndicate-command-center")

@@ -1,4 +1,4 @@
-# HashiCorp Vault configuration for EVA SYNDICATE (v4.1 Verified)
+# HashiCorp Vault configuration for SYNDICATE (v4.1 Verified)
 # Single-node Raft integrated storage
 
 storage "raft" {

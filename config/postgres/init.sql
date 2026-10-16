@@ -1,4 +1,4 @@
--- EVA SYNDICATE PostgreSQL Initialization
+-- SYNDICATE PostgreSQL Initialization
 -- Requires: pgvector extension (image: pgvector/pgvector:pg16)
 
 -- Enable extensions

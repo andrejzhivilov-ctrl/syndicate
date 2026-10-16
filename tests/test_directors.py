@@ -12,16 +12,17 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
+from src.agents.antigravity_worker import AntigravityDirectorAgent
+from src.agents.jack import JackAgent
 from src.agents.oscar import OscarAgent
 from src.agents.oscar.router import TriLLMRouter
 from src.agents.tyler import TylerAgent
 from src.agents.tyler.finance import calculate_margin
-from src.agents.jack import JackAgent
 from src.agents.jack.engines import football, tennis, esports, icm, basketball, poker
 from src.agents.jack.quant import evaluate
 from src.agents.jack.tracker import anti_tilt
 from src.agents.director_providers import OddsScout, YouTubeComments, VaultLLM, build_provider
-from deploy.runtime.director_runner import create_app, boot_director
+from deploy.runtime.director_runner import AGENTS, create_app, boot_director
 
 
 def run(agent, action, **payload):
@@ -241,6 +242,28 @@ def test_empty_report_has_no_invented_roi_or_winrate():
     assert report["roi"] is None and report["win_rate"] is None
 
 
+def test_retired_antigravity_placeholder_has_no_operational_actions():
+    result = run(AntigravityDirectorAgent(), "capabilities")
+    assert result["agent"] == "alice"
+    assert result["runtime"] == "antigravity_sdk"
+    assert result["available_actions"] == ["capabilities"]
+    assert result["grants_level"] == "none"
+    assert result["external_actions"] is False
+    assert run(AntigravityDirectorAgent(), "browser")["status"] == "error"
+
+
+def test_retired_antigravity_id_cannot_boot_as_standalone_worker(monkeypatch):
+    assert "antigravity" not in AGENTS
+    monkeypatch.setenv("SYNDICATE_DIRECTOR_ID", "antigravity")
+
+    class VaultThatMustNotAuthenticate:
+        async def authenticate(self):
+            raise AssertionError("retired director must be rejected before Vault access")
+
+    with pytest.raises(RuntimeError, match="unknown_director"):
+        asyncio.run(boot_director(VaultThatMustNotAuthenticate()))
+
+
 def test_worker_api_auth_and_agent_isolation():
     with TestClient(create_app(JackAgent(), api_key="synthetic-key")) as client:
         assert client.get("/health").status_code == 200
@@ -364,14 +387,40 @@ def test_worker_bridge_uses_only_own_vault_auth_and_checks_response_agent():
     assert result["status"] == "unavailable"
 
 
+def test_alice_worker_bridge_uses_only_alice_auth_and_checks_response_agent():
+    from src.agent_platform.director_client import DirectorWorkerClient
+
+    class Vault:
+        async def get_secret(self, path):
+            assert path.endswith("agents/alice/auth")
+            return {"api_key": "synthetic-alice-worker-key"}
+
+    def respond(request):
+        assert request.url.host == "alice-agent"
+        assert request.url.path == "/execute"
+        assert request.headers["X-API-Key"] == "synthetic-alice-worker-key"
+        return httpx.Response(200, json={"agent": "alice", "status": "ok", "value": "review"})
+
+    client = DirectorWorkerClient("alice", "http://alice-agent:8000", Vault(), transport=httpx.MockTransport(respond))
+    result = asyncio.run(client.execute({"action": "review"}))
+    assert result == {"agent": "alice", "status": "ok", "value": "review"}
+
+
 def test_worker_config_is_dormant_and_explicit():
     from src.runtime_config import build_runtime_config
     config = build_runtime_config({})
     assert config["jack"]["enabled"] is False
     assert config["jack"]["allowed_actions"] == ["capabilities"]
+    assert config["alice"]["enabled"] is False
+    assert config["alice"]["allowed_actions"] == ["capabilities"]
     config = build_runtime_config({"JACK_WORKER_ENABLED": "true", "JACK_WORKER_URL": "http://jack-agent:8000",
-                                   "JACK_COORDINATOR_ACTIONS": "evaluate,report"})
+                                   "JACK_COORDINATOR_ACTIONS": "evaluate,report",
+                                   "ALICE_WORKER_ENABLED": "true", "ALICE_WORKER_URL": "http://alice-agent:8000",
+                                   "ALICE_COORDINATOR_ACTIONS": "engineer,review"})
     assert config["jack"]["allowed_actions"] == ["evaluate", "report"]
+    assert config["alice"]["enabled"] is True
+    assert config["alice"]["worker_url"] == "http://alice-agent:8000"
+    assert config["alice"]["allowed_actions"] == ["engineer", "review"]
 
 
 def test_orchestrator_director_handler_respects_host_allowlist_and_remote_client():

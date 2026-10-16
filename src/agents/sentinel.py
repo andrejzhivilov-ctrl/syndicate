@@ -2,7 +2,7 @@
 Sentinel Protocol — Backward-Compatibility Layer for Marshal (Chief Security Officer).
 
 NOTE: Sentinel is NOT a separate LLM agent.
-All security functions in EVA SYNDICATE are commanded solely by Marshal (CSO, Floor 10).
+All security functions in SYNDICATE are commanded solely by Marshal (CSO, Floor 10).
 All security gate validations (inbound prompt injection scans, outbound vetoes,
 lethal trifecta guard, destructive command blocking, slopsquatting checks, secret redaction,
 and HMAC verification) run as deterministic, zero-token Python algorithms (0 tokens burned).

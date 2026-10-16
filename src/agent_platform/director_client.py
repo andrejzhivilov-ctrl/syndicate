@@ -11,8 +11,8 @@ from src.vault_client import is_placeholder_secret
 
 class DirectorWorkerClient:
     def __init__(self, agent_id: str, url: str, vault, *, transport=None) -> None:
-        if agent_id not in {"oscar", "tyler", "jack"}:
-            raise ValueError("unknown_director")
+        if agent_id not in {"oscar", "tyler", "jack", "alice"}:
+            raise ValueError("unknown_agent")
         parts = urlsplit(url)
         if parts.scheme not in {"http", "https"} or not parts.hostname or parts.username or parts.password:
             raise ValueError("invalid_worker_url")
@@ -42,5 +42,5 @@ class DirectorWorkerClient:
 
 def build_director_clients(config: dict, vault) -> dict[str, DirectorWorkerClient]:
     return {agent_id: DirectorWorkerClient(agent_id, config[agent_id]["worker_url"], vault)
-            for agent_id in ("oscar", "tyler", "jack")
+            for agent_id in ("oscar", "tyler", "jack", "alice")
             if config.get(agent_id, {}).get("enabled") is True and config[agent_id].get("worker_url")}

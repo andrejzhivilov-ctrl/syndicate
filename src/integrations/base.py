@@ -3,7 +3,7 @@ Base connector for all third-party integrations.
 
 Design principles (Zero-Trust / Least-Privilege):
 - Every secret is retrieved through HashiCorp Vault (src.vault_client.VaultClient).
-  Vault path convention: ``secret/data/eva-syndicate/<SERVICE_NAME>``.
+  Vault path convention: ``secret/data/syndicate/<SERVICE_NAME>``.
 - A local environment-variable fallback exists ONLY for local development and is
   logged loudly as a warning. It must never be relied on in production.
 - Outbound HTTP has: configurable timeout, exponential-backoff retry on 429/5xx,

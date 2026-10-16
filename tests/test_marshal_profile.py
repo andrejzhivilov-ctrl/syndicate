@@ -101,7 +101,7 @@ def test_marshal_and_eva_namespaces_are_isolated() -> None:
     marshal = _load(MARSHAL_PROFILE_PATH)
     eva = _load(EVA_PROFILE_PATH)
     assert marshal["agent_id"] != eva["agent_id"]
-    assert marshal["hermes_profile"] != eva["hermes_profile"]
+    assert marshal["runtime_profile"] != eva["runtime_profile"]
     assert marshal["memory_namespace"] != eva["memory_namespace"]
 
     registry = AgentRegistry(
@@ -109,7 +109,7 @@ def test_marshal_and_eva_namespaces_are_isolated() -> None:
             marshal_agent_profile(marshal),
             AgentProfile(
                 agent_id=eva["agent_id"],
-                hermes_profile=eva["hermes_profile"],
+                runtime_profile=eva["runtime_profile"],
                 memory_namespace=eva["memory_namespace"],
                 capabilities=frozenset(eva["capabilities"]),
                 resource_scopes=frozenset(eva["resource_scopes"]),

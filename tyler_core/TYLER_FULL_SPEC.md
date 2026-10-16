@@ -1,5 +1,5 @@
 # 👕 TYLER_CORE — CHIEF OF PRINT-ON-DEMAND & PHYSICAL MERCH
-> Повна специфікація та конфігурація агента ТАЙЛЕР у складі EVA SYNDICATE
+> Повна специфікація та конфігурація агента ТАЙЛЕР у складі SYNDICATE
 
 ## 1. Реєстраційні Дані
 * **Agent ID:** `tyler`

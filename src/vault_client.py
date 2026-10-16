@@ -12,6 +12,8 @@ import httpx
 import structlog
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from src.vault_paths import read_path_candidates
+
 logger = structlog.get_logger(__name__)
 
 #: Strings that mean "nobody filled this in yet". ``vault_init.sh`` used to
@@ -112,11 +114,25 @@ class VaultClient:
         if not self.is_authenticated:
             await self.authenticate()
 
-        response = await self._http.get(
-            f"{self._vault_addr}/v1/{path}",
-            headers=self._auth_headers(),
-        )
-        response.raise_for_status()
+        candidates = read_path_candidates(path)
+        selected_path = candidates[0]
+        response = None
+        for index, candidate in enumerate(candidates):
+            response = await self._http.get(
+                f"{self._vault_addr}/v1/{candidate}",
+                headers=self._auth_headers(),
+            )
+            if response.status_code == 404 and index < len(candidates) - 1:
+                logger.info(
+                    "vault_canonical_path_missing_trying_legacy",
+                    requested_path=path,
+                    fallback_path=candidates[index + 1],
+                )
+                continue
+            response.raise_for_status()
+            selected_path = candidate
+            break
+        assert response is not None  # read_path_candidates always returns at least one path
         payload = response.json()
         try:
             data = payload["data"]["data"]
@@ -124,18 +140,18 @@ class VaultClient:
             # KV v1 (and empty KV v2 secrets) have a different envelope; report
             # it instead of raising a bare KeyError deep in the caller.
             raise RuntimeError(
-                f"vault_unexpected_secret_envelope: {path} "
+                f"vault_unexpected_secret_envelope: {selected_path} "
                 f"(keys: {sorted(payload) if isinstance(payload, dict) else type(payload).__name__})"
             ) from None
 
         if not isinstance(data, dict):
-            raise RuntimeError(f"vault_unexpected_secret_envelope: {path} (data is {type(data).__name__})")
+            raise RuntimeError(f"vault_unexpected_secret_envelope: {selected_path} (data is {type(data).__name__})")
 
         usable: Dict[str, Any] = {}
         for key, value in data.items():
             if is_placeholder_secret(value):
-                self.placeholder_keys.append((path, key))
-                logger.warning("vault_placeholder_secret_ignored", path=path, key=key)
+                self.placeholder_keys.append((selected_path, key))
+                logger.warning("vault_placeholder_secret_ignored", path=selected_path, key=key)
                 continue
             usable[key] = value
         return usable

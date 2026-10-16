@@ -1,5 +1,5 @@
 """
-EVA SYNDICATE — Agent Swarm (Parallel Research & Verification Engine).
+SYNDICATE — Agent Swarm (Parallel Research & Verification Engine).
 
 Inspired by multi-agent swarm patterns:
 Divides a deep research or verification task into parallel specialist sub-queries:

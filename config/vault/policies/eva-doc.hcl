@@ -4,15 +4,31 @@
 #
 # Agent policy: doc.
 # Infrastructure: database, redis, api-keys.
-# Own subtree: secret/data/eva-syndicate/agents/doc/<name>.
+# Own subtree: secret/data/syndicate/agents/doc/<name>.
 # Extra services: none (default deny).
 # Cannot read other agents' subtrees or the server's own API key.
+
+path "secret/data/syndicate/database" {
+  capabilities = ["read"]
+}
+
+path "secret/metadata/syndicate/database" {
+  capabilities = ["list", "read"]
+}
 
 path "secret/data/eva-syndicate/database" {
   capabilities = ["read"]
 }
 
 path "secret/metadata/eva-syndicate/database" {
+  capabilities = ["list", "read"]
+}
+
+path "secret/data/syndicate/redis" {
+  capabilities = ["read"]
+}
+
+path "secret/metadata/syndicate/redis" {
   capabilities = ["list", "read"]
 }
 
@@ -24,11 +40,27 @@ path "secret/metadata/eva-syndicate/redis" {
   capabilities = ["list", "read"]
 }
 
+path "secret/data/syndicate/api-keys" {
+  capabilities = ["read"]
+}
+
+path "secret/metadata/syndicate/api-keys" {
+  capabilities = ["list", "read"]
+}
+
 path "secret/data/eva-syndicate/api-keys" {
   capabilities = ["read"]
 }
 
 path "secret/metadata/eva-syndicate/api-keys" {
+  capabilities = ["list", "read"]
+}
+
+path "secret/data/syndicate/agents/doc/*" {
+  capabilities = ["read"]
+}
+
+path "secret/metadata/syndicate/agents/doc/*" {
   capabilities = ["list", "read"]
 }
 

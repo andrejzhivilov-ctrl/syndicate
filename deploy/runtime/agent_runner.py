@@ -1,5 +1,5 @@
 """
-EVA SYNDICATE — Agent Runner (v4.1 Verified)
+SYNDICATE — Agent Runner (v4.1 Verified)
 FastAPI application serving as the main entry point for the EVA orchestrator agent.
 Fixes applied:
 - Wires LessonsStore, ConfidenceBudget, and PIIRedactor into EvaOrchestrator
@@ -205,7 +205,7 @@ async def _purge_device_tokens(interval_seconds: int = 3600) -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup and shutdown lifecycle."""
-    logger.info("EVA SYNDICATE agent starting up (v4.1)...")
+    logger.info("SYNDICATE agent starting up (v4.1)...")
 
     try:
         # 1. Initialize Vault client
@@ -228,7 +228,7 @@ async def lifespan(app: FastAPI):
             f"postgresql+asyncpg://{_require_secret(db_secrets, 'user', db_path)}"
             f":{_require_secret(db_secrets, 'password', db_path)}"
             f"@{os.getenv('POSTGRES_HOST', 'postgres')}:{os.getenv('POSTGRES_PORT', '5432')}"
-            f"/{os.getenv('POSTGRES_DB', 'eva_syndicate')}"
+            f"/{os.getenv('POSTGRES_DB', 'syndicate')}"
         )
         redis_secrets = await app_state.vault_client.get_secret(secret_path("redis"))
         redis_password = _require_secret(redis_secrets, "password", secret_path("redis"))
@@ -336,7 +336,7 @@ async def lifespan(app: FastAPI):
         logger.info("HITL surface initialized", change_requests=store is not None)
 
         app_state.ready = True
-        logger.info("EVA SYNDICATE agent ready", uptime=0)
+        logger.info("SYNDICATE agent ready", uptime=0)
 
         yield
 
@@ -344,7 +344,7 @@ async def lifespan(app: FastAPI):
         logger.error("Fatal startup error", error=str(exc), exc_info=True)
         raise
     finally:
-        logger.info("EVA SYNDICATE agent shutting down...")
+        logger.info("SYNDICATE agent shutting down...")
         app_state.ready = False
         if app_state.vault_renewal_task is not None:
             app_state.vault_renewal_task.cancel()
@@ -383,7 +383,7 @@ def _cors_origins() -> list:
 
 
 app = FastAPI(
-    title="EVA SYNDICATE Agent",
+    title="SYNDICATE Agent",
     description="Autonomous multi-agent orchestration system",
     version="4.1.0",
     # OpenAPI stays on: it is the source of truth for the generated client
@@ -659,7 +659,7 @@ async def require_read(
     raise HTTPException(
         status_code=401,
         detail=detail,
-        headers={"WWW-Authenticate": 'Basic realm="EVA Syndicate", charset="UTF-8"'},
+        headers={"WWW-Authenticate": 'Basic realm="SYNDICATE", charset="UTF-8"'},
     )
 
 

@@ -26,7 +26,7 @@ def sam_agent_profile(manifest: Mapping[str, Any] | None = None) -> AgentProfile
     data = dict(manifest or load_sam_manifest())
     return AgentProfile(
         agent_id=str(data.get("agent_id", "")),
-        hermes_profile=str(data.get("hermes_profile", "")),
+        runtime_profile=str(data.get("runtime_profile", "")),
         memory_namespace=str(data.get("memory_namespace", "")),
         capabilities=frozenset(data.get("capabilities") or ()),
         resource_scopes=frozenset(data.get("resource_scopes") or ()),

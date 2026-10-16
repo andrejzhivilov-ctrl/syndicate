@@ -1,4 +1,4 @@
-# EVA SYNDICATE — Python Dependencies (v4.1 Verified & Resolvable)
+# SYNDICATE — Python Dependencies (v4.1 Verified & Resolvable)
 # Core API & Server
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
@@ -41,6 +41,7 @@ ccxt>=4.4.0
 # Document Toolkit (Doc & Eva)
 openpyxl>=3.1.5
 python-docx>=1.1.2
+python-pptx>=1.0.2
 pypdf>=4.3.1
 reportlab>=4.2.2
 

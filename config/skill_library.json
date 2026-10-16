@@ -28,8 +28,7 @@
       "agents": [
         "eva",
         "architect",
-        "kodex",
-        "antigravity"
+        "kodex"
       ],
       "resources": {
         "SKILL.md": "skills/vendor/mattpocock/skills/skills/productivity/handoff/SKILL.md",
@@ -63,7 +62,7 @@
       "mode": "reference_only",
       "agents": [
         "architect",
-        "antigravity"
+        "alice"
       ],
       "resources": {
         "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/api-and-interface-design/SKILL.md",
@@ -86,7 +85,7 @@
       "mode": "reference_only",
       "agents": [
         "architect",
-        "antigravity"
+        "alice"
       ],
       "resources": {
         "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/debugging-and-error-recovery/SKILL.md",
@@ -111,7 +110,7 @@
         "eva",
         "architect",
         "kodex",
-        "antigravity"
+        "alice"
       ],
       "resources": {
         "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/context-engineering/SKILL.md",
@@ -134,7 +133,8 @@
       "mode": "reference_only",
       "agents": [
         "architect",
-        "kodex"
+        "kodex",
+        "alice"
       ],
       "resources": {
         "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/documentation-and-adrs/SKILL.md",
@@ -157,7 +157,7 @@
       "mode": "reference_only",
       "agents": [
         "architect",
-        "antigravity"
+        "alice"
       ],
       "resources": {
         "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/source-driven-development/SKILL.md",
@@ -180,7 +180,7 @@
       "mode": "reference_only",
       "agents": [
         "architect",
-        "antigravity"
+        "alice"
       ],
       "resources": {
         "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/test-driven-development/SKILL.md",
@@ -203,7 +203,8 @@
       "mode": "reference_only",
       "agents": [
         "eva",
-        "architect"
+        "architect",
+        "alice"
       ],
       "resources": {
         "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/planning-and-task-breakdown/SKILL.md",
@@ -225,8 +226,7 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "architect",
-        "antigravity"
+        "architect"
       ],
       "resources": {
         "SKILL.md": "skills/vendor/DietrichGebert/ponytail/skills/ponytail/SKILL.md"
@@ -264,7 +264,6 @@
       "license": "Apache-2.0 (skill-local LICENSE.txt)",
       "mode": "reference_only",
       "agents": [
-        "antigravity",
         "tyler",
         "oscar"
       ],
@@ -327,7 +326,6 @@
       "mode": "reference_only",
       "agents": [
         "architect",
-        "antigravity",
         "tyler"
       ],
       "resources": {
@@ -345,7 +343,6 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "antigravity",
         "marshal"
       ],
       "resources": {
@@ -400,7 +397,8 @@
       "mode": "reference_only",
       "agents": [
         "marshal",
-        "architect"
+        "architect",
+        "alice"
       ],
       "resources": {
         "SKILL.md": "skills/vendor/affaan-m/ECC/skills/agent-security-hardening/SKILL.md"

@@ -1,5 +1,5 @@
 -- ============================================================
--- EVA SYNDICATE — migration v5: embedding dimension 1536 -> 1024
+-- SYNDICATE — migration v5: embedding dimension 1536 -> 1024
 --
 -- Why: vectors are now produced by the self-hosted BGE-M3 model
 -- (see src/embeddings.py) instead of a third-party API. BGE-M3 emits 1024

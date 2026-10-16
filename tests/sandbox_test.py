@@ -143,7 +143,7 @@ class MockReasoningLLM:
 
 async def run_sandbox_suite():
     print("=" * 72)
-    print("🚀 EVA SYNDICATE v4.1 — LIVE SANDBOX VERIFICATION SUITE")
+    print("🚀 SYNDICATE v4.1 — LIVE SANDBOX VERIFICATION SUITE")
     print("=" * 72)
 
     # -------------------------------------------------------------------------

@@ -4,9 +4,17 @@
 #
 # Agent policy: jack.
 # Infrastructure: none.
-# Own subtree: secret/data/eva-syndicate/agents/jack/<name>.
+# Own subtree: secret/data/syndicate/agents/jack/<name>.
 # Extra services: none (default deny).
 # Cannot read other agents' subtrees or the server's own API key.
+
+path "secret/data/syndicate/agents/jack/*" {
+  capabilities = ["read"]
+}
+
+path "secret/metadata/syndicate/agents/jack/*" {
+  capabilities = ["list", "read"]
+}
 
 path "secret/data/eva-syndicate/agents/jack/*" {
   capabilities = ["read"]

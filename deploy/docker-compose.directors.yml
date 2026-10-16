@@ -98,14 +98,17 @@ services:
       nofile:
         soft: 1024
         hard: 2048
+  # Retired compatibility stub: Antigravity is a runtime technology, not an
+  # independently activatable agent. This profile is intentionally excluded
+  # from the general `directors` profile.
   antigravity-agent:
     build:
       context: ..
       dockerfile: deploy/docker/Dockerfile.director
     profiles:
-    - directors
+    - antigravity-legacy-disabled
     restart: unless-stopped
-    read_only: false
+    read_only: true
     security_opt:
     - no-new-privileges:true
     tmpfs:
