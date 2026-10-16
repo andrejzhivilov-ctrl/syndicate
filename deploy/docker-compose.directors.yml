@@ -98,6 +98,37 @@ services:
       nofile:
         soft: 1024
         hard: 2048
+  antigravity-agent:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.director
+    profiles:
+    - directors
+    restart: unless-stopped
+    read_only: false
+    security_opt:
+    - no-new-privileges:true
+    tmpfs:
+    - /tmp:rw,nosuid,size=256m
+    environment:
+      SYNDICATE_DIRECTOR_ID: antigravity
+      SYNDICATE_DIRECTOR_ACTIONS: ${ANTIGRAVITY_ACTIONS:-capabilities}
+      EVA_DATA_DIR: /data/director
+      VAULT_ADDR: ${VAULT_ADDR:-http://vault:8200}
+      VAULT_ROLE_ID: ${ANTIGRAVITY_VAULT_ROLE_ID:-}
+      VAULT_SECRET_ID: ${ANTIGRAVITY_VAULT_SECRET_ID:-}
+      SYNDICATE_DIRECTOR_PROVIDERS: ${ANTIGRAVITY_PROVIDERS:-}
+    volumes:
+    - antigravity_data:/data/director
+    networks:
+    - antigravity_control
+    mem_limit: 1536m
+    cpus: 1.5
+    pids_limit: 256
+    ulimits:
+      nofile:
+        soft: 2048
+        hard: 4096
 networks:
   oscar_control:
     driver: bridge
@@ -105,7 +136,10 @@ networks:
     driver: bridge
   jack_control:
     driver: bridge
+  antigravity_control:
+    driver: bridge
 volumes:
   oscar_data: {}
   tyler_data: {}
   jack_data: {}
+  antigravity_data: {}

@@ -142,6 +142,14 @@
 - **Двоканальна дія:** Прямі +EV сповіщення Андрію в Telegram з кнопкою вибору контори + паралельний віртуальний Paper-trading трекер.
 - **Специфікація:** `docs/JACK_SPORTS_QUANT_SPEC.md` та `jack_core/JACK_FULL_SPEC.md`.
 
+### 🚀 10. ANTIGRAVITY (GRAVITY) — Chief Meta-Developer & Autonomous Engine (Floor 2+)
+- **Роль:** Головний ШІ-інженер, автономний розробник софту, диспетчер субагентів, дослідник кодових баз та оператор браузерної автоматизації.
+- **Cognitive Model Matrix:** Claude 3.5 Sonnet / 3.7 (провідний розробник та рефакторинг), Google Gemini 1.5 Pro (2M контекст усього репозиторію та мега-доків), Groq / Hermes (високошвидкісний тріаж та синтаксис).
+- **Subagent Swarm Foundry:** Динамічний запуск ієрархічних роїв субагентів (`researcher`, `coder`, `tester`, `reviewer`, `browser-scout`) для паралельного вирішення надскладних завдань.
+- **Maximum Execution Stack:** Читання та запис файлів, виконання команд у пісочниці (`run_command`), Playwright headless браузер, Git branching/PR, реактивний планувальник (`schedule`).
+- **Sentinel & HITL Gate:** Безпечна пісочниця, AppRole у HashiCorp Vault. Захист бойового контуру: автономна розробка та тестування, але пуш у production вимагає підтвердження Андрія.
+- **Специфікація:** `docs/ANTIGRAVITY_DIRECTOR_SPEC.md` та `antigravity_core/ANTIGRAVITY_FULL_SPEC.md`.
+
 ---
 
 ## 5. ЗАГАЛЬНІ КОДЕКСИ СИНДИКАТУ
