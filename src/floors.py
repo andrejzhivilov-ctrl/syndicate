@@ -1,5 +1,5 @@
 """
-EVA SYNDICATE — floor registry (single source of truth).
+SYNDICATE — floor registry (single source of truth).
 
 Agents with a strict specialisation (Doc, Kira, Sam) own their floor and are
 never handed foreign duties; they only report/propose inside their competence.

@@ -1,5 +1,5 @@
 -- ============================================================
--- EVA SYNDICATE v4.0 — Additional Tables (Enhancement Modules)
+-- SYNDICATE v4.0 — Additional Tables (Enhancement Modules)
 -- Run AFTER init.sql
 -- ============================================================
 

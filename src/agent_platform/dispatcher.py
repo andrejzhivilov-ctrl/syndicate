@@ -1,4 +1,4 @@
-"""Policy-gated boundary used by LangGraph nodes to call a Hermes runtime."""
+"""Policy-gated boundary used by LangGraph nodes to call an agent runtime."""
 
 from __future__ import annotations
 
@@ -32,9 +32,9 @@ class AgentDispatchResult:
 class AgentDispatcher:
     """Check explicit grants, redact input, invoke one runtime, and audit metadata.
 
-    This dispatcher is an outer control-plane boundary. A Hermes implementation
-    must separately ensure that internal tool calls are mediated by SYNDICATE's
-    policy/tool gateways; no direct Hermes built-in toolset is enabled here.
+    This dispatcher is an outer control-plane boundary. Every runtime
+    implementation must separately ensure that internal tool calls are mediated
+    by SYNDICATE's policy/tool gateways; this dispatcher does not enable tools.
     """
 
     def __init__(

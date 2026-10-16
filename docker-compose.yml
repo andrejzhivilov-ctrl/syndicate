@@ -1,4 +1,4 @@
-# EVA SYNDICATE — Production Docker Compose (v4.1 Verified)
+# SYNDICATE — Production Docker Compose (v4.1 Verified)
 # Fixes applied:
 # - Separated db_net (internal: true for Postgres & Redis isolation) from backend (egress-enabled for API/Vault/Whisper)
 # - Mounted 01-init.sql, 02-migration_v4.sql and 03-migration_v5 (embedding dimension) into Postgres initialization
@@ -82,11 +82,11 @@ services:
       - ./config/postgres/migration_v4.sql:/docker-entrypoint-initdb.d/02-migration_v4.sql:ro
       - ./config/postgres/migration_v5_embeddings_1024.sql:/docker-entrypoint-initdb.d/03-migration_v5.sql:ro
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-eva_syndicate}
+      POSTGRES_DB: ${POSTGRES_DB:-syndicate}
       POSTGRES_USER: ${POSTGRES_USER:-eva}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-eva} -d ${POSTGRES_DB:-eva_syndicate}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-eva} -d ${POSTGRES_DB:-syndicate}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -230,7 +230,7 @@ services:
       WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
-      POSTGRES_DB: ${POSTGRES_DB:-eva_syndicate}
+      POSTGRES_DB: ${POSTGRES_DB:-syndicate}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       # The container root filesystem is read-only; every writable artefact
       # (Markdown vault, rendered media, browser profiles) lives under EVA_DATA_DIR.
@@ -241,6 +241,11 @@ services:
       EMBEDDINGS_MODEL: ${EMBEDDINGS_MODEL:-bge-m3}
       EMBEDDINGS_DIM: "1024"
       EMBEDDINGS_TOKEN: ${EMBEDDINGS_TOKEN:-}
+      # Optional Alice worker bridge. The worker remains dormant unless both
+      # the host profile and a separately gated Alice deployment are enabled.
+      ALICE_WORKER_ENABLED: ${ALICE_WORKER_ENABLED:-false}
+      ALICE_WORKER_URL: ${ALICE_WORKER_URL:-http://alice-agent:8000}
+      ALICE_COORDINATOR_ACTIONS: ${ALICE_COORDINATOR_ACTIONS:-capabilities}
     read_only: true
     tmpfs:
       - /tmp:size=128m,uid=1001,gid=1001

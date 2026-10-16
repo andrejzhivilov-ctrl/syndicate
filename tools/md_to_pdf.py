@@ -131,6 +131,7 @@ def build_styles(body: str, mono: str) -> dict:
 
 
 # ------------------------------------------------------------------- markdown
+_LINK = re.compile(r"\[([^\]]+)\]\((https?://[^\s)]+)\)")
 _INLINE_CODE = re.compile(r"`([^`]+)`")
 _BOLD = re.compile(r"\*\*(.+?)\*\*")
 _ITALIC = re.compile(r"(?<![\w*])\*([^*\n]+)\*(?![\w*])")
@@ -164,9 +165,15 @@ def inline(text: str, mono: str) -> str:
         placeholders.append(rendered)
         return f"\x00{len(placeholders) - 1}\x00"
 
+    def link_sub(match: re.Match) -> str:
+        label = escape(strip_emoji(match.group(1)))
+        href = escape(match.group(2)).replace('"', "&quot;")
+        return stash(f'<link href="{href}" color="#2563eb">{label}</link>')
+
     def code_sub(match: re.Match) -> str:
         return stash(f'<font face="{mono}" size="8.6">{escape(match.group(1))}</font>')
 
+    text = _LINK.sub(link_sub, text)
     text = _INLINE_CODE.sub(code_sub, text)
     text = _BOLD.sub(lambda m: stash(f"<b>{escape(m.group(1))}</b>"), text)
     text = _ITALIC.sub(lambda m: stash(f"<i>{escape(m.group(1))}</i>"), text)
@@ -399,7 +406,7 @@ def convert(source: Path, target: Optional[Path] = None) -> Path:
         topMargin=17 * mm,
         bottomMargin=16 * mm,
         title=title,
-        author="EVA SYNDICATE audit",
+        author="SYNDICATE audit",
         subject=title,
     )
     frame = Frame(

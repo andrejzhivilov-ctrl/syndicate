@@ -47,7 +47,7 @@ def create_app(agent=None, *, api_key: str | None = None, allowed_actions: set[s
         else:
             yield
 
-    app = FastAPI(title="SYNDICATE Director Worker", lifespan=lifespan)
+    app = FastAPI(title="SYNDICATE Agent Worker", lifespan=lifespan)
 
     async def authorized(x_api_key: str | None = Header(default=None)):
         expected = state["key"]
@@ -62,7 +62,11 @@ def create_app(agent=None, *, api_key: str | None = None, allowed_actions: set[s
         ready = state["agent"] is not None and bool(state["key"])
         if not ready:
             raise HTTPException(status_code=503, detail="not_ready")
-        return {"status": "ok", "agent": state["agent"].AGENT_ID, "mode": "local_tools_no_external_execution"}
+        return {
+            "status": "ok",
+            "agent": state["agent"].AGENT_ID,
+            "mode": getattr(state["agent"], "HEALTH_MODE", "local_tools_no_external_execution"),
+        }
 
     @app.post("/execute")
     async def execute(request: DirectorRequest, director=Depends(authorized)):

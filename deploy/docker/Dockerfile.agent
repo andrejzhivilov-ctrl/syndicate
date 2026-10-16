@@ -1,4 +1,4 @@
-# EVA SYNDICATE — Agent runtime image.
+# SYNDICATE — Agent runtime image.
 #
 # Referenced by ``deploy/docker-compose.yml`` (service ``eva-agent``); before
 # this file existed the compose stack could not be built at all.

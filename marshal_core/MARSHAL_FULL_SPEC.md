@@ -2,7 +2,7 @@
 
 > **Історичний документ.** Не є джерелом активної ролі, моделі чи grants. Чинні межі: `MARSHAL_ROLE_BOUNDARIES.md`, `config/agents/marshal.profile.json` (`prepared_not_enabled`).
 # Multi-layer Autonomous Runtime Security & Host-level Access Layer
-# EVA SYNDICATE — Security Cornerstone Document
+# SYNDICATE — Security Cornerstone Document
 
 > **Позивний:** MARSHAL — *Multi-layer Autonomous Runtime Security & Host-level Access Layer*  
 > **Версія:** 4.0 — Додано: Tetragon (kernel enforcement), Soft Anomaly Protocol, Sentyr ML, Canary Tokens, HoneyMCP, LLM-Guard, AIP Integration  
@@ -161,7 +161,7 @@ ufw enable
 
 ### eBPF/Falco — поведінковий моніторинг системних викликів:
 ```yaml
-# falco_rules.yaml — правила для EVA SYNDICATE
+# falco_rules.yaml — правила для SYNDICATE
 - rule: Agent writes outside workspace
   condition: >
     open_write and proc.name in (python3, node, uvicorn) and
@@ -795,7 +795,7 @@ class AgentConfigVersioning:
 
 DEV ENVIRONMENT:
   - Окремі API ключі (тестові акаунти, sandbox APIs)
-  - Telegram: окремий тестовий бот (@eva_syndicate_dev_bot)
+  - Telegram: окремий тестовий бот (@syndicate_dev_bot)
   - Supabase: окремий проект (syndicate-dev)
   - Банківські API: тільки sandbox/тестовий режим
   - LLM: дешевші моделі (Flash/Haiku для тестів)

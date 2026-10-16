@@ -1,4 +1,4 @@
-"""Base classes and result container for EVA SYNDICATE voice providers (TTS & STT)."""
+"""Base classes and result container for SYNDICATE voice providers (TTS & STT)."""
 
 from __future__ import annotations
 

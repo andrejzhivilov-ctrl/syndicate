@@ -1,7 +1,8 @@
 # HANDOFF — журнал передачі між агентами
 
-**Читай це першим, починаючи сесію.** Ні Arena Agent, ні Google Antigravity не мають
-пам'яті про попередні сесії — весь контекст живе тут і в git-історії.
+**Читай це першим, починаючи сесію.** Ні Arena Agent, ні runtime Аліси не мають
+автоматичної пам'яті між сесіями — контекст живе тут і в git-історії. Antigravity —
+технологія runtime, не ім'я агентки.
 
 Формат запису — newest first. Один запис на сесію/задачу.
 
@@ -24,6 +25,86 @@
 ```
 
 ---
+
+## 2026-10-16 — Arena Agent: брендинг Синдикату й сумісна міграція namespace
+
+**Гілка:** `arena/8b3d5dfa-syndicate`. **Коміт:** буде включено до коміту цієї сесії. **Ворота:** `EVA_SKIP_PGSERVER=1 bash tools/check.sh` — exit 0; живий PostgreSQL, Vault, сервер і контейнери не запускалися.
+
+### Зроблено
+- Канонічний бренд — **Синдикат / SYNDICATE**; Єва лишається окремою агенткою. User-facing заголовки й API metadata оновлено, технічні ідентифікатори агентки Єви збережено.
+- Vault: канонічний prefix `syndicate`; читання йде спершу туди, fallback до `eva-syndicate` — тільки на HTTP 404. 11 наявних HCL policies перегенеровано з точковими grants під обома prefixes; застарілих файлів для видалення не було.
+- Додано `tools/migrate_vault_namespace.py`: dry-run за замовчуванням, перевірка конфліктів перед записом, створення тільки відсутніх KV v2 payloads із CAS=0; без видалення legacy values, друку секретів або копіювання KV history/custom metadata.
+- PostgreSQL: новий canonical database name `syndicate`; `tools/migrate_postgres_db_name.py` має dry-run, захист від активних сесій, no-copy rename і rollback. Приклади/Compose мають новий default, чинні `.env` не переписуються автоматично.
+- Bootstrap зберігає наявний `/opt/eva-syndicate` path для сумісності, використовує `/opt/syndicate` для нової інсталяції та зупиняється, якщо присутні обидва шляхи; `/data` не переносився.
+- OpenAPI контракт перегенеровано відповідно до нового продуктового title. Паспортний PDF перебудовано й перевірено: 16 сторінок, 27 HTTPS-посилань, текст витягується.
+- Додано namespace migration tests; старі handoff записи, `docs/archive/` та захищений журнал діалогу не переписувалися. Зайвих локальних гілок не знайдено.
+
+### Не дороблено / свідомо залишено
+- Нічого не застосовувалося до live Vault/PostgreSQL; жоден сервер, контейнер чи агент не запускався. Політики не завантажувалися у Vault, DB не перейменовувалася.
+- Live PostgreSQL schema/path checks пропущено: у середовищі немає дозволеної test DB/pgserver. Compose build/render і security scan не виконувалися.
+- Legacy Vault reads/grants і старі snapshot tags залишаються лише на перехідний період; їх retirement потребує окремої перевірки й погодження.
+
+### Наступне
+1. Завершити diff/status review, закомітити тільки у `arena/8b3d5dfa-syndicate`, опублікувати цю гілку й відкрити PR у `main`.
+2. Live Vault/DB кроки виконувати лише після окремої згоди, перевіреного backup і через захищений операторський канал.
+
+### Ризики й спостереження
+- `tools/check.sh` пройшов: pytest, 10-floor suite, sandbox suite, три Ruff групи, API contract, Vault policy і shell syntax. Реальну PostgreSQL схему не перевірено.
+- PDF — відновлений deliverable із Markdown-джерела; live стан системи паспортом не підтверджувався.
+
+---
+
+## 2026-10-16 — Arena Agent: системний паспорт і соціальний парсер
+
+**Гілка:** `arena/8b3d5dfa-syndicate`. **Коміт:** не створювався. **Ворота:** PDF зібрано; текст і зовнішні посилання перевірено витягом із PDF. Живі сервіси не запускалися.
+
+### Зроблено
+- Додано датовану Markdown-основу `docs/SYSTEM_PASSPORT_2026-10-16.md` та PDF `docs/SYSTEM_PASSPORT_2026-10-16.pdf`; попередній `docs/SYSTEM_PASSPORT.md` не перезаписувався.
+- Зафіксовано межі runtime/deployment, n8n drafts проти live, статуси всіх 12 профілів, відомі сервіси/ресурсні URL, user-owned access rules і результати локальних тестів.
+- Додано окремий дизайн-розділ для майбутнього Instagram/Facebook/Threads/Telegram parser-а: API-first, read-only, allowlist, privacy/provenance/retention; реалізацію, credentials і активацію не створювали.
+- `tools/md_to_pdf.py` тепер перетворює Markdown HTTPS links на клікабельні PDF links; `.gitignore` дозволяє датовані system-passport PDF як окремі deliverables.
+
+### Не дороблено / свідомо залишено
+- Жодні зовнішні API, Meta/Telegram accounts, n8n, Vault, Compose чи сервер не перевірялися/не запускалися; URL у паспорті — довідкові, а не підтвердження доступності.
+- Social parser лишається планом: scope джерел, права, обсяги, retention, споживачі-агенти й budget ще потребують рішення Андрія.
+- Повторний `EVA_SKIP_PGSERVER=1 bash tools/check.sh` після додавання PDF renderer link support пройшов (exit 0); жива PostgreSQL була пропущена, Compose/Vault/n8n/API не запускалися. Не комітив/не пушив і не змінював staging.
+
+### Наступне
+1. Передавати system passport як основу для наступних рольових/інтеграційних рішень.
+2. Для соціального парсера спершу погодити джерела, дозволи, типи даних, retention і пер-агентних читачів; лише потім готувати окремий implementation plan.
+
+### Ризики й спостереження
+- Профільні декларації, кодові adapters, старі n8n specifications та фактичний live стан навмисно розділені; не виводити активність із наявності файлу.
+- Наявні чотири staged pure renames Antigravity→Alice залишилися без змін.
+
+## 2026-10-16 — Arena Agent: підготовка API-first runtime Аліси
+
+**Гілка:** `arena/8b3d5dfa-syndicate`. **База:** `88bbe6e4f8a46c43ae8b89ae326f93188358c664`. **Ворота:** `EVA_SKIP_PGSERVER=1 bash tools/check.sh` — exit 0.
+
+### Зроблено
+- Ідентичність розділена: `alice` — агентка/Head of Engineering, `antigravity_sdk` — runtime technology. Єва лишається єдиною CEO.
+- Додано default-off profile, український prompt, bounded API worker, Gemini Developer API adapter із явним file-tool allowlist, per-request токен-бюджетом і локальним daily usage ledger без prompt/output.
+- Додано окремий Alice runner, ізольований Dockerfile/requirements і optional Compose overlay без host port. Egress потребує зовнішнього firewalled network; overlay не створює його автоматично.
+- Додано точкову Alice Vault policy: лише worker auth + Gemini secret і metadata, без shared API keys, DB/Redis та subtree wildcard. `vault_init.sh` при майбутньому окремому запуску генерує внутрішній worker API key і окрему AppRole env-пару `ALICE_VAULT_ROLE_ID`/`ALICE_VAULT_SECRET_ID`; provider key не створюється.
+- Додано proposed grant codes, permission matrix column, runtime kind/profile schema, Eva routing/client configuration та тести. Alice отримала лише reference-only інженерні матеріали каталогу; KODEX лишається власником skill/prompt engineering. Усі grants лишилися `proposed_not_applied`; profile capabilities/grants/services порожні.
+- Повний набір `tests/`: 885 passed, 35 skipped; 10-floor/sandbox suites, Ruff F/E9/B, E/W, C901, API contract, Vault policy та shell syntax пройшли. `tests/test_alice_sdk.py` окремо пройшов у тимчасовому venv із pinned SDK (`pip check` чистий); fake Agent не робив мережевих викликів.
+- З виправлень перевірки: додані Alice payloads для трьох нових task routes; винесено надмірно складні перевірки з Alice runtime; задекларовано відсутню існуючому PPTX writer залежність `python-pptx`.
+
+### Не дороблено / свідомо залишено
+- Немає API credentials, моделі, live API call, Vault policy apply, AppRole startup, container build/start або server deployment. Ці дії не погоджувалися.
+- Ціни/квоти Gemini API не підтверджені; Google One не є API credential. Добові caps за замовчуванням нуль, а токен-ліміт не є грошовим бюджетом.
+- Browser/desktop, Google login/cookies, web search, GitHub, Anthropic, image/video, shell execution, MCP і subagents не підключені.
+- Повний `tools/check.sh` пройшов із `EVA_SKIP_PGSERVER=1`; жива PostgreSQL перевірка через env/pgserver не запускалась. Compose render/build і security scan не виконувались; Docker CLI у цьому середовищі відсутній.
+
+### Наступне
+1. Окремо узгодити Gemini model/API тарифи, provider-side spend limit та domain/egress allowlist.
+2. За окремим дозволом — локально перевірити Compose render/build і security scan; це ще не робити без запиту.
+3. Live Vault/AppRole/secrets/server deployment можливі лише після окремої явної згоди, захищеним server channel; нічого не надсилати в чат/Git.
+
+### Ризики й спостереження
+- Pinned SDK dependencies й конфігураційний surface пройшли isolated offline smoke; реальний Gemini endpoint, billing entitlement/quotas та API transport не викликали й не перевіряли наживо.
+- Alice service має default-off profile/env guards; external egress network залишається операторською передумовою, її наявність у коді не доводить firewall.
+- Alice service має default-off profile/env guards; external egress network залишається операторською передумовою, її наявність у коді не доводить firewall.
 
 ## 2026-10-15 — CodeRabbit Agent: зауваження PR13
 

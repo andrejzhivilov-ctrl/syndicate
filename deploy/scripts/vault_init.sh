@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# EVA SYNDICATE — Vault initialization script
+# SYNDICATE — Vault initialization script
 #
 # What it does, in order:
 #   1. initializes Vault (Shamir 3-of-5) and auto-unseals for setup
@@ -144,7 +144,7 @@ enable_kv_secrets() {
     log "Enabling KV v2 secrets engine..."
     api POST "sys/mounts/secret" '{"type": "kv", "options": {"version": "2"}}' > /dev/null \
         || log "KV v2 mount already exists — continuing."
-    log "KV secrets engine configured (mount: secret, prefix: eva-syndicate)."
+    log "KV secrets engine configured (mount: secret, canonical prefix: syndicate)."
 }
 
 upload_policies() {
@@ -173,9 +173,17 @@ create_approles() {
     local policy_files=("$POLICY_DIR"/*.hcl)
     shopt -u nullglob
 
-    local policy_file policy_name role_id secret_id
+    local policy_file policy_name role_id secret_id role_env secret_env
     for policy_file in "${policy_files[@]}"; do
         policy_name="$(basename "$policy_file" .hcl)"
+        role_env="VAULT_ROLE_ID"
+        secret_env="VAULT_SECRET_ID"
+        if [[ "$policy_name" == "eva-alice" ]]; then
+            # Alice has a separate AppRole/container; never overwrite Eva's
+            # credentials when an operator copies the generated env file.
+            role_env="ALICE_VAULT_ROLE_ID"
+            secret_env="ALICE_VAULT_SECRET_ID"
+        fi
         api POST "auth/approle/role/${policy_name}" "{
             \"token_policies\": [\"${policy_name}\"],
             \"token_ttl\": \"1h\",
@@ -194,10 +202,10 @@ create_approles() {
 
         cat > "${SECRETS_DIR}/${policy_name}.approle.env" << EOF
 # AppRole credentials for policy '${policy_name}' — generated $(date -u '+%Y-%m-%dT%H:%M:%SZ')
-# Put these two values into .env (VAULT_ROLE_ID / VAULT_SECRET_ID for the
-# runtime container) and delete this file.
-VAULT_ROLE_ID=${role_id}
-VAULT_SECRET_ID=${secret_id}
+# Copy only these named variables into the matching runtime's protected .env,
+# then delete this file. Never replace another agent's values.
+${role_env}=${role_id}
+${secret_env}=${secret_id}
 EOF
         chmod 600 "${SECRETS_DIR}/${policy_name}.approle.env"
         log "  ${policy_name}: role + secret id written to ${policy_name}.approle.env"
@@ -207,7 +215,7 @@ EOF
 
 store_secret() {  # store_secret <path> <json-data> [--rotate]
     local path="$1" data="$2" rotate="${3:-}"
-    local vault_path="secret/data/eva-syndicate/${path}"
+    local vault_path="secret/data/syndicate/${path}"
 
     if [[ "$rotate" != "--rotate" ]] && api GET "$vault_path" > /dev/null 2>&1; then
         log "  ${path}: already present in Vault — left untouched (ROTATE=1 to overwrite)"
@@ -227,7 +235,7 @@ store_initial_secrets() {
     # .env.example, or Vault would hold a user the database does not have and
     # the agent's DSN would be rejected.
     local db_password="${POSTGRES_PASSWORD:-}" db_user="${POSTGRES_USER:-eva}"
-    local db_name="${POSTGRES_DB:-eva_syndicate}"
+    local db_name="${POSTGRES_DB:-syndicate}"
     if is_placeholder "$db_password"; then
         err "POSTGRES_PASSWORD is empty or still a placeholder — set a real password in
          .env first (Vault must hold the same password Postgres was initialised with)."
@@ -260,15 +268,20 @@ store_initial_secrets() {
         \"webhook_secret\": \"$(openssl rand -hex 32)\"
     }" "$rotate"
 
+    # Alice's worker-to-orchestrator API key is internal, randomly generated,
+    # and distinct from every provider credential. The per-agent Vault policy
+    # grants Alice access only to this exact auth secret and her Gemini secret.
+    store_secret "agents/alice/auth" "{\"api_key\": \"$(openssl rand -hex 32)\"}" "$rotate"
+
     # LLM provider keys: only what the operator actually supplied.
     store_llm_keys "$rotate"
 
-    log "Absent secrets are simply not created — that is deliberate. Add them later with:"
-    log "  vault kv put secret/eva-syndicate/<service> key=value"
+    log "Absent provider secrets are simply not created — that is deliberate. Add them later with:"
+    log "  vault kv put secret/syndicate/<service> key=value"
     log "  (services: telegram, google_workspace, mcp, elevenlabs, groq, openai, xai,"
     log "   agents/<agent>/<name> — see config/vault/policies/*.hcl for who may read what)"
     log "Auth secrets (API key / webhook HMAC) were generated randomly —"
-    log "retrieve them with: vault kv get secret/eva-syndicate/auth"
+    log "retrieve them with: vault kv get secret/syndicate/auth"
 }
 
 store_llm_keys() {
@@ -322,7 +335,7 @@ main() {
     require_cmd jq
     require_cmd openssl
 
-    log "====== EVA SYNDICATE Vault initialization ======"
+    log "====== SYNDICATE Vault initialization ======"
     check_vault_available
     check_already_initialized
     initialize_vault

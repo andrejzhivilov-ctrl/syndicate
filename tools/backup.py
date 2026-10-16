@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-EVA SYNDICATE — backup tool.
+SYNDICATE — backup tool.
 
 The operator's first request included a backup system; until now the repository
 had *zero* lines of backup code — only three ad-hoc shell lines in the runbook
@@ -180,7 +180,7 @@ def database_url() -> Optional[str]:
     password = os.getenv("POSTGRES_PASSWORD", "")
     host = os.getenv("POSTGRES_HOST", "postgres")
     port = os.getenv("POSTGRES_PORT", "5432")
-    name = os.getenv("POSTGRES_DB", "eva_syndicate")
+    name = os.getenv("POSTGRES_DB", "syndicate")
     if not password:
         return None
     return f"postgresql://{user}:{password}@{host}:{port}/{name}"
@@ -349,7 +349,9 @@ def push_offsite(report: BackupReport, dest: Path, enabled: bool) -> None:
         }
         return
 
-    result = _run([restic, "backup", str(dest), "--tag", "eva-syndicate"])
+    # Keep the previous snapshot tag during the retention window so existing
+    # restore automation can discover both generations of backups.
+    result = _run([restic, "backup", str(dest), "--tag", "syndicate", "--tag", "eva-syndicate"])
     if result.returncode != 0:
         report.offsite = {
             "status": "unavailable",
@@ -457,7 +459,7 @@ def run_backup(
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
-    parser = argparse.ArgumentParser(description="EVA SYNDICATE backup tool")
+    parser = argparse.ArgumentParser(description="SYNDICATE backup tool")
     parser.add_argument("--dest", default=os.getenv("EVA_BACKUP_DIR", "backups"),
                         help="destination directory (default $EVA_BACKUP_DIR or ./backups)")
     parser.add_argument("--keep-days", type=int, default=int(os.getenv("EVA_BACKUP_KEEP_DAYS", DEFAULT_KEEP_DAYS)),

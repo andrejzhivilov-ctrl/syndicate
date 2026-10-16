@@ -1,4 +1,4 @@
-# EVA SYNDICATE — Pre-Launch Audit & Fix Log
+# SYNDICATE — Pre-Launch Audit & Fix Log
 > **Аудит:** 25 вересня 2026 (внутрішній)  
 > **Зовнішній аудит:** 27 вересня 2026 (критичний зовнішній огляд)  
 > **Статус:** Всі критичні та важливі пункти виправлені
@@ -51,7 +51,7 @@
 
 > **Що залишається до першого запуску:**  
 > 1. IP-адреса Contabo VPS від Андрія  
-> 2. Telegram Bot Token для `@eva_syndicate_bot`  
+> 2. Telegram Bot Token для `@syndicate_bot`<br>
 > 3. API ключі (Anthropic, Gemini, Nova Poshta)  
 > 4. SSH підключення → `server_bootstrap.sh` → `vault_init.sh`  
 > 5. Перший N8N workflow (ранковий брифінг)

@@ -1,27 +1,11 @@
 """Single source of truth for HashiCorp Vault secret paths.
 
-Before this module existed the repository used two incompatible conventions:
-
-* ``src/integrations/base.py`` (and the documented convention in
-  ``INTEGRATIONS_AND_CAPABILITIES.md``) read
-  ``secret/data/eva-syndicate/<SERVICE>`` — the default ``secret/`` KV v2 mount;
-* ``deploy/runtime/agent_runner.py`` read ``eva/database/data/postgres``,
-  ``eva/config/data/redis``, ``eva/config/data/auth`` and
-  ``eva/api-keys/data/llm`` — four *additional* KV v2 mounts that
-  ``deploy/scripts/vault_init.sh`` created but only ever populated for
-  ``database`` and ``api-keys``.
-
-Consequences in production:
-
-* ``eva/config/data/redis`` and ``eva/config/data/auth`` were never written by
-  ``vault_init.sh``, so ``agent_runner`` got a 404 on boot and the agent could
-  not start at all;
-* the ``eva-agent`` Vault policy granted ``secret/data/eva/*`` and the four
-  ``eva/*`` mounts, **not** ``secret/data/eva-syndicate/*`` — so every
-  connector's secret read was denied.
-
-Everything now lives under one KV v2 mount (``secret/``) and one prefix
-(``eva-syndicate``). Change :data:`PREFIX` here and every caller follows.
+The canonical KV v2 prefix is ``syndicate``. During the controlled migration,
+``VaultClient`` tries that prefix first and falls back to the historical
+``eva-syndicate`` namespace only on HTTP 404. Generated ACL policies grant the
+same exact least-privilege paths beneath both prefixes until an operator
+completes the migration and separately approves retirement of the legacy
+namespace. Never infer that static policy files have been applied to live Vault.
 """
 
 from __future__ import annotations
@@ -31,8 +15,14 @@ from typing import Dict, List, Tuple
 #: KV v2 mount point. Vault exposes data at ``<mount>/data/<path>``.
 MOUNT = "secret"
 
-#: Logical prefix inside the mount.
-PREFIX = "eva-syndicate"
+#: Canonical logical prefix inside the mount.
+PREFIX = "syndicate"
+
+#: Temporary compatibility prefix. Keep until the operator completes Vault
+#: migration and separately approves removal of legacy reads/grants.
+LEGACY_PREFIX = "eva-syndicate"
+
+PREFIXES: Tuple[str, ...] = (PREFIX, LEGACY_PREFIX)
 
 #: Well-known service keys.
 DATABASE = "database"      # Postgres: user, password
@@ -53,7 +43,7 @@ CONNECTOR_SERVICES: Tuple[str, ...] = ("google_workspace", "mcp", "telegram", "y
 VOICE_SERVICES: Tuple[str, ...] = ("elevenlabs", "groq", "openai", "xai")
 
 #: Canonical agent ids (``src/floors.py`` holds the floor mapping).
-AGENTS_IDS: Tuple[str, ...] = ("eva", "marshal", "architect", "fin", "doc", "kira", "sam", "oscar", "tyler", "jack")
+AGENTS_IDS: Tuple[str, ...] = ("eva", "marshal", "architect", "fin", "doc", "kira", "sam", "oscar", "tyler", "jack", "alice")
 
 #: Which *extra* services each agent may read, on top of ``INFRA_SERVICES`` and
 #: its own ``agents/<id>/*`` subtree. Default deny: an agent without an entry
@@ -67,6 +57,7 @@ AGENT_SERVICES: Dict[str, Tuple[str, ...]] = {
     "doc": (),
     "kira": (),
     "sam": (),
+    "alice": (),
 }
 
 
@@ -74,7 +65,7 @@ def secret_path(service: str) -> str:
     """Return the Vault HTTP path for ``service``'s KV v2 secret.
 
     >>> secret_path("database")
-    'secret/data/eva-syndicate/database'
+    'secret/data/syndicate/database'
     """
     service = (service or "").strip().strip("/")
     if not service:
@@ -86,7 +77,7 @@ def agent_secret_path(agent_id: str, name: str = "") -> str:
     """Return the path of one agent's own secret, e.g. Sam's broker keys.
 
     >>> agent_secret_path("sam", "broker")
-    'secret/data/eva-syndicate/agents/sam/broker'
+    'secret/data/syndicate/agents/sam/broker'
     """
     agent_id = (agent_id or "").strip().strip("/")
     if not agent_id:
@@ -97,26 +88,64 @@ def agent_secret_path(agent_id: str, name: str = "") -> str:
     return "/".join(parts)
 
 
+def legacy_secret_path(service: str) -> str:
+    """Return the old KV v2 data path for read-only migration compatibility."""
+    return secret_path(service).replace(f"/{PREFIX}/", f"/{LEGACY_PREFIX}/", 1)
+
+
+def legacy_agent_secret_path(agent_id: str, name: str = "") -> str:
+    """Return an agent path in the legacy namespace (migration tooling only)."""
+    return agent_secret_path(agent_id, name).replace(f"/{PREFIX}/", f"/{LEGACY_PREFIX}/", 1)
+
+
+def read_path_candidates(path: str) -> List[str]:
+    """Return canonical-first Vault paths, accepting either namespace as input.
+
+    Only KV v2 data/metadata paths beneath this application's two known prefixes
+    are translated. Other mounts and paths are returned unchanged.
+    """
+    pairs = (
+        (f"{MOUNT}/data/{PREFIX}/", f"{MOUNT}/data/{LEGACY_PREFIX}/"),
+        (f"{MOUNT}/metadata/{PREFIX}/", f"{MOUNT}/metadata/{LEGACY_PREFIX}/"),
+    )
+    for canonical, legacy in pairs:
+        if path.startswith(canonical):
+            return [path, legacy + path[len(canonical):]]
+        if path.startswith(legacy):
+            return [canonical + path[len(legacy):], path]
+    return [path]
+
+
 def metadata_path(service: str) -> str:
-    """Return the KV v2 metadata path (needed for ``list``/``read`` grants).
+    """Return the canonical KV v2 metadata path (needed for list/read grants).
 
     >>> metadata_path("database")
-    'secret/metadata/eva-syndicate/database'
+    'secret/metadata/syndicate/database'
     """
     return secret_path(service).replace(f"{MOUNT}/data/", f"{MOUNT}/metadata/", 1)
 
 
 def policy_paths_for_service(service: str) -> List[str]:
-    """Data + metadata paths a policy must grant to read one service."""
-    return [secret_path(service), metadata_path(service)]
+    """Exact data + metadata grants under canonical and migration prefixes."""
+    canonical_data = secret_path(service)
+    canonical_metadata = metadata_path(service)
+    legacy_data = legacy_secret_path(service)
+    legacy_metadata = canonical_metadata.replace(f"/{PREFIX}/", f"/{LEGACY_PREFIX}/", 1)
+    return [canonical_data, canonical_metadata, legacy_data, legacy_metadata]
 
 
 def agent_prefix(agent_id: str) -> str:
-    """Return the glob covering one agent's own subtree."""
+    """Return the canonical glob covering one agent's own subtree."""
     agent_id = (agent_id or "").strip().strip("/")
     if not agent_id:
         raise ValueError("agent_prefix() requires a non-empty agent id")
     return f"{MOUNT}/data/{PREFIX}/{AGENTS}/{agent_id}/*"
+
+
+def agent_prefixes(agent_id: str) -> List[str]:
+    """Return per-agent subtree globs for canonical and legacy namespaces."""
+    canonical = agent_prefix(agent_id)
+    return [canonical, canonical.replace(f"/{PREFIX}/", f"/{LEGACY_PREFIX}/", 1)]
 
 
 def mount_path() -> str:
@@ -128,30 +157,49 @@ def policy_paths() -> List[str]:
     """Read globs for the **runtime** policy (the container that exists today).
 
     The runtime hosts every floor in one process, so its policy is the union of
-    everything the running code reads. It is deliberately explicit per secret
-    instead of ``secret/data/eva-syndicate/*``: a wildcard would also grant any
-    secret added later, including other agents' provider keys.
+    everything the running code reads. It is deliberately explicit per service
+    under both the canonical and migration prefixes; no whole-prefix wildcard
+    is granted. Per-agent paths remain scoped to the runtime's existing role.
     """
     grants: List[str] = []
     for service in INFRA_SERVICES + (AUTH,) + CONNECTOR_SERVICES + VOICE_SERVICES:
         grants.extend(policy_paths_for_service(service))
-    # Per-agent subtrees: connectors read ``agents/<id>/<name>`` when a floor
-    # keeps its keys under its own name. The runtime sees all of them because
-    # all floors share this process; per-agent containers do not (see
-    # ``agent_policy_paths``).
-    grants.append(f"{MOUNT}/data/{PREFIX}/{AGENTS}/*")
-    grants.append(f"{MOUNT}/metadata/{PREFIX}/{AGENTS}/*")
+    # The current shared runtime sees each agent subtree. A separately deployed
+    # worker receives only its own subtree from agent_policy_paths().
+    for prefix in PREFIXES:
+        grants.append(f"{MOUNT}/data/{prefix}/{AGENTS}/*")
+        grants.append(f"{MOUNT}/metadata/{prefix}/{AGENTS}/*")
     return grants
 
 
 def agent_policy_paths(agent_id: str) -> List[str]:
-    """Read globs for one agent's policy (future per-agent container)."""
+    """Read paths for one agent's policy (future per-agent container)."""
+    if agent_id == "alice":
+        # Alice's initial API-only profile needs its worker auth key and Gemini
+        # key, but no shared database/Redis/LLM secrets and no future subtree
+        # wildcard. Add optional provider paths only with a separately reviewed
+        # implementation and grant.
+        grants: List[str] = []
+        for name in ("auth", "gemini"):
+            for data_path in (
+                agent_secret_path(agent_id, name),
+                legacy_agent_secret_path(agent_id, name),
+            ):
+                grants.extend(
+                    [
+                        data_path,
+                        data_path.replace(f"{MOUNT}/data/", f"{MOUNT}/metadata/", 1),
+                    ]
+                )
+        return grants
+
     # Domain tool workers need only their own auth/provider subtree.
     infra = () if agent_id in {"oscar", "tyler", "jack"} else INFRA_SERVICES
     services = infra + AGENT_SERVICES.get(agent_id, ())
-    grants: List[str] = []
+    grants = []
     for service in services:
         grants.extend(policy_paths_for_service(service))
-    grants.append(agent_prefix(agent_id))
-    grants.append(f"{MOUNT}/metadata/{PREFIX}/{AGENTS}/{agent_id}/*")
+    for data_glob in agent_prefixes(agent_id):
+        grants.append(data_glob)
+        grants.append(data_glob.replace(f"{MOUNT}/data/", f"{MOUNT}/metadata/", 1))
     return grants

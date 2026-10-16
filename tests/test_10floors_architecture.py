@@ -1,5 +1,5 @@
 """
-EVA SYNDICATE — 10-Floor Comprehensive Sandbox Verification Suite
+SYNDICATE — 10-Floor Comprehensive Sandbox Verification Suite
 Tests all 10 floors of the Syndicate architecture:
 - Floor 1: Server & n8n (SensoryRouter, ErrorCollector, n8n templates, ProactiveScheduler)
 - Floor 2: Content Factory (Floor2Coordinator, Humanizer, VideoPromptEnhancer, ReleasePackBuilder)
@@ -190,7 +190,7 @@ class MockReasoningLLM:
             "summary": "Sandbox 10-floor verified response",
             "status": "ok",
             "confidence": 0.95,
-            "response": "EVA Syndicate 10-floor operational readiness verified.",
+            "response": "SYNDICATE 10-floor operational readiness verified.",
             "recommendation": "Option A",
             "findings": ["Subsystem normal", "Telemetry optimal"],
             "claims": [{"claim": "Test claim", "confidence": 0.95}],
@@ -203,7 +203,7 @@ class MockReasoningLLM:
 
 async def run_10floors_sandbox_suite():
     print("=" * 76)
-    print("🚀 EVA SYNDICATE — 10-FLOOR SANDBOX ARCHITECTURE VERIFICATION SUITE")
+    print("🚀 SYNDICATE — 10-FLOOR SANDBOX ARCHITECTURE VERIFICATION SUITE")
     print("=" * 76)
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -240,9 +240,9 @@ async def run_10floors_sandbox_suite():
     assert all(c["size"] <= 1000 for c in chunks)
 
     # 2b. Sensory Router: Document extraction & Chunking
-    txt_bytes = b"Hello EVA Syndicate. This is a ground truth document test.\n\nParagraph two with key facts."
+    txt_bytes = b"Hello SYNDICATE. This is a ground truth document test.\n\nParagraph two with key facts."
     extracted_text, meta = router.extract_document(txt_bytes, filename="test.txt")
-    assert "EVA Syndicate" in extracted_text and meta["type"] == "txt"
+    assert "SYNDICATE" in extracted_text and meta["type"] == "txt"
 
     text_chunks = router.chunk_for_embedding(extracted_text, chunk_size=30, overlap=5)
     assert len(text_chunks) >= 2
@@ -357,7 +357,7 @@ async def run_10floors_sandbox_suite():
         "title": "Autonomous Syndicate Launch Briefing",
         "copy_text": "Delve into the game-changer revolution in AI agent systems.",
         "video_idea": "Cyberpunk server racks pulsing with blue light",
-        "evidence_context": "EVA Syndicate release specifications v4.1.",
+        "evidence_context": "SYNDICATE release specifications v4.1.",
         "submit_cr": True,
     })
     assert pack_res["status"] == "ok"
@@ -568,7 +568,7 @@ async def run_10floors_sandbox_suite():
 
     # 8c. Orc Verifier (adversarial factual validation)
     orc_res = await orc.verify_claim(
-        claim="EVA Syndicate floor layout contains exactly 10 floors with floors 3-6 reserved.",
+        claim="SYNDICATE floor layout contains exactly 10 floors with floors 3-6 reserved.",
         evidence="floors.py specifies FLOORS dictionary with keys 1 to 10. Keys 3, 4, 5, 6 have status reserved.",
     )
     assert orc_res["verdict"] in ("verified", "factual")

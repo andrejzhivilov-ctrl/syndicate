@@ -1,4 +1,4 @@
-"""Per-device access tokens for EVA SYNDICATE clients (PC / mobile).
+"""Per-device access tokens for SYNDICATE clients (PC / mobile).
 
 Why this exists
 ---------------

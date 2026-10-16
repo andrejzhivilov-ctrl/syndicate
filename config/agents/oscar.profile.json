@@ -3,7 +3,7 @@
   "agent_id": "oscar",
   "activation": "prepared_not_enabled",
   "runtime": "hermes",
-  "hermes_profile": "oscar",
+  "runtime_profile": "oscar",
   "memory_namespace": "agents/oscar",
   "prompt_file": "src/agents/oscar_runtime_prompt.md",
   "prompt_status": "draft",

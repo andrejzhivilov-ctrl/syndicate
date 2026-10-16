@@ -590,7 +590,7 @@ class EvaAgent:
         """Report configuration facts without implying a live health probe."""
         return {
             "agent": self.AGENT_ID,
-            "ecosystem": "EVA SYNDICATE",
+            "ecosystem": "SYNDICATE",
             "status": "not_probed",
             "profile_activation": "prepared_not_enabled",
             "runtime_health": "not_probed",

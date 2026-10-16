@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# EVA SYNDICATE — Deployment Verification Script
+# SYNDICATE — Deployment Verification Script
 
 set -euo pipefail
 
@@ -19,7 +19,7 @@ fail() { red "$*";   FAIL=$((FAIL+1)); }
 warn() { yellow "$*"; WARN=$((WARN+1)); }
 
 echo "========================================"
-echo "  EVA SYNDICATE Deployment Verification"
+echo "  SYNDICATE Deployment Verification"
 echo "========================================"
 
 # 1. Docker Compose syntax validation

@@ -1,5 +1,5 @@
 """
-EVA SYNDICATE — per-device client tokens (backend blockers 0.2 / 0.3).
+SYNDICATE — per-device client tokens (backend blockers 0.2 / 0.3).
 
 Motivation, so nobody "simplifies" this away:
 
@@ -321,7 +321,7 @@ class TestOpenApiAndCors:
         r = client.get("/openapi.json")
         assert r.status_code == 200
         schema = r.json()
-        assert schema["info"]["title"] == "EVA SYNDICATE Agent"
+        assert schema["info"]["title"] == "SYNDICATE Agent"
         assert "/execute/stream" in schema["paths"]
         assert "/auth/device/enroll" in schema["paths"]
 

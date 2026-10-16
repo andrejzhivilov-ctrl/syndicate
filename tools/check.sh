@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# EVA SYNDICATE — всі ворота якості однією командою.
+# SYNDICATE — всі ворота якості однією командою.
 #
 # Запускай ПЕРЕД кожним комітом і ПЕРЕД мерджем у main:
 #     bash tools/check.sh
@@ -59,7 +59,7 @@ run_suite() {
     return 0
 }
 
-step "EVA SYNDICATE — перевірка перед комітом"
+step "SYNDICATE — перевірка перед комітом"
 echo "  python: $PY"
 
 step "Тести"

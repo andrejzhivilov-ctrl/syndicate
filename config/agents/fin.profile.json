@@ -4,7 +4,7 @@
   "agent_id": "fin",
   "display_name": "ФІН (CFO)",
   "runtime": "hermes",
-  "hermes_profile": "fin",
+  "runtime_profile": "fin",
   "memory_namespace": "agents/fin",
   "prompt_file": "src/agents/fin_runtime_prompt.md",
   "prompt_status": "draft",

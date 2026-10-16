@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from types import MappingProxyType
 from typing import Mapping
 
-from src.agent_platform.contracts import AgentProfile
+from src.agent_platform.contracts import AgentProfile, RuntimeKind
 
 
 class AgentRegistry:
@@ -14,18 +14,19 @@ class AgentRegistry:
 
     def __init__(self, profiles: Iterable[AgentProfile] = ()) -> None:
         by_agent: dict[str, AgentProfile] = {}
-        hermes_profiles: set[str] = set()
+        runtime_profiles: set[tuple[RuntimeKind, str]] = set()
         memory_namespaces: set[str] = set()
 
         for profile in profiles:
+            runtime_key = (profile.runtime, profile.runtime_profile)
             if profile.agent_id in by_agent:
                 raise ValueError("duplicate_agent_id")
-            if profile.hermes_profile in hermes_profiles:
-                raise ValueError("hermes_profile_must_be_isolated")
+            if runtime_key in runtime_profiles:
+                raise ValueError("runtime_profile_must_be_isolated")
             if profile.memory_namespace in memory_namespaces:
                 raise ValueError("memory_namespace_must_be_isolated")
             by_agent[profile.agent_id] = profile
-            hermes_profiles.add(profile.hermes_profile)
+            runtime_profiles.add(runtime_key)
             memory_namespaces.add(profile.memory_namespace)
 
         self._profiles: Mapping[str, AgentProfile] = MappingProxyType(by_agent)

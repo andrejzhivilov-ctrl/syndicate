@@ -3,7 +3,7 @@
   "agent_id": "jack",
   "activation": "prepared_not_enabled",
   "runtime": "hermes",
-  "hermes_profile": "jack",
+  "runtime_profile": "jack",
   "memory_namespace": "agents/jack",
   "prompt_file": "src/agents/jack_runtime_prompt.md",
   "prompt_status": "draft",

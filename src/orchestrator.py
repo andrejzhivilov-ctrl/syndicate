@@ -68,12 +68,15 @@ SYSTEM_PROMPT = (Path(__file__).with_name("agents") / "eva_runtime_prompt.md").r
 
 
 class EvaOrchestrator:
-    """Central orchestrator coordinating all 10 floors of EVA SYNDICATE."""
+    """Central orchestrator coordinating all 10 floors of SYNDICATE."""
 
     TASK_ROUTING = {
         "oscar_task": "oscar",
         "tyler_task": "tyler",
         "jack_task": "jack",
+        "alice_engineer": "alice",
+        "alice_code_review": "alice",
+        "alice_status": "alice",
         # ─── Floor 1: Server & n8n ──────────────────────────────────────────
         "sensory_split_audio": "sensory",
         "sensory_extract_doc": "sensory",
@@ -358,6 +361,7 @@ class EvaOrchestrator:
         builder.add_node("oscar_agent", self._director_handler)
         builder.add_node("tyler_agent", self._director_handler)
         builder.add_node("jack_agent", self._director_handler)
+        builder.add_node("alice_agent", self._director_handler)
         builder.add_node("router", self._route_task)
         builder.add_node("lessons_check", self._lessons_check)
 
@@ -414,6 +418,7 @@ class EvaOrchestrator:
             "oscar": "oscar_agent",
             "tyler": "tyler_agent",
             "jack": "jack_agent",
+            "alice": "alice_agent",
             "sensory": "sensory",
             "error_collector": "error_collector",
             "n8n_templates": "n8n_templates",
@@ -738,20 +743,28 @@ class EvaOrchestrator:
         from src.agents.oscar import OscarAgent
         from src.agents.tyler import TylerAgent
         from src.agents.jack import JackAgent
+        from src.agents.alice import AliceAgent
 
         agent_id = state["current_agent"]
-        classes = {"oscar": OscarAgent, "tyler": TylerAgent, "jack": JackAgent}
+        classes = {"oscar": OscarAgent, "tyler": TylerAgent, "jack": JackAgent, "alice": AliceAgent}
         config = self._config.get(agent_id, {})
+        payload = dict(state.get("payload") or {})
+        default_actions = {
+            "alice_engineer": "engineer",
+            "alice_code_review": "review",
+            "alice_status": "capabilities",
+        }
+        payload.setdefault("action", default_actions.get(state.get("task_type", ""), "capabilities"))
         if config.get("enabled") is not True:
             state["result"] = {"agent": agent_id, "status": "unavailable", "value": None,
-                               "warning": "director_prepared_not_enabled"}
-        elif state["payload"].get("action", "capabilities") not in config.get("allowed_actions", ["capabilities"]):
+                               "warning": "agent_prepared_not_enabled"}
+        elif payload.get("action") not in config.get("allowed_actions", ["capabilities"]):
             state["result"] = {"agent": agent_id, "status": "denied", "reason": "action_not_granted"}
         else:
             agent = self._director_clients.get(agent_id)
             if agent is None:
-                agent = classes[agent_id](memory=self._memory, config=config)
-            state["result"] = await agent.execute(dict(state["payload"]))
+                agent = AliceAgent() if agent_id == "alice" else classes[agent_id](memory=self._memory, config=config)
+            state["result"] = await agent.execute(payload)
         state["status"] = "completed"
         return state
 
@@ -1338,6 +1351,10 @@ class EvaOrchestrator:
 
         target = state.get("current_agent", "eva")
         dispatch_table = {
+            "oscar": self._director_handler,
+            "tyler": self._director_handler,
+            "jack": self._director_handler,
+            "alice": self._director_handler,
             "sensory": self._sensory_handler,
             "error_collector": self._error_collector_handler,
             "n8n_templates": self._n8n_templates_handler,

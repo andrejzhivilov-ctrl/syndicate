@@ -1,6 +1,6 @@
 """
 Ukrainian Open Banking Integration Client (Monobank & PrivatBank).
-Part of EVA SYNDICATE Financial Infrastructure (Floor 10 - Fin CFO).
+Part of SYNDICATE Financial Infrastructure (Floor 10 - Fin CFO).
 
 Provides read-only account balance synchronization, transaction ingestion,
 and multi-currency normalization (UAH, USD, EUR) with safe mock fallbacks.

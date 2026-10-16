@@ -1,5 +1,5 @@
 """
-EVA SYNDICATE — Runtime configuration assembler v4.0.
+SYNDICATE — Runtime configuration assembler v4.0.
 
 Reads environment variables (dev fallbacks; production secrets come from Vault)
 and produces the nested ``config`` dict consumed by:
@@ -277,7 +277,7 @@ def build_runtime_config(env: Optional[Dict[str, str]] = None) -> Dict[str, Any]
             ],
         },
     }
-    for agent_id in ("oscar", "tyler", "jack"):
+    for agent_id in ("oscar", "tyler", "jack", "alice"):
         prefix = agent_id.upper()
         config[agent_id] = {
             "enabled": _to_bool(get(f"{prefix}_WORKER_ENABLED")),

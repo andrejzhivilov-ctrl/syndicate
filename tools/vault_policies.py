@@ -5,9 +5,9 @@ Why this exists
 ---------------
 The policies used to be heredocs inside ``deploy/scripts/vault_init.sh``. Two
 problems followed: they drifted from the paths the code actually reads, and the
-runtime policy was a wildcard (``secret/data/eva-syndicate/*``) that granted
+runtime policy was a wildcard over the entire secret namespace, granting
 every secret to one token — including other agents' provider keys and anything
-added later.
+added later. Migration policies now name exact paths in both namespaces.
 
 Now the grants are derived from one source of truth (``src/vault_paths.py``) and
 written to ``config/vault/policies/``. ``deploy/scripts/vault_init.sh`` only
@@ -95,10 +95,17 @@ def runtime_policy() -> Tuple[str, str]:
 def agent_policy(agent_id: str) -> Tuple[str, str]:
     """One agent's own policy (used when floors get their own containers)."""
     services = vault_paths.AGENT_SERVICES.get(agent_id, ())
+    own_scope = (
+        f"{vault_paths.agent_secret_path(agent_id, 'auth')} and "
+        f"{vault_paths.agent_secret_path(agent_id, 'gemini')}"
+        if agent_id == "alice"
+        else f"{vault_paths.agent_secret_path(agent_id, '<name>')}"
+    )
+    own_scope_label = "Own secrets" if agent_id == "alice" else "Own subtree"
     title = (
         f"Agent policy: {agent_id}.\n"
-        f"# Infrastructure: {', '.join(vault_paths.INFRA_SERVICES) if agent_id not in {'oscar', 'tyler', 'jack'} else 'none'}.\n"
-        f"# Own subtree: {vault_paths.agent_secret_path(agent_id, '<name>')}.\n"
+        f"# Infrastructure: {', '.join(vault_paths.INFRA_SERVICES) if agent_id not in {'oscar', 'tyler', 'jack', 'alice'} else 'none'}.\n"
+        f"# {own_scope_label}: {own_scope}.\n"
         f"# Extra services: {', '.join(services) if services else 'none (default deny)'}.\n"
         "# Cannot read other agents' subtrees or the server's own API key."
     )
@@ -124,7 +131,7 @@ def build_policies() -> Dict[str, str]:
 
 # ── verification ────────────────────────────────────────────────────────────
 #: Literal reads of the form ``secret_path("telegram")``.
-_LITERAL_READ = re.compile(r'secret_path\(\s*"([\w./-]+)"')
+_LITERAL_READ = re.compile(r'(?<!agent_)secret_path\(\s*"([\w./-]+)"')
 #: ``agent_secret_path("sam", ...)`` — reported as the ``agents/sam`` subtree.
 _AGENT_READ = re.compile(r'agent_secret_path\(\s*"([\w-]+)"')
 #: ``BaseConnector.SERVICE_NAME = "telegram"`` — read via ``self.SERVICE_NAME``.
@@ -176,8 +183,11 @@ def coverage_gaps(runtime_hcl: str) -> Dict[str, List[str]]:
     gaps: Dict[str, List[str]] = {}
     for service, locations in services_in_code().items():
         if service.startswith(f"{vault_paths.AGENTS}/"):
-            # Whole agent subtree is granted by the agents/* glob.
-            needed = [f"{vault_paths.MOUNT}/data/{vault_paths.PREFIX}/{vault_paths.AGENTS}/*"]
+            # Both namespaces are needed only during the migration window.
+            needed = [
+                f"{vault_paths.MOUNT}/data/{prefix}/{vault_paths.AGENTS}/*"
+                for prefix in vault_paths.PREFIXES
+            ]
         else:
             needed = vault_paths.policy_paths_for_service(service)
         missing = [p for p in needed if f'path "{p}"' not in runtime_hcl]
@@ -189,13 +199,23 @@ def coverage_gaps(runtime_hcl: str) -> Dict[str, List[str]]:
 def wildcard_grants(hcl: str) -> List[str]:
     """Any grant that would cover the whole secret store or a whole prefix."""
     offenders = []
+    unrestricted_roots = {
+        f"{vault_paths.MOUNT}/*",
+        f"{vault_paths.MOUNT}/data/*",
+        f"{vault_paths.MOUNT}/metadata/*",
+    }
+    namespace_roots = {
+        f"{vault_paths.MOUNT}/{kind}/{prefix}"
+        for prefix in vault_paths.PREFIXES
+        for kind in ("data", "metadata")
+    }
     for line in hcl.splitlines():
         if not line.startswith('path "'):
             continue
         target = line.split('"')[1]
-        # A trailing ``*`` directly after the prefix (i.e. ``<prefix>/*``)
-        # hands over everything: services, agents, future secrets alike.
-        if target.rstrip("*").rstrip("/").endswith(vault_paths.PREFIX):
+        # These wildcards hand over every service/agent or the entire KV mount.
+        wildcard_root = target.rstrip("*").rstrip("/")
+        if target in unrestricted_roots or wildcard_root in namespace_roots:
             offenders.append(target)
     return offenders
 
@@ -240,8 +260,12 @@ def _privilege_failures(policies: Dict[str, str]) -> List[str]:
         for other in vault_paths.AGENTS_IDS:
             if other != agent_id and f"{vault_paths.AGENTS}/{other}/" in agent_hcl:
                 failures.append(f"policy eva-{agent_id} can read {other}'s subtree")
-        # The server's own API key is not an agent secret.
-        if f'path "{vault_paths.secret_path(vault_paths.AUTH)}"' in agent_hcl:
+        # The server's own API key is not an agent secret in either namespace.
+        server_auth_paths = {
+            vault_paths.secret_path(vault_paths.AUTH),
+            vault_paths.legacy_secret_path(vault_paths.AUTH),
+        }
+        if any(f'path "{path}"' in agent_hcl for path in server_auth_paths):
             failures.append(f"policy eva-{agent_id} can read the server auth secret")
     return failures
 

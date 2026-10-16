@@ -1,4 +1,4 @@
-"""Writable-data path resolution for EVA SYNDICATE.
+"""Writable-data path resolution for SYNDICATE.
 
 Several subsystems persist state to disk (the Markdown ground-truth vault,
 rendered videos / mockups, anti-detect browser profiles). The production

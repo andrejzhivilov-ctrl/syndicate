@@ -1,7 +1,7 @@
 """
 Telegram connector — the primary human channel (Andrii) and HITL control surface.
 
-Bot token is stored in Vault at ``secret/data/eva-syndicate/telegram`` (key ``bot_token``).
+Bot token is stored in Vault at ``secret/data/syndicate/telegram`` (key ``bot_token``).
 Supports HTML messages, documents, inline keyboards (for HITL approve/reject),
 callback answers and webhook registration.
 """

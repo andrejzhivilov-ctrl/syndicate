@@ -1,0 +1,2 @@
+# Generated PDFs are deliverable binaries, not line-oriented text.
+*.pdf binary

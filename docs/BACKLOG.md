@@ -3,8 +3,11 @@
 Пріоритети: 🔴 треба · 🟠 бажано · 🟡 коли буде час.
 Оновлюй цей файл разом із `docs/HANDOFF.md`.
 
-Легенда хто: **AG** = Antigravity (будує) · **AA** = Arena Agent (перевіряє/консолідує) ·
+Легенда хто: **AG** = зовнішній продукт Antigravity для клієнтського handoff · **AA** = Arena Agent (перевіряє/консолідує) ·
 **👤** = тільки людина (потрібен секрет, гроші або рішення).
+
+Поточна агентка SYNDICATE — **Аліса**; Antigravity SDK — її runtime technology.
+Позначка AG у цьому історичному backlog не означає окремого агента чи нової ідентичності.
 
 ---
 
@@ -13,9 +16,10 @@
 - Відновити локальний `5e96a86` із попереднього середовища через patch/bundle:
   у цій копії та GitHub його немає. Voice/deploy checklist ще не перенесено.
 - Узгодити сервер/TLS, контейнеризацію A/B, перші grants і голосовий тест.
-- **Antigravity Studio:** профіль, offline-контракт, operator CLI (HTML/PNG/MP4, task handoff, local FTS)
-  готові; live-функції не підключені. Google One обрано для manual handoff. Далі — бюджети,
-  repo/domain scopes, приватну історію й ACL; план — `docs/ANTIGRAVITY_STUDIO.md`.
+- **Antigravity Studio (legacy manual handoff):** локальний offline-контракт і operator CLI
+  залишаються окремим інструментом; це не runtime Аліси й не Gemini API credential. Для Аліси
+  актуальний API-first стан/гейти — `docs/ALICE_RUNTIME.md`; попередня Google One згадка тут
+  стосується лише ручного handoff, не API-доступу.
 
 ## 🔴 Пріоритет 0 — підготовка бекенду під клієнтський додаток
 
@@ -68,7 +72,7 @@
 | # | Задача | Де | Хто |
 |---|---|---|---|
 | 12 | **Git LFS для `docs/EVA_SYNDICATE_SYSTEM_PASSPORT.pdf`.** Файл знято з відстеження, але блоб 6,3 МБ лишився в історії. Або LFS, або регенерувати з Markdown-джерела | `docs/` | AG |
-| 13 | **Видалити гілку `arena/01a10abd-eva-syndicate`** | ✅ гілки вже немає на GitHub (сесія 9 перевірила `git ls-remote --heads`). Пункт закрито | — |
+| 13 | **Видалити гілку `arena/01a10abd-SYNDICATE`** | ✅ гілки вже немає на GitHub (сесія 9 перевірила `git ls-remote --heads`). Пункт закрито | — |
 | 14 | **Доля `backup-stable-cockpit` (`7be2dda`)** | ✅ remote-гілку видалено ще в сесії 7. Важливе уточнення: оцінка «736 комітів, яких немає в `main`» була **помилковою** (наслідок shallow-клону) — `7be2dda` давно в історії `main`. Вміст збережено тегами `archive/cockpit-stable-7be2dda` і `v4.2-cockpit-halo-stable` | — |
 | 15 | **Розширити `tools/check.sh`** — частково: крок живої БД і перевірка «робоче дерево чисте» в CI вже є (сесія 8); лишилося `pip-audit` на вразливості | `tools/check.sh` | AA |
 | 16 | **Покрити тестами SQL-шляхи `TradeJournal`** (разом із символ-фільтром) | ✅ зроблено (сесія 8, `tests/test_postgres_paths.py`) | AA |

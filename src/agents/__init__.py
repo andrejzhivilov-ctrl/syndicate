@@ -1,4 +1,4 @@
-"""EVA SYNDICATE specialists, loaded on demand for isolated workers."""
+"""SYNDICATE specialists, loaded on demand for isolated workers."""
 from importlib import import_module
 
 _EXPORTS = {

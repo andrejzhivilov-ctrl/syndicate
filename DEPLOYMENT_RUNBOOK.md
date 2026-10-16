@@ -1,6 +1,6 @@
-# DEPLOYMENT RUNBOOK — EVA SYNDICATE
+# DEPLOYMENT RUNBOOK — SYNDICATE
 
-Покроковий посібник із розгортання суверенної, автономної, security-first мультиагентної системи **EVA SYNDICATE** на Contabo VPS (Ubuntu 24.04 LTS).
+Покроковий посібник із розгортання суверенної, автономної, security-first мультиагентної системи **SYNDICATE** на Contabo VPS (Ubuntu 24.04 LTS).
 
 > Усі команди виконуються на **чистому** сервері Ubuntu 24.04 LTS від імені користувача з правами `sudo`. Замініть `your-domain.com` на ваш реальний домен.
 
@@ -30,7 +30,7 @@
 sudo mkdir -p /opt/eva
 sudo chown "$USER":"$USER" /opt/eva
 cd /opt/eva
-git clone https://github.com/andrejzhivilov-ctrl/eva-syndicate.git .
+git clone https://github.com/andrejzhivilov-ctrl/SYNDICATE.git .
 git checkout feature/complete-system-implementation
 ```
 
@@ -139,7 +139,7 @@ curl -s http://127.0.0.1:8200/v1/sys/health | jq   # initialized:false, sealed:t
   `REDIS_PASSWORD` порожні або містять `CHANGE_ME`/`PLACEHOLDER`;
 * LLM-ключі передаються змінними середовища; чого немає — того **немає в Vault**
   (це чесно, і агент так і звітує: LLM `unavailable`). Щоб додати пізніше:
-  `vault kv put secret/eva-syndicate/<service> key=value`;
+  `vault kv put secret/syndicate/<service> key=value`;
 * `api_key` + `webhook_secret` генеруються випадково самим скриптом;
 * політики **не** пишуться heredoc-ом, а завантажуються з `config/vault/policies/*.hcl`,
   які генеруються з коду: `python tools/vault_policies.py --write`;
@@ -195,7 +195,7 @@ python tools/vault_policies.py --check     # виконується і в tools/
 
 Перевірка ловить три класи помилок: політику, що відстала від коду (агент отримав би
 403 на секреті, який читає на старті); сервіс, який код читає, але `src/vault_paths.py`
-не оголошує; і grant, що покриває весь префікс (`secret/data/eva-syndicate/*`), тобто
+не оголошує; і grant, що покриває весь префікс (`secret/data/syndicate/*`), тобто
 доступ до чужих ключів.
 
 ### 4.6. Хто які секрети бачить
@@ -220,8 +220,8 @@ python tools/vault_policies.py --check     # виконується і в tools/
 ```bash
 export VAULT_ADDR=http://127.0.0.1:8200
 vault login                     # будь-який метод з правом на запис
-vault kv put secret/eva-syndicate/telegram bot_token=... chat_id=...
-vault kv put secret/eva-syndicate/agents/sam/broker api_key=... api_secret=...
+vault kv put secret/syndicate/telegram bot_token=... chat_id=...
+vault kv put secret/syndicate/agents/sam/broker api_key=... api_secret=...
 ```
 
 Далі перевірте, що сервіс оголошено в `src/vault_paths.py` (інакше `--check` попередить),
@@ -349,7 +349,7 @@ docker compose -f deploy/docker-compose.yml --project-directory . --env-file .en
 cd /opt/eva
 # покласти поруч із бекапом (потрібен libpq: apt-get install -y postgresql-client)
 export EVA_BACKUP_DIR=/data/backups
-export DATABASE_URL="postgresql://eva:${POSTGRES_PASSWORD}@127.0.0.1:5432/eva_syndicate"  # або POSTGRES_PASSWORD
+export DATABASE_URL="postgresql://eva:${POSTGRES_PASSWORD}@127.0.0.1:5432/syndicate"  # або POSTGRES_PASSWORD
 
 # токен Vault ІЗ ПРАВОМ ЛИШЕ НА ЗНІМОК (не root!) — див. нижче
 export VAULT_ADDR=http://127.0.0.1:8200
@@ -435,7 +435,7 @@ for a in m['artifacts']:
 4. **База.**
    ```bash
    docker compose -f deploy/docker-compose.yml --project-directory . --env-file .env exec -T postgres \
-     pg_restore --clean --if-exists --no-owner -U eva -d eva_syndicate < "$SNAP/postgres.dump"
+     pg_restore --clean --if-exists --no-owner -U eva -d SYNDICATE < "$SNAP/postgres.dump"
    ```
 5. **Решта стека** (крок 6) і перевірка (крок 7), окремо — `/health` має показати
    `semantic_search_enabled: true`, а `embedding_failures: 0`.
@@ -458,7 +458,7 @@ for a in m['artifacts']:
 | redis healthcheck fail | Пароль у конфізі ≠ `.env` | Синхронізувати (крок 2.3), перезапустити redis |
 | Vault `sealed:true` після рестарту | Очікувано | Розпечатати (крок 8) |
 | Агент падає з 403 на `/v1/secret/data/...` | політика відстала від коду | `python tools/vault_policies.py --check`, далі `--write` і повторно завантажити політики (крок 4) |
-| `/health` показує `vault_placeholder_secrets` | у Vault лежить `CHANGE_ME*`/`PLACEHOLDER*` | записати справжнє значення: `vault kv put secret/eva-syndicate/<service> <key>=<value>` |
+| `/health` показує `vault_placeholder_secrets` | у Vault лежить `CHANGE_ME*`/`PLACEHOLDER*` | записати справжнє значення: `vault kv put secret/syndicate/<service> <key>=<value>` |
 | `vault_init.sh` відмовляється стартувати | `POSTGRES_PASSWORD`/`REDIS_PASSWORD` порожні або плейсхолдер | задати справжній пароль у `.env` і повторити |
 | 403 на внутрішніх портах ззовні | Очікувано (ізоляція) | Це коректна поведінка Zero-Trust |
 
@@ -486,4 +486,4 @@ for a in m['artifacts']:
 
 ---
 
-Готово. Система EVA SYNDICATE розгорнута згідно з принципами Zero-Trust та Least Privilege.
+Готово. Система SYNDICATE розгорнута згідно з принципами Zero-Trust та Least Privilege.

@@ -92,7 +92,7 @@ def test_sam_and_eva_namespaces_are_isolated() -> None:
             sam_agent_profile(sam),
             AgentProfile(
                 agent_id=eva["agent_id"],
-                hermes_profile=eva["hermes_profile"],
+                runtime_profile=eva["runtime_profile"],
                 memory_namespace=eva["memory_namespace"],
                 capabilities=frozenset(eva["capabilities"]),
                 resource_scopes=frozenset(eva["resource_scopes"]),

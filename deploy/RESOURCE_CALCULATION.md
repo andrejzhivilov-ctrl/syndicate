@@ -1,4 +1,4 @@
-# EVA SYNDICATE — Розрахунок потужностей для повної екосистеми
+# SYNDICATE — Розрахунок потужностей для повної екосистеми
 > **Сервер:** Contabo Cloud VPS 12 — 12 vCPU / 48 GB RAM / 400 GB SSD  
 > **Режим розгортання:** Повна екосистема одразу (всі 5 агентів + повна інфраструктура)
 
@@ -173,7 +173,7 @@ clamav:        memory: 512M, cpus: "0.2"
 Хвилина 8:    docker compose up -d marshal
 Хвилина 9:    docker compose up -d eva architect fin doc sam browser-use
 Хвилина 12:   docker compose ps (перевірка всіх healthy)
-Хвилина 15:   Перший Telegram /start у @eva_syndicate_bot та @sam_quant_bot
+Хвилина 15:   Перший Telegram /start у @syndicate_bot та @sam_quant_bot
 ```
 
 ---

@@ -1,4 +1,4 @@
-# EVA SYNDICATE — технічний паспорт системи
+# SYNDICATE — технічний паспорт системи
 
 Версія документа: 2026-10-15. Мова: українська. Репозиторій: https://github.com/andrejzhivilov-ctrl/syndicate. Документ описує стан коду цієї гілки, а не підтвердження запуску на production-сервері.
 
@@ -969,9 +969,9 @@ MCP для reverse engineering з Node і native engines. Потрібен ко�
 
 ### Крок 3 — секрети
 
-Єдине джерело шляхів — src/vault_paths.py. Integration worker читає secret/data/eva-syndicate/agents/<agent>/integrations. Запис KV: vault kv put secret/eva-syndicate/agents/<agent>/integrations @/secure/<agent>-integrations.json. JSON готується із config/integration_worker.example.json у приватному каталозі з mode0600; приклад із placeholder значеннями не придатний до запуску. Не комітити заповнений файл. Для KODEX/Antigravity, якщо готової policy немає, видати read лише власного integration path плюс token renewal, не wildcard усіх агентів.
+Єдине джерело шляхів — src/vault_paths.py. Integration worker читає secret/data/syndicate/agents/<agent>/integrations. Запис KV: vault kv put secret/syndicate/agents/<agent>/integrations @/secure/<agent>-integrations.json. JSON готується із config/integration_worker.example.json у приватному каталозі з mode0600; приклад із placeholder значеннями не придатний до запуску. Не комітити заповнений файл. Для KODEX/Antigravity, якщо готової policy немає, видати read лише власного integration path плюс token renewal, не wildcard усіх агентів.
 
-Coordinator читає лише worker API keys з secret/eva-syndicate/auth, поле integration_worker_keys з mapping agent→key. Provider keys живуть у власних worker secrets. Не перезаписувати інші auth поля при додаванні mapping; використовувати KV patch. Додайте не-секретний SYNDICATE_INTEGRATION_URLS JSON з agent→private-worker-origin до runtime coordinator. HTTPS дозволено за замовчуванням. Для HTTP у приватній Docker-мережі потрібен явний SYNDICATE_INTEGRATION_HTTP_HOSTS JSON зі списком точних приватних IP або однокомпонентних Docker aliases, наприклад ["fin-worker"]. Публічні IP та DNS-імена через HTTP відхиляються до читання API key; для зовнішніх адрес використовуйте HTTPS.
+Coordinator читає лише worker API keys з secret/syndicate/auth, поле integration_worker_keys з mapping agent→key. Provider keys живуть у власних worker secrets. Не перезаписувати інші auth поля при додаванні mapping; використовувати KV patch. Додайте не-секретний SYNDICATE_INTEGRATION_URLS JSON з agent→private-worker-origin до runtime coordinator. HTTPS дозволено за замовчуванням. Для HTTP у приватній Docker-мережі потрібен явний SYNDICATE_INTEGRATION_HTTP_HOSTS JSON зі списком точних приватних IP або однокомпонентних Docker aliases, наприклад ["fin-worker"]. Публічні IP та DNS-імена через HTTP відхиляються до читання API key; для зовнішніх адрес використовуйте HTTPS.
 
 ### Крок 4 — збірка й запуск інтеграцій
 

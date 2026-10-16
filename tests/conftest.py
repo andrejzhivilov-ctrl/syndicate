@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for the EVA SYNDICATE test suite.
+"""Shared pytest fixtures for the SYNDICATE test suite.
 
 The important one is :func:`live_pg` — it provides a **real** PostgreSQL +
 pgvector database with ``config/postgres/init.sql`` applied, so the SQL branches

@@ -3,7 +3,7 @@
   "activation": "prepared_not_enabled",
   "agent_id": "marshal",
   "runtime": "hermes",
-  "hermes_profile": "marshal",
+  "runtime_profile": "marshal",
   "memory_namespace": "agents/marshal",
   "prompt_file": "src/agents/marshal_runtime_prompt.md",
   "prompt_status": "draft",

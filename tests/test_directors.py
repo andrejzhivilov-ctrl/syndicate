@@ -364,14 +364,40 @@ def test_worker_bridge_uses_only_own_vault_auth_and_checks_response_agent():
     assert result["status"] == "unavailable"
 
 
+def test_alice_worker_bridge_uses_only_alice_auth_and_checks_response_agent():
+    from src.agent_platform.director_client import DirectorWorkerClient
+
+    class Vault:
+        async def get_secret(self, path):
+            assert path.endswith("agents/alice/auth")
+            return {"api_key": "synthetic-alice-worker-key"}
+
+    def respond(request):
+        assert request.url.host == "alice-agent"
+        assert request.url.path == "/execute"
+        assert request.headers["X-API-Key"] == "synthetic-alice-worker-key"
+        return httpx.Response(200, json={"agent": "alice", "status": "ok", "value": "review"})
+
+    client = DirectorWorkerClient("alice", "http://alice-agent:8000", Vault(), transport=httpx.MockTransport(respond))
+    result = asyncio.run(client.execute({"action": "review"}))
+    assert result == {"agent": "alice", "status": "ok", "value": "review"}
+
+
 def test_worker_config_is_dormant_and_explicit():
     from src.runtime_config import build_runtime_config
     config = build_runtime_config({})
     assert config["jack"]["enabled"] is False
     assert config["jack"]["allowed_actions"] == ["capabilities"]
+    assert config["alice"]["enabled"] is False
+    assert config["alice"]["allowed_actions"] == ["capabilities"]
     config = build_runtime_config({"JACK_WORKER_ENABLED": "true", "JACK_WORKER_URL": "http://jack-agent:8000",
-                                   "JACK_COORDINATOR_ACTIONS": "evaluate,report"})
+                                   "JACK_COORDINATOR_ACTIONS": "evaluate,report",
+                                   "ALICE_WORKER_ENABLED": "true", "ALICE_WORKER_URL": "http://alice-agent:8000",
+                                   "ALICE_COORDINATOR_ACTIONS": "engineer,review"})
     assert config["jack"]["allowed_actions"] == ["evaluate", "report"]
+    assert config["alice"]["enabled"] is True
+    assert config["alice"]["worker_url"] == "http://alice-agent:8000"
+    assert config["alice"]["allowed_actions"] == ["engineer", "review"]
 
 
 def test_orchestrator_director_handler_respects_host_allowlist_and_remote_client():

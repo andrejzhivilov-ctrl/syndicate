@@ -1,5 +1,5 @@
 # 🎬 OSCAR_CORE — CHIEF MEDIA & AUDIENCE DIRECTOR
-> Повна специфікація та конфігурація агента ОСКАР у складі EVA SYNDICATE
+> Повна специфікація та конфігурація агента ОСКАР у складі SYNDICATE
 
 ## 1. Реєстраційні Дані
 * **Agent ID:** `oscar`

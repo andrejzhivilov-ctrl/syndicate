@@ -1,4 +1,4 @@
-# 📅 EVA SYNDICATE — Операційний Добовий Цикл (Daily Operations Protocol v1.0)
+# 📅 SYNDICATE — Операційний Добовий Цикл (Daily Operations Protocol v1.0)
 
 > **Власник протоколу:** ЄВА (CEO, Orchestrator)  
 > **Підлеглі агенти:** Планувальник, Тренер, Email агент, Бухгалтер, Секретар, Аудіо-менеджер, Архіваріус  

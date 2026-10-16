@@ -3,7 +3,7 @@
 Цей файл читають усі AI-інструменти, що працюють з кодом (Arena Agent, Google Antigravity,
 Codex, Claude Code тощо). Якщо ти агент — почни звідси, перш ніж щось змінювати.
 
-**Проєкт:** EVA SYNDICATE — автономний AI-холдинг, 10 поверхів (Floor 1 інфраструктура →
+**Проєкт:** SYNDICATE — автономний AI-холдинг, 10 поверхів (Floor 1 інфраструктура →
 Floor 10 Marshal/безпека). Python 3.11, FastAPI, LangGraph, PostgreSQL+pgvector, Redis,
 HashiCorp Vault, n8n. Оператор-людина — Andrii.
 

@@ -3,7 +3,7 @@
   "activation": "prepared_not_enabled",
   "agent_id": "kira",
   "runtime": "hermes",
-  "hermes_profile": "kira",
+  "runtime_profile": "kira",
   "memory_namespace": "agents/kira",
   "prompt_status": "not_prepared",
   "role_status": "not_agreed",

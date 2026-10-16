@@ -150,7 +150,7 @@ def build_workflow(
         "connections": connections,
         "active": False,
         "settings": {"saveManualExecutions": True, "callerPolicy": "workflowsFromSameOwner"},
-        "tags": ["eva-syndicate", "architect-generated"],
+        "tags": ["SYNDICATE", "architect-generated"],
     }
 
 

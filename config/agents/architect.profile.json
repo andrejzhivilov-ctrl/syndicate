@@ -3,7 +3,7 @@
   "activation": "prepared_not_enabled",
   "agent_id": "architect",
   "runtime": "hermes",
-  "hermes_profile": "architect",
+  "runtime_profile": "architect",
   "memory_namespace": "agents/architect",
   "prompt_file": "src/agents/architect_runtime_prompt.md",
   "prompt_status": "draft",

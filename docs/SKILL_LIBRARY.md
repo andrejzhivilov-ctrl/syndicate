@@ -21,9 +21,11 @@ Runtime може викликати `SkillLibrary().read(authenticated_agent_id,
 
 ## Розподіл між агентами
 
+**Актуалізація 2026-10-16:** попередню технічну мітку `antigravity` замінено на агентку `alice`; переліки звірені з профілями. Antigravity — технологія, а не ім’я агентки. KODEX залишається власником prompt/skill engineering і каталогу. Усі записи нижче — reference-only, не активація runtime.
+
 | Агент | Додані матеріали |
 |---|---|
-| antigravity | handoff, api-and-interface-design, debugging-and-error-recovery, context-engineering, source-driven-development, test-driven-development, ponytail, frontend-design, replica-recon, replica-test |
+| alice | api-and-interface-design, debugging-and-error-recovery, context-engineering, documentation-and-adrs, source-driven-development, test-driven-development, planning-breakdown, agent-security-hardening |
 | architect | grill-me, handoff, grilling, api-and-interface-design, debugging-and-error-recovery, context-engineering, documentation-and-adrs, source-driven-development, test-driven-development, planning-breakdown, ponytail, replica-recon, agent-security-hardening |
 | doc | scientific-critical-thinking |
 | eva | grill-me, handoff, grilling, context-engineering, planning-breakdown, internal-comms, market-research |

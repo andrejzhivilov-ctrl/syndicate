@@ -7,7 +7,7 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
-app = FastAPI(title="EVA SYNDICATE Faster-Whisper ASR Service", version="1.0.0")
+app = FastAPI(title="SYNDICATE Faster-Whisper ASR Service", version="1.0.0")
 
 MODEL_SIZE = os.getenv("ASR_MODEL", "large-v3")
 QUANTIZATION = os.getenv("ASR_QUANTIZATION", "int8")

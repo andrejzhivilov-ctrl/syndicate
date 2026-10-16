@@ -1,0 +1,146 @@
+{
+  "schema_version": 2,
+  "agent_id": "alice",
+  "activation": "prepared_not_enabled",
+  "runtime": "antigravity_sdk",
+  "runtime_profile": "alice",
+  "memory_namespace": "agents/alice",
+  "role_title": "Керівниця інженерного відділу (Head of Engineering)",
+  "reports_to": "eva",
+  "authority": {
+    "ceo": "eva",
+    "alice_is_ceo": false,
+    "external_side_effects_require_andrii_approval": true
+  },
+  "prompt_file": "src/agents/alice_runtime_prompt.md",
+  "prompt_status": "draft",
+  "role_status": "agreed_draft",
+  "model_status": "not_selected",
+  "task_source": "andrii_only",
+  "provider": {
+    "mode": "api_first",
+    "primary": "gemini_developer_api",
+    "model": "not_selected",
+    "api_key_vault_ref": "secret/syndicate/agents/alice/gemini",
+    "google_one_is_api_credential": false,
+    "billing_and_quota_verified": false
+  },
+  "activation_gates": {
+    "profile_activation_required": true,
+    "server_api_enable_required": true,
+    "positive_daily_request_and_token_limits_required": true,
+    "provider_billing_limit_review_required": true,
+    "provider_billing_limit_reviewed": false,
+    "filtered_provider_egress_network_required": true,
+    "filtered_provider_egress_verified": false
+  },
+  "capabilities": [],
+  "grants": [],
+  "resource_scopes": [],
+  "services_enabled": [],
+  "skills": [],
+  "reference_skills": [
+    "api-and-interface-design",
+    "debugging-and-error-recovery",
+    "context-engineering",
+    "documentation-and-adrs",
+    "source-driven-development",
+    "test-driven-development",
+    "planning-breakdown",
+    "agent-security-hardening"
+  ],
+  "live_modes": {
+    "api": false,
+    "internet": false,
+    "browser_automation": false,
+    "github": false,
+    "image_generation": false,
+    "video_render": false,
+    "billing": false,
+    "history_ingest": false,
+    "production_deployment": false,
+    "telegram_bot": false
+  },
+  "workspace": {
+    "resource_scope": "alice/workspace",
+    "host_path_under_eva_data_dir": "data/alice/workspace",
+    "container_path": "/data/eva/data/alice/workspace",
+    "shell_execution": false,
+    "production_secrets_mount": false
+  },
+  "vault_refs": {
+    "worker_auth": "secret/syndicate/agents/alice/auth",
+    "gemini_api": "secret/syndicate/agents/alice/gemini"
+  },
+  "optional_vault_refs_not_granted": {
+    "anthropic_api": "secret/syndicate/agents/alice/anthropic",
+    "github_token": "secret/syndicate/agents/alice/github"
+  },
+  "telegram": {
+    "status": "not_connected",
+    "allowlist": []
+  },
+  "history": {
+    "status": "not_ingested",
+    "private_copy_required": true,
+    "external_embeddings": false
+  },
+  "subscription": {
+    "status": "api_billing_not_verified",
+    "google_one_used_for_api": false,
+    "automatic_credit_topups": false
+  },
+  "proposed_grants": [
+    {
+      "capability": "alice.model.invoke",
+      "status": "proposed_not_applied",
+      "purpose": "Gemini Developer API через серверний ключ у Vault; лише після вибору моделі, перевірки тарифу та встановлення лімітів"
+    },
+    {
+      "capability": "alice.workspace.read",
+      "status": "proposed_not_applied",
+      "resource_scope": "alice/workspace",
+      "purpose": "Читання лише окремого робочого каталогу Аліси"
+    },
+    {
+      "capability": "alice.workspace.write",
+      "status": "proposed_not_applied",
+      "resource_scope": "alice/workspace",
+      "purpose": "Створення та редагування файлів лише в окремому workspace; без виконання команд"
+    },
+    {
+      "capability": "alice.web.search",
+      "status": "proposed_not_applied",
+      "purpose": "Пошук лише після узгодження доменів, лімітів та механізму контрольованого egress"
+    },
+    {
+      "capability": "alice.github.repo.read",
+      "status": "proposed_not_applied",
+      "resource_scope": "github/repository:allowlist",
+      "purpose": "Майбутнє читання лише погоджених репозиторіїв і гілок"
+    },
+    {
+      "capability": "alice.github.pull_request.create",
+      "status": "proposed_not_applied",
+      "resource_scope": "github/repository:allowlist",
+      "purpose": "Майбутнє створення PR без автоматичного merge, force-push або deployment"
+    },
+    {
+      "capability": "alice.image.generate",
+      "status": "proposed_not_applied",
+      "purpose": "Генерація зображень після підтвердження endpoint, вартості та бюджету"
+    },
+    {
+      "capability": "alice.video.render",
+      "status": "proposed_not_applied",
+      "resource_scope": "alice/workspace",
+      "purpose": "Локальна обробка у майбутньому ізольованому sandbox; це не grant на генерацію або публікацію відео"
+    },
+    {
+      "capability": "alice.memory.read",
+      "status": "proposed_not_applied",
+      "resource_scope": "agents/alice",
+      "purpose": "Лише окремо погоджені, очищені та ACL-обмежені матеріали; без медичних даних і повного приватного діалогу"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# EVA SYNDICATE — Server Bootstrap Script
+# SYNDICATE — Server Bootstrap Script
 # Run as root on a fresh Ubuntu 24.04 LTS VPS
 # Usage: sudo bash server_bootstrap.sh
 
@@ -7,7 +7,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOG_FILE="/var/log/eva-syndicate-bootstrap.log"
+LOG_FILE="/var/log/SYNDICATE-bootstrap.log"
 EVA_USER="syndicate"
 EVA_GROUP="syndicate"
 EVA_UID=1001
@@ -74,7 +74,7 @@ install_docker() {
 }
 
 create_eva_user() {
-    log "Creating EVA SYNDICATE system user..."
+    log "Creating SYNDICATE system user..."
     if ! getent group "$EVA_GROUP" &>/dev/null; then
         groupadd -g "$EVA_GID" "$EVA_GROUP"
     fi
@@ -168,7 +168,7 @@ EOF
 
 harden_sysctl() {
     log "Applying sysctl hardening..."
-    cat > /etc/sysctl.d/99-eva-syndicate.conf << 'EOF'
+    cat > /etc/sysctl.d/99-SYNDICATE.conf << 'EOF'
 # Network hardening
 net.ipv4.ip_forward = 1
 net.ipv4.conf.all.rp_filter = 1
@@ -188,7 +188,7 @@ kernel.kptr_restrict = 2
 # File descriptor limits
 fs.file-max = 1048576
 EOF
-    sysctl -p /etc/sysctl.d/99-eva-syndicate.conf
+    sysctl -p /etc/sysctl.d/99-SYNDICATE.conf
     log "Sysctl hardening applied."
 }
 
@@ -211,7 +211,7 @@ EOF
 
 main() {
     check_root
-    log "====== EVA SYNDICATE Bootstrap Started ======"
+    log "====== SYNDICATE Bootstrap Started ======"
     install_dependencies
     install_docker
     create_eva_user

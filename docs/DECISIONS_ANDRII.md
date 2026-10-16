@@ -3,6 +3,14 @@
 Фіксує відповіді Андрія на відкриті питання з `docs/HANDOFF.md` (розділ 6 промпту для нового чату).
 Джерело істини для прав — профілі `config/agents/*.profile.json`. Цей файл пояснює, чому вони такі.
 
+## 2026-10-16 — Аліса API-first
+
+- Ім’я агентки — **Аліса** (`alice`); Antigravity — назва технології/runtime, не ідентичність. Єва лишається єдиною CEO.
+- Для Аліси обрано API-first runtime через Gemini Developer API. Google One не є API credential; не припускати безкоштовної квоти.
+- Gemini-модель, актуальна ціна/квоти, provider-side billing limit і outbound allowlist ще не узгоджені. Жодних реальних API keys у Git/чаті.
+- Anthropic/GitHub — необов’язкові майбутні reference paths, без поточного grant. Browser/desktop automation, Google login/cookies, shell, GitHub, web search, image/video та інші provider calls не підключати без окремого рішення.
+- Profile, grants, API, egress, worker і deployment залишаються default-off. Жодної live Vault/server зміни цим рішенням не погоджено.
+
 ## 2026-10-14 — Google One та злиття
 
 - Antigravity працює з підпискою Андрія Google One: обрано керований manual
@@ -21,7 +29,7 @@
 
 - Домашній ПК не використовуємо; запланований старт на сервері — 2026-10-15.
 - Голос: ElevenLabs через OpenRouter, один OPENROUTER_API_KEY у Vault
-  (`secret/eva-syndicate/api-keys`, поле `openrouter_api_key`), ніколи в чаті/Git/logs.
+  (`secret/syndicate/api-keys`, поле `openrouter_api_key`), ніколи в чаті/Git/logs.
   Код з `5e96a86` ще не доступний у цій копії; модель/голос потребують перевірки.
 - Telegram Док/KODEX — під час розгортання; allowlist лише Андрій, порожній = deny.
 - Потрібен агент **Antigravity Venture & Media Factory**: додатки/сайти, відео,

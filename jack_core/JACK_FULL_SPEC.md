@@ -1,5 +1,5 @@
 # 🎲 JACK_CORE — QUANTITATIVE SPORTS, ESPORTS & POKER ANALYST
-> Повна специфікація та конфігурація агента ДЖЕК у складі EVA SYNDICATE
+> Повна специфікація та конфігурація агента ДЖЕК у складі SYNDICATE
 
 ## 1. Реєстраційні Дані
 * **Agent ID:** `jack`

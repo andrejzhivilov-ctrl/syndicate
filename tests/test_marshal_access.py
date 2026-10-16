@@ -63,7 +63,7 @@ def test_empty_grants_deny_own_and_foreign_memory_capabilities() -> None:
 def test_memory_capability_would_still_deny_foreign_namespace() -> None:
     profile = AgentProfile(
         agent_id="marshal",
-        hermes_profile="marshal",
+        runtime_profile="marshal",
         memory_namespace="agents/marshal",
         capabilities=frozenset({"memory.read", "memory.write"}),
         runtime=RuntimeKind.HERMES,
