@@ -14,7 +14,11 @@
     "kodex.archive.write_unlabeled",
     "kodex.labeled.move",
     "kodex.labeled.change_with_andrii_permission",
-    "kodex.report.eva"
+    "kodex.report.eva",
+    "kodex.prompt.catalog",
+    "kodex.skill.research",
+    "kodex.integration.notebooklm",
+    "kodex.integration.obsidian"
   ],
   "resource_scopes": [
     "kodex/archive"
@@ -115,6 +119,10 @@
     "handoff",
     "context-engineering",
     "documentation-and-adrs",
-    "internal-comms"
+    "internal-comms",
+    "kodex-prompt-catalog",
+    "kodex-skill-research",
+    "kodex-notebooklm",
+    "kodex-obsidian"
   ]
 }

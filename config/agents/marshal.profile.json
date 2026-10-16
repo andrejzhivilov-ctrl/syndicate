@@ -66,6 +66,7 @@
   },
   "reference_skills": [
     "replica-test",
-    "agent-security-hardening"
+    "agent-security-hardening",
+    "marshal-skill-scout"
   ]
 }

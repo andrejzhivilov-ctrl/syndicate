@@ -18,7 +18,7 @@ from src.agent_platform.registry import AgentRegistry
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILES_DIR = ROOT / "config" / "agents"
-EXPECTED_IDS = frozenset({"eva", "architect", "marshal", "fin", "doc", "kira", "sam", "kodex", "alice", "oscar", "tyler", "jack"})
+EXPECTED_IDS = frozenset({"eva", "architect", "marshal", "fin", "doc", "kira", "sam", "kodex", "alice", "oscar", "tyler", "jack", "ray", "dex", "atlas", "trainer"})
 FORMED_IDENTITY = frozenset({"eva", "architect", "marshal", "sam", "fin", "alice", "oscar", "tyler", "jack"})
 
 
@@ -65,11 +65,23 @@ def test_all_prepared_manifests_are_default_deny_and_isolated() -> None:
             # KODEX: читання всіх архівів, зміна файлів без мітки, переміщення мічених, зміна мічених — з дозволом Андрія.
             assert manifest["capabilities"] == ["kodex.archive.read_all", "kodex.archive.write_unlabeled",
                                                 "kodex.labeled.move",
-                                                "kodex.labeled.change_with_andrii_permission", "kodex.report.eva"]
+                                                "kodex.labeled.change_with_andrii_permission", "kodex.report.eva",
+                                                "kodex.prompt.catalog", "kodex.skill.research",
+                                                "kodex.integration.notebooklm", "kodex.integration.obsidian"]
             assert manifest["resource_scopes"] == ["kodex/archive"]
             assert manifest["services_enabled"] == []
             assert manifest["knowledge_base"]["protection"]["label"] == "andrii_protected"
             assert manifest["knowledge_base"]["protection"]["labeled_files"]["edit_or_delete"] == "лише з дозволом Андрія"
+        elif agent_id in {"ray", "dex", "atlas", "trainer"}:
+            assert manifest["capabilities"] == []
+            assert manifest["resource_scopes"] == []
+            assert manifest["services_enabled"] == []
+            assert manifest["grants"] == []
+            assert manifest["skills"] == []
+            assert manifest["internet"]["enabled"] is False
+            assert manifest["internet"]["allowed_domains"] == []
+            assert manifest["egress"]["default"] == "deny"
+            assert manifest["egress"]["allowed_domains"] == []
         else:
             assert manifest["capabilities"] == []
             assert manifest["resource_scopes"] == []

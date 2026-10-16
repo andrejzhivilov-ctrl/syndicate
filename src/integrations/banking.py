@@ -13,6 +13,8 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 import structlog
 
+from src.voice._util import read_vault_secret
+
 logger = structlog.get_logger(__name__)
 
 # Currency code mappings (ISO 4217)
@@ -37,11 +39,28 @@ class BankingClient:
         privatbank_merchant_id: Optional[str] = None,
         privatbank_password: Optional[str] = None,
         timeout_s: float = 10.0,
+        vault_client: Any = None,
     ) -> None:
-        self.monobank_token = monobank_token or os.getenv("MONOBANK_API_TOKEN")
-        self.privatbank_merchant_id = privatbank_merchant_id or os.getenv("PRIVATBANK_MERCHANT_ID")
-        self.privatbank_password = privatbank_password or os.getenv("PRIVATBANK_PASSWORD")
+        self._vault = vault_client
+        self.monobank_token = monobank_token
+        self.privatbank_merchant_id = privatbank_merchant_id
+        self.privatbank_password = privatbank_password
         self.timeout_s = timeout_s
+
+    async def _ensure_secrets(self) -> None:
+        if self.monobank_token is None:
+            self.monobank_token = await read_vault_secret(
+                self._vault, "api-keys", "monobank_api_token", env_key="MONOBANK_API_TOKEN"
+            )
+        if self.privatbank_merchant_id is None:
+            self.privatbank_merchant_id = await read_vault_secret(
+                self._vault, "api-keys", "privatbank_merchant_id", env_key="PRIVATBANK_MERCHANT_ID"
+            )
+        if self.privatbank_password is None:
+            self.privatbank_password = await read_vault_secret(
+                self._vault, "api-keys", "privatbank_password", env_key="PRIVATBANK_PASSWORD"
+            )
+
 
     async def get_accounts_overview(self) -> Dict[str, Any]:
         """
@@ -55,6 +74,8 @@ class BankingClient:
         as if it had been measured. Fake balances are now opt-in only and are
         always labelled ``synthetic: True``.
         """
+        await self._ensure_secrets()
+
         accounts = []
 
         # 1. Monobank Sync

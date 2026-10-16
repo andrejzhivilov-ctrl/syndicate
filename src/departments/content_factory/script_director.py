@@ -8,10 +8,11 @@ Implements the Hook-Retain-Reward structure with B-roll cues and SFX triggers.
 from __future__ import annotations
 
 import json
-import os
 from typing import Any, Dict, Optional
 import httpx
 import structlog
+
+from src.voice._util import read_vault_secret
 
 logger = structlog.get_logger(__name__)
 
@@ -79,10 +80,18 @@ TEMPLATE_SCENES = [
 class ScriptDirector:
     """Automated director for short-form video scripting and visual choreography."""
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "grok-beta"):
-        self.api_key = api_key or os.getenv("XAI_API_KEY", "")
+    def __init__(self, api_key: Optional[str] = None, model: str = "grok-beta", vault_client: Any = None):
+        self._vault = vault_client
+        self.api_key = api_key or ""
         self.model = model
         self.base_url = "https://api.x.ai/v1"
+
+    async def _ensure_api_key(self) -> None:
+        if not self.api_key:
+            self.api_key = await read_vault_secret(
+                self._vault, "api-keys", "xai_api_key", env_key="XAI_API_KEY"
+            ) or ""
+
 
     async def generate_short_script(
         self,
@@ -97,6 +106,8 @@ class ScriptDirector:
         Calculates optimal speech density (approx 2.3 - 2.5 words per second).
         """
         target_words = int(target_duration_sec * 2.4)
+
+        await self._ensure_api_key()
 
         system_prompt = (
             "You are an elite short-form video director and viral scriptwriter for TikTok, Reels, and YouTube Shorts. "

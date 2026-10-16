@@ -1896,3 +1896,172 @@ Vault і БД агент не стартував**. Погодинне приб�
 - **Файли для розгортання:** `docs/DEPLOY_SYNDICATE.md`, `docs/PERMISSIONS_MATRIX.md`, `DEPLOYMENT_RUNBOOK.md`, `.env.example`.
 - **Відкрите (Андрій):** YouTube для Єви (офіційний Data API) — вмикати чи ні; YouTube Music (офіційного API немає); пороги харчування Дока; журнал діалогу `EVA_SYNDICATE_FULL_DIALOGUE.txt` (1,8 МБ) — лишати чи архівувати; рушій транскрибації і OCR при деплої; Telegram-токени для Дока і KODEX.
 - **Відкладено до деплою:** бази знань (вправи, рецепти, медичні протоколи), запуск runtime агентів, live-відео, голос, нагадування-планувальник Дока, n8n-моніторинг новин, Obsidian/NotebookLM/Drive/Sheets.
+
+---
+
+## 2026-10-16 — Arena Agent: Vault-first для модулів backlog #37
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+- `BRollScout`, `GrokWriter`, `ScriptDirector`, `ContentPublisher`, `BankingClient` тепер приймають необов'язковий `vault_client` і читають секрети через `src/voice/_util.read_vault_secret` (Vault → env-fallback для dev).
+- `Floor2Coordinator` і `EvaOrchestrator` передають `vault_client` у відповідні модулі; `agent_runner` передає `app_state.vault_client` в оркестратор.
+- Підтримано Vault-шляхи: `api-keys` (`xai_api_key`, `pexels_api_key`, `pixabay_api_key`, `monobank_api_token`, `privatbank_merchant_id`, `privatbank_password`), `telegram` (`bot_token`).
+- Збережено env-fallback для локальної розробки й наявні регресійні тести.
+- `embeddings_server` залишено env-based, бо це окремий сервісний контейнер із конфігурацією через compose.
+
+### Не зроблено
+- Реальне заповнення Vault секретами залишається операторською дією; код не застосовував жодних live-змін.
+- Політики Vault не застосовувалися до live Vault.
+
+### Наступне
+- Операторське заповнення Vault за `src/vault_paths.py` і перевірка `/health` (`vault_placeholder_secrets`).
+- За потреби — окремий Vault-first шлях для `EMBEDDINGS_TOKEN` у embeddings-сервісі.
+
+---
+
+## 2026-10-16 — Arena Agent: підготовка ролей Ray, Dex, Atlas
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+- Додано `config/agents/ray.profile.json`, `dex.profile.json`, `atlas.profile.json` у стані `prepared_not_enabled`.
+- Ролі default-deny: порожні `capabilities`, `grants`, `resource_scopes`, `services_enabled`, `skills`.
+- `role_status: not_agreed`, `prompt_status: not_prepared`, `model_status: not_selected`.
+- Інтернет/egress: контрольований шлюз, `default: deny`, `allowed_domains: []`.
+- Оновлено `tests/test_prepared_agent_profiles.py` (EXPECTED_IDS + перевірки для нових ролей).
+- Оновлено `config/skill_library.json` і згенеровано `docs/PERMISSIONS_MATRIX.md`, щоб усі профілі мали reference skills і матрицю.
+- Ролі не додано до `src/vault_paths.py` / `AGENTS_IDS` і не створено для них Vault policies.
+- Runtime, grants, конектори та egress не активовано.
+
+### Важливо
+- Рей не оформлює замовлення, не витрачає кошти і не змінює live-ціни/сторінки.
+- Декс не надсилає масові повідомлення, не купує бази і не запускає рекламу; потребує погоджених джерел і правил згоди.
+- Атлас не бронює й не оплачує; потребує офіційних джерел попереджень та обмежень в Україні.
+
+---
+
+## 2026-10-16 — Arena Agent: профіль Тренера (trainer)
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+- Додано `config/agents/trainer.profile.json` у стані `prepared_not_enabled`.
+- Роль відокремлена від Doc: тренувальні плани, вправи, рецепти, харчування й чернетки списків покупок.
+- Default-deny: порожні `capabilities`, `grants`, `resource_scopes`, `services_enabled`, `skills`.
+- `role_status: not_agreed`, `prompt_status: not_prepared`, `model_status: not_selected`.
+- Інтернет/egress: контрольований шлюз, `default: deny`, `allowed_domains: []`.
+- Тренер не доданий до `src/vault_paths.py` / `AGENTS_IDS` і не має Vault policy.
+- Оновлено `tests/test_prepared_agent_profiles.py`, `config/skill_library.json` і `docs/PERMISSIONS_MATRIX.md`.
+- Runtime, grants, конектори та egress не активовано.
+
+### Межі
+- Тренер не має доступу до медичного архіву й `andrii_protected`.
+- Не ставить діагнози, не призначає ліки, не замовляє й не оплачує.
+- Медичні питання лишаються за Doc.
+
+---
+
+## 2026-10-16 — Arena Agent: узгодження ролей і меж (за документом)
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зафіксовані рішення
+- Єва — єдина генеральна директорка/CEO. Інші агенти — керівники відділів або спеціалісти; слово «директор» для них не використовується.
+- KODEX — керівник знань, скілів і prompt engineering: каталог промптів/скілів, версії, джерела, ліцензії, хеші, перевірки; може пропонувати, але не змінює автоматично системні промпти, права агентів чи production-конфігурацію.
+- Маршал — безпека й контроль змін: походження/ризики скілів, ліцензії, права, зовнішні з’єднання; погоджує або блокує допуск у спільний каталог.
+- Prompt Engineer не є окремим агентом із правом змінювати інших агентів; це навичка/власник каталогу промптів у межах KODEX; затвердження — за Андрієм.
+- NotebookLM і Obsidian — вузькі інтеграції/джерела знань, не окремі агенти. Obsidian потребує точного дозволеного шляху; для NotebookLM не припускати придатного API або автоматизації входу через cookies.
+- Барахолки/дропшипінг на старті — skills/modules у Tyler: порівняння цін, постачальників, чернетки оголошень. Купівля, замовлення, оплата й публікація не дозволяються. Окремий агент — лише після визначення платформ і процесів.
+- Пошук нових скілів на GitHub/Hugging Face — спершу read-only розвідка для Marshal: метадані, ліцензії, зміни, hash і звіт-кандидат. Без автоматичного завантаження моделей чи встановлення коду.
+- Antigravity: підтверджений безпечний шлях для серверного агента через Google One не знайдено; залишається ручний handoff. Обхідні патчі й автоматизація входу через cookies не використовуються. Технічний ID не закріплено; ім’я Гравіті, жіночий рід.
+- Інтернет для агентів — лише через спільний контрольований шлюз із per-agent allowlist, не універсальний grant.
+- Усі профілі залишаються `prepared_not_enabled`; grants не застосовуються без окремого погодження.
+
+### Важливо
+- Документ містить великий план; виконання триває інкрементально. Живий сервер, Vault, БД і контейнери не змінювалися.
+
+---
+
+## 2026-10-16 — Arena Agent: Tyler skills для барахолок/дропшипінгу
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+- Додано read-only skills у `tyler_core/skills/`:
+  - `tyler-price-compare`
+  - `tyler-supplier-research`
+  - `tyler-listing-draft`
+- Зареєстровано їх у `config/skill_library.json` і призначено профілю Tyler.
+- Оновлено `docs/PERMISSIONS_MATRIX.md`.
+- Skills не дають права на купівлю, замовлення, оплату, публікацію чи зміну live-цін; лише порівняння, дослідження й чернетки.
+
+### Не зроблено
+- Окремий агент для барахолок/дропшипінгу не створено; це залишається в межах Tyler до визначення платформ і процесів.
+
+---
+
+## 2026-10-16 — Arena Agent: KODEX skills для prompt catalog і research
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+- Додано KODEX skills:
+  - `kodex-prompt-catalog`
+  - `kodex-skill-research`
+  - `kodex-notebooklm`
+  - `kodex-obsidian`
+- Зареєстровано їх у `config/skill_library.json` і призначено профілю KODEX.
+- Оновлено `docs/PERMISSIONS_MATRIX.md`.
+- Skills залишаються reference-only: KODEX може пропонувати й тестувати, але не змінює автоматично системні промпти, права агентів чи production-конфігурацію.
+- NotebookLM/Obsidian залишаються вузькими інтеграціями без припущення придатного API або автоматизації входу через cookies.
+
+---
+
+## 2026-10-16 — Arena Agent: Marshal read-only skill scout
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+- Додано skill `marshal-skill-scout` у `marshal_core/skills/`.
+- Зареєстровано в `config/skill_library.json` і призначено профілю Marshal.
+- Оновлено `docs/PERMISSIONS_MATRIX.md`.
+- Skill залишається read-only: метадані, ліцензії, зміни, hash і звіт-кандидат; без автоматичного завантаження моделей чи встановлення коду.
+
+---
+
+## 2026-10-16 — Arena Agent: документ контрольованого інтернет-шлюзу
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+- Додано `docs/AGENT_INTERNET_GATEWAY.md`: default-deny, per-agent allowlist, read-only за замовчуванням, окреме погодження для запису/публікації/оплати.
+- Код і grants не змінювалися; це пропозиція для наступного етапу.
+
+### Не зроблено
+- Реалізація шлюзу, мережеві політики й grants залишаються після затвердження матриці.
+
+---
+
+## 2026-10-16 — Arena Agent: нотатка про Paperclip
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+- Додано `docs/PAPERCLIP_INTEGRATION_NOTE.md`: Paperclip — зовнішній control plane для оркестрації агентів.
+- Рекомендація: не інтегрувати зараз; спочатку стабілізувати профілі, grants і internet gateway. При потребі — окремий модуль через HTTP adapter без секретів і з budget/approval gates.
+
+---
+
+## 2026-10-16 — Arena Agent: розширення можливостей KODEX
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+- Додано KODEX capabilities:
+  - `kodex.prompt.catalog`
+  - `kodex.skill.research`
+  - `kodex.integration.notebooklm`
+  - `kodex.integration.obsidian`
+- Оновлено тест і permissions matrix.
+- Capabilities залишаються prepared_not_enabled; grants не застосовувалися.

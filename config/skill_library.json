@@ -244,7 +244,8 @@
         "eva",
         "fin",
         "kodex",
-        "oscar"
+        "oscar",
+        "trainer"
       ],
       "resources": {
         "LICENSE.txt": "skills/vendor/anthropics/skills/skills/internal-comms/LICENSE.txt",
@@ -362,6 +363,7 @@
       "mode": "reference_only",
       "agents": [
         "oscar",
+        "trainer",
         "tyler"
       ],
       "resources": {
@@ -377,10 +379,13 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
+        "atlas",
+        "dex",
         "eva",
         "fin",
-        "sam",
         "oscar",
+        "ray",
+        "sam",
         "tyler"
       ],
       "resources": {
@@ -413,7 +418,10 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
+        "atlas",
+        "dex",
         "oscar",
+        "ray",
         "tyler"
       ],
       "resources": {
@@ -421,6 +429,126 @@
         "references/voice-profile-schema.md": "skills/vendor/affaan-m/ECC/skills/brand-voice/references/voice-profile-schema.md"
       },
       "review": "Instructions and dependencies inspected; not a certification or runtime permission grant."
+    },
+    {
+      "id": "tyler-price-compare",
+      "source": "local",
+      "commit": "744f2e767f4bec466f20eeb1297e8497708a5ba3",
+      "source_path": "tyler_core/skills/tyler-price-compare/SKILL.md",
+      "license": "internal",
+      "mode": "reference_only",
+      "agents": [
+        "tyler"
+      ],
+      "resources": {
+        "SKILL.md": "tyler_core/skills/tyler-price-compare/SKILL.md"
+      },
+      "review": "Reference-only draft skill; no purchase, order, payment, or publishing."
+    },
+    {
+      "id": "tyler-supplier-research",
+      "source": "local",
+      "commit": "744f2e767f4bec466f20eeb1297e8497708a5ba3",
+      "source_path": "tyler_core/skills/tyler-supplier-research/SKILL.md",
+      "license": "internal",
+      "mode": "reference_only",
+      "agents": [
+        "tyler"
+      ],
+      "resources": {
+        "SKILL.md": "tyler_core/skills/tyler-supplier-research/SKILL.md"
+      },
+      "review": "Reference-only draft skill; no purchase, order, payment, or publishing."
+    },
+    {
+      "id": "tyler-listing-draft",
+      "source": "local",
+      "commit": "744f2e767f4bec466f20eeb1297e8497708a5ba3",
+      "source_path": "tyler_core/skills/tyler-listing-draft/SKILL.md",
+      "license": "internal",
+      "mode": "reference_only",
+      "agents": [
+        "tyler"
+      ],
+      "resources": {
+        "SKILL.md": "tyler_core/skills/tyler-listing-draft/SKILL.md"
+      },
+      "review": "Reference-only draft skill; no purchase, order, payment, or publishing."
+    },
+    {
+      "id": "kodex-prompt-catalog",
+      "source": "local",
+      "commit": "744f2e767f4bec466f20eeb1297e8497708a5ba3",
+      "source_path": "kodex_core/skills/kodex-prompt-catalog/SKILL.md",
+      "license": "internal",
+      "mode": "reference_only",
+      "agents": [
+        "kodex"
+      ],
+      "resources": {
+        "SKILL.md": "kodex_core/skills/kodex-prompt-catalog/SKILL.md"
+      },
+      "review": "Reference-only KODEX skill; no automatic changes to prompts, grants, or production config."
+    },
+    {
+      "id": "kodex-skill-research",
+      "source": "local",
+      "commit": "744f2e767f4bec466f20eeb1297e8497708a5ba3",
+      "source_path": "kodex_core/skills/kodex-skill-research/SKILL.md",
+      "license": "internal",
+      "mode": "reference_only",
+      "agents": [
+        "kodex"
+      ],
+      "resources": {
+        "SKILL.md": "kodex_core/skills/kodex-skill-research/SKILL.md"
+      },
+      "review": "Reference-only KODEX skill; no automatic changes to prompts, grants, or production config."
+    },
+    {
+      "id": "kodex-notebooklm",
+      "source": "local",
+      "commit": "744f2e767f4bec466f20eeb1297e8497708a5ba3",
+      "source_path": "kodex_core/skills/kodex-notebooklm/SKILL.md",
+      "license": "internal",
+      "mode": "reference_only",
+      "agents": [
+        "kodex"
+      ],
+      "resources": {
+        "SKILL.md": "kodex_core/skills/kodex-notebooklm/SKILL.md"
+      },
+      "review": "Reference-only KODEX skill; no automatic changes to prompts, grants, or production config."
+    },
+    {
+      "id": "kodex-obsidian",
+      "source": "local",
+      "commit": "744f2e767f4bec466f20eeb1297e8497708a5ba3",
+      "source_path": "kodex_core/skills/kodex-obsidian/SKILL.md",
+      "license": "internal",
+      "mode": "reference_only",
+      "agents": [
+        "kodex"
+      ],
+      "resources": {
+        "SKILL.md": "kodex_core/skills/kodex-obsidian/SKILL.md"
+      },
+      "review": "Reference-only KODEX skill; no automatic changes to prompts, grants, or production config."
+    },
+    {
+      "id": "marshal-skill-scout",
+      "source": "local",
+      "commit": "744f2e767f4bec466f20eeb1297e8497708a5ba3",
+      "source_path": "marshal_core/skills/marshal-skill-scout/SKILL.md",
+      "license": "internal",
+      "mode": "reference_only",
+      "agents": [
+        "marshal"
+      ],
+      "resources": {
+        "SKILL.md": "marshal_core/skills/marshal-skill-scout/SKILL.md"
+      },
+      "review": "Reference-only Marshal scout; no automatic downloads or installation."
     }
   ],
   "files": {
@@ -482,6 +610,14 @@
     "skills/vendor/mattpocock/skills/skills/productivity/grilling/SKILL.md": "befdff1e27a1dfe2a294d5871169ac1afe16d983911daa4f32627514a48c1e15",
     "skills/vendor/mattpocock/skills/skills/productivity/grilling/agents/openai.yaml": "1411d7df7d99b7e621a1ff8283c8133cc2464be63d064e52d8ce169c6800ee9b",
     "skills/vendor/mattpocock/skills/skills/productivity/handoff/SKILL.md": "4cbb043950dad2ffd3662ff1a5a0b51ae676004b5cae10e3787e8ee7a4ee69d3",
-    "skills/vendor/mattpocock/skills/skills/productivity/handoff/agents/openai.yaml": "5c479fd562c691851690e8b18c8501045bef0943c10743d636b2fae26add1d28"
+    "skills/vendor/mattpocock/skills/skills/productivity/handoff/agents/openai.yaml": "5c479fd562c691851690e8b18c8501045bef0943c10743d636b2fae26add1d28",
+    "tyler_core/skills/tyler-price-compare/SKILL.md": "2addcfb17a4405f72c247a0ea8a441cdac1a0dfc5f0d0b0cf658a86c2124c8e0",
+    "tyler_core/skills/tyler-supplier-research/SKILL.md": "80f79f21b7745f815559387158a85342c39f362d6a3d9aef5dfe7b5c5e4f0051",
+    "tyler_core/skills/tyler-listing-draft/SKILL.md": "8a458e5dc6c8d26aa867a2895e45e19f21cce6f0af9aa6853f76c2fcf34867af",
+    "kodex_core/skills/kodex-prompt-catalog/SKILL.md": "5059d5c5f5ae531800ef14866eeb4738f727edf45f6d132a2ace020ca4bfe6fb",
+    "kodex_core/skills/kodex-skill-research/SKILL.md": "c76a70264a62160f6ce124adc0ca328baf3d1462d63e77765b06800d3631f2be",
+    "kodex_core/skills/kodex-notebooklm/SKILL.md": "3cf1d74baaec6f8cbe6fea2ef00f7f1ca71e453e89ff190037a0d42983a508e9",
+    "kodex_core/skills/kodex-obsidian/SKILL.md": "5f0d35e913f111df0bdff82bf329ae179d551660a9752076b434aa77c37c6be7",
+    "marshal_core/skills/marshal-skill-scout/SKILL.md": "0b0e4592cb45524286c8e23ff3e539d925801aa70abe4fc70a3cda968993f8f5"
   }
 }

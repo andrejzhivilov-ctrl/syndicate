@@ -13,6 +13,8 @@ from typing import Any, Dict, List, Optional
 import httpx
 import structlog
 
+from src.voice._util import read_vault_secret
+
 logger = structlog.get_logger(__name__)
 
 
@@ -23,9 +25,11 @@ class ContentPublisher:
         self,
         telegram_bot_token: Optional[str] = None,
         telegram_channel_id: Optional[str] = None,
-        youtube_credentials_path: Optional[str] = None
+        youtube_credentials_path: Optional[str] = None,
+        vault_client: Any = None,
     ):
-        self.tg_token = telegram_bot_token or os.getenv("TELEGRAM_BOT_TOKEN", "")
+        self._vault = vault_client
+        self.tg_token = telegram_bot_token or ""
         self.tg_channel = telegram_channel_id or os.getenv("TELEGRAM_CHANNEL_ID", "@syndicate_holding")
         self.yt_creds = youtube_credentials_path or os.getenv("YOUTUBE_CREDENTIALS_PATH", "credentials/youtube.json")
 
@@ -39,6 +43,11 @@ class ContentPublisher:
         v_file = Path(video_path)
         if not v_file.exists():
             return {"status": "error", "message": f"Video file not found: {video_path}"}
+
+        if not self.tg_token:
+            self.tg_token = await read_vault_secret(
+                self._vault, "telegram", "bot_token", env_key="TELEGRAM_BOT_TOKEN"
+            ) or ""
 
         if not self.tg_token or self.tg_token == "PLACEHOLDER_UPDATE_ME":
             # Nothing was sent. The old code returned "mock_success", so the

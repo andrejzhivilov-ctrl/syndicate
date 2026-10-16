@@ -9,12 +9,13 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import os
 import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 import httpx
 import structlog
+
+from src.voice._util import read_vault_secret
 
 logger = structlog.get_logger(__name__)
 
@@ -29,15 +30,27 @@ class BRollScout:
         self,
         cache_dir: Optional[str] = None,
         pexels_api_key: Optional[str] = None,
-        pixabay_api_key: Optional[str] = None
+        pixabay_api_key: Optional[str] = None,
+        vault_client: Any = None,
     ):
         # EVA_DATA_DIR-aware: the container root filesystem is read-only.
         from src.data_paths import ensure_dir
 
         self.cache_dir = ensure_dir("broll_cache", cache_dir)
-        self.pexels_key = pexels_api_key or os.getenv("PEXELS_API_KEY", "")
-        self.pixabay_key = pixabay_api_key or os.getenv("PIXABAY_API_KEY", "")
+        self._vault = vault_client
+        self.pexels_key = pexels_api_key or ""
+        self.pixabay_key = pixabay_api_key or ""
         self.ffmpeg_bin = shutil.which("ffmpeg") or "ffmpeg"
+
+    async def _ensure_api_keys(self) -> None:
+        if not self.pexels_key:
+            self.pexels_key = await read_vault_secret(
+                self._vault, "api-keys", "pexels_api_key", env_key="PEXELS_API_KEY"
+            ) or ""
+        if not self.pixabay_key:
+            self.pixabay_key = await read_vault_secret(
+                self._vault, "api-keys", "pixabay_api_key", env_key="PIXABAY_API_KEY"
+            ) or ""
 
     async def fetch_broll_for_scene(
         self,
@@ -49,6 +62,8 @@ class BRollScout:
         Fetch the best vertical 9:16 video clip matching keywords.
         Checks local cache first, then calls Pexels/Pixabay, with motion fallback.
         """
+        await self._ensure_api_keys()
+
         query = " ".join(keywords)
         cache_key = hashlib.md5(query.lower().strip().encode("utf-8")).hexdigest()[:12]
         cached_file = self.cache_dir / f"broll_{cache_key}.mp4"
