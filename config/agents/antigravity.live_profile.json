@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "agent_id": "antigravity",
+  "activation": "active",
+  "runtime": "hermes",
+  "hermes_profile": "antigravity",
+  "memory_namespace": "agents/antigravity",
+  "prompt_file": "src/agents/antigravity_runtime_prompt.md",
+  "prompt_status": "active",
+  "role_status": "director_active",
+  "model_status": "claude_gemini_groq_matrix",
+  "task_source": "andrii_or_eva",
+  "capabilities": [
+    "antigravity.app.build",
+    "antigravity.image.generate",
+    "antigravity.video.render",
+    "antigravity.research.read",
+    "antigravity.github.pr",
+    "antigravity.billing.read",
+    "antigravity.history.read",
+    "antigravity.code.execute",
+    "antigravity.subagents.spawn",
+    "antigravity.browser.automate"
+  ],
+  "grants": [
+    {
+      "capability": "antigravity.app.build",
+      "status": "granted",
+      "scope": "workspace_full",
+      "purpose": "Full autonomous application building, code authoring, and AST refactoring."
+    },
+    {
+      "capability": "antigravity.code.execute",
+      "status": "granted",
+      "scope": "sandbox_isolated",
+      "purpose": "Execution of tests, linters, compilers, and verification scripts."
+    },
+    {
+      "capability": "antigravity.subagents.spawn",
+      "status": "granted",
+      "scope": "swarm_unlimited",
+      "purpose": "Dynamic spawning of researcher, coder, tester, and reviewer subagents."
+    },
+    {
+      "capability": "antigravity.browser.automate",
+      "status": "granted",
+      "scope": "headless_chromium",
+      "purpose": "Playwright-based web navigation, dynamic scraping, and interface verification."
+    },
+    {
+      "capability": "antigravity.github.pr",
+      "status": "granted",
+      "scope": "branch_and_pr",
+      "purpose": "Branch creation, atomic commits, and pull request generation."
+    },
+    {
+      "capability": "antigravity.research.read",
+      "status": "granted",
+      "scope": "internet_full",
+      "purpose": "Global technical documentation and repository research."
+    },
+    {
+      "capability": "antigravity.image.generate",
+      "status": "granted",
+      "scope": "media_studio",
+      "purpose": "Visual diagram generation, UI mockups, and image assets."
+    },
+    {
+      "capability": "antigravity.video.render",
+      "status": "granted",
+      "scope": "render_pipeline",
+      "purpose": "Screencast and video rendering pipeline."
+    },
+    {
+      "capability": "antigravity.billing.read",
+      "status": "granted",
+      "scope": "quota_monitoring",
+      "purpose": "API token usage, quota monitoring, and cost tracking."
+    },
+    {
+      "capability": "antigravity.history.read",
+      "status": "granted",
+      "scope": "memory_vector",
+      "purpose": "Full access to agent episodic memory and syndicate knowledge graph."
+    }
+  ],
+  "resource_scopes": [
+    "workspace:read_write",
+    "sandbox:terminal",
+    "browser:chromium",
+    "git:branch_pr",
+    "vault:read"
+  ],
+  "services_enabled": [
+    "git",
+    "sandbox_runner",
+    "playwright",
+    "gemini_api",
+    "anthropic_api",
+    "subagent_spawner"
+  ],
+  "skills": [
+    {
+      "id": "antigravity-code-engine",
+      "path": "antigravity_core/skills/antigravity-code-engine/SKILL.md",
+      "activation": "active"
+    },
+    {
+      "id": "antigravity-subagents",
+      "path": "antigravity_core/skills/antigravity-subagents/SKILL.md",
+      "activation": "active"
+    },
+    {
+      "id": "antigravity-browser-scout",
+      "path": "antigravity_core/skills/antigravity-browser-scout/SKILL.md",
+      "activation": "active"
+    }
+  ],
+  "live_modes": {
+    "internet": true,
+    "github": true,
+    "billing": true,
+    "history_ingest": true,
+    "production_deployment": false,
+    "telegram_bot": true,
+    "subagents": true,
+    "terminal_sandbox": true
+  },
+  "telegram": {
+    "status": "connected",
+    "bot_id": "antigravity_syndicate_bot",
+    "allowlist": [
+      "andrii"
+    ]
+  },
+  "reference_skills": [
+    "handoff",
+    "api-and-interface-design",
+    "debugging-and-error-recovery",
+    "context-engineering",
+    "source-driven-development",
+    "test-driven-development",
+    "frontend-design",
+    "replica-recon",
+    "replica-test"
+  ]
+}
