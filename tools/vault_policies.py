@@ -95,16 +95,27 @@ def runtime_policy() -> Tuple[str, str]:
 def agent_policy(agent_id: str) -> Tuple[str, str]:
     """One agent's own policy (used when floors get their own containers)."""
     services = vault_paths.AGENT_SERVICES.get(agent_id, ())
-    own_scope = (
-        f"{vault_paths.agent_secret_path(agent_id, 'auth')} and "
-        f"{vault_paths.agent_secret_path(agent_id, 'gemini')}"
-        if agent_id == "alice"
-        else f"{vault_paths.agent_secret_path(agent_id, '<name>')}"
+    if agent_id == "alice":
+        own_scope = (
+            f"{vault_paths.agent_secret_path(agent_id, 'auth')} and "
+            f"{vault_paths.agent_secret_path(agent_id, 'gemini')}"
+        )
+        own_scope_label = "Own secrets"
+    elif agent_id == "antigravity":
+        own_scope = "none (retired profile; no Vault data access)"
+        own_scope_label = "Secret paths"
+    else:
+        own_scope = f"{vault_paths.agent_secret_path(agent_id, '<name>')}"
+        own_scope_label = "Own subtree"
+    no_infrastructure_ids = {"oscar", "tyler", "jack", "alice", "antigravity"}
+    infrastructure = (
+        ", ".join(vault_paths.INFRA_SERVICES)
+        if agent_id not in no_infrastructure_ids
+        else "none"
     )
-    own_scope_label = "Own secrets" if agent_id == "alice" else "Own subtree"
     title = (
         f"Agent policy: {agent_id}.\n"
-        f"# Infrastructure: {', '.join(vault_paths.INFRA_SERVICES) if agent_id not in {'oscar', 'tyler', 'jack', 'alice'} else 'none'}.\n"
+        f"# Infrastructure: {infrastructure}.\n"
         f"# {own_scope_label}: {own_scope}.\n"
         f"# Extra services: {', '.join(services) if services else 'none (default deny)'}.\n"
         "# Cannot read other agents' subtrees or the server's own API key."

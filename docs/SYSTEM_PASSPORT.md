@@ -414,51 +414,15 @@ actual.snapshot з account/start/end → перевірка currency/minor units
 
 Створити окрему Vault policy/AppRole, API key і volume; перевірити потрібні джерела на synthetic даних. Внести лише необхідні grants у agents/kodex/integrations; адреси/ключі задаються оператором. Запустити worker з SYNDICATE_INTEGRATION_AGENT=kodex. Перевірити 401 без ключа, правильний agent у відповіді й відмову на непризначену операцію. Увімкнення зовнішніх дій — окремий крок після функціонального тесту.
 
-## ANTIGRAVITY — клієнтський продукт
+## АЛІСА — інженерка (runtime: Antigravity SDK)
 
-Профіль для розробки клієнтського застосунку й UX. Не автономний production-директор із необмеженим доступом.
+**Ідентичність:** `alice` — агентка; `antigravity_sdk` — технологія виконання, не окремий агент. Єва залишається CEO, а Аліса звітує Єві.
 
-### Реалізовані функції
+**Канонічний профіль:** `config/agents/alice.profile.json`. Стан `prepared_not_enabled`; модель не вибрана. Capabilities, grants, resource scopes і services порожні; API, internet, browser automation, GitHub, billing, history та інші live modes вимкнені. Робочий каталог не надає shell або production-secret доступу.
 
-- Клієнтська інтеграція з apps/shared/api-contract
-- UI/UX, frontend design, accessibility
-- Recon власного/дозволеного продукту та QA
-- Робота через PR і узгоджені API
+Початковий напрям — API-first інженерна робота у виділеному workspace, але це не є активним доступом: модель, provider billing limits і контрольований egress ще не перевірені. Немає дозволу активувати runtime, створювати чи застосовувати grants, підключати Telegram або розгортати на сервері. Повний актуальний стан і технічні обмеження наведені у `docs/SYSTEM_PASSPORT_2026-10-16.md` та `docs/ALICE_RUNTIME.md`.
 
-### Необхідні сервіси й функції підключення
-
-- Git checkout, Node toolchain відповідно до apps/
-- Актуальний API contract
-- Dev backend і test fixtures
-
-### Рекомендовані сервіси
-
-- OpenDesign: окремий workspace для прототипів
-- agent-browser у відповідному browser sandbox
-- taste-skill після перевірки JS assets/inspector
-- Playwright/accessibility tooling для власного продукту
-
-### Джерела даних
-
-- Специфікації екранів та API contract
-- Власні дизайн-матеріали
-- Відтворені помилки й user flows
-
-### Скіли та права
-
-Власні draft skills: не задані в профілі.
-
-Встановлені upstream reference skills: handoff, api-and-interface-design, debugging-and-error-recovery, context-engineering, source-driven-development, test-driven-development, ponytail, frontend-design, replica-recon, replica-test.
-
-Поточні capabilities: порожній список; default deny. Memory namespace: agents/antigravity.
-
-### Порядок роботи та обмеження
-
-Contract → UI → інтеграція → перевірка станів/error/accessibility → PR. Код apps/ не переписувався цією backend інтеграцією; змінено лише генерований контракт.
-
-### Підключення на сервері
-
-Створити окрему Vault policy/AppRole, API key і volume; перевірити потрібні джерела на synthetic даних. Внести лише необхідні grants у agents/antigravity/integrations; адреси/ключі задаються оператором. Запустити worker з SYNDICATE_INTEGRATION_AGENT=antigravity. Перевірити 401 без ключа, правильний agent у відповіді й відмову на непризначену операцію. Увімкнення зовнішніх дій — окремий крок після функціонального тесту.
+Старі документи про окремого «Antigravity Director» відкликані й збережені як повідомлення про міграцію; їх не використовувати як джерело повноважень. Жодних змін у `apps/` не виконується цим розділом.
 
 ## ОСКАР — медіа та аудиторія
 
@@ -627,7 +591,7 @@ Commit: 49dd158d1076134a641b33efb035946536778336. Ліцензія: MIT. Аге�
 
 Джерело: https://github.com/mattpocock/skills
 
-Commit: 49dd158d1076134a641b33efb035946536778336. Ліцензія: MIT. Агенти: eva, architect, kodex, antigravity. Шлях: skills/vendor/mattpocock/skills/skills/productivity/handoff/SKILL.md.
+Commit: 49dd158d1076134a641b33efb035946536778336. Ліцензія: MIT. Агенти: eva, architect, kodex. Шлях: skills/vendor/mattpocock/skills/skills/productivity/handoff/SKILL.md.
 
 ### grilling
 
@@ -639,19 +603,19 @@ Commit: 49dd158d1076134a641b33efb035946536778336. Ліцензія: MIT. Аге�
 
 Джерело: https://github.com/addyosmani/agent-skills
 
-Commit: aeac41d4d005999432bb7312f7ff06383a91d59d. Ліцензія: MIT. Агенти: architect, antigravity. Шлях: skills/vendor/addyosmani/agent-skills/skills/api-and-interface-design/SKILL.md.
+Commit: aeac41d4d005999432bb7312f7ff06383a91d59d. Ліцензія: MIT. Агенти: architect, alice. Шлях: skills/vendor/addyosmani/agent-skills/skills/api-and-interface-design/SKILL.md.
 
 ### debugging-and-error-recovery
 
 Джерело: https://github.com/addyosmani/agent-skills
 
-Commit: aeac41d4d005999432bb7312f7ff06383a91d59d. Ліцензія: MIT. Агенти: architect, antigravity. Шлях: skills/vendor/addyosmani/agent-skills/skills/debugging-and-error-recovery/SKILL.md.
+Commit: aeac41d4d005999432bb7312f7ff06383a91d59d. Ліцензія: MIT. Агенти: architect, alice. Шлях: skills/vendor/addyosmani/agent-skills/skills/debugging-and-error-recovery/SKILL.md.
 
 ### context-engineering
 
 Джерело: https://github.com/addyosmani/agent-skills
 
-Commit: aeac41d4d005999432bb7312f7ff06383a91d59d. Ліцензія: MIT. Агенти: eva, architect, kodex, antigravity. Шлях: skills/vendor/addyosmani/agent-skills/skills/context-engineering/SKILL.md.
+Commit: aeac41d4d005999432bb7312f7ff06383a91d59d. Ліцензія: MIT. Агенти: eva, architect, kodex, alice. Шлях: skills/vendor/addyosmani/agent-skills/skills/context-engineering/SKILL.md.
 
 ### documentation-and-adrs
 
@@ -663,13 +627,13 @@ Commit: aeac41d4d005999432bb7312f7ff06383a91d59d. Ліцензія: MIT. Аге�
 
 Джерело: https://github.com/addyosmani/agent-skills
 
-Commit: aeac41d4d005999432bb7312f7ff06383a91d59d. Ліцензія: MIT. Агенти: architect, antigravity. Шлях: skills/vendor/addyosmani/agent-skills/skills/source-driven-development/SKILL.md.
+Commit: aeac41d4d005999432bb7312f7ff06383a91d59d. Ліцензія: MIT. Агенти: architect, alice. Шлях: skills/vendor/addyosmani/agent-skills/skills/source-driven-development/SKILL.md.
 
 ### test-driven-development
 
 Джерело: https://github.com/addyosmani/agent-skills
 
-Commit: aeac41d4d005999432bb7312f7ff06383a91d59d. Ліцензія: MIT. Агенти: architect, antigravity. Шлях: skills/vendor/addyosmani/agent-skills/skills/test-driven-development/SKILL.md.
+Commit: aeac41d4d005999432bb7312f7ff06383a91d59d. Ліцензія: MIT. Агенти: architect, alice. Шлях: skills/vendor/addyosmani/agent-skills/skills/test-driven-development/SKILL.md.
 
 ### planning-breakdown
 
@@ -681,7 +645,7 @@ Commit: aeac41d4d005999432bb7312f7ff06383a91d59d. Ліцензія: MIT. Аге�
 
 Джерело: https://github.com/DietrichGebert/ponytail
 
-Commit: 84740e3d344b69b4a133201fa519eb37a62a2b2a. Ліцензія: MIT. Агенти: architect, antigravity. Шлях: skills/vendor/DietrichGebert/ponytail/skills/ponytail/SKILL.md.
+Commit: 84740e3d344b69b4a133201fa519eb37a62a2b2a. Ліцензія: MIT. Агенти: architect. Шлях: skills/vendor/DietrichGebert/ponytail/skills/ponytail/SKILL.md.
 
 ### internal-comms
 
@@ -693,7 +657,7 @@ Commit: dbd4588f9e1033efb41dad4bef2f7947c8993d44. Ліцензія: Apache-2.0 (
 
 Джерело: https://github.com/anthropics/skills
 
-Commit: dbd4588f9e1033efb41dad4bef2f7947c8993d44. Ліцензія: Apache-2.0 (skill-local LICENSE.txt). Агенти: antigravity, tyler, oscar. Шлях: skills/vendor/anthropics/skills/skills/frontend-design/SKILL.md.
+Commit: dbd4588f9e1033efb41dad4bef2f7947c8993d44. Ліцензія: Apache-2.0 (skill-local LICENSE.txt). Агенти: tyler, oscar. Шлях: skills/vendor/anthropics/skills/skills/frontend-design/SKILL.md.
 
 ### scientific-critical-thinking
 
@@ -711,13 +675,13 @@ Commit: 29aa084fb7866087c612ddd55ef5449824374e22. Ліцензія: MIT. Аге�
 
 Джерело: https://github.com/Jakeschincariol/replica-skill
 
-Commit: 77c9436fb3d18c3d58169efb8caf4fe906b0dc51. Ліцензія: MIT. Агенти: architect, antigravity, tyler. Шлях: skills/vendor/Jakeschincariol/replica-skill/replica-recon/SKILL.md.
+Commit: 77c9436fb3d18c3d58169efb8caf4fe906b0dc51. Ліцензія: MIT. Агенти: architect, tyler. Шлях: skills/vendor/Jakeschincariol/replica-skill/replica-recon/SKILL.md.
 
 ### replica-test
 
 Джерело: https://github.com/Jakeschincariol/replica-skill
 
-Commit: 77c9436fb3d18c3d58169efb8caf4fe906b0dc51. Ліцензія: MIT. Агенти: antigravity, marshal. Шлях: skills/vendor/Jakeschincariol/replica-skill/replica-test/SKILL.md.
+Commit: 77c9436fb3d18c3d58169efb8caf4fe906b0dc51. Ліцензія: MIT. Агенти: marshal. Шлях: skills/vendor/Jakeschincariol/replica-skill/replica-test/SKILL.md.
 
 ### content-engine
 

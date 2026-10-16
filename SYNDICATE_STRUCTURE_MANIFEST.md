@@ -142,13 +142,12 @@
 - **Двоканальна дія:** Прямі +EV сповіщення Андрію в Telegram з кнопкою вибору контори + паралельний віртуальний Paper-trading трекер.
 - **Специфікація:** `docs/JACK_SPORTS_QUANT_SPEC.md` та `jack_core/JACK_FULL_SPEC.md`.
 
-### 🚀 10. ANTIGRAVITY (GRAVITY) — Chief Meta-Developer & Autonomous Engine (Floor 2+)
-- **Роль:** Головний ШІ-інженер, автономний розробник софту, диспетчер субагентів, дослідник кодових баз та оператор браузерної автоматизації.
-- **Cognitive Model Matrix:** Claude 3.5 Sonnet / 3.7 (провідний розробник та рефакторинг), Google Gemini 1.5 Pro (2M контекст усього репозиторію та мега-доків), Groq / Hermes (високошвидкісний тріаж та синтаксис).
-- **Subagent Swarm Foundry:** Динамічний запуск ієрархічних роїв субагентів (`researcher`, `coder`, `tester`, `reviewer`, `browser-scout`) для паралельного вирішення надскладних завдань.
-- **Maximum Execution Stack:** Читання та запис файлів, виконання команд у пісочниці (`run_command`), Playwright headless браузер, Git branching/PR, реактивний планувальник (`schedule`).
-- **Sentinel & HITL Gate:** Безпечна пісочниця, AppRole у HashiCorp Vault. Захист бойового контуру: автономна розробка та тестування, але пуш у production вимагає підтвердження Андрія.
-- **Специфікація:** `docs/ANTIGRAVITY_DIRECTOR_SPEC.md` та `antigravity_core/ANTIGRAVITY_FULL_SPEC.md`.
+### 🛠️ 10. АЛІСА — керівниця інженерного напряму (підготовлена, не активована)
+- **Agent ID:** `alice`; Antigravity (`antigravity_sdk`) — технологія виконання, не окрема агентка.
+- **Роль:** Head of Engineering, звітує Єві; зовнішні дії потребують окремого погодження Андрія.
+- **Поточний стан:** `prepared_not_enabled`; модель не вибрана, capabilities, grants, resource scopes і services порожні. API/billing/egress не перевірені; runtime не активовано.
+- **Канонічний профіль:** `config/agents/alice.profile.json`; опис runtime: `docs/ALICE_RUNTIME.md`.
+- **Застарілі специфікації:** `docs/ANTIGRAVITY_DIRECTOR_SPEC.md` і `antigravity_core/ANTIGRAVITY_FULL_SPEC.md` збережені як повідомлення про відкликання старої концепції, не як джерело доступів чи інструкція до запуску.
 
 ---
 

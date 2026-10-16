@@ -3425,6 +3425,19 @@ class TestVaultPolicyGeneration:
                     continue
                 assert f"{mod.vault_paths.AGENTS}/{other}/" not in text
 
+    def test_retired_antigravity_profile_has_no_vault_data_grants(self):
+        """Antigravity is runtime technology, not an agent identity or secret reader."""
+        mod = self._policies()
+        policy = mod.build_policies()["eva-antigravity"]
+        assert mod.vault_paths.AGENT_SERVICES["antigravity"] == ()
+        assert mod.vault_paths.agent_policy_paths("antigravity") == []
+        policy_paths = {
+            line.split('"')[1]
+            for line in policy.splitlines()
+            if line.startswith('path "')
+        }
+        assert policy_paths == {"auth/token/renew-self", "auth/token/lookup-self"}
+
     def test_agent_policies_cannot_read_the_server_api_key(self):
         """`auth` holds the server's API key + webhook HMAC. A floor container
         has no business impersonating the agent API."""
@@ -3764,7 +3777,7 @@ class TestDirectorSafetyRegressions:
             legacy_agent_secret_path,
             secret_path,
         )
-        for agent_id in ("oscar", "tyler", "jack", "alice"):
+        for agent_id in ("oscar", "tyler", "jack", "alice", "antigravity"):
             paths = agent_policy_paths(agent_id)
             assert secret_path(API_KEYS) not in paths
             assert all(f"/agents/{agent_id}/" in path for path in paths)

@@ -12,16 +12,17 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
+from src.agents.antigravity_worker import AntigravityDirectorAgent
+from src.agents.jack import JackAgent
 from src.agents.oscar import OscarAgent
 from src.agents.oscar.router import TriLLMRouter
 from src.agents.tyler import TylerAgent
 from src.agents.tyler.finance import calculate_margin
-from src.agents.jack import JackAgent
 from src.agents.jack.engines import football, tennis, esports, icm, basketball, poker
 from src.agents.jack.quant import evaluate
 from src.agents.jack.tracker import anti_tilt
 from src.agents.director_providers import OddsScout, YouTubeComments, VaultLLM, build_provider
-from deploy.runtime.director_runner import create_app, boot_director
+from deploy.runtime.director_runner import AGENTS, create_app, boot_director
 
 
 def run(agent, action, **payload):
@@ -239,6 +240,28 @@ def test_loss_stop_expires_and_void_does_not_reset_streak():
 def test_empty_report_has_no_invented_roi_or_winrate():
     report = run(JackAgent(), "report")
     assert report["roi"] is None and report["win_rate"] is None
+
+
+def test_retired_antigravity_placeholder_has_no_operational_actions():
+    result = run(AntigravityDirectorAgent(), "capabilities")
+    assert result["agent"] == "alice"
+    assert result["runtime"] == "antigravity_sdk"
+    assert result["available_actions"] == ["capabilities"]
+    assert result["grants_level"] == "none"
+    assert result["external_actions"] is False
+    assert run(AntigravityDirectorAgent(), "browser")["status"] == "error"
+
+
+def test_retired_antigravity_id_cannot_boot_as_standalone_worker(monkeypatch):
+    assert "antigravity" not in AGENTS
+    monkeypatch.setenv("SYNDICATE_DIRECTOR_ID", "antigravity")
+
+    class VaultThatMustNotAuthenticate:
+        async def authenticate(self):
+            raise AssertionError("retired director must be rejected before Vault access")
+
+    with pytest.raises(RuntimeError, match="unknown_director"):
+        asyncio.run(boot_director(VaultThatMustNotAuthenticate()))
 
 
 def test_worker_api_auth_and_agent_isolation():

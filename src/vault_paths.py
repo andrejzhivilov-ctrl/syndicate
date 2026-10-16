@@ -42,8 +42,21 @@ CONNECTOR_SERVICES: Tuple[str, ...] = ("google_workspace", "mcp", "telegram", "y
 #: Secrets read by voice providers (``src/voice/*``).
 VOICE_SERVICES: Tuple[str, ...] = ("elevenlabs", "groq", "openai", "xai")
 
-#: Canonical agent ids (``src/floors.py`` holds the floor mapping).
-AGENTS_IDS: Tuple[str, ...] = ("eva", "marshal", "architect", "fin", "doc", "kira", "sam", "oscar", "tyler", "jack", "alice")
+#: IDs with generated policy artifacts (includes retired compatibility names).
+AGENTS_IDS: Tuple[str, ...] = (
+    "eva",
+    "marshal",
+    "architect",
+    "fin",
+    "doc",
+    "kira",
+    "sam",
+    "oscar",
+    "tyler",
+    "jack",
+    "alice",
+    "antigravity",
+)
 
 #: Which *extra* services each agent may read, on top of ``INFRA_SERVICES`` and
 #: its own ``agents/<id>/*`` subtree. Default deny: an agent without an entry
@@ -58,6 +71,9 @@ AGENT_SERVICES: Dict[str, Tuple[str, ...]] = {
     "kira": (),
     "sam": (),
     "alice": (),
+    # Legacy profile retired: Antigravity is an SDK/runtime technology, not a
+    # separate agent. Keep its policy file generated but grant no secret paths.
+    "antigravity": (),
 }
 
 
@@ -174,6 +190,10 @@ def policy_paths() -> List[str]:
 
 def agent_policy_paths(agent_id: str) -> List[str]:
     """Read paths for one agent's policy (future per-agent container)."""
+    if agent_id == "antigravity":
+        # Retained policy name only for compatibility with the old disabled
+        # profile. Antigravity is runtime technology, not a credentialed agent.
+        return []
     if agent_id == "alice":
         # Alice's initial API-only profile needs its worker auth key and Gemini
         # key, but no shared database/Redis/LLM secrets and no future subtree
