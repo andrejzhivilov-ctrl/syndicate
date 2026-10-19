@@ -1,0 +1,137 @@
+{
+  "schema_version": 1,
+  "registry_id": "prompts",
+  "allowed_kinds": [
+    "prompt_index",
+    "prompt_template"
+  ],
+  "items": [
+    {
+      "id": "prompt-catalog-taxonomy",
+      "kind": "prompt_index",
+      "title": "Prompt Catalog Taxonomy",
+      "summary": "Category index and routing metadata; not the raw 2,330-prompt corpus.",
+      "tags": [
+        "prompt-catalog",
+        "taxonomy",
+        "routing"
+      ],
+      "target_agents": [
+        "kodex",
+        "dex",
+        "oscar",
+        "tyler",
+        "atlas",
+        "kira",
+        "fin",
+        "sam",
+        "trainer",
+        "doc",
+        "eva",
+        "alice",
+        "architect",
+        "marshal",
+        "jack"
+      ],
+      "source_ids": [
+        "xml_prompts",
+        "prompt_catalog"
+      ],
+      "resource": "content.md",
+      "resource_path": "knowledge_pools/prompts/prompt-catalog-taxonomy.md",
+      "sha256": "533f1975fee85f48a14e82b63dee20f48d5acb2e8e1f231bf8fcb82b32a8b7c3",
+      "status": "review_pending",
+      "visibility": "review_only",
+      "reviewers": [
+        "kodex",
+        "marshal"
+      ],
+      "risk_tier": "low_text_reference",
+      "mode": "reference_only",
+      "estimated_tokens": 954,
+      "version": 1,
+      "approval": null
+    },
+    {
+      "id": "structured-task-brief-template",
+      "kind": "prompt_template",
+      "title": "Structured Task Brief Template",
+      "summary": "Original fill-in prompt card for bounded tasks, source-grounding, constraints and validation.",
+      "tags": [
+        "prompt-template",
+        "task-brief",
+        "verification",
+        "draft-only"
+      ],
+      "target_agents": [
+        "kodex",
+        "alice",
+        "architect",
+        "marshal",
+        "dex",
+        "oscar",
+        "tyler",
+        "atlas",
+        "kira",
+        "fin",
+        "sam",
+        "trainer",
+        "doc",
+        "eva"
+      ],
+      "source_ids": [
+        "prompt_agent_architecture",
+        "xml_prompts",
+        "prompt_catalog"
+      ],
+      "resource_path": "knowledge_pools/prompts/structured-task-brief-template.md",
+      "sha256": "ec8764d82863434bcdd98cef0c42e370fb8a5eef9812522870bd1d0fe1189c43",
+      "version": 1,
+      "approval": null,
+      "status": "review_pending",
+      "visibility": "review_only",
+      "reviewers": [
+        "kodex",
+        "marshal"
+      ],
+      "risk_tier": "low_text_reference",
+      "mode": "reference_only",
+      "estimated_tokens": 537
+    },
+    {
+      "id": "short-video-storyboard-template",
+      "kind": "prompt_template",
+      "title": "Short Video Storyboard Template",
+      "summary": "Original bounded storyboard prompt with accessibility and asset-rights checks; draft only.",
+      "tags": [
+        "prompt-template",
+        "video",
+        "storyboard",
+        "accessibility",
+        "rights-check"
+      ],
+      "target_agents": [
+        "oscar",
+        "dex",
+        "tyler"
+      ],
+      "source_ids": [
+        "video_course",
+        "business_courses"
+      ],
+      "resource_path": "knowledge_pools/prompts/short-video-storyboard-template.md",
+      "sha256": "c1951e298e56ca97cafe281d3f89716f85d54952f768c3f692f2b2298d6cdb0b",
+      "version": 1,
+      "approval": null,
+      "status": "review_pending",
+      "visibility": "review_only",
+      "reviewers": [
+        "kodex",
+        "marshal"
+      ],
+      "risk_tier": "low_text_reference",
+      "mode": "reference_only",
+      "estimated_tokens": 449
+    }
+  ]
+}

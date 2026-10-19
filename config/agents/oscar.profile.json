@@ -41,5 +41,10 @@
     "content-engine",
     "market-research",
     "brand-voice"
-  ]
+  ],
+  "n8n": {
+    "status": "not_configured",
+    "mode": "design_and_mount_only",
+    "activate": false
+  }
 }

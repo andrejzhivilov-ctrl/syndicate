@@ -142,4 +142,4 @@ def test_policy_denies_every_marshal_capability_while_grants_are_empty() -> None
             ),
         )
         assert decision.status is DecisionStatus.DENIED
-        assert decision.code is DecisionCode.CAPABILITY_NOT_GRANTED
+        assert decision.code is DecisionCode.AGENT_NOT_ENABLED

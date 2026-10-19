@@ -1,0 +1,225 @@
+{
+  "schema_version": 1,
+  "registry_id": "sources",
+  "sources": [
+    {
+      "id": "manifest",
+      "title": "Реєстр вкладень і заявлених обсягів",
+      "attachment": "00_ARENA_POOL_MASTER_MANIFEST.md",
+      "sha256": "384f80f1fc4b272cf0016f311e08a386637f472ca7084af7314c255c092d7212",
+      "bytes": 3547,
+      "lines": 30,
+      "whitespace_words": 296,
+      "domain": "reference",
+      "target_agents": [
+        "kodex"
+      ],
+      "status": "candidate_source_only",
+      "rights_status": "unverified",
+      "raw_copied_to_repository": false,
+      "review_scope": "structural_and_section_review",
+      "findings": [
+        "Claims 100% completeness and 4700+ files; this was not independently verified."
+      ]
+    },
+    {
+      "id": "prompt_agent_architecture",
+      "title": "Промпт-інжиніринг та архітектура агентів",
+      "attachment": "01_POOL_Промпт_Инжиниринг_и_Архитектура_Агентов.md",
+      "sha256": "e6b7f9bf4b91c6fdb293f29bd237c825ced70800074824cad6ff1c0bcf5c9a87",
+      "bytes": 39564,
+      "lines": 478,
+      "whitespace_words": 3404,
+      "domain": "prompt_skill",
+      "target_agents": [
+        "kodex",
+        "alice",
+        "architect",
+        "marshal"
+      ],
+      "status": "candidate_source_only",
+      "rights_status": "unverified",
+      "raw_copied_to_repository": false,
+      "review_scope": "structural_and_section_review"
+    },
+    {
+      "id": "n8n_course",
+      "title": "Курс n8n, 31 урок",
+      "attachment": "02_POOL_Автоматизация_n8n_Полный_Курс_31_Урок.md",
+      "sha256": "aa512e0a3b256075546cd67e2e57e2c61cb0c56b47a3015d2034e3f2a1f104bf",
+      "bytes": 57400,
+      "lines": 771,
+      "whitespace_words": 4824,
+      "domain": "automation",
+      "target_agents": [
+        "architect",
+        "dex",
+        "kodex"
+      ],
+      "status": "candidate_source_only",
+      "rights_status": "unverified",
+      "raw_copied_to_repository": false,
+      "review_scope": "structural_and_section_review"
+    },
+    {
+      "id": "video_course",
+      "title": "Монтаж і відеопродакшн, 18 уроків",
+      "attachment": "03_POOL_Монтаж_и_Видеопродакшн_18_Уроков_Транскрипты.md",
+      "sha256": "efa56df1305dc66ade75b583e36c978d5db908a23a299e9ce2f2bee0fa68ad61",
+      "bytes": 79256,
+      "lines": 1457,
+      "whitespace_words": 6927,
+      "domain": "media",
+      "target_agents": [
+        "oscar",
+        "dex",
+        "tyler"
+      ],
+      "status": "candidate_source_only",
+      "rights_status": "unverified",
+      "raw_copied_to_repository": false,
+      "review_scope": "structural_and_section_review"
+    },
+    {
+      "id": "ai_model_guides",
+      "title": "Довідники AI-моделей та інструментів",
+      "attachment": "04_POOL_Модели_AI_Гайды_Claude_Gemini_Grok_Perplexity.md",
+      "sha256": "0690e0bc7c75c1f844d09c3e4ef7e9a6451b4b2c237128b5396cd96602865343",
+      "bytes": 966595,
+      "lines": 11514,
+      "whitespace_words": 77598,
+      "domain": "ai_models",
+      "target_agents": [
+        "kodex",
+        "ray",
+        "alice",
+        "architect"
+      ],
+      "status": "candidate_source_only",
+      "rights_status": "unverified",
+      "raw_copied_to_repository": false,
+      "review_scope": "structural_and_section_review"
+    },
+    {
+      "id": "xml_prompts",
+      "title": "PRO XML мегапромпти",
+      "attachment": "05_POOL_PRO_XML_Мегапромпты_Сборник.md",
+      "sha256": "a0146387c9d6de3f2fd699742f170089ea81d454d778d340f628644710ce69f0",
+      "bytes": 903979,
+      "lines": 8700,
+      "whitespace_words": 56392,
+      "domain": "prompts",
+      "target_agents": [
+        "kodex",
+        "dex",
+        "oscar",
+        "tyler",
+        "alice",
+        "architect"
+      ],
+      "status": "candidate_source_only",
+      "rights_status": "unverified",
+      "raw_copied_to_repository": false,
+      "review_scope": "structural_and_section_review",
+      "findings": [
+        "26 visible category headings; stated header counts sum to 1729; internal references mention 1703; manifest claims 61 categories."
+      ]
+    },
+    {
+      "id": "website_templates",
+      "title": "React/Tailwind сайт-шаблони з кодом",
+      "attachment": "06_POOL_Шаблоны_Сайтов_React_Tailwind_Код.md",
+      "sha256": "4fb3b5148d46a15c2bfb8ff9b3fc6d15d903d9b720a16f6b7688aa80285f0b5a",
+      "bytes": 883024,
+      "lines": 18080,
+      "whitespace_words": 92143,
+      "domain": "web_ui",
+      "target_agents": [
+        "alice",
+        "architect",
+        "dex",
+        "oscar"
+      ],
+      "status": "candidate_source_only",
+      "rights_status": "unverified",
+      "raw_copied_to_repository": false,
+      "review_scope": "structural_and_section_review",
+      "findings": [
+        "60 named top-level template headings; manifest claims 343. External asset URLs and code require review."
+      ]
+    },
+    {
+      "id": "make_course",
+      "title": "Make automation, 24 уроки",
+      "attachment": "07_POOL_Автоматизация_Make_Сценарии_24_Урока.md",
+      "sha256": "90b4797549456bf589671159ca657b6f5fe4b9f47272f6f2e72439b03083b350",
+      "bytes": 19998,
+      "lines": 663,
+      "whitespace_words": 1484,
+      "domain": "automation_comparison",
+      "target_agents": [
+        "architect",
+        "dex"
+      ],
+      "status": "candidate_source_only",
+      "rights_status": "unverified",
+      "raw_copied_to_repository": false,
+      "review_scope": "structural_and_section_review"
+    },
+    {
+      "id": "business_courses",
+      "title": "Бізнес-курси, заявлено 61 урок",
+      "attachment": "08_POOL_Бизнес_Курсы_Платформы_Крипта_Арбитраж_Контент_61_Урок.md",
+      "sha256": "771d429d342951364fd901730f3bf07ecfe64a740d32cd300a6eaa656b71070d",
+      "bytes": 211766,
+      "lines": 3616,
+      "whitespace_words": 16977,
+      "domain": "business_media_automation",
+      "target_agents": [
+        "oscar",
+        "dex",
+        "tyler",
+        "architect",
+        "kodex",
+        "eva"
+      ],
+      "status": "candidate_source_only",
+      "rights_status": "unverified",
+      "raw_copied_to_repository": false,
+      "review_scope": "structural_and_section_review",
+      "findings": [
+        "Actual module headings cover media, automation, sales, AI assistants, templates and prompting; crypto/arbitrage not found in body headings/text beyond metadata tags."
+      ]
+    },
+    {
+      "id": "prompt_catalog",
+      "title": "Каталог 2 330 промптів, 30 категорій",
+      "attachment": "09_POOL_Каталог_Промптов_2330_по_Категориям.md",
+      "sha256": "c6ebd647999e9fefca722e202f8275041dc751dcb8a8fef878c8d9dc95c47d13",
+      "bytes": 4931000,
+      "lines": 94603,
+      "whitespace_words": 391033,
+      "domain": "prompt_catalog",
+      "target_agents": [
+        "kodex",
+        "dex",
+        "oscar",
+        "tyler",
+        "atlas",
+        "kira",
+        "fin",
+        "sam",
+        "trainer",
+        "doc",
+        "eva"
+      ],
+      "status": "candidate_source_only",
+      "rights_status": "unverified",
+      "raw_copied_to_repository": false,
+      "review_scope": "structural_and_section_review",
+      "findings": [
+        "30 visible categories; heading counts sum to 2330. Imported prompt quality/licensing has not been individually reviewed."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,173 @@
+{
+  "schema_version": 1,
+  "activation": "prepared_not_enabled",
+  "runtime": "hermes",
+  "task_source": "andrii_only",
+  "capabilities": [],
+  "grants": [],
+  "resource_scopes": [],
+  "services_enabled": [],
+  "skills": [],
+  "telegram": {
+    "status": "not_connected",
+    "allowlist": []
+  },
+  "live_modes": {
+    "api": false,
+    "internet": false,
+    "browser_automation": false,
+    "github": false,
+    "image_generation": false,
+    "video_render": false,
+    "billing": false,
+    "history_ingest": false,
+    "production_deployment": false,
+    "telegram_bot": false
+  },
+  "internet": {
+    "enabled": false,
+    "mode": "controlled_gateway",
+    "default_policy": "deny",
+    "allowed_domains": []
+  },
+  "egress": {
+    "mode": "controlled_gateway",
+    "default": "deny",
+    "allowed_domains": []
+  },
+  "network": {
+    "internet_enabled": false,
+    "controlled_gateway": true,
+    "default_policy": "deny",
+    "allowed_domains": []
+  },
+  "knowledge_bases": {
+    "drive": {
+      "activation": "not_configured"
+    },
+    "obsidian": {
+      "activation": "not_configured"
+    },
+    "archive": {
+      "activation": "reserved",
+      "namespace": "agents/ray"
+    }
+  },
+  "reports": {
+    "to_eva": "payload_only",
+    "full_report": "andrii_direct_request"
+  },
+  "prompt_status": "not_prepared",
+  "role_status": "not_agreed",
+  "model_status": "not_selected",
+  "agent_id": "ray",
+  "display_name": "RAY (Research & Analytics)",
+  "runtime_profile": "ray",
+  "memory_namespace": "agents/ray",
+  "prompt_file": "src/agents/ray_runtime_prompt.md",
+  "role_title": "Керівник досліджень, аналітики та розвідки",
+  "reports_to": "eva",
+  "reference_skills": [
+    "market-research",
+    "brand-voice",
+    "scientific-critical-thinking",
+    "context-engineering"
+  ],
+  "proposed_grants": [
+    {
+      "capability": "ray.web.search",
+      "status": "proposed_not_applied",
+      "purpose": "Пошук інформації лише через контрольований шлюз і allowlist доменів."
+    },
+    {
+      "capability": "ray.web.fetch",
+      "status": "proposed_not_applied",
+      "purpose": "Читання сторінок з перевірених джерел."
+    },
+    {
+      "capability": "ray.report.eva",
+      "status": "proposed_not_applied",
+      "purpose": "Короткі звіти Єві."
+    },
+    {
+      "capability": "ray.memory.read",
+      "status": "proposed_not_applied",
+      "resource_scope": "agents/ray",
+      "purpose": "Читання власної пам'яті та архіву."
+    },
+    {
+      "capability": "ray.memory.write",
+      "status": "proposed_not_applied",
+      "resource_scope": "agents/ray",
+      "purpose": "Запис власних досліджень і висновків."
+    },
+    {
+      "capability": "ray.telegram.bot",
+      "status": "proposed_not_applied",
+      "purpose": "Окремий Telegram-бот для звітів і кнопок."
+    },
+    {
+      "capability": "ray.voice.transcribe",
+      "status": "proposed_not_applied",
+      "purpose": "Транскрибація голосових повідомлень."
+    },
+    {
+      "capability": "ray.voice.speak",
+      "status": "proposed_not_applied",
+      "purpose": "Озвучення відповідей узгодженим голосом."
+    },
+    {
+      "capability": "ray.docs.generate",
+      "status": "proposed_not_applied",
+      "purpose": "Генерація MD/DOCX/XLSX/PPTX локально."
+    },
+    {
+      "capability": "ray.sheets.read_write",
+      "status": "proposed_not_applied",
+      "purpose": "Робота з таблицями у власному просторі."
+    },
+    {
+      "capability": "ray.slides.generate",
+      "status": "proposed_not_applied",
+      "purpose": "Генерація презентацій/слайдів."
+    },
+    {
+      "capability": "ray.n8n.integration",
+      "status": "proposed_not_applied",
+      "purpose": "Інтеграція з n8n: дизайн/монтаж workflow без activate."
+    }
+  ],
+  "deployment_deferred": [
+    "Telegram-бот",
+    "контрольований інтернет-шлюз",
+    "Obsidian/Drive архів",
+    "вибір LLM"
+  ],
+  "voice": {
+    "status": "not_configured",
+    "tts": false,
+    "stt": false,
+    "voice_id": null
+  },
+  "documents": {
+    "status": "not_configured",
+    "formats": [
+      "md",
+      "docx",
+      "xlsx",
+      "pptx",
+      "pdf"
+    ],
+    "google": false
+  },
+  "identity": {
+    "status": "draft",
+    "reports_to": "eva",
+    "authority": "prepared_not_enabled"
+  },
+  "n8n": {
+    "status": "not_configured",
+    "mode": "design_and_mount_only",
+    "activate": false
+  }
+}

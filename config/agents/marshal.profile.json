@@ -66,6 +66,30 @@
   },
   "reference_skills": [
     "replica-test",
-    "agent-security-hardening"
+    "agent-security-hardening",
+    "marshal-skill-scout",
+    "marshal-mcp-connector-review"
+  ],
+  "proposed_grants": [
+    {
+      "capability": "knowledge.search",
+      "status": "proposed_not_applied",
+      "purpose": "ServiceHub: пошук metadata для review_pending items лише за окремим host review allowlist; це не AgentPolicy capability."
+    },
+    {
+      "capability": "knowledge.read",
+      "status": "proposed_not_applied",
+      "purpose": "ServiceHub: читання конкретного item ID для незалежного review; без approve/publish/write."
+    },
+    {
+      "capability": "mcp.pool.search",
+      "status": "proposed_not_applied",
+      "purpose": "ServiceHub: пошук лише недовірених MCP catalog/candidate metadata для незалежного review."
+    },
+    {
+      "capability": "mcp.pool.read",
+      "status": "proposed_not_applied",
+      "purpose": "ServiceHub: явне читання одного MCP record ID; без approve, mcp.call або розширення дозволів."
+    }
   ]
 }

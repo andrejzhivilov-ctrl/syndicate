@@ -5,6 +5,7 @@ from src.agent_platform.audit import AgentAuditEvent, MemoryManagerAuditSink
 from src.agent_platform.contracts import (
     AccessRequest,
     ActionClass,
+    ActivationStatus,
     AgentInvocation,
     AgentProfile,
     DecisionCode,
@@ -19,6 +20,7 @@ from src.agent_platform.registry import AgentRegistry
 __all__ = [
     "AccessRequest",
     "ActionClass",
+    "ActivationStatus",
     "AgentAuditEvent",
     "AgentDispatcher",
     "AgentDispatchResult",

@@ -5,6 +5,7 @@ from __future__ import annotations
 from src.agent_platform.contracts import (
     AccessRequest,
     ActionClass,
+    ActivationStatus,
     AgentProfile,
     DecisionCode,
     DecisionStatus,
@@ -42,6 +43,8 @@ class AgentPolicy:
             return PolicyDecision(DecisionStatus.DENIED, DecisionCode.UNKNOWN_AGENT)
         if profile.agent_id != request.agent_id:
             return PolicyDecision(DecisionStatus.DENIED, DecisionCode.AGENT_MISMATCH)
+        if profile.activation_status is not ActivationStatus.ENABLED:
+            return PolicyDecision(DecisionStatus.DENIED, DecisionCode.AGENT_NOT_ENABLED)
         if is_prohibited_capability(request.capability):
             return PolicyDecision(DecisionStatus.DENIED, DecisionCode.PROHIBITED_CAPABILITY)
         if request.capability not in profile.capabilities:

@@ -304,6 +304,7 @@ async def lifespan(app: FastAPI):
             sentinel=app_state.sentinel,
             llm_config=llm_secrets,
             director_clients=build_director_clients(runtime_config, app_state.vault_client),
+            vault_client=app_state.vault_client,
             config=runtime_config,
             registry=app_state.registry,
             voice_manager=app_state.voice_manager,

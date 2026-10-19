@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
-from src.agent_platform.contracts import AgentProfile, RuntimeKind
+from src.agent_platform.contracts import ActivationStatus, AgentProfile, RuntimeKind
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _PROFILE_PATH = _REPO_ROOT / "config" / "agents" / "architect.profile.json"
@@ -31,6 +31,7 @@ def architect_agent_profile(manifest: Mapping[str, Any] | None = None) -> AgentP
         capabilities=frozenset(data.get("capabilities") or ()),
         resource_scopes=frozenset(data.get("resource_scopes") or ()),
         runtime=RuntimeKind(str(data.get("runtime", "hermes"))),
+        activation_status=ActivationStatus(str(data.get("activation", "prepared_not_enabled"))),
     )
 
 
@@ -43,8 +44,12 @@ def architect_n8n_live_allowed(manifest: Mapping[str, Any] | None = None) -> boo
     data = dict(manifest or load_architect_manifest())
     n8n = data.get("n8n") if isinstance(data.get("n8n"), dict) else {}
     caps = data.get("capabilities") or []
+    services = data.get("services_enabled") or []
     return (
-        n8n.get("live_api") is True
+        data.get("activation") == "enabled"
+        and "n8n" in services
+        and n8n.get("status") == "configured"
+        and n8n.get("live_api") is True
         and n8n.get("activation") == "live_mount_after_hitl"
         and n8n.get("control_plane") is not True
         and n8n.get("permission_source") is not True
@@ -56,4 +61,4 @@ def architect_n8n_live_allowed(manifest: Mapping[str, Any] | None = None) -> boo
 def architect_gitops_push_allowed(manifest: Mapping[str, Any] | None = None) -> bool:
     data = dict(manifest or load_architect_manifest())
     live = data.get("live_modes") if isinstance(data.get("live_modes"), dict) else {}
-    return live.get("gitops_push") is True
+    return data.get("activation") == "enabled" and live.get("gitops_push") is True

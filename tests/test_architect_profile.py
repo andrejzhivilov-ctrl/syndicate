@@ -8,6 +8,7 @@ from pathlib import Path
 from src.agent_platform.contracts import (
     AccessRequest,
     ActionClass,
+    ActivationStatus,
     AgentProfile,
     DecisionCode,
     DecisionStatus,
@@ -35,6 +36,7 @@ def _architect_profile(manifest: dict | None = None) -> AgentProfile:
         capabilities=frozenset(manifest["capabilities"]),
         resource_scopes=frozenset(manifest["resource_scopes"]),
         runtime=RuntimeKind(manifest["runtime"]),
+        activation_status=ActivationStatus(manifest["activation"]),
     )
 
 
@@ -47,9 +49,12 @@ def test_architect_manifest_is_prepared_not_enabled_and_has_no_grants() -> None:
     assert manifest["model_status"] == "not_selected"
     assert manifest["prompt_status"] == "draft"
     assert profile.runtime is RuntimeKind.HERMES
-    assert profile.capabilities == frozenset({"n8n.workflow.design", "n8n.workflow.mount"})
-    assert profile.resource_scopes == frozenset({"n8n/live"})
-    assert manifest["services_enabled"] == ["n8n"]
+    assert profile.activation_status is ActivationStatus.PREPARED_NOT_ENABLED
+    assert profile.capabilities == frozenset()
+    assert profile.resource_scopes == frozenset()
+    assert manifest["services_enabled"] == []
+    assert manifest["proposed_grants"]
+    assert all(grant["status"] == "proposed_not_applied" for grant in manifest["proposed_grants"])
     assert manifest["skills"]
     assert all(item.get("activation") == "draft" for item in manifest["skills"])
     assert not hasattr(profile, "role")
@@ -66,11 +71,12 @@ def test_architect_manifest_does_not_select_model_or_integrations() -> None:
     manifest = _load(ARCHITECT_PROFILE_PATH)
     assert manifest["model_status"] == "not_selected"
     assert manifest["role_status"] == "identity_draft"
-    assert manifest["services_enabled"] == ["n8n"]
+    assert manifest["services_enabled"] == []
     assert manifest["n8n"]["control_plane"] is False
     assert manifest["n8n"]["permission_source"] is False
-    assert manifest["n8n"]["activation"] == "live_mount_after_hitl"
-    assert manifest["n8n"]["live_api"] is True
+    assert manifest["n8n"]["status"] == "not_configured"
+    assert manifest["n8n"]["activation"] == "not_configured"
+    assert manifest["n8n"]["live_api"] is False
     assert manifest["n8n"]["create_active"] is False
     assert manifest["n8n"]["credentials_managed_in_profile"] is False
     assert manifest["task_source"] == "andrii_only"
@@ -131,7 +137,7 @@ def test_policy_denies_ungranted_architect_capabilities() -> None:
             ),
         )
         assert decision.status is DecisionStatus.DENIED
-        assert decision.code is DecisionCode.CAPABILITY_NOT_GRANTED
+        assert decision.code is DecisionCode.AGENT_NOT_ENABLED
 
 
 def test_generated_and_golden_workflows_remain_inactive() -> None:

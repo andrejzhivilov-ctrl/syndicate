@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "status": "proposed_not_applied",
+  "runtime_activation": "prepared_not_enabled",
+  "purpose": "Proposed read-only grants for the shared knowledge-pool review path. This file is documentation/configuration metadata only; ServiceHub and Vault do not load it.",
+  "default": {
+    "service_hub_operations": [],
+    "review_agents": [],
+    "shared_agents": []
+  },
+  "proposals": [
+    {
+      "agent_id": "kodex",
+      "status": "proposed_not_applied",
+      "service_hub_operations": [
+        "knowledge.search",
+        "knowledge.read"
+      ],
+      "knowledge_pool_access": {
+        "review_agents": [
+          "kodex"
+        ],
+        "shared_agents": []
+      },
+      "allowed_item_state": "review_pending + review_only",
+      "purpose": "Prepare and inspect bounded draft records; no source writes, approval, publishing, or permission changes."
+    },
+    {
+      "agent_id": "marshal",
+      "status": "proposed_not_applied",
+      "service_hub_operations": [
+        "knowledge.search",
+        "knowledge.read"
+      ],
+      "knowledge_pool_access": {
+        "review_agents": [
+          "marshal"
+        ],
+        "shared_agents": []
+      },
+      "allowed_item_state": "review_pending + review_only",
+      "purpose": "Independent bounded review of draft records; no approval or publishing endpoint is available."
+    }
+  ],
+  "shared_read": {
+    "status": "not_proposed_until_review",
+    "service_hub_operations": [],
+    "knowledge_pool_access": {
+      "review_agents": [],
+      "shared_agents": []
+    },
+    "prerequisites": [
+      "confirmed rights and provenance",
+      "independent Marshal review bound to exact item digest and version",
+      "passing required static scanner",
+      "detached Marshal HMAC signed by a host-owned Vault key",
+      "operator-approved per-agent shared-read allowlist and ServiceHub grant"
+    ]
+  },
+  "never_granted_by_pool_content": [
+    "runtime activation",
+    "system prompt changes",
+    "capability or authority changes",
+    "model selection",
+    "external network access",
+    "n8n workflow creation or activation",
+    "approve/publish/write operations"
+  ],
+  "vault_policy": "not_created_or_applied",
+  "live_service_config": "not_changed",
+  "deployment_templates": {
+    "status": "prepared_not_applied",
+    "paths": [
+      "config/integration_workers/kodex.example.json",
+      "config/integration_workers/marshal.example.json"
+    ],
+    "note": "Examples include review-only ServiceHub grants and self-only review allowlists; no Vault/runtime configuration loads them."
+  }
+}

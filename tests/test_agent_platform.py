@@ -14,6 +14,7 @@ sys.path.insert(0, str(REPO_ROOT))
 from src.agent_platform import (  # noqa: E402
     AccessRequest,
     ActionClass,
+    ActivationStatus,
     AgentDispatcher,
     AgentInvocation,
     AgentPolicy,
@@ -104,6 +105,7 @@ def _profile(
         memory_namespace="agents/generic-agent",
         capabilities=capabilities,
         resource_scopes=resource_scopes,
+        activation_status=ActivationStatus.ENABLED,
     )
 
 
@@ -136,9 +138,33 @@ def test_profile_is_hermes_by_default_and_has_no_implicit_grants() -> None:
     )
 
     assert profile.runtime.value == "hermes"
+    assert profile.activation_status is ActivationStatus.PREPARED_NOT_ENABLED
     assert profile.capabilities == frozenset()
     assert profile.resource_scopes == frozenset()
     assert not hasattr(profile, "role")
+
+
+def test_prepared_profile_cannot_dispatch_even_with_a_capability() -> None:
+    prepared = AgentProfile(
+        agent_id="generic-agent",
+        runtime_profile="generic-agent",
+        memory_namespace="agents/generic-agent",
+        capabilities=frozenset({"agent.invoke"}),
+    )
+    request = _invocation().access
+    denied = AgentPolicy().evaluate(prepared, request)
+    assert denied.status is DecisionStatus.DENIED
+    assert denied.code is DecisionCode.AGENT_NOT_ENABLED
+
+    enabled = AgentProfile(
+        agent_id="generic-agent",
+        runtime_profile="generic-agent",
+        memory_namespace="agents/generic-agent",
+        capabilities=frozenset({"agent.invoke"}),
+        activation_status=ActivationStatus.ENABLED,
+    )
+    allowed = AgentPolicy().evaluate(enabled, request)
+    assert allowed.status is DecisionStatus.ALLOWED
 
 
 def test_profile_rejects_wildcards_and_prohibited_grants() -> None:

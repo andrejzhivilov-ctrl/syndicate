@@ -123,4 +123,4 @@ def test_policy_denies_trade_execute_while_grants_are_empty() -> None:
             ),
         )
         assert decision.status is DecisionStatus.DENIED
-        assert decision.code is DecisionCode.CAPABILITY_NOT_GRANTED
+        assert decision.code is DecisionCode.AGENT_NOT_ENABLED

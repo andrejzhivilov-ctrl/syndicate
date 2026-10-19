@@ -5,5 +5,7 @@
   "omniroute": {"url": "http://omniroute:20128/v1", "api_key": "SET_IN_VAULT", "model": "OPERATOR_SELECTED_MODEL", "allowed_models": ["OPERATOR_SELECTED_MODEL"]},
   "actual": {"url": "http://actual:5006", "password": "SET_IN_VAULT", "budget_id": "SET_SYNC_ID", "accounts": [], "node": "/usr/local/bin/node"},
   "hyperframes": {"binary": "/app/deploy/integrations/node_modules/.bin/hyperframes"},
-  "mcp": {}
+  "mcp": {},
+  "knowledge_pool_access": {"review_agents": [], "shared_agents": []},
+  "mcp_pool_access": {"reader_agents": []}
 }

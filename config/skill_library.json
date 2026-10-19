@@ -9,8 +9,8 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "eva",
-        "architect"
+        "architect",
+        "eva"
       ],
       "resources": {
         "SKILL.md": "skills/vendor/mattpocock/skills/skills/productivity/grill-me/SKILL.md",
@@ -26,8 +26,8 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "eva",
         "architect",
+        "eva",
         "kodex"
       ],
       "resources": {
@@ -44,8 +44,8 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "eva",
-        "architect"
+        "architect",
+        "eva"
       ],
       "resources": {
         "SKILL.md": "skills/vendor/mattpocock/skills/skills/productivity/grilling/SKILL.md",
@@ -61,8 +61,9 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
+        "alice",
         "architect",
-        "alice"
+        "dex"
       ],
       "resources": {
         "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/api-and-interface-design/SKILL.md",
@@ -84,8 +85,8 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "architect",
-        "alice"
+        "alice",
+        "architect"
       ],
       "resources": {
         "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/debugging-and-error-recovery/SKILL.md",
@@ -107,10 +108,12 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "eva",
+        "alice",
         "architect",
+        "dex",
+        "eva",
         "kodex",
-        "alice"
+        "ray"
       ],
       "resources": {
         "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/context-engineering/SKILL.md",
@@ -132,9 +135,10 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
+        "alice",
         "architect",
-        "kodex",
-        "alice"
+        "dex",
+        "kodex"
       ],
       "resources": {
         "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/documentation-and-adrs/SKILL.md",
@@ -156,8 +160,8 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "architect",
-        "alice"
+        "alice",
+        "architect"
       ],
       "resources": {
         "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/source-driven-development/SKILL.md",
@@ -179,8 +183,8 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "architect",
-        "alice"
+        "alice",
+        "architect"
       ],
       "resources": {
         "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/test-driven-development/SKILL.md",
@@ -202,9 +206,10 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "eva",
+        "alice",
         "architect",
-        "alice"
+        "atlas",
+        "eva"
       ],
       "resources": {
         "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/planning-and-task-breakdown/SKILL.md",
@@ -244,7 +249,8 @@
         "eva",
         "fin",
         "kodex",
-        "oscar"
+        "oscar",
+        "trainer"
       ],
       "resources": {
         "LICENSE.txt": "skills/vendor/anthropics/skills/skills/internal-comms/LICENSE.txt",
@@ -264,8 +270,8 @@
       "license": "Apache-2.0 (skill-local LICENSE.txt)",
       "mode": "reference_only",
       "agents": [
-        "tyler",
-        "oscar"
+        "oscar",
+        "tyler"
       ],
       "resources": {
         "LICENSE.txt": "skills/vendor/anthropics/skills/skills/frontend-design/LICENSE.txt",
@@ -281,11 +287,15 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
+        "atlas",
+        "dex",
         "doc",
-        "kira",
+        "fin",
         "jack",
+        "kira",
+        "ray",
         "sam",
-        "fin"
+        "trainer"
       ],
       "resources": {
         "SKILL.md": "skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking/SKILL.md",
@@ -308,9 +318,9 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "sam",
         "fin",
-        "jack"
+        "jack",
+        "sam"
       ],
       "resources": {
         "SKILL.md": "skills/vendor/HKUDS/Vibe-Trading/agent/src/skills/behavioral-finance/SKILL.md"
@@ -362,6 +372,7 @@
       "mode": "reference_only",
       "agents": [
         "oscar",
+        "trainer",
         "tyler"
       ],
       "resources": {
@@ -377,10 +388,12 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
+        "atlas",
         "eva",
         "fin",
-        "sam",
         "oscar",
+        "ray",
+        "sam",
         "tyler"
       ],
       "resources": {
@@ -396,9 +409,9 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "marshal",
+        "alice",
         "architect",
-        "alice"
+        "marshal"
       ],
       "resources": {
         "SKILL.md": "skills/vendor/affaan-m/ECC/skills/agent-security-hardening/SKILL.md"
@@ -413,7 +426,9 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
+        "atlas",
         "oscar",
+        "ray",
         "tyler"
       ],
       "resources": {
@@ -421,6 +436,171 @@
         "references/voice-profile-schema.md": "skills/vendor/affaan-m/ECC/skills/brand-voice/references/voice-profile-schema.md"
       },
       "review": "Instructions and dependencies inspected; not a certification or runtime permission grant."
+    },
+    {
+      "id": "tyler-price-compare",
+      "source": "local",
+      "commit": "744f2e767f4bec466f20eeb1297e8497708a5ba3",
+      "source_path": "tyler_core/skills/tyler-price-compare/SKILL.md",
+      "license": "internal",
+      "mode": "reference_only",
+      "agents": [
+        "tyler"
+      ],
+      "resources": {
+        "SKILL.md": "tyler_core/skills/tyler-price-compare/SKILL.md"
+      },
+      "review": "Reference-only draft skill; no purchase, order, payment, or publishing."
+    },
+    {
+      "id": "tyler-supplier-research",
+      "source": "local",
+      "commit": "744f2e767f4bec466f20eeb1297e8497708a5ba3",
+      "source_path": "tyler_core/skills/tyler-supplier-research/SKILL.md",
+      "license": "internal",
+      "mode": "reference_only",
+      "agents": [
+        "tyler"
+      ],
+      "resources": {
+        "SKILL.md": "tyler_core/skills/tyler-supplier-research/SKILL.md"
+      },
+      "review": "Reference-only draft skill; no purchase, order, payment, or publishing."
+    },
+    {
+      "id": "tyler-store-legitimacy-review",
+      "source": "https://github.com/HinkoK/agent-skills",
+      "commit": "2fb9337c53bd164c2c8d6bad04894ea3d6846e18",
+      "source_path": "skills/online-store-legitimacy-checks",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "tyler"
+      ],
+      "resources": {
+        "SKILL.md": "tyler_core/skills/tyler-store-legitimacy-review/SKILL.md"
+      },
+      "review": "Static review of SKILL.md, README.md, and its single example reference; the selected skill has no executable scripts, network calls, or secret requirements. Local Tyler adaptation blocks checkout/actions and does not apply EU/Denmark rules to Ukraine. Original MIT license and source files are retained under skills/vendor/HinkoK/agent-skills."
+    },
+    {
+      "id": "tyler-listing-draft",
+      "source": "local",
+      "commit": "744f2e767f4bec466f20eeb1297e8497708a5ba3",
+      "source_path": "tyler_core/skills/tyler-listing-draft/SKILL.md",
+      "license": "internal",
+      "mode": "reference_only",
+      "agents": [
+        "tyler"
+      ],
+      "resources": {
+        "SKILL.md": "tyler_core/skills/tyler-listing-draft/SKILL.md"
+      },
+      "review": "Reference-only draft skill; no purchase, order, payment, or publishing."
+    },
+    {
+      "id": "kodex-prompt-catalog",
+      "source": "local",
+      "commit": "744f2e767f4bec466f20eeb1297e8497708a5ba3",
+      "source_path": "kodex_core/skills/kodex-prompt-catalog/SKILL.md",
+      "license": "internal",
+      "mode": "reference_only",
+      "agents": [
+        "kodex"
+      ],
+      "resources": {
+        "SKILL.md": "kodex_core/skills/kodex-prompt-catalog/SKILL.md"
+      },
+      "review": "Reference-only KODEX skill; no automatic changes to prompts, grants, or production config."
+    },
+    {
+      "id": "kodex-skill-research",
+      "source": "local",
+      "commit": "744f2e767f4bec466f20eeb1297e8497708a5ba3",
+      "source_path": "kodex_core/skills/kodex-skill-research/SKILL.md",
+      "license": "internal",
+      "mode": "reference_only",
+      "agents": [
+        "kodex"
+      ],
+      "resources": {
+        "SKILL.md": "kodex_core/skills/kodex-skill-research/SKILL.md"
+      },
+      "review": "Reference-only KODEX skill; no automatic changes to prompts, grants, or production config."
+    },
+    {
+      "id": "kodex-notebooklm",
+      "source": "local",
+      "commit": "744f2e767f4bec466f20eeb1297e8497708a5ba3",
+      "source_path": "kodex_core/skills/kodex-notebooklm/SKILL.md",
+      "license": "internal",
+      "mode": "reference_only",
+      "agents": [
+        "kodex"
+      ],
+      "resources": {
+        "SKILL.md": "kodex_core/skills/kodex-notebooklm/SKILL.md"
+      },
+      "review": "Reference-only KODEX skill; no automatic changes to prompts, grants, or production config."
+    },
+    {
+      "id": "kodex-obsidian",
+      "source": "local",
+      "commit": "744f2e767f4bec466f20eeb1297e8497708a5ba3",
+      "source_path": "kodex_core/skills/kodex-obsidian/SKILL.md",
+      "license": "internal",
+      "mode": "reference_only",
+      "agents": [
+        "kodex"
+      ],
+      "resources": {
+        "SKILL.md": "kodex_core/skills/kodex-obsidian/SKILL.md"
+      },
+      "review": "Reference-only KODEX skill; no automatic changes to prompts, grants, or production config."
+    },
+    {
+      "id": "marshal-skill-scout",
+      "source": "local",
+      "commit": "744f2e767f4bec466f20eeb1297e8497708a5ba3",
+      "source_path": "marshal_core/skills/marshal-skill-scout/SKILL.md",
+      "license": "internal",
+      "mode": "reference_only",
+      "agents": [
+        "marshal"
+      ],
+      "resources": {
+        "SKILL.md": "marshal_core/skills/marshal-skill-scout/SKILL.md"
+      },
+      "review": "Reference-only Marshal scout; no automatic downloads or installation."
+    },
+    {
+      "id": "kodex-mcp-connector-scout",
+      "source": "local",
+      "commit": null,
+      "source_path": "kodex_core/skills/kodex-mcp-connector-scout/SKILL.md",
+      "license": "internal",
+      "mode": "reference_only",
+      "agents": [
+        "kodex"
+      ],
+      "resources": {
+        "SKILL.md": "kodex_core/skills/kodex-mcp-connector-scout/SKILL.md"
+      },
+      "review": "Uncommitted discovery-only draft; no network, package-install, MCP, Vault or runtime grant."
+    },
+    {
+      "id": "marshal-mcp-connector-review",
+      "source": "local",
+      "commit": null,
+      "source_path": "marshal_core/skills/marshal-mcp-connector-review/SKILL.md",
+      "license": "internal",
+      "mode": "reference_only",
+      "agents": [
+        "marshal"
+      ],
+      "resources": {
+        "SKILL.md": "marshal_core/skills/marshal-mcp-connector-review/SKILL.md"
+      },
+      "review": "Uncommitted independent-review draft; recommendation does not enable a connector or grant access."
     }
   ],
   "files": {
@@ -482,6 +662,21 @@
     "skills/vendor/mattpocock/skills/skills/productivity/grilling/SKILL.md": "befdff1e27a1dfe2a294d5871169ac1afe16d983911daa4f32627514a48c1e15",
     "skills/vendor/mattpocock/skills/skills/productivity/grilling/agents/openai.yaml": "1411d7df7d99b7e621a1ff8283c8133cc2464be63d064e52d8ce169c6800ee9b",
     "skills/vendor/mattpocock/skills/skills/productivity/handoff/SKILL.md": "4cbb043950dad2ffd3662ff1a5a0b51ae676004b5cae10e3787e8ee7a4ee69d3",
-    "skills/vendor/mattpocock/skills/skills/productivity/handoff/agents/openai.yaml": "5c479fd562c691851690e8b18c8501045bef0943c10743d636b2fae26add1d28"
+    "skills/vendor/mattpocock/skills/skills/productivity/handoff/agents/openai.yaml": "5c479fd562c691851690e8b18c8501045bef0943c10743d636b2fae26add1d28",
+    "tyler_core/skills/tyler-price-compare/SKILL.md": "2addcfb17a4405f72c247a0ea8a441cdac1a0dfc5f0d0b0cf658a86c2124c8e0",
+    "tyler_core/skills/tyler-supplier-research/SKILL.md": "80f79f21b7745f815559387158a85342c39f362d6a3d9aef5dfe7b5c5e4f0051",
+    "tyler_core/skills/tyler-listing-draft/SKILL.md": "8a458e5dc6c8d26aa867a2895e45e19f21cce6f0af9aa6853f76c2fcf34867af",
+    "kodex_core/skills/kodex-prompt-catalog/SKILL.md": "5059d5c5f5ae531800ef14866eeb4738f727edf45f6d132a2ace020ca4bfe6fb",
+    "kodex_core/skills/kodex-skill-research/SKILL.md": "c76a70264a62160f6ce124adc0ca328baf3d1462d63e77765b06800d3631f2be",
+    "kodex_core/skills/kodex-notebooklm/SKILL.md": "3cf1d74baaec6f8cbe6fea2ef00f7f1ca71e453e89ff190037a0d42983a508e9",
+    "kodex_core/skills/kodex-obsidian/SKILL.md": "5f0d35e913f111df0bdff82bf329ae179d551660a9752076b434aa77c37c6be7",
+    "marshal_core/skills/marshal-skill-scout/SKILL.md": "0b0e4592cb45524286c8e23ff3e539d925801aa70abe4fc70a3cda968993f8f5",
+    "kodex_core/skills/kodex-mcp-connector-scout/SKILL.md": "2be4d462edb52c7a4d09e9c8095565afd40aa12c815533d959046f812fff2290",
+    "marshal_core/skills/marshal-mcp-connector-review/SKILL.md": "bcb738e87414d8358aa06b46875eaa56f801c6718f7e889c046267dfbd6a9ff4",
+    "tyler_core/skills/tyler-store-legitimacy-review/SKILL.md": "b01a25640d35771505d85d6a1c5e86f1f3dce6b95a9627704c4627e7545be1db",
+    "skills/vendor/HinkoK/agent-skills/LICENSE": "2b9eedf726fc6363251ca40651e9f22f07e9311b17b5ad52397935cd85a6180c",
+    "skills/vendor/HinkoK/agent-skills/skills/online-store-legitimacy-checks/SKILL.md": "98eb7f9ee865cf2465673243a78a3399bb88dde6d0f73314658bee467eb843e5",
+    "skills/vendor/HinkoK/agent-skills/skills/online-store-legitimacy-checks/README.md": "94a78e8b834f7ea02bd09a36f88825711a12829e08d628667fcc09b2d6109054",
+    "skills/vendor/HinkoK/agent-skills/skills/online-store-legitimacy-checks/references/spelexperten-example.md": "be01759830da64a0268c94b2ba62bc951f929fa2777b859191e082927e1b1701"
   }
 }

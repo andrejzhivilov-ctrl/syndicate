@@ -22,9 +22,19 @@
       "purpose": "Облік відповідей на мікро-квізи, статистика тем, пропозиції нових дисциплін і питань",
       "status": "proposed_not_applied",
       "needs": "рішення Андрія; до схвалення grants порожні (default-deny)"
+    },
+    {
+      "capability": "kira.n8n.integration",
+      "status": "proposed_not_applied",
+      "purpose": "Інтеграція з n8n: дизайн/монтаж workflow без activate."
     }
   ],
   "reference_skills": [
     "scientific-critical-thinking"
-  ]
+  ],
+  "n8n": {
+    "status": "not_configured",
+    "mode": "design_and_mount_only",
+    "activate": false
+  }
 }

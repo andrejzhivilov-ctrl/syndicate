@@ -1,0 +1,187 @@
+{
+  "schema_version": 1,
+  "activation": "prepared_not_enabled",
+  "runtime": "hermes",
+  "task_source": "andrii_only",
+  "capabilities": [],
+  "grants": [],
+  "resource_scopes": [],
+  "services_enabled": [],
+  "skills": [],
+  "telegram": {
+    "status": "not_connected",
+    "allowlist": []
+  },
+  "live_modes": {
+    "api": false,
+    "internet": false,
+    "browser_automation": false,
+    "github": false,
+    "image_generation": false,
+    "video_render": false,
+    "billing": false,
+    "history_ingest": false,
+    "production_deployment": false,
+    "telegram_bot": false
+  },
+  "internet": {
+    "enabled": false,
+    "mode": "controlled_gateway",
+    "default_policy": "deny",
+    "allowed_domains": []
+  },
+  "egress": {
+    "mode": "controlled_gateway",
+    "default": "deny",
+    "allowed_domains": []
+  },
+  "network": {
+    "internet_enabled": false,
+    "controlled_gateway": true,
+    "default_policy": "deny",
+    "allowed_domains": []
+  },
+  "knowledge_bases": {
+    "drive": {
+      "activation": "not_configured"
+    },
+    "obsidian": {
+      "activation": "not_configured"
+    },
+    "archive": {
+      "activation": "reserved",
+      "namespace": "agents/trainer"
+    }
+  },
+  "reports": {
+    "to_eva": "payload_only",
+    "full_report": "andrii_direct_request"
+  },
+  "prompt_status": "not_prepared",
+  "role_status": "not_agreed",
+  "model_status": "not_selected",
+  "agent_id": "trainer",
+  "display_name": "TRAINER (Fitness & Health)",
+  "runtime_profile": "trainer",
+  "memory_namespace": "agents/trainer",
+  "prompt_file": "src/agents/trainer_runtime_prompt.md",
+  "role_title": "Керівник фітнесу, здоров'я, тренувань і реабілітації",
+  "reports_to": "eva",
+  "reference_skills": [
+    "content-engine",
+    "internal-comms",
+    "scientific-critical-thinking"
+  ],
+  "proposed_grants": [
+    {
+      "capability": "trainer.program.design",
+      "status": "proposed_not_applied",
+      "purpose": "Програми тренувань і реабілітації."
+    },
+    {
+      "capability": "trainer.nutrition.plan",
+      "status": "proposed_not_applied",
+      "purpose": "Харчування і КБЖУ."
+    },
+    {
+      "capability": "trainer.health.info",
+      "status": "proposed_not_applied",
+      "purpose": "Інформація про здоров'я без діагнозів і ліків."
+    },
+    {
+      "capability": "trainer.report.eva",
+      "status": "proposed_not_applied",
+      "purpose": "Звіти Єві."
+    },
+    {
+      "capability": "trainer.memory.read",
+      "status": "proposed_not_applied",
+      "resource_scope": "agents/trainer",
+      "purpose": "Читання власної пам'яті."
+    },
+    {
+      "capability": "trainer.memory.write",
+      "status": "proposed_not_applied",
+      "resource_scope": "agents/trainer",
+      "purpose": "Запис програм і прогресу."
+    },
+    {
+      "capability": "trainer.telegram.bot",
+      "status": "proposed_not_applied",
+      "purpose": "Окремий Telegram-бот для програм і кнопок."
+    },
+    {
+      "capability": "trainer.voice.transcribe",
+      "status": "proposed_not_applied",
+      "purpose": "Транскрибація голосових повідомлень."
+    },
+    {
+      "capability": "trainer.voice.speak",
+      "status": "proposed_not_applied",
+      "purpose": "Озвучення відповідей узгодженим голосом."
+    },
+    {
+      "capability": "trainer.docs.generate",
+      "status": "proposed_not_applied",
+      "purpose": "Генерація MD/DOCX/XLSX/PPTX локально."
+    },
+    {
+      "capability": "trainer.sheets.read_write",
+      "status": "proposed_not_applied",
+      "purpose": "Робота з таблицями у власному просторі."
+    },
+    {
+      "capability": "trainer.slides.generate",
+      "status": "proposed_not_applied",
+      "purpose": "Генерація презентацій/слайдів."
+    },
+    {
+      "capability": "trainer.web.search",
+      "status": "proposed_not_applied",
+      "purpose": "Пошук через контрольований шлюз."
+    },
+    {
+      "capability": "trainer.web.fetch",
+      "status": "proposed_not_applied",
+      "purpose": "Читання сторінок з перевірених джерел."
+    },
+    {
+      "capability": "trainer.n8n.integration",
+      "status": "proposed_not_applied",
+      "purpose": "Інтеграція з n8n: дизайн/монтаж workflow без activate."
+    }
+  ],
+  "deployment_deferred": [
+    "Telegram-бот",
+    "інтернет-шлюз",
+    "медичні дані",
+    "вибір LLM"
+  ],
+  "voice": {
+    "status": "not_configured",
+    "tts": false,
+    "stt": false,
+    "voice_id": null
+  },
+  "documents": {
+    "status": "not_configured",
+    "formats": [
+      "md",
+      "docx",
+      "xlsx",
+      "pptx",
+      "pdf"
+    ],
+    "google": false
+  },
+  "identity": {
+    "status": "draft",
+    "reports_to": "eva",
+    "authority": "prepared_not_enabled"
+  },
+  "n8n": {
+    "status": "not_configured",
+    "mode": "design_and_mount_only",
+    "activate": false
+  }
+}

@@ -27,6 +27,13 @@ class RuntimeKind(str, Enum):
     ANTIGRAVITY_SDK = "antigravity_sdk"
 
 
+class ActivationStatus(str, Enum):
+    """Host-controlled runtime lifecycle; prepared profiles are never dispatchable."""
+
+    PREPARED_NOT_ENABLED = "prepared_not_enabled"
+    ENABLED = "enabled"
+
+
 class ActionClass(str, Enum):
     """Host-assigned action category; never trust the model to classify itself."""
 
@@ -54,6 +61,7 @@ class DecisionCode(str, Enum):
     ALLOWED = "allowed"
     UNKNOWN_AGENT = "unknown_agent"
     AGENT_MISMATCH = "agent_mismatch"
+    AGENT_NOT_ENABLED = "agent_not_enabled"
     PROHIBITED_CAPABILITY = "prohibited_capability"
     CAPABILITY_NOT_GRANTED = "capability_not_granted"
     RESOURCE_SCOPE_REQUIRED = "resource_scope_required"
@@ -126,6 +134,7 @@ class AgentProfile:
     capabilities: frozenset[str] = frozenset()
     resource_scopes: frozenset[str] = frozenset()
     runtime: RuntimeKind = RuntimeKind.HERMES
+    activation_status: ActivationStatus = ActivationStatus.PREPARED_NOT_ENABLED
 
     def __post_init__(self) -> None:
         if not isinstance(self.agent_id, str) or not _PROFILE_ID_RE.fullmatch(self.agent_id):
@@ -138,6 +147,8 @@ class AgentProfile:
             raise ValueError("wildcards_or_parent_paths_forbidden_in_memory_namespace")
         if not isinstance(self.runtime, RuntimeKind):
             raise ValueError("invalid_runtime_kind")
+        if not isinstance(self.activation_status, ActivationStatus):
+            raise ValueError("invalid_activation_status")
 
         capabilities = _freeze_identifiers(
             self.capabilities, label="capabilities", pattern=_CAPABILITY_ID_RE

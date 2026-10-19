@@ -1,0 +1,183 @@
+{
+  "schema_version": 1,
+  "registry_id": "skills",
+  "allowed_kinds": [
+    "skill"
+  ],
+  "items": [
+    {
+      "id": "prompt-engineering-basics",
+      "kind": "skill",
+      "title": "Prompt Engineering Basics",
+      "summary": "Prompt structure, constraints, safe use of examples, and validation.",
+      "tags": [
+        "prompt-design",
+        "context",
+        "output-contract"
+      ],
+      "target_agents": [
+        "kodex",
+        "alice",
+        "architect",
+        "marshal"
+      ],
+      "source_ids": [
+        "prompt_agent_architecture",
+        "xml_prompts",
+        "prompt_catalog"
+      ],
+      "resource": "content.md",
+      "resource_path": "knowledge_pools/skills/prompt-engineering-basics.md",
+      "sha256": "7c4f62aa0b891ca6df8199a231bfb4db8c22b1826907467974ea6908592b10ac",
+      "status": "review_pending",
+      "visibility": "review_only",
+      "reviewers": [
+        "kodex",
+        "marshal"
+      ],
+      "risk_tier": "low_text_reference",
+      "mode": "reference_only",
+      "estimated_tokens": 689,
+      "version": 1,
+      "approval": null
+    },
+    {
+      "id": "n8n-workflow-design",
+      "kind": "skill",
+      "title": "N8N Workflow Design",
+      "summary": "Design-time checklist for modular n8n flows, contracts, errors and approvals.",
+      "tags": [
+        "n8n",
+        "workflow",
+        "error-handling",
+        "rag"
+      ],
+      "target_agents": [
+        "architect",
+        "dex",
+        "kodex"
+      ],
+      "source_ids": [
+        "n8n_course"
+      ],
+      "resource": "content.md",
+      "resource_path": "knowledge_pools/skills/n8n-workflow-design.md",
+      "sha256": "2823800580f217ff75fed859488a9b55a3c0fd98019a360c0984020a5f9978fe",
+      "status": "review_pending",
+      "visibility": "review_only",
+      "reviewers": [
+        "kodex",
+        "marshal"
+      ],
+      "risk_tier": "low_text_reference",
+      "mode": "reference_only",
+      "estimated_tokens": 660,
+      "version": 1,
+      "approval": null
+    },
+    {
+      "id": "video-production-foundations",
+      "kind": "skill",
+      "title": "Video Production Foundations",
+      "summary": "High-level checklist for short-form video planning and review.",
+      "tags": [
+        "video",
+        "editing",
+        "captions",
+        "audio"
+      ],
+      "target_agents": [
+        "oscar",
+        "dex",
+        "tyler"
+      ],
+      "source_ids": [
+        "video_course",
+        "business_courses"
+      ],
+      "resource": "content.md",
+      "resource_path": "knowledge_pools/skills/video-production-foundations.md",
+      "sha256": "c5041504f82be1b3ae326bbd08dcdeb3fdf86067f33bdaebcb230f372db8f291",
+      "status": "review_pending",
+      "visibility": "review_only",
+      "reviewers": [
+        "kodex",
+        "marshal"
+      ],
+      "risk_tier": "low_text_reference",
+      "mode": "reference_only",
+      "estimated_tokens": 530,
+      "version": 1,
+      "approval": null
+    },
+    {
+      "id": "web-template-evaluation",
+      "kind": "skill",
+      "title": "Web Template Evaluation",
+      "summary": "Review checklist before adapting a website template or code example.",
+      "tags": [
+        "react",
+        "tailwind",
+        "web",
+        "security-review"
+      ],
+      "target_agents": [
+        "alice",
+        "architect",
+        "dex",
+        "oscar"
+      ],
+      "source_ids": [
+        "website_templates"
+      ],
+      "resource": "content.md",
+      "resource_path": "knowledge_pools/skills/web-template-evaluation.md",
+      "sha256": "b16f626f5e0718a1b37c875a4672f8e794371b765a4a3f7cca56c5b9797f4d80",
+      "status": "review_pending",
+      "visibility": "review_only",
+      "reviewers": [
+        "kodex",
+        "marshal"
+      ],
+      "risk_tier": "low_text_reference",
+      "mode": "reference_only",
+      "estimated_tokens": 536,
+      "version": 1,
+      "approval": null
+    },
+    {
+      "id": "automation-platform-translation",
+      "kind": "skill",
+      "title": "Automation Platform Translation",
+      "summary": "Conceptual mapping from Make automation patterns to n8n; not a runtime integration.",
+      "tags": [
+        "make",
+        "n8n",
+        "automation",
+        "migration"
+      ],
+      "target_agents": [
+        "architect",
+        "dex"
+      ],
+      "source_ids": [
+        "make_course",
+        "n8n_course"
+      ],
+      "resource": "content.md",
+      "resource_path": "knowledge_pools/skills/automation-platform-translation.md",
+      "sha256": "54c6e3a0050e0a1c481bd35aebac16aac3bff207a9d6aa48427b36e08cdffa1c",
+      "status": "review_pending",
+      "visibility": "review_only",
+      "reviewers": [
+        "kodex",
+        "marshal"
+      ],
+      "risk_tier": "low_text_reference",
+      "mode": "reference_only",
+      "estimated_tokens": 459,
+      "version": 1,
+      "approval": null
+    }
+  ]
+}

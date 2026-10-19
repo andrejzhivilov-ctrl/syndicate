@@ -34,15 +34,16 @@ class Floor2Coordinator:
 
     AGENT_ID = "floor2_coordinator"
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: Optional[Dict[str, Any]] = None, vault_client: Any = None):
         self.config = config or {}
+        self._vault = vault_client
         self.video_producer = VideoProducer()
         self.video_engine_v2 = VideoEngineV2()
-        self.script_director = ScriptDirector()
-        self.broll_scout = BRollScout()
+        self.script_director = ScriptDirector(vault_client=vault_client)
+        self.broll_scout = BRollScout(vault_client=vault_client)
         self.caption_engine = CaptionEngine()
-        self.publisher = ContentPublisher()
-        self.grok_writer = GrokWriter()
+        self.publisher = ContentPublisher(vault_client=vault_client)
+        self.grok_writer = GrokWriter(vault_client=vault_client)
         self.mockup_studio = MockupStudio()
         self.affiliate_scout = AffiliateScout()
         self.pod_analyzer = PODAnalyzer()

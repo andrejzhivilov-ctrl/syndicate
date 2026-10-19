@@ -1,0 +1,235 @@
+{
+  "schema_version": 1,
+  "activation": "prepared_not_enabled",
+  "runtime": "hermes",
+  "task_source": "andrii_only",
+  "capabilities": [],
+  "grants": [],
+  "resource_scopes": [],
+  "services_enabled": [],
+  "skills": [],
+  "telegram": {
+    "status": "not_connected",
+    "allowlist": []
+  },
+  "live_modes": {
+    "api": false,
+    "internet": false,
+    "browser_automation": false,
+    "github": false,
+    "image_generation": false,
+    "video_render": false,
+    "billing": false,
+    "history_ingest": false,
+    "production_deployment": false,
+    "telegram_bot": false
+  },
+  "internet": {
+    "enabled": false,
+    "mode": "controlled_gateway",
+    "default_policy": "deny",
+    "allowed_domains": []
+  },
+  "egress": {
+    "mode": "controlled_gateway",
+    "default": "deny",
+    "allowed_domains": []
+  },
+  "network": {
+    "internet_enabled": false,
+    "controlled_gateway": true,
+    "default_policy": "deny",
+    "allowed_domains": []
+  },
+  "knowledge_bases": {
+    "drive": {
+      "activation": "not_configured"
+    },
+    "obsidian": {
+      "activation": "not_configured"
+    },
+    "archive": {
+      "activation": "reserved",
+      "namespace": "agents/atlas"
+    }
+  },
+  "reports": {
+    "to_eva": "payload_only",
+    "full_report": "andrii_direct_request"
+  },
+  "prompt_status": "not_prepared",
+  "role_status": "not_agreed",
+  "model_status": "not_selected",
+  "agent_id": "atlas",
+  "display_name": "ATLAS (Travel & Logistics)",
+  "runtime_profile": "atlas",
+  "memory_namespace": "agents/atlas",
+  "prompt_file": "src/agents/atlas_runtime_prompt.md",
+  "role_title": "Керівник глобальної географії, подорожей, маршрутів, логістики та локального досвіду",
+  "reports_to": "eva",
+  "reference_skills": [
+    "market-research",
+    "brand-voice",
+    "scientific-critical-thinking",
+    "planning-breakdown"
+  ],
+  "proposed_grants": [
+    {
+      "capability": "atlas.web.search",
+      "status": "proposed_not_applied",
+      "purpose": "Пошук транспорту, житла, віз і обмежень."
+    },
+    {
+      "capability": "atlas.maps.route",
+      "status": "proposed_not_applied",
+      "purpose": "Побудова маршрутів і логістики."
+    },
+    {
+      "capability": "atlas.travel.plan",
+      "status": "proposed_not_applied",
+      "purpose": "Плани подорожей і бюджети."
+    },
+    {
+      "capability": "atlas.report.eva",
+      "status": "proposed_not_applied",
+      "purpose": "Звіти Єві по подорожах."
+    },
+    {
+      "capability": "atlas.memory.read",
+      "status": "proposed_not_applied",
+      "resource_scope": "agents/atlas",
+      "purpose": "Читання власної пам'яті."
+    },
+    {
+      "capability": "atlas.memory.write",
+      "status": "proposed_not_applied",
+      "resource_scope": "agents/atlas",
+      "purpose": "Запис маршрутів і планів."
+    },
+    {
+      "capability": "atlas.telegram.bot",
+      "status": "proposed_not_applied",
+      "purpose": "Окремий Telegram-бот для маршрутів і кнопок."
+    },
+    {
+      "capability": "atlas.voice.transcribe",
+      "status": "proposed_not_applied",
+      "purpose": "Транскрибація голосових повідомлень."
+    },
+    {
+      "capability": "atlas.voice.speak",
+      "status": "proposed_not_applied",
+      "purpose": "Озвучення відповідей узгодженим голосом."
+    },
+    {
+      "capability": "atlas.docs.generate",
+      "status": "proposed_not_applied",
+      "purpose": "Генерація MD/DOCX/XLSX/PPTX локально."
+    },
+    {
+      "capability": "atlas.sheets.read_write",
+      "status": "proposed_not_applied",
+      "purpose": "Робота з таблицями у власному просторі."
+    },
+    {
+      "capability": "atlas.slides.generate",
+      "status": "proposed_not_applied",
+      "purpose": "Генерація презентацій/слайдів."
+    },
+    {
+      "capability": "atlas.web.fetch",
+      "status": "proposed_not_applied",
+      "purpose": "Читання сторінок з перевірених джерел."
+    },
+    {
+      "capability": "atlas.n8n.integration",
+      "status": "proposed_not_applied",
+      "purpose": "Інтеграція з n8n: дизайн/монтаж workflow без activate."
+    }
+  ],
+  "deployment_deferred": [
+    "Telegram-бот",
+    "інтернет-шлюз",
+    "карти/API",
+    "вибір LLM"
+  ],
+  "duties": [
+    "Знає географію, міста, країни, часові пояси, клімат, транспорт, візи, правила в'їзду.",
+    "Створює маршрути, програми відпочинку, екскурсії, визначні місця, історичні факти як екскурсовод.",
+    "Пропонує варіанти відпусток, житла (кімнати, квартири, будинки, бази відпочинку), оренди, бронювання, ціни, вигідні/невигідні варіанти.",
+    "Експертні оцінки будь-якого міста/країни: можливості, традиції, безпека, транспорт, логістика.",
+    "Навігатор і карти: геокодування, маршрути, часові пояси, погода, повітря, висота.",
+    "Бази знань постійно оновлюються: щотижня в неділю вночі з авторитетних джерел, блогерів, соцмереж, Twitter/X, Reddit.",
+    "Звітує Єві про оновлення і важливі зміни лише коли потрібно."
+  ],
+  "knowledge_sources": {
+    "authoritative": [
+      "офіційні туристичні сайти",
+      "посольства/візи",
+      "OpenStreetMap",
+      "Google Maps Platform",
+      "Open-Meteo",
+      "Nominatim"
+    ],
+    "social": [
+      "Twitter/X",
+      "Reddit",
+      "блоги мандрівників",
+      "YouTube travel vlogs",
+      "TikTok/Instagram travel"
+    ],
+    "update_schedule": "щонеділі вночі",
+    "reporting": "до Єви: короткий звіт про оновлення і важливі зміни; повний звіт лише за запитом Андрія"
+  },
+  "recommended_github_skills": [
+    "cablate/mcp-google-map",
+    "googlemaps/agent-skills",
+    "mapbox/mapbox-agent-skills",
+    "skywain/trip-planner-skill",
+    "squiswardplaysuona/TravelGuide",
+    "shlomsh/hermes-travel-skills",
+    "d-wwei/trip-planner",
+    "apljacob/travel-agent"
+  ],
+  "recommended_services": [
+    "Google Maps Platform (Places, Geocoding, Directions, Time Zone, Weather, Air Quality)",
+    "Mapbox (geospatial, routing, search)",
+    "OpenStreetMap/Nominatim",
+    "Open-Meteo",
+    "AviationStack/flight status",
+    "Duffel flights/stays (опційно)",
+    "Nominatim geocoding"
+  ],
+  "self_learning": {
+    "enabled_proposed": true,
+    "reflection": "самокритичність і перевірка джерел",
+    "update": "щотижня в неділю вночі"
+  },
+  "voice": {
+    "status": "not_configured",
+    "tts": false,
+    "stt": false,
+    "voice_id": null
+  },
+  "documents": {
+    "status": "not_configured",
+    "formats": [
+      "md",
+      "docx",
+      "xlsx",
+      "pptx",
+      "pdf"
+    ],
+    "google": false
+  },
+  "identity": {
+    "status": "draft",
+    "reports_to": "eva",
+    "authority": "prepared_not_enabled"
+  },
+  "n8n": {
+    "status": "not_configured",
+    "mode": "design_and_mount_only",
+    "activate": false
+  }
+}

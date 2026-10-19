@@ -6,7 +6,7 @@ import json
 import re
 from pathlib import Path
 
-from src.agent_platform.contracts import AgentProfile, RuntimeKind
+from src.agent_platform.contracts import ActivationStatus, AgentProfile, RuntimeKind
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILE_PATH = ROOT / "config" / "agents" / "eva.profile.json"
@@ -21,9 +21,11 @@ def test_eva_manifest_is_prepared_but_not_enabled_and_has_no_grants() -> None:
         capabilities=frozenset(manifest["capabilities"]),
         resource_scopes=frozenset(manifest["resource_scopes"]),
         runtime=RuntimeKind(manifest["runtime"]),
+        activation_status=ActivationStatus(manifest["activation"]),
     )
 
     assert manifest["activation"] == "prepared_not_enabled"
+    assert profile.activation_status is ActivationStatus.PREPARED_NOT_ENABLED
     assert profile.runtime is RuntimeKind.HERMES
     assert profile.capabilities == frozenset()
     assert profile.resource_scopes == frozenset()

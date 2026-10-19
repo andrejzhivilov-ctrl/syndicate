@@ -17,6 +17,14 @@ COPY deploy/integrations/actual_snapshot.mjs /app/deploy/integrations/actual_sna
 COPY src /app/src
 COPY config/agents /app/config/agents
 COPY config/skill_library.json /app/config/skill_library.json
+COPY config/knowledge_pool_catalog.json /app/config/knowledge_pool_catalog.json
+COPY config/knowledge_source_registry.json /app/config/knowledge_source_registry.json
+COPY config/skill_pool_registry.json /app/config/skill_pool_registry.json
+COPY config/prompt_pool_registry.json /app/config/prompt_pool_registry.json
+COPY config/knowledge_reference_registry.json /app/config/knowledge_reference_registry.json
+COPY knowledge_pools /app/knowledge_pools
+COPY mcp_servers/mcp_servers_registry.json /app/mcp_servers/mcp_servers_registry.json
+COPY mcp_servers/pool/registry.json /app/mcp_servers/pool/registry.json
 COPY skills /app/skills
 COPY deploy/runtime /app/runtime
 RUN useradd --uid 1001 --create-home worker && mkdir -p /data/integrations \
