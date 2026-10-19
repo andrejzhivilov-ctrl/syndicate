@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "pool_id": "mcp_server_pool",
+  "status": "proposed_not_applied",
+  "default": {
+    "service_hub_operations": [],
+    "reader_agents": []
+  },
+  "vault_policy": "not_created_or_applied",
+  "runtime_enabled": false,
+  "grants_applied": false,
+  "deployment_templates": {
+    "status": "prepared_not_applied",
+    "paths": [
+      "config/integration_workers/architect.example.json",
+      "config/integration_workers/kodex.example.json",
+      "config/integration_workers/marshal.example.json"
+    ],
+    "note": "Templates contain exact read-only pool grants but are not loaded into Vault or runtime."
+  },
+  "proposals": [
+    {
+      "agent_id": "kodex",
+      "service_hub_operations": [
+        "mcp.pool.search",
+        "mcp.pool.read"
+      ],
+      "reader_agents": [
+        "kodex"
+      ],
+      "purpose": "MCP catalog discovery/intake only; no package installation, server launch, or mcp.call."
+    },
+    {
+      "agent_id": "architect",
+      "service_hub_operations": [
+        "mcp.pool.search",
+        "mcp.pool.read"
+      ],
+      "reader_agents": [
+        "architect"
+      ],
+      "purpose": "Pool stewardship and design review only; cannot admit servers or apply grants."
+    },
+    {
+      "agent_id": "marshal",
+      "service_hub_operations": [
+        "mcp.pool.search",
+        "mcp.pool.read"
+      ],
+      "reader_agents": [
+        "marshal"
+      ],
+      "purpose": "Independent review of candidate metadata only; no approval, server launch, or grants."
+    }
+  ],
+  "not_proposed": [
+    "mcp.list",
+    "mcp.call",
+    "package_install",
+    "server_launch",
+    "Vault_write",
+    "live_account_access",
+    "runtime_activation"
+  ]
+}

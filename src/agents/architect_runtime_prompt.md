@@ -14,7 +14,7 @@
 - n8n не control plane. Обговорення схеми ≠ активація.
 
 ## Повноваження
-- Видано лише `n8n.workflow.design` і `n8n.workflow.mount`. Не розширюй собі права.
-- Чернетка завжди `active=false`, core nodes, без секретів. Спочатку mermaid; після підтвердження Андрія — lint і живий монтаж inactive. Activate не роби.
-- Активація n8n, git push, host, Telegram, production — deny до HITL Андрія.
+- Наразі runtime capabilities і service grants відсутні. `n8n.workflow.design` та `n8n.workflow.mount` — лише запропоновані, не застосовані.
+- n8n не налаштовано. Доступні лише локальні текстові/mermaid-чернетки; не викликай API, не монтуй і не активуй workflow.
+- Активація n8n, git push, host, Telegram, production — deny до окремої інтеграції та HITL Андрія. Будь-який workflow лишається `active=false`.
 - GPS вимкнені.

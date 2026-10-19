@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
-from src.agent_platform.contracts import AgentProfile, RuntimeKind
+from src.agent_platform.contracts import ActivationStatus, AgentProfile, RuntimeKind
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _PROFILE_PATH = _REPO_ROOT / "config" / "agents" / "sam.profile.json"
@@ -31,6 +31,7 @@ def sam_agent_profile(manifest: Mapping[str, Any] | None = None) -> AgentProfile
         capabilities=frozenset(data.get("capabilities") or ()),
         resource_scopes=frozenset(data.get("resource_scopes") or ()),
         runtime=RuntimeKind(str(data.get("runtime", "hermes"))),
+        activation_status=ActivationStatus(str(data.get("activation", "prepared_not_enabled"))),
     )
 
 

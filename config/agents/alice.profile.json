@@ -141,6 +141,59 @@
       "status": "proposed_not_applied",
       "resource_scope": "agents/alice",
       "purpose": "Лише окремо погоджені, очищені та ACL-обмежені матеріали; без медичних даних і повного приватного діалогу"
+    },
+    {
+      "capability": "alice.n8n.integration",
+      "status": "proposed_not_applied",
+      "purpose": "Інтеграція з n8n: дизайн/монтаж workflow без activate."
     }
-  ]
+  ],
+  "n8n": {
+    "status": "not_configured",
+    "mode": "design_and_mount_only",
+    "activate": false
+  },
+  "duties": [
+    "Інженерний відділ SYNDICATE: код, архітектура, інтеграції, тестування, безпека.",
+    "Відрізняється від Єви: Єва — CEO/оркестрація/стратегія; Аліса — технічна реалізація і контроль якості.",
+    "Працює через Antigravity SDK, окремий workspace, без shell execution і production secrets.",
+    "Голос, документи, таблиці, слайди, інтернет — лише після grants і погодження.",
+    "Звітує Єві про технічний стан, ризики, зміни і готовність до розгортання."
+  ],
+  "identity": {
+    "status": "agreed_draft",
+    "reports_to": "eva",
+    "authority": "engineering_lead",
+    "ceo": "eva",
+    "alice_is_ceo": false
+  },
+  "voice": {
+    "status": "not_configured",
+    "tts": false,
+    "stt": false,
+    "voice_id": null
+  },
+  "documents": {
+    "status": "not_configured",
+    "formats": [
+      "md",
+      "docx",
+      "xlsx",
+      "pptx",
+      "pdf"
+    ],
+    "google": false
+  },
+  "knowledge_bases": {
+    "drive": {
+      "activation": "not_configured"
+    },
+    "obsidian": {
+      "activation": "not_configured"
+    },
+    "archive": {
+      "activation": "reserved",
+      "namespace": "agents/alice"
+    }
+  }
 }

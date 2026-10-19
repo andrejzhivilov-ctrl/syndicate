@@ -40,5 +40,21 @@
     "tools": [
       "list_configs"
     ]
+  },
+  "mcp-time": {
+    "command": "/usr/local/bin/python",
+    "args": [
+      "-m",
+      "mcp_server_time",
+      "--local-timezone=Europe/Kyiv"
+    ],
+    "cwd": "/tmp",
+    "env": {
+      "HOME": "/tmp"
+    },
+    "tools": [
+      "get_current_time",
+      "convert_time"
+    ]
   }
 }

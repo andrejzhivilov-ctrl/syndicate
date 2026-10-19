@@ -14,7 +14,11 @@
     "kodex.archive.write_unlabeled",
     "kodex.labeled.move",
     "kodex.labeled.change_with_andrii_permission",
-    "kodex.report.eva"
+    "kodex.report.eva",
+    "kodex.prompt.catalog",
+    "kodex.skill.research",
+    "kodex.integration.notebooklm",
+    "kodex.integration.obsidian"
   ],
   "resource_scopes": [
     "kodex/archive"
@@ -115,6 +119,100 @@
     "handoff",
     "context-engineering",
     "documentation-and-adrs",
-    "internal-comms"
-  ]
+    "internal-comms",
+    "kodex-prompt-catalog",
+    "kodex-skill-research",
+    "kodex-notebooklm",
+    "kodex-obsidian",
+    "kodex-mcp-connector-scout"
+  ],
+  "proposed_grants": [
+    {
+      "capability": "kodex.voice.transcribe",
+      "status": "proposed_not_applied",
+      "purpose": "Транскрибація голосових повідомлень."
+    },
+    {
+      "capability": "kodex.voice.speak",
+      "status": "proposed_not_applied",
+      "purpose": "Озвучення відповідей узгодженим голосом."
+    },
+    {
+      "capability": "kodex.docs.generate",
+      "status": "proposed_not_applied",
+      "purpose": "Генерація MD/DOCX/XLSX/PPTX локально."
+    },
+    {
+      "capability": "kodex.sheets.read_write",
+      "status": "proposed_not_applied",
+      "purpose": "Робота з таблицями у власному просторі."
+    },
+    {
+      "capability": "kodex.slides.generate",
+      "status": "proposed_not_applied",
+      "purpose": "Генерація презентацій/слайдів."
+    },
+    {
+      "capability": "kodex.web.search",
+      "status": "proposed_not_applied",
+      "purpose": "Пошук через контрольований шлюз."
+    },
+    {
+      "capability": "kodex.web.fetch",
+      "status": "proposed_not_applied",
+      "purpose": "Читання сторінок з перевірених джерел."
+    },
+    {
+      "capability": "kodex.n8n.integration",
+      "status": "proposed_not_applied",
+      "purpose": "Інтеграція з n8n: дизайн/монтаж workflow без activate."
+    },
+    {
+      "capability": "knowledge.search",
+      "status": "proposed_not_applied",
+      "purpose": "ServiceHub: пошук метаданих лише review_pending записів через host review allowlist; це не AgentPolicy capability."
+    },
+    {
+      "capability": "knowledge.read",
+      "status": "proposed_not_applied",
+      "purpose": "ServiceHub: окреме читання item ID лише для review_pending записів; без write/approve/publish."
+    },
+    {
+      "capability": "mcp.pool.search",
+      "status": "proposed_not_applied",
+      "purpose": "ServiceHub: пошук лише недовірених MCP catalog/candidate metadata; без встановлення або запуску."
+    },
+    {
+      "capability": "mcp.pool.read",
+      "status": "proposed_not_applied",
+      "purpose": "ServiceHub: явне читання одного MCP record ID; не створює mcp.list/mcp.call grants."
+    }
+  ],
+  "voice": {
+    "status": "not_configured",
+    "tts": false,
+    "stt": false,
+    "voice_id": null
+  },
+  "documents": {
+    "status": "not_configured",
+    "formats": [
+      "md",
+      "docx",
+      "xlsx",
+      "pptx",
+      "pdf"
+    ],
+    "google": false
+  },
+  "identity": {
+    "status": "draft",
+    "reports_to": "eva",
+    "authority": "prepared_not_enabled"
+  },
+  "n8n": {
+    "status": "not_configured",
+    "mode": "design_and_mount_only",
+    "activate": false
+  }
 }

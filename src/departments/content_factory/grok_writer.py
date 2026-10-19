@@ -21,6 +21,8 @@ from typing import Any, Dict, List, Optional
 import httpx
 import structlog
 
+from src.voice._util import read_vault_secret
+
 logger = structlog.get_logger(__name__)
 
 # Demo copy. It is ONLY ever returned when EVA_GROK_MOCK is enabled and is
@@ -45,9 +47,17 @@ class GrokWriter:
 
     BASE_URL = "https://api.x.ai/v1"
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "grok-beta"):
-        self.api_key = api_key or os.getenv("XAI_API_KEY", "")
+    def __init__(self, api_key: Optional[str] = None, model: str = "grok-beta", vault_client: Any = None):
+        self._vault = vault_client
+        self.api_key = api_key or ""
         self.model = model
+
+    async def _ensure_api_key(self) -> None:
+        if not self.api_key:
+            self.api_key = await read_vault_secret(
+                self._vault, "api-keys", "xai_api_key", env_key="XAI_API_KEY"
+            ) or ""
+
 
     # ------------------------------------------------------------------ #
     @property
@@ -135,6 +145,8 @@ class GrokWriter:
         mock mode and ``content`` (a raw string) in live mode, so callers that
         read ``posts`` silently got nothing from a real Grok call.
         """
+        await self._ensure_api_key()
+
         cta = target_cta or "Check the link in bio"
 
         if not self._has_key:
@@ -180,6 +192,8 @@ class GrokWriter:
         Used to return one hardcoded sentence with ``status: "ok"`` regardless
         of input — a fabricated reply attributed to Grok.
         """
+        await self._ensure_api_key()
+
         if not self._has_key:
             return {
                 "status": "unavailable",

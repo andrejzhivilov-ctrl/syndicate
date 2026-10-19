@@ -26,6 +26,55 @@
 
 ---
 
+## 2026-10-19 — Arena Agent: третій MCP discovery/candidate pool
+
+**Гілка:** `arena/30c07366-syndicate`. **Коміт:** не створювався. **Ворота:** `EVA_SKIP_PGSERVER=1 bash tools/check.sh` — exit 0; жива PostgreSQL пропущена, бо DB/pgserver немає.
+
+### Зроблено
+- Вибірково перенесено лише `mcp_servers/` з `origin/main` commit `5a8febc2181ee75e21adaffd7c8a0a683e80a36e`; інші зміни `main` не зливалися. Сирий registry SHA-256: `7575977177b6752f45e2717dd26558ff06979ede8e7e7f2cffb0765c7df429bf`.
+- Збережено discovery-каталог окремо від curated `mcp_servers/pool/registry.json`. Додано warnings до всіх 70 category files, безпечний root README й архівний, явно non-normative README snapshot. Додано upstream MIT license для punkpeye; умови для mcpservers.org subset не встановлені.
+- Зафіксовано лише structural audit: 18 789 records/70 categories; 585 груп повторюваних назв, одна повторювана URL, 3 описи відсутні, max description 9 256 chars, license field немає в жодному записі. Security, availability та права всіх записів не перевірялися.
+- Додано `MCPServerPool` із hash-verified local-only search/read, bounded results, URL query/fragment stripping, token-like text redaction і default-deny `reader_agents`. ServiceHub operations `mcp.pool.search/read` не запускають server, не звертаються до URLs і не надають `mcp.call`.
+- Для всіх підготовлених read-only pool grants додано per-agent приклади у `config/integration_workers/`: KODEX/Marshal мають self-only knowledge review і MCP pool access; Architect — лише MCP pool access. Generic example лишається default-deny; templates не завантажені у Vault/runtime, профілі лишилися `prepared_not_enabled`. Dockerfile лише готує `COPY` metadata для майбутнього image; build/контейнери не запускали.
+- `mcp-server-time==2026.10.10` збережено як `review_pending`; source commit binding та незалежний Marshal review відсутні. Сервер не запускався.
+- `SkillLibrary.verify`: 32 skills/74 files; цільові MCP/knowledge/profile tests — 23 passed. Повний check: pytest, 10-floor, sandbox, Ruff F/E9/B, E/W, C901, API contract, Vault/shell — pass.
+
+### Не дороблено / свідомо залишено
+- Жодних MCP server-ів, image/container, live grants, Vault policy/config, credentials, зовнішніх акаунтів або live integrations не активовано. Не staged/committed/pushed/merged.
+- Повний project-by-project security/license review 18 789 записів не робився; mcpservers.org rights невідомі за наявним snapshot. Кандидати потребують exact-version upstream/source/dependency review і окремого operator admission.
+
+### Наступне
+1. Якщо потрібен agent access, окремо розглянути proposals і застосовувати тільки через host/operator-owned Vault grants та exact per-agent allowlist. Поточний приклад залишається default-deny.
+2. Перед будь-яким майбутнім комітом повторно переглянути лише власні зміни й запускати `tools/check.sh`; поточного коміту/PR не створювати без окремого доручення.
+
+---
+
+## 2026-10-18 — Arena Agent: вузький MCP starter і review HinkoK skills
+
+**Гілка:** `arena/30c07366-syndicate`. **Коміт:** не створювався. **Ворота:** очікують фінальний `EVA_SKIP_PGSERVER=1 bash tools/check.sh`; PostgreSQL не налаштований у цьому sandbox.
+
+### Зроблено
+- Перевірено повне дерево шести HinkoK skills та залежні references/scripts без запуску. Імпортовано тільки `online-store-legitimacy-checks`: upstream commit `2fb9337c53bd164c2c8d6bad04894ea3d6846e18`, MIT; збережено upstream source, license й єдиний EU/Данія приклад.
+- Для Tyler створено окрему українську адаптацію reference-only: не переносити EU/Данія правила на Україну, не входити в checkout/account, не обробляти платіжні дані й не гарантувати результат. Додано до pinned SkillLibrary та Tyler read-only reference assignment; `prepared_not_enabled`, capabilities/grants/services не змінені.
+- У HinkoK відкладено `obsidian-vault` (дублює власний skill і має file-mutation path), `aftercall` (therapy/приватні записи та експорти), `deep` (Parallel API key, POST і зовнішній egress), `troitsa` (модельні provider calls), `webd` (нерелевантний UI scope/зовнішні бібліотеки). Жоден їхній script не запускався.
+- Вибрано офіційний `mcp-server-time==2026.10.10` (MIT) як локальний no-secret utility: pin у `deploy/requirements-integrations.txt`, два read-only tools у non-live `config/integration_mcp.example.json`, timezone `Europe/Kyiv`. `mcp-server-git` відкладено через write-capable tools та відсутність погодженого read-only repository mount.
+- Оновлено MCP discovery та system passport із обмеженнями й поточним staged status; додано `docs/HINKOK_AGENT_SKILLS_REVIEW.md` і tests на pin, exact tool allowlist та Tyler reference-only стан.
+
+### Не виконано / навмисно не активовано
+- Integration image не збирали; MCP server не запускали; пакет лише перевірений у тимчасовому venv. Нічого не записували в Vault, runtime manifests чи live grants; зовнішні SaaS account connectors не обиралися/не автентифікувалися.
+- `mcp-server-time.convert_time` приймає HH:MM та використовує поточну дату — не застосовувати для date-aware майбутніх/DST-подій без окремої перевірки.
+- Клон HinkoK залишився read-only у `/tmp/hinkok-agent-skills`; у Git додано лише вибраний skill та MIT license. `apps/`, `docs/archive/`, secrets, medical data й user dialogue не чіпали.
+
+### Наступне
+1. Перевірити diff і прогнати повний дозволений `EVA_SKIP_PGSERVER=1 bash tools/check.sh`; live PostgreSQL тест лишити skipped через відсутність тестової БД.
+2. Не створювати commit/push/PR без окремого запиту. Для справжніх app connectors окремо знадобляться конкретний service scope, host-side review та окреме погодження будь-яких live credentials/grants.
+
+### Ризики й спостереження
+- Офіційний upstream називає MCP servers reference implementations; цей package позначений Beta. Pin/example — не production readiness і не permission grant.
+- Утиліта часу не робить мережевих викликів, але помилковий IANA timezone відхиляється; runtime smoke не виконувався.
+
+---
+
 ## 2026-10-16 — Arena Agent: брендинг Синдикату й сумісна міграція namespace
 
 **Гілка:** `arena/8b3d5dfa-syndicate`. **Коміт:** буде включено до коміту цієї сесії. **Ворота:** `EVA_SKIP_PGSERVER=1 bash tools/check.sh` — exit 0; живий PostgreSQL, Vault, сервер і контейнери не запускалися.
@@ -1896,3 +1945,322 @@ Vault і БД агент не стартував**. Погодинне приб�
 - **Файли для розгортання:** `docs/DEPLOY_SYNDICATE.md`, `docs/PERMISSIONS_MATRIX.md`, `DEPLOYMENT_RUNBOOK.md`, `.env.example`.
 - **Відкрите (Андрій):** YouTube для Єви (офіційний Data API) — вмикати чи ні; YouTube Music (офіційного API немає); пороги харчування Дока; журнал діалогу `EVA_SYNDICATE_FULL_DIALOGUE.txt` (1,8 МБ) — лишати чи архівувати; рушій транскрибації і OCR при деплої; Telegram-токени для Дока і KODEX.
 - **Відкладено до деплою:** бази знань (вправи, рецепти, медичні протоколи), запуск runtime агентів, live-відео, голос, нагадування-планувальник Дока, n8n-моніторинг новин, Obsidian/NotebookLM/Drive/Sheets.
+
+---
+
+## 2026-10-16 — Arena Agent: Vault-first для модулів backlog #37
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+- `BRollScout`, `GrokWriter`, `ScriptDirector`, `ContentPublisher`, `BankingClient` тепер приймають необов'язковий `vault_client` і читають секрети через `src/voice/_util.read_vault_secret` (Vault → env-fallback для dev).
+- `Floor2Coordinator` і `EvaOrchestrator` передають `vault_client` у відповідні модулі; `agent_runner` передає `app_state.vault_client` в оркестратор.
+- Підтримано Vault-шляхи: `api-keys` (`xai_api_key`, `pexels_api_key`, `pixabay_api_key`, `monobank_api_token`, `privatbank_merchant_id`, `privatbank_password`), `telegram` (`bot_token`).
+- Збережено env-fallback для локальної розробки й наявні регресійні тести.
+- `embeddings_server` залишено env-based, бо це окремий сервісний контейнер із конфігурацією через compose.
+
+### Не зроблено
+- Реальне заповнення Vault секретами залишається операторською дією; код не застосовував жодних live-змін.
+- Політики Vault не застосовувалися до live Vault.
+
+### Наступне
+- Операторське заповнення Vault за `src/vault_paths.py` і перевірка `/health` (`vault_placeholder_secrets`).
+- За потреби — окремий Vault-first шлях для `EMBEDDINGS_TOKEN` у embeddings-сервісі.
+
+---
+
+## 2026-10-16 — Arena Agent: підготовка ролей Ray, Dex, Atlas
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+- Додано `config/agents/ray.profile.json`, `dex.profile.json`, `atlas.profile.json` у стані `prepared_not_enabled`.
+- Ролі default-deny: порожні `capabilities`, `grants`, `resource_scopes`, `services_enabled`, `skills`.
+- `role_status: not_agreed`, `prompt_status: not_prepared`, `model_status: not_selected`.
+- Інтернет/egress: контрольований шлюз, `default: deny`, `allowed_domains: []`.
+- Оновлено `tests/test_prepared_agent_profiles.py` (EXPECTED_IDS + перевірки для нових ролей).
+- Оновлено `config/skill_library.json` і згенеровано `docs/PERMISSIONS_MATRIX.md`, щоб усі профілі мали reference skills і матрицю.
+- Ролі не додано до `src/vault_paths.py` / `AGENTS_IDS` і не створено для них Vault policies.
+- Runtime, grants, конектори та egress не активовано.
+
+### Важливо
+- Рей не оформлює замовлення, не витрачає кошти і не змінює live-ціни/сторінки.
+- Декс не надсилає масові повідомлення, не купує бази і не запускає рекламу; потребує погоджених джерел і правил згоди.
+- Атлас не бронює й не оплачує; потребує офіційних джерел попереджень та обмежень в Україні.
+
+---
+
+## 2026-10-16 — Arena Agent: профіль Тренера (trainer)
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+- Додано `config/agents/trainer.profile.json` у стані `prepared_not_enabled`.
+- Роль відокремлена від Doc: тренувальні плани, вправи, рецепти, харчування й чернетки списків покупок.
+- Default-deny: порожні `capabilities`, `grants`, `resource_scopes`, `services_enabled`, `skills`.
+- `role_status: not_agreed`, `prompt_status: not_prepared`, `model_status: not_selected`.
+- Інтернет/egress: контрольований шлюз, `default: deny`, `allowed_domains: []`.
+- Тренер не доданий до `src/vault_paths.py` / `AGENTS_IDS` і не має Vault policy.
+- Оновлено `tests/test_prepared_agent_profiles.py`, `config/skill_library.json` і `docs/PERMISSIONS_MATRIX.md`.
+- Runtime, grants, конектори та egress не активовано.
+
+### Межі
+- Тренер не має доступу до медичного архіву й `andrii_protected`.
+- Не ставить діагнози, не призначає ліки, не замовляє й не оплачує.
+- Медичні питання лишаються за Doc.
+
+---
+
+## 2026-10-16 — Arena Agent: узгодження ролей і меж (за документом)
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зафіксовані рішення
+- Єва — єдина генеральна директорка/CEO. Інші агенти — керівники відділів або спеціалісти; слово «директор» для них не використовується.
+- KODEX — керівник знань, скілів і prompt engineering: каталог промптів/скілів, версії, джерела, ліцензії, хеші, перевірки; може пропонувати, але не змінює автоматично системні промпти, права агентів чи production-конфігурацію.
+- Маршал — безпека й контроль змін: походження/ризики скілів, ліцензії, права, зовнішні з’єднання; погоджує або блокує допуск у спільний каталог.
+- Prompt Engineer не є окремим агентом із правом змінювати інших агентів; це навичка/власник каталогу промптів у межах KODEX; затвердження — за Андрієм.
+- NotebookLM і Obsidian — вузькі інтеграції/джерела знань, не окремі агенти. Obsidian потребує точного дозволеного шляху; для NotebookLM не припускати придатного API або автоматизації входу через cookies.
+- Барахолки/дропшипінг на старті — skills/modules у Tyler: порівняння цін, постачальників, чернетки оголошень. Купівля, замовлення, оплата й публікація не дозволяються. Окремий агент — лише після визначення платформ і процесів.
+- Пошук нових скілів на GitHub/Hugging Face — спершу read-only розвідка для Marshal: метадані, ліцензії, зміни, hash і звіт-кандидат. Без автоматичного завантаження моделей чи встановлення коду.
+- Antigravity: підтверджений безпечний шлях для серверного агента через Google One не знайдено; залишається ручний handoff. Обхідні патчі й автоматизація входу через cookies не використовуються. Технічний ID не закріплено; ім’я Гравіті, жіночий рід.
+- Інтернет для агентів — лише через спільний контрольований шлюз із per-agent allowlist, не універсальний grant.
+- Усі профілі залишаються `prepared_not_enabled`; grants не застосовуються без окремого погодження.
+
+### Важливо
+- Документ містить великий план; виконання триває інкрементально. Живий сервер, Vault, БД і контейнери не змінювалися.
+
+---
+
+## 2026-10-16 — Arena Agent: Tyler skills для барахолок/дропшипінгу
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+- Додано read-only skills у `tyler_core/skills/`:
+  - `tyler-price-compare`
+  - `tyler-supplier-research`
+  - `tyler-listing-draft`
+- Зареєстровано їх у `config/skill_library.json` і призначено профілю Tyler.
+- Оновлено `docs/PERMISSIONS_MATRIX.md`.
+- Skills не дають права на купівлю, замовлення, оплату, публікацію чи зміну live-цін; лише порівняння, дослідження й чернетки.
+
+### Не зроблено
+- Окремий агент для барахолок/дропшипінгу не створено; це залишається в межах Tyler до визначення платформ і процесів.
+
+---
+
+## 2026-10-16 — Arena Agent: KODEX skills для prompt catalog і research
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+- Додано KODEX skills:
+  - `kodex-prompt-catalog`
+  - `kodex-skill-research`
+  - `kodex-notebooklm`
+  - `kodex-obsidian`
+- Зареєстровано їх у `config/skill_library.json` і призначено профілю KODEX.
+- Оновлено `docs/PERMISSIONS_MATRIX.md`.
+- Skills залишаються reference-only: KODEX може пропонувати й тестувати, але не змінює автоматично системні промпти, права агентів чи production-конфігурацію.
+- NotebookLM/Obsidian залишаються вузькими інтеграціями без припущення придатного API або автоматизації входу через cookies.
+
+---
+
+## 2026-10-16 — Arena Agent: Marshal read-only skill scout
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+- Додано skill `marshal-skill-scout` у `marshal_core/skills/`.
+- Зареєстровано в `config/skill_library.json` і призначено профілю Marshal.
+- Оновлено `docs/PERMISSIONS_MATRIX.md`.
+- Skill залишається read-only: метадані, ліцензії, зміни, hash і звіт-кандидат; без автоматичного завантаження моделей чи встановлення коду.
+
+---
+
+## 2026-10-16 — Arena Agent: документ контрольованого інтернет-шлюзу
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+- Додано `docs/AGENT_INTERNET_GATEWAY.md`: default-deny, per-agent allowlist, read-only за замовчуванням, окреме погодження для запису/публікації/оплати.
+- Код і grants не змінювалися; це пропозиція для наступного етапу.
+
+### Не зроблено
+- Реалізація шлюзу, мережеві політики й grants залишаються після затвердження матриці.
+
+---
+
+## 2026-10-16 — Arena Agent: нотатка про Paperclip
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+- Додано `docs/PAPERCLIP_INTEGRATION_NOTE.md`: Paperclip — зовнішній control plane для оркестрації агентів.
+- Рекомендація: не інтегрувати зараз; спочатку стабілізувати профілі, grants і internet gateway. При потребі — окремий модуль через HTTP adapter без секретів і з budget/approval gates.
+
+---
+
+## 2026-10-16 — Arena Agent: розширення можливостей KODEX
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+- Додано KODEX capabilities:
+  - `kodex.prompt.catalog`
+  - `kodex.skill.research`
+  - `kodex.integration.notebooklm`
+  - `kodex.integration.obsidian`
+- Оновлено тест і permissions matrix.
+- Capabilities залишаються prepared_not_enabled; grants не застосовувалися.
+
+---
+
+## 2026-10-16 — Arena Agent: профілі Ray/Dex/Atlas/Trainer розширено
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+- Розширено `config/agents/ray.profile.json`, `dex.profile.json`, `atlas.profile.json`, `trainer.profile.json`: ролі, звітність до Єви, knowledge bases/archive, Telegram, live modes, proposed grants, deployment deferred.
+- Ray: дослідження/аналітика.
+- Dex: дані, інтеграції, парсинг, автоматизація.
+- Atlas: подорожі, маршрути, логістика, географія.
+- Trainer: фітнес, здоров'я, тренування, реабілітація.
+- Оновлено skill library і permissions matrix.
+- Профілі залишаються `prepared_not_enabled`: capabilities/grants/services залишаються пустими, skills у полі `skills` порожні; можливості лише як `proposed_grants`.
+
+### Не зроблено
+- Код runtime, Telegram-боти, сервіси, Docker/Hermes/LangGraph, Cloudflare, LLM-вибір і grants не активовано.
+
+---
+
+## 2026-10-16 — Arena Agent: деталізовані обов'язки Atlas і Dex
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Atlas
+- Глобальна географія, маршрути, програми відпочинку, екскурсії, визначні місця, історичні факти, житло/оренда, ціни, вигідність, традиції, часові пояси, карти, навігація.
+- Бази знань оновлюються щотижня в неділю вночі з авторитетних джерел, блогерів, соцмереж, Twitter/X, Reddit.
+- Звітує Єві про оновлення і важливі зміни; повний звіт лише за запитом Андрія.
+- Рекомендовані GitHub skills/services: Google Maps Platform, Mapbox, OpenStreetMap/Nominatim, Open-Meteo, trip planners, Hermes travel skills.
+
+### Dex
+- Маркетинг і лідогенерація: постійне приведення клієнтів, аналіз конкурентів, пропозицій, болів клієнтів, швидке вивчення ніш.
+- Канали трафіку: YouTube, відеохостинги, портали, соцмережі, месенджери, Reddit, Twitter/X, Google Trends та інші.
+- Парсинг, інтеграції, бази, автоматизація, API, webhook, workflow.
+- Самонавчання, самокритичність, база знань, аналітика.
+- Рекомендовані GitHub skills/services: ScrapeCreators, HyperFX, Apify, Bright Data, Firecrawl, Tavily, Google Trends, social/media APIs.
+
+### Не зроблено
+- Код runtime, боти, сервіси, Docker/Hermes/LangGraph, Cloudflare і grants не активовано.
+
+---
+
+## 2026-10-16 — Arena Agent: grants/ідентичності/голос/документи/інтернет для Ray, Dex, Atlas, KODEX
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+- Додано runtime prompt файли для `ray`, `dex`, `atlas`, `trainer`, `kodex`.
+- Додано `proposed_grants` для голосу, документів/таблиць/слайдів, інтернету; для Dex — сайти, лендінги, піни, мокапи, відео.
+- Додано поля `voice`, `documents`, `identity` у профілі.
+- Оновлено permissions matrix.
+- Профілі залишаються `prepared_not_enabled`; grants не застосовані.
+
+### Не зроблено
+- Код runtime, боти, сервіси, Docker/Hermes/LangGraph, Cloudflare і реальні grants не активовано.
+
+---
+
+## 2026-10-16 — Arena Agent: n8n інтеграція для всіх агентів
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+- Додано блок `n8n` у всі профілі агентів (`status: not_configured`, `activate: false`).
+- Додано proposed grant `{agent}.n8n.integration` (design/mount only, без activate).
+- Оновлено permissions matrix.
+
+### Не зроблено
+- Реальні n8n workflow, credentials і активовані сценарії не створювалися.
+
+---
+
+## 2026-10-16 — Arena Agent: розширення ідентичності Аліси
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `bash tools/check.sh`
+
+### Зроблено
+- Розширено `config/agents/alice.profile.json`: обов'язки, ідентичність, voice/documents/knowledge_bases/n8n, звітність до Єви.
+- Збережено відмінність від Єви: Єва — CEO/стратегія/оркестрація; Аліса — інженерний відділ/Antigravity runtime.
+- Профіль залишається `prepared_not_enabled`.
+
+### Не зроблено
+- Живий Antigravity, grants, workspace execution і deployment не активовано.
+
+---
+
+## 2026-10-18 — Arena Agent: офлайн-основа спільних knowledge pools
+
+**Гілка:** `arena/30c07366-syndicate` · **Ворота:** ✅ `EVA_SKIP_PGSERVER=1 bash tools/check.sh`
+
+### Зроблено
+- Структурний реєстр 10 вкладень із SHA-256, назвами, обсягами, правами `unverified` і без копіювання сирих джерел до Git.
+- Розділені `knowledge_source_registry`, `skill_pool_registry`, `prompt_pool_registry` і `knowledge_reference_registry`; додано 5 skill drafts, 3 prompt/index records і 2 короткі reference maps. Усі записи `review_pending`.
+- Додано top-k пошук та явне hash-verified читання. За замовчуванням allowlist порожній; ServiceHub `knowledge.search/read` не має застосованих grants. Публікація в shared додатково вимагає host allowlist і Marshal HMAC, а signing endpoint/key відсутні.
+- Описано KODEX draft flow і незалежний Marshal review. Права на первинні вкладення не підтверджені; ручний review prompt-ів, коду шаблонів і транскриптів не виконаний.
+- AgentPolicy тепер відмовляє dispatch для профілів без `activation_status=enabled`. Для Architect прибрано applied n8n grants/scopes/service; вони лишилися тільки proposed. n8n API не викликався.
+
+### Перевірки та межі
+- Після додавання proposal-only grants цільові тести `.venv/bin/python -m pytest -q tests/test_knowledge_pool.py tests/test_prepared_agent_profiles.py tests/test_permissions_matrix.py` — **14 passed**. Повний `EVA_SKIP_PGSERVER=1 bash tools/check.sh` — **exit 0**: усі pytest suites, два legacy suites, Ruff F/E9/B, E/W, C901, API contract, Vault policy/shell syntax та Compose sync пройшли. PostgreSQL пропущено навмисно (`EVA_SKIP_PGSERVER=1`); SQL paths, сервери й live-системи не запускалися.
+- Runtime, grants, n8n, Vault, DB і контейнери не активували/не змінювали. Секрети й медичні записи до пулів не додавали.
+- Далі: підтвердити права на джерела, провести окремий Marshal review і визначити host-owned approval key/доступи лише окремою операторською зміною; нові вкладення додавати по мірі отримання.
+
+### Grants — прописані, але не застосовані
+
+`config/knowledge_pool_grants.json` і `proposed_grants` у профілях фіксують лише план:
+
+| Агент | Пропоновані ServiceHub operations | Host review allowlist | Shared allowlist | Статус |
+|---|---|---|---|---|
+| KODEX | `knowledge.search`, `knowledge.read` | лише `kodex` | порожній | `proposed_not_applied` |
+| Marshal | `knowledge.search`, `knowledge.read` | лише `marshal` | порожній | `proposed_not_applied` |
+| Інші агенти | немає | порожній | порожній | grant не запропоновано |
+
+Обидва рев'ю-агенти залишаються `prepared_not_enabled`; профілі, Vault policy, live ServiceHub config і runtime не змінювалися цими proposal-ами. `knowledge.search` повертає тільки метадані; `knowledge.read` — один явний item ID. Жодного `write`, `approve`, `publish`, n8n чи grant-expansion operation немає. Shared-read можна розглядати тільки після підтвердження прав, окремого Marshal review і HMAC на точний item digest/version та операторського per-agent grant.
+
+### Eggent / MCP connector follow-up — планування без активації
+
+- Eggent `main` перевірено read-only на commit `e55497799b4acb4810f68d923ef311f07f65b8b6` (README version 0.5.0, MIT). Застосовано лише ідею послідовних artifact-backed steps до KODEX → Marshal → EVA; код Eggent не копіювався. У цьому revision `approvalRequired` не enforce-иться pipeline runner, а steps ділять один artifacts directory — обидва моменти задокументовані як ризики, які SYNDICATE не наслідує.
+- `docs/MCP_CONNECTOR_DISCOVERY.md` описує universal host-side client + per-agent server/tool allowlists, discovery/review/admission gates і екосистемні джерела: офіційний Registry, `awesome-mcp-servers`, official reference servers, Python SDK, FastMCP та Composio. Registry API не викликався.
+- `kodex_core/skills/kodex-mcp-connector-scout/SKILL.md` та `marshal_core/skills/marshal-mcp-connector-review/SKILL.md` додано до reference-only SkillLibrary assignments. `kodex_core/KNOWLEDGE_POOL_DRAFT_WORKFLOW.md` і `marshal_core/MARSHAL_POOL_REVIEW_POLICY.md` доповнені artifact handoff та MCP review процедурою.
+- Власний загальний stdio MCP клієнт і `mcp.list/call` вже існують; нові server-и/credentials/endpoints не створювалися. KODEX/Marshal лишилися `prepared_not_enabled`; жодних MCP grants, installs, OAuth, Vault або live calls не додано.
+- Після реєстрації draft reference-skills цільові профільні/skill тести пройшли (12 passed); permissions matrix перегенеровано через `tools/export_permissions.py`. Повний `EVA_SKIP_PGSERVER=1 bash tools/check.sh` — exit 0: усі pytest suites, legacy suites, Ruff, API contract, Vault policy/syntax та Compose sync пройшли. PostgreSQL пропущено; `git diff --check` і JSON parse пройшли.
+
+### Знімок незакоміченого дерева на 2026-10-18
+
+Гілка: `arena/30c07366-syndicate`. Знімок: **42 modified tracked paths, 44 untracked files** (`git ls-files --others --exclude-standard`; `git status --short` показує 71 рядок, бо згортає каталоги). Сюди входять попередні незакомічені задачі, knowledge pools і цей MCP-дизайн; авторство всіх старих змін не приписується цій роботі. Нічого не staged, committed, reset або merged.
+
+**Modified tracked paths:**
+
+- `config/agents/`: `alice.profile.json`, `architect.profile.json`, `doc.profile.json`, `eva.profile.json`, `fin.profile.json`, `jack.profile.json`, `kira.profile.json`, `kodex.profile.json`, `marshal.profile.json`, `oscar.profile.json`, `tyler.profile.json`; також `config/skill_library.json`.
+- `deploy/runtime/agent_runner.py`.
+- `docs/HANDOFF.md`, `docs/PERMISSIONS_MATRIX.md`, `docs/SYSTEM_PASSPORT.md`.
+- `src/agent_platform/__init__.py`, `contracts.py`, `policy.py`.
+- `src/agents/architect_access.py`, `architect_runtime_prompt.md`, `eva_access.py`, `marshal_access.py`, `sam_access.py`.
+- `src/departments/content_factory/broll_scout.py`, `grok_writer.py`, `publisher.py`, `script_director.py`; `src/departments/coordinator.py`.
+- `src/integrations/banking.py`, `src/integrations/service_hub.py`, `src/orchestrator.py`.
+- `tests/test_agent_platform.py`, `test_architect_n8n.py`, `test_architect_ops.py`, `test_architect_profile.py`, `test_eva_access.py`, `test_eva_profile.py`, `test_marshal_access.py`, `test_marshal_profile.py`, `test_prepared_agent_profiles.py`, `test_sam_profile.py`.
+
+**Untracked paths:**
+
+- `config/agents/atlas.profile.json`, `dex.profile.json`, `ray.profile.json`, `trainer.profile.json`.
+- `config/knowledge_pool_catalog.json`, `knowledge_pool_grants.json`, `knowledge_reference_registry.json`, `knowledge_source_registry.json`, `prompt_pool_registry.json`, `skill_pool_registry.json`.
+- `docs/AGENT_INTERNET_GATEWAY.md`, `docs/KNOWLEDGE_POOL_INTAKE.md`, `docs/MCP_CONNECTOR_DISCOVERY.md`, `docs/PAPERCLIP_INTEGRATION_NOTE.md`.
+- `knowledge_pools/README.md`; prompts: `prompt-catalog-taxonomy.md`, `short-video-storyboard-template.md`, `structured-task-brief-template.md`; references: `ai-model-guides-intake.md`, `business-course-map.md`; skills: `automation-platform-translation.md`, `n8n-workflow-design.md`, `prompt-engineering-basics.md`, `video-production-foundations.md`, `web-template-evaluation.md`.
+- `kodex_core/KNOWLEDGE_POOL_DRAFT_WORKFLOW.md` і `kodex_core/skills/{kodex-mcp-connector-scout,kodex-notebooklm,kodex-obsidian,kodex-prompt-catalog,kodex-skill-research}/SKILL.md`.
+- `marshal_core/MARSHAL_POOL_REVIEW_POLICY.md`, `marshal_core/skills/{marshal-mcp-connector-review,marshal-skill-scout}/SKILL.md`.
+- `src/agent_platform/knowledge_pool.py`; prompts `src/agents/{atlas,dex,kodex,ray,trainer}_runtime_prompt.md`; `tests/test_knowledge_pool.py`.
+- `tyler_core/skills/{tyler-listing-draft,tyler-price-compare,tyler-supplier-research}/SKILL.md`.
+
+Файли `.venv`, `__pycache__` та інші ігноровані артефакти не входять до цього списку. Перед майбутнім точковим комітом повторно звірити `git status` і staging; blanket staging заборонений.

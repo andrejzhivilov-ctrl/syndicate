@@ -33,6 +33,8 @@ class ServiceHub:
         'hindsight.recall': '_hindsight', 'hindsight.retain': '_hindsight',
         'hindsight.reflect': '_hindsight', 'omniroute.chat': '_chat',
         'actual.snapshot': '_actual', 'hyperframes.render': '_render',
+        'knowledge.search': '_knowledge', 'knowledge.read': '_knowledge',
+        'mcp.pool.search': '_mcp_pool', 'mcp.pool.read': '_mcp_pool',
         'mcp.list': '_mcp', 'mcp.call': '_mcp',
     }
 
@@ -77,6 +79,28 @@ class ServiceHub:
         if operation == 'skills.list':
             return library.for_agent(self.agent_id)
         return library.read(self.agent_id, payload['skill'], payload.get('resource', 'SKILL.md'))
+
+    async def _knowledge(self, operation: str, payload: dict):
+        from src.agent_platform.knowledge_pool import KnowledgePool
+
+        access = self.config.get('knowledge_pool_access')
+        if not isinstance(access, dict):
+            access = {}
+        pool = KnowledgePool(
+            approval_key=self.config.get('knowledge_pool_approval_key'),
+            review_agents=access.get('review_agents', []),
+            shared_agents=access.get('shared_agents', []),
+        )
+        if operation == 'knowledge.search':
+            query = bounded_text(payload.get('query'), 512)
+            return pool.search(
+                self.agent_id,
+                query,
+                limit=payload.get('limit', 3),
+                kind=payload.get('kind'),
+            )
+        item_id = bounded_text(payload.get('item_id'), 64)
+        return pool.read(self.agent_id, item_id)
 
     async def _hindsight(self, operation: str, payload: dict):
         mode = operation.split('.')[1]
@@ -142,6 +166,27 @@ class ServiceHub:
             raise ValueError('missing_render_output')
         return {'artifact': str(output.relative_to(root)), 'bytes': output.stat().st_size,
                 'published': False}
+
+    async def _mcp_pool(self, operation: str, payload: dict):
+        from src.agent_platform.mcp_server_pool import MCPServerPool
+
+        access = self.config.get('mcp_pool_access')
+        if not isinstance(access, dict):
+            access = {}
+        pool = MCPServerPool(reader_agents=access.get('reader_agents', []))
+        if operation == 'mcp.pool.search':
+            query = bounded_text(payload.get('query'), 512)
+            category = payload.get('category')
+            if category is not None:
+                category = bounded_text(category, 128)
+            return pool.search(
+                self.agent_id,
+                query,
+                limit=payload.get('limit', 3),
+                category=category,
+            )
+        item_id = bounded_text(payload.get('item_id'), 80)
+        return pool.read(self.agent_id, item_id)
 
     async def _mcp(self, operation: str, payload: dict):
         from src.integrations.stdio_mcp import call_mcp

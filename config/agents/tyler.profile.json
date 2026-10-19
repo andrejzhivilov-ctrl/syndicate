@@ -40,6 +40,15 @@
     "replica-recon",
     "content-engine",
     "market-research",
-    "brand-voice"
-  ]
+    "brand-voice",
+    "tyler-price-compare",
+    "tyler-supplier-research",
+    "tyler-listing-draft",
+    "tyler-store-legitimacy-review"
+  ],
+  "n8n": {
+    "status": "not_configured",
+    "mode": "design_and_mount_only",
+    "activate": false
+  }
 }

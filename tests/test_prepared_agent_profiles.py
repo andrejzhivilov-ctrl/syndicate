@@ -8,6 +8,7 @@ from pathlib import Path
 from src.agent_platform.contracts import (
     AccessRequest,
     ActionClass,
+    ActivationStatus,
     AgentProfile,
     DecisionCode,
     DecisionStatus,
@@ -18,7 +19,7 @@ from src.agent_platform.registry import AgentRegistry
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILES_DIR = ROOT / "config" / "agents"
-EXPECTED_IDS = frozenset({"eva", "architect", "marshal", "fin", "doc", "kira", "sam", "kodex", "alice", "oscar", "tyler", "jack"})
+EXPECTED_IDS = frozenset({"eva", "architect", "marshal", "fin", "doc", "kira", "sam", "kodex", "alice", "oscar", "tyler", "jack", "ray", "dex", "atlas", "trainer"})
 FORMED_IDENTITY = frozenset({"eva", "architect", "marshal", "sam", "fin", "alice", "oscar", "tyler", "jack"})
 
 
@@ -36,6 +37,7 @@ def _profile(manifest: dict) -> AgentProfile:
         capabilities=frozenset(manifest["capabilities"]),
         resource_scopes=frozenset(manifest["resource_scopes"]),
         runtime=RuntimeKind(manifest["runtime"]),
+        activation_status=ActivationStatus(manifest["activation"]),
     )
 
 
@@ -51,10 +53,12 @@ def test_all_prepared_manifests_are_default_deny_and_isolated() -> None:
         assert manifest["runtime"] == expected_runtime
         assert manifest["model_status"] == "not_selected"
         if agent_id == "architect":
-            assert manifest["capabilities"] == ["n8n.workflow.design", "n8n.workflow.mount"]
-            assert manifest["resource_scopes"] == ["n8n/live"]
-            assert manifest["services_enabled"] == ["n8n"]
-            assert "n8n.workflow.activate" not in manifest["capabilities"]
+            assert manifest["capabilities"] == []
+            assert manifest["resource_scopes"] == []
+            assert manifest["services_enabled"] == []
+            assert all(grant["status"] == "proposed_not_applied" for grant in manifest["proposed_grants"])
+            assert manifest["n8n"]["status"] == "not_configured"
+            assert manifest["n8n"]["live_api"] is False
         elif agent_id == "fin":
             # Фін: лише внутрішні права (автовиклик Єви, локальні звіти); зовнішніх сервісів немає.
             assert manifest["capabilities"] == ["fin.dispatch.eva_basket", "fin.funds_check",
@@ -65,11 +69,23 @@ def test_all_prepared_manifests_are_default_deny_and_isolated() -> None:
             # KODEX: читання всіх архівів, зміна файлів без мітки, переміщення мічених, зміна мічених — з дозволом Андрія.
             assert manifest["capabilities"] == ["kodex.archive.read_all", "kodex.archive.write_unlabeled",
                                                 "kodex.labeled.move",
-                                                "kodex.labeled.change_with_andrii_permission", "kodex.report.eva"]
+                                                "kodex.labeled.change_with_andrii_permission", "kodex.report.eva",
+                                                "kodex.prompt.catalog", "kodex.skill.research",
+                                                "kodex.integration.notebooklm", "kodex.integration.obsidian"]
             assert manifest["resource_scopes"] == ["kodex/archive"]
             assert manifest["services_enabled"] == []
             assert manifest["knowledge_base"]["protection"]["label"] == "andrii_protected"
             assert manifest["knowledge_base"]["protection"]["labeled_files"]["edit_or_delete"] == "лише з дозволом Андрія"
+        elif agent_id in {"ray", "dex", "atlas", "trainer"}:
+            assert manifest["capabilities"] == []
+            assert manifest["resource_scopes"] == []
+            assert manifest["services_enabled"] == []
+            assert manifest["grants"] == []
+            assert manifest["skills"] == []
+            assert manifest["internet"]["enabled"] is False
+            assert manifest["internet"]["allowed_domains"] == []
+            assert manifest["egress"]["default"] == "deny"
+            assert manifest["egress"]["allowed_domains"] == []
         else:
             assert manifest["capabilities"] == []
             assert manifest["resource_scopes"] == []
@@ -126,7 +142,7 @@ def test_policy_denies_ungranted_capabilities_for_every_prepared_profile() -> No
             ),
         )
         assert decision.status is DecisionStatus.DENIED
-        assert decision.code is DecisionCode.CAPABILITY_NOT_GRANTED
+        assert decision.code is DecisionCode.AGENT_NOT_ENABLED
 
 
 def test_reference_skill_catalog_matches_profile_assignments() -> None:

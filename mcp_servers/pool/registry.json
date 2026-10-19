@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "pool_id": "mcp_server_pool",
+  "status": "prepared_not_enabled",
+  "policy": {
+    "catalog_is_untrusted_discovery_only": true,
+    "default_reader_allowlist": [],
+    "discovery_entries_are_not_approvals": true,
+    "catalog_records_never_create_runtime_servers": true,
+    "catalog_records_never_create_agent_grants": true,
+    "no_install_or_launch_from_catalog": true,
+    "per_agent_exact_tool_grants_required_for_runtime": true,
+    "only_read_only_pool_operations": [
+      "mcp.pool.search",
+      "mcp.pool.read"
+    ],
+    "host_config_authority": "mcp_pool_access.reader_agents in the private integration worker configuration"
+  },
+  "governance": {
+    "steward_agent": "architect",
+    "discovery_agent": "kodex",
+    "independent_security_reviewer": "marshal",
+    "final_admission_authority": "host_operator",
+    "status": "proposed_not_applied"
+  },
+  "access_proposal": {
+    "reader_agents": [
+      "architect",
+      "kodex",
+      "marshal"
+    ],
+    "status": "proposed_not_applied",
+    "host_configuration_default": [],
+    "note": "This proposal is descriptive only. ServiceHub requires both an explicit operation grant and the host-owned mcp_pool_access.reader_agents allowlist."
+  },
+  "source_catalog": {
+    "path": "mcp_servers/mcp_servers_registry.json",
+    "sha256": "7575977177b6752f45e2717dd26558ff06979ede8e7e7f2cffb0765c7df429bf",
+    "repository": "https://github.com/andrejzhivilov-ctrl/syndicate",
+    "source_branch": "main",
+    "source_commit": "5a8febc2181ee75e21adaffd7c8a0a683e80a36e",
+    "snapshot_date": "2026-10-19",
+    "record_count": 18789,
+    "category_count": 70,
+    "upstream_source_revisions": "not recorded in the imported snapshot",
+    "sources": [
+      {
+        "name": "punkpeye/awesome-mcp-servers",
+        "url": "https://github.com/punkpeye/awesome-mcp-servers",
+        "snapshot_record_count": 4362,
+        "upstream_license": "MIT",
+        "license_evidence": "Upstream repository LICENSE endpoint reported SPDX MIT; a copy is preserved at mcp_servers/licenses/punkpeye-awesome-mcp-servers.MIT.txt."
+      },
+      {
+        "name": "mcpservers.org",
+        "url": "https://mcpservers.org/ru/",
+        "snapshot_record_count": 16281,
+        "upstream_license": "unknown_from_snapshot",
+        "license_evidence": "No per-record license metadata or source revision is present in the imported snapshot; redistribution terms were not independently established."
+      }
+    ],
+    "structural_audit": {
+      "scope": "metadata and file structure only; no project-by-project source, runtime, availability, security, or license review",
+      "duplicate_name_groups": 585,
+      "duplicate_url_groups": 1,
+      "records_missing_description": 3,
+      "maximum_description_characters": 9256,
+      "records_with_license_field": 0,
+      "active_or_certified_status_verified": false
+    }
+  },
+  "items": [
+    {
+      "id": "mcp-server-time-2026-10-10",
+      "name": "mcp-server-time",
+      "service": "local timezone utility",
+      "upstream_url": "https://github.com/modelcontextprotocol/servers/tree/main/src/time",
+      "package": {
+        "ecosystem": "PyPI",
+        "name": "mcp-server-time",
+        "version": "2026.10.10",
+        "artifact_sha256": "32983d5193af219359ccdac46c558bed75f9c930360e7437cc040a73984cc17c",
+        "upstream_source_commit": null,
+        "source_commit_binding": "not independently established"
+      },
+      "transport": "stdio",
+      "license": "MIT",
+      "status": "review_pending",
+      "summary": "Pinned local timezone conversion utility; no credentials or network access are intended for the selected tool subset. This metadata does not authorize installation, launch, or use.",
+      "tools": [
+        {
+          "name": "get_current_time",
+          "effect": "read",
+          "scope": "current time for a configured IANA timezone",
+          "proposed_allowlist": true
+        },
+        {
+          "name": "convert_time",
+          "effect": "pure_compute",
+          "scope": "HH:MM conversion between IANA timezones using the current date",
+          "proposed_allowlist": true
+        }
+      ],
+      "credentials_required": false,
+      "network_egress": [],
+      "runtime_state": {
+        "dependency_pin_in_repository": true,
+        "non_live_example_config_exists": true,
+        "integration_image_built": false,
+        "server_started": false,
+        "live_grants_applied": false
+      },
+      "review": {
+        "status": "review_pending",
+        "static_review": "limited; exact release-to-source-commit binding and complete dependency review remain open",
+        "temporary_environment_checks": [
+          "package import",
+          "pip check",
+          "dry-run requirements resolution"
+        ],
+        "runtime_smoke_test": "not_run",
+        "independent_marshal_review": "not_recorded",
+        "known_limitations": [
+          "convert_time accepts HH:MM and uses the current source date; it is not date-aware for future events or DST transitions",
+          "the package artifact hash is recorded as review metadata and is not enforced by the existing un-hashed requirements install"
+        ]
+      },
+      "runtime_enabled": false,
+      "grants_applied": false
+    }
+  ]
+}

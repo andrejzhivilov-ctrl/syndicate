@@ -9,6 +9,7 @@ from pathlib import Path
 from src.agent_platform.contracts import (
     AccessRequest,
     ActionClass,
+    ActivationStatus,
     AgentProfile,
     DecisionCode,
     DecisionStatus,
@@ -69,7 +70,7 @@ def test_empty_grants_deny_own_and_foreign_memory_capabilities() -> None:
             ),
         )
         assert decision.status is DecisionStatus.DENIED
-        assert decision.code is DecisionCode.CAPABILITY_NOT_GRANTED
+        assert decision.code is DecisionCode.AGENT_NOT_ENABLED
 
 
 def test_memory_capability_would_still_deny_foreign_namespace() -> None:
@@ -80,6 +81,7 @@ def test_memory_capability_would_still_deny_foreign_namespace() -> None:
         memory_namespace="agents/eva",
         capabilities=frozenset({"memory.read", "memory.write"}),
         runtime=RuntimeKind.HERMES,
+        activation_status=ActivationStatus.ENABLED,
     )
     policy = AgentPolicy()
     own = policy.evaluate(

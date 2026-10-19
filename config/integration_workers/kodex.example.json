@@ -1,0 +1,19 @@
+{
+  "worker_api_key": "REPLACE_WITH_RANDOM_32_PLUS_CHAR_SECRET_IN_VAULT",
+  "grants": [
+    "skills.list",
+    "skills.read",
+    "knowledge.search",
+    "knowledge.read",
+    "mcp.pool.search",
+    "mcp.pool.read"
+  ],
+  "knowledge_pool_access": {
+    "review_agents": ["kodex"],
+    "shared_agents": []
+  },
+  "mcp_pool_access": {
+    "reader_agents": ["kodex"]
+  },
+  "mcp": {}
+}

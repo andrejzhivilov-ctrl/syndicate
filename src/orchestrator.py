@@ -235,12 +235,14 @@ class EvaOrchestrator:
         video_prompt_enhancer: Optional[VideoPromptEnhancer] = None,
         release_pack_builder: Optional[ReleasePackBuilder] = None,
         director_clients: Optional[Dict[str, Any]] = None,
+        vault_client: Optional[Any] = None,
     ) -> None:
         self._memory = memory_manager
         self._sentinel = sentinel
         self._llm_config = dict(llm_config or {})
         self._config = dict(config or {})
         self._director_clients = dict(director_clients or {})
+        self._vault_client = vault_client
         self._registry = registry
         self._voice = voice_manager
         self._lessons = lessons_store
@@ -698,7 +700,7 @@ class EvaOrchestrator:
 
     async def _floor2_handler(self, state: AgentState) -> AgentState:
         from src.departments.coordinator import Floor2Coordinator
-        coord = Floor2Coordinator(config=self._config)
+        coord = Floor2Coordinator(config=self._config, vault_client=self._vault_client)
         payload = dict(state["payload"])
         if "action" not in payload:
             payload["action"] = state["task_type"]

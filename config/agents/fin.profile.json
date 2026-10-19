@@ -419,5 +419,10 @@
     "scientific-critical-thinking",
     "behavioral-finance",
     "market-research"
-  ]
+  ],
+  "n8n": {
+    "status": "not_configured",
+    "mode": "design_and_mount_only",
+    "activate": false
+  }
 }

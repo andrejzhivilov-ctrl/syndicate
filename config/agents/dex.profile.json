@@ -1,0 +1,292 @@
+{
+  "schema_version": 1,
+  "activation": "prepared_not_enabled",
+  "runtime": "hermes",
+  "task_source": "andrii_only",
+  "capabilities": [],
+  "grants": [],
+  "resource_scopes": [],
+  "services_enabled": [],
+  "skills": [],
+  "telegram": {
+    "status": "not_connected",
+    "allowlist": []
+  },
+  "live_modes": {
+    "api": false,
+    "internet": false,
+    "browser_automation": false,
+    "github": false,
+    "image_generation": false,
+    "video_render": false,
+    "billing": false,
+    "history_ingest": false,
+    "production_deployment": false,
+    "telegram_bot": false
+  },
+  "internet": {
+    "enabled": false,
+    "mode": "controlled_gateway",
+    "default_policy": "deny",
+    "allowed_domains": []
+  },
+  "egress": {
+    "mode": "controlled_gateway",
+    "default": "deny",
+    "allowed_domains": []
+  },
+  "network": {
+    "internet_enabled": false,
+    "controlled_gateway": true,
+    "default_policy": "deny",
+    "allowed_domains": []
+  },
+  "knowledge_bases": {
+    "drive": {
+      "activation": "not_configured"
+    },
+    "obsidian": {
+      "activation": "not_configured"
+    },
+    "archive": {
+      "activation": "reserved",
+      "namespace": "agents/dex"
+    }
+  },
+  "reports": {
+    "to_eva": "payload_only",
+    "full_report": "andrii_direct_request"
+  },
+  "prompt_status": "not_prepared",
+  "role_status": "not_agreed",
+  "model_status": "not_selected",
+  "agent_id": "dex",
+  "display_name": "DEX (Data & Integrations)",
+  "runtime_profile": "dex",
+  "memory_namespace": "agents/dex",
+  "prompt_file": "src/agents/dex_runtime_prompt.md",
+  "role_title": "Керівник маркетингу, лідогенерації, даних, інтеграцій і автоматизації",
+  "reports_to": "eva",
+  "reference_skills": [
+    "context-engineering",
+    "documentation-and-adrs",
+    "scientific-critical-thinking",
+    "api-and-interface-design"
+  ],
+  "proposed_grants": [
+    {
+      "capability": "dex.web.parse",
+      "status": "proposed_not_applied",
+      "purpose": "Парсинг сторінок, чатів, соцмереж і месенджерів через контрольований шлюз."
+    },
+    {
+      "capability": "dex.api.integrate",
+      "status": "proposed_not_applied",
+      "purpose": "Інтеграції з API, webhook і зовнішніми сервісами."
+    },
+    {
+      "capability": "dex.database.read",
+      "status": "proposed_not_applied",
+      "purpose": "Читання погоджених баз даних."
+    },
+    {
+      "capability": "dex.database.write",
+      "status": "proposed_not_applied",
+      "purpose": "Запис у власні таблиці/схеми після погодження."
+    },
+    {
+      "capability": "dex.automation.run",
+      "status": "proposed_not_applied",
+      "purpose": "Запуск автоматизацій і workflow без production deploy."
+    },
+    {
+      "capability": "dex.report.eva",
+      "status": "proposed_not_applied",
+      "purpose": "Звіти Єві по даних і інтеграціях."
+    },
+    {
+      "capability": "dex.memory.read",
+      "status": "proposed_not_applied",
+      "resource_scope": "agents/dex",
+      "purpose": "Читання власної пам'яті."
+    },
+    {
+      "capability": "dex.memory.write",
+      "status": "proposed_not_applied",
+      "resource_scope": "agents/dex",
+      "purpose": "Запис власних даних і результатів."
+    },
+    {
+      "capability": "dex.telegram.bot",
+      "status": "proposed_not_applied",
+      "purpose": "Окремий Telegram-бот для статусів і кнопок."
+    },
+    {
+      "capability": "dex.voice.transcribe",
+      "status": "proposed_not_applied",
+      "purpose": "Транскрибація голосових повідомлень."
+    },
+    {
+      "capability": "dex.voice.speak",
+      "status": "proposed_not_applied",
+      "purpose": "Озвучення відповідей узгодженим голосом."
+    },
+    {
+      "capability": "dex.docs.generate",
+      "status": "proposed_not_applied",
+      "purpose": "Генерація MD/DOCX/XLSX/PPTX локально."
+    },
+    {
+      "capability": "dex.sheets.read_write",
+      "status": "proposed_not_applied",
+      "purpose": "Робота з таблицями у власному просторі."
+    },
+    {
+      "capability": "dex.slides.generate",
+      "status": "proposed_not_applied",
+      "purpose": "Генерація презентацій/слайдів."
+    },
+    {
+      "capability": "dex.web.search",
+      "status": "proposed_not_applied",
+      "purpose": "Пошук через контрольований шлюз."
+    },
+    {
+      "capability": "dex.web.fetch",
+      "status": "proposed_not_applied",
+      "purpose": "Читання сторінок з перевірених джерел."
+    },
+    {
+      "capability": "dex.site.generate",
+      "status": "proposed_not_applied",
+      "purpose": "Створення сайтів і лендінгів."
+    },
+    {
+      "capability": "dex.landing.generate",
+      "status": "proposed_not_applied",
+      "purpose": "Лендінги для кампаній."
+    },
+    {
+      "capability": "dex.pin.generate",
+      "status": "proposed_not_applied",
+      "purpose": "Піни/креативи для Pinterest."
+    },
+    {
+      "capability": "dex.mockup.generate",
+      "status": "proposed_not_applied",
+      "purpose": "Мокапи і візуальні концепти."
+    },
+    {
+      "capability": "dex.video.generate",
+      "status": "proposed_not_applied",
+      "purpose": "Відео/монтаж (локально, без публікації)."
+    },
+    {
+      "capability": "dex.social.post",
+      "status": "proposed_not_applied",
+      "purpose": "Публікація в соцмережах лише після погодження."
+    },
+    {
+      "capability": "dex.n8n.integration",
+      "status": "proposed_not_applied",
+      "purpose": "Інтеграція з n8n: дизайн/монтаж workflow без activate."
+    }
+  ],
+  "deployment_deferred": [
+    "Telegram-бот",
+    "інтернет-шлюз",
+    "бази даних",
+    "Cloudflare",
+    "Docker/Hermes/LangGraph"
+  ],
+  "duties": [
+    "Маркетинг і лідогенерація: постійне приведення клієнтів, аналіз конкурентів, пропозицій, болів клієнтів у нішах.",
+    "Швидко вивчає ніші і розбирається в них професійно.",
+    "Коментарі, канали трафіку: YouTube, відеохостинги, портали, соцмережі, месенджери, Reddit, Twitter/X, Google Trends, усе можливе.",
+    "Аналітика, самонавчання, самокритичність, база знань.",
+    "Парсинг, інтеграції, бази, автоматизація, API, webhook, workflow.",
+    "Звітує Єві про результати, ліди, аналітику і важливі зміни."
+  ],
+  "knowledge_sources": {
+    "authoritative": [
+      "Google Trends",
+      "Similarweb",
+      "Ahrefs/Semrush (опційно)",
+      "Crunchbase",
+      "LinkedIn",
+      "G2/Capterra"
+    ],
+    "social": [
+      "Reddit",
+      "Twitter/X",
+      "YouTube",
+      "TikTok",
+      "Instagram",
+      "Facebook",
+      "LinkedIn",
+      "Pinterest",
+      "Threads",
+      "Bluesky"
+    ],
+    "update_schedule": "постійно + щотижневий звіт",
+    "reporting": "до Єви: короткий звіт про ліди, аналітику, конкурентів; повний звіт лише за запитом Андрія"
+  },
+  "recommended_github_skills": [
+    "ScrapeCreators/social-media-research-skills",
+    "hyperfx-ai/marketing-skills",
+    "coreyhaines31/marketingskills",
+    "apify/agent-skills",
+    "anysiteio/agent-skills",
+    "brightdata/skills",
+    "tymoshenko-dmytro/claude-marketing-skills",
+    "superamped/ai-marketing-skills",
+    "ScaleBrick/founder-marketing-skills",
+    "poorvith-mp/skills-marketing",
+    "social-media-skills/skills",
+    "citedy/citedy-seo-agent"
+  ],
+  "recommended_services": [
+    "Apify (scraping, lead gen, competitor intel)",
+    "Bright Data (web unlocker, SERP, datasets)",
+    "ScrapeCreators (social media research)",
+    "Firecrawl (web scraping)",
+    "Tavily (search)",
+    "Google Trends",
+    "YouTube/Reddit/Twitter APIs",
+    "LinkedIn (через дозволені API/інструменти)",
+    "Meta/Google Ads libraries",
+    "CRM/lead databases (опційно)"
+  ],
+  "self_learning": {
+    "enabled_proposed": true,
+    "reflection": "самокритичність, аналіз помилок і конверсій",
+    "update": "постійно"
+  },
+  "voice": {
+    "status": "not_configured",
+    "tts": false,
+    "stt": false,
+    "voice_id": null
+  },
+  "documents": {
+    "status": "not_configured",
+    "formats": [
+      "md",
+      "docx",
+      "xlsx",
+      "pptx",
+      "pdf"
+    ],
+    "google": false
+  },
+  "identity": {
+    "status": "draft",
+    "reports_to": "eva",
+    "authority": "prepared_not_enabled"
+  },
+  "n8n": {
+    "status": "not_configured",
+    "mode": "design_and_mount_only",
+    "activate": false
+  }
+}

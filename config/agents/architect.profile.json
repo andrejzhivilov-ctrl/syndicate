@@ -9,20 +9,48 @@
   "prompt_status": "draft",
   "role_status": "identity_draft",
   "model_status": "not_selected",
-  "capabilities": [
-    "n8n.workflow.design",
-    "n8n.workflow.mount"
-  ],
-  "resource_scopes": [
-    "n8n/live"
-  ],
-  "services_enabled": [
-    "n8n"
+  "capabilities": [],
+  "resource_scopes": [],
+  "services_enabled": [],
+  "proposed_grants": [
+    {
+      "capability": "n8n.workflow.design",
+      "status": "proposed_not_applied",
+      "purpose": "Локальне проєктування workflow після окремого ввімкнення Architect"
+    },
+    {
+      "capability": "n8n.workflow.mount",
+      "status": "proposed_not_applied",
+      "resource_scope": "n8n/live",
+      "purpose": "Майбутнє створення тільки неактивного workflow після окремої інтеграції та human approval"
+    },
+    {
+      "capability": "mcp.pool.search",
+      "status": "proposed_not_applied",
+      "purpose": "ServiceHub: кураторський read-only пошук у MCP discovery/pool metadata; без server admission."
+    },
+    {
+      "capability": "mcp.pool.read",
+      "status": "proposed_not_applied",
+      "purpose": "ServiceHub: явне читання одного MCP candidate/catalog record для design review."
+    }
   ],
   "skills": [
-    {"id": "architect-new-agent", "path": "architect_core/skills/architect-new-agent/SKILL.md", "activation": "draft"},
-    {"id": "architect-n8n-link", "path": "architect_core/skills/architect-n8n-link/SKILL.md", "activation": "draft"},
-    {"id": "architect-self-learn", "path": "architect_core/skills/architect-self-learn/SKILL.md", "activation": "draft"}
+    {
+      "id": "architect-new-agent",
+      "path": "architect_core/skills/architect-new-agent/SKILL.md",
+      "activation": "draft"
+    },
+    {
+      "id": "architect-n8n-link",
+      "path": "architect_core/skills/architect-n8n-link/SKILL.md",
+      "activation": "draft"
+    },
+    {
+      "id": "architect-self-learn",
+      "path": "architect_core/skills/architect-self-learn/SKILL.md",
+      "activation": "draft"
+    }
   ],
   "memory_policy_file": "architect_core/ARCHITECT_MEMORY_POLICY.md",
   "task_source": "andrii_only",
@@ -38,7 +66,10 @@
     }
   },
   "workspace": {
-    "archive": {"activation": "reserved", "namespace": "agents/architect"},
+    "archive": {
+      "activation": "reserved",
+      "namespace": "agents/architect"
+    },
     "drive": {
       "activation": "not_configured",
       "folder_id": null,
@@ -48,14 +79,13 @@
   "n8n": {
     "control_plane": false,
     "permission_source": false,
-    "activation": "live_mount_after_hitl",
-    "live_api": true,
+    "status": "not_configured",
+    "activation": "not_configured",
+    "live_api": false,
     "create_active": false,
     "community_packages": false,
     "credentials_managed_in_profile": false,
-    "base_url_env": "N8N_BASE_URL",
-    "api_key_env": "N8N_API_KEY",
-    "preview": "local_mermaid_then_live_mount"
+    "preview": "local_mermaid_only"
   },
   "live_modes": {
     "n8n_editor": false,

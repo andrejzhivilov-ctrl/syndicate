@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "registry_id": "references",
+  "allowed_kinds": [
+    "reference"
+  ],
+  "items": [
+    {
+      "id": "business-course-map",
+      "kind": "reference",
+      "title": "Business Course Map",
+      "summary": "Verified structural topic map; explicitly excludes unsupported crypto/arbitrage claims.",
+      "tags": [
+        "business",
+        "sales",
+        "media",
+        "automation"
+      ],
+      "target_agents": [
+        "oscar",
+        "dex",
+        "tyler",
+        "architect",
+        "kodex",
+        "eva"
+      ],
+      "source_ids": [
+        "business_courses"
+      ],
+      "resource": "content.md",
+      "resource_path": "knowledge_pools/references/business-course-map.md",
+      "sha256": "ad8d93cfd66fabb31c86964d2964692dcb2112cd62f4bd9df14be6a5374df480",
+      "status": "review_pending",
+      "visibility": "review_only",
+      "reviewers": [
+        "kodex",
+        "marshal"
+      ],
+      "risk_tier": "low_text_reference",
+      "mode": "reference_only",
+      "estimated_tokens": 356,
+      "version": 1,
+      "approval": null
+    },
+    {
+      "id": "ai-model-guides-intake",
+      "kind": "reference",
+      "title": "Ai Model Guides Intake",
+      "summary": "Indexing rules for time-sensitive provider/model reference material.",
+      "tags": [
+        "ai-models",
+        "providers",
+        "freshness"
+      ],
+      "target_agents": [
+        "kodex",
+        "ray",
+        "alice",
+        "architect"
+      ],
+      "source_ids": [
+        "ai_model_guides"
+      ],
+      "resource": "content.md",
+      "resource_path": "knowledge_pools/references/ai-model-guides-intake.md",
+      "sha256": "fc1d058239c29f9dc1b1ff0aa26c48092174674973b1483cd5c01cc2f79c3608",
+      "status": "review_pending",
+      "visibility": "review_only",
+      "reviewers": [
+        "kodex",
+        "marshal"
+      ],
+      "risk_tier": "low_text_reference",
+      "mode": "reference_only",
+      "estimated_tokens": 449,
+      "version": 1,
+      "approval": null
+    }
+  ]
+}

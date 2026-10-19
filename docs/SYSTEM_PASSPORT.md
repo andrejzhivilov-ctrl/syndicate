@@ -88,7 +88,7 @@ Sentinel — перевірка команд/секретів і webhook HMAC; O
 ### Реалізовані функції
 
 - Blueprint нового агента і перевірка готовності
-- Проєктування n8n workflow та mount після HITL
+- Локальне проєктування n8n workflow; інтеграція та mount не налаштовані
 - Аналіз помилок, code verification і пропозиції self-healing
 - Архітектурні ADR, контроль меж API та залежностей
 
@@ -118,7 +118,7 @@ Sentinel — перевірка команд/секретів і webhook HMAC; O
 
 Встановлені upstream reference skills: grill-me, handoff, grilling, api-and-interface-design, debugging-and-error-recovery, context-engineering, documentation-and-adrs, source-driven-development, test-driven-development, planning-breakdown, ponytail, replica-recon, agent-security-hardening.
 
-Поточні capabilities: n8n.workflow.design, n8n.workflow.mount. Memory namespace: agents/architect.
+Поточні capabilities, scopes і services_enabled порожні; `n8n.workflow.design` та `n8n.workflow.mount` — лише proposed_not_applied. n8n не налаштовано; доступна лише локальна текстова/mermaid-чернетка. Memory namespace: agents/architect.
 
 ### Порядок роботи та обмеження
 
@@ -126,7 +126,7 @@ Sentinel — перевірка команд/секретів і webhook HMAC; O
 
 ### Підключення на сервері
 
-Створити окрему Vault policy/AppRole, API key і volume; перевірити потрібні джерела на synthetic даних. Внести лише необхідні grants у agents/architect/integrations; адреси/ключі задаються оператором. Запустити worker з SYNDICATE_INTEGRATION_AGENT=architect. Перевірити 401 без ключа, правильний agent у відповіді й відмову на непризначену операцію. Увімкнення зовнішніх дій — окремий крок після функціонального тесту.
+Лише після окремого дозволу та інтеграційного review: створити окрему Vault policy/AppRole, API key і volume; перевірити потрібні джерела на synthetic data. Внести тільки погоджені grants у agents/architect/integrations; адреси/ключі задає оператор. Запустити worker з SYNDICATE_INTEGRATION_AGENT=architect. Перевірити 401 без ключа, правильний agent у відповіді й відмову на непризначену операцію. Увімкнення зовнішніх дій — окремий операторський крок після функціонального тесту.
 
 ## МАРШАЛ — безпека та контроль
 
@@ -953,7 +953,9 @@ OmniRoute: побудувати server з pinned upstream revision або пер
 
 HyperFrames: створити trusted проєкт у EVA_DATA_DIR/integrations/render_projects/<agent>/<project>. Вхід index.html, assets і timeline. Виклик hyperframes.render приймає тільки project ID; вихід syndicate-render.mp4 має бути новим. HOME=/tmp, HYPERFRAMES_BROWSER_PATH=/usr/bin/chromium, telemetry off. Temporary scratch потребує достатнього вільного простору; у Compose виділено tmpfs4GB, але реальний RAM cap може бути нижчий за суму scratch і процесів. Великі render jobs краще винести в окремий bounded worker із дисковим scratch. Preview перед публікацією обов’язковий.
 
-MCP: transport stdio SDK перевірений на local synthetic server, а також на встановлених Context Mode 1.0.169, REA 6.5.0 та Skill Seekers 3.10.0: initialize, list_tools і виклики ctx_stats, list_unknowns, list_configs відповідно. Готові мінімальні конфігурації: config/integration_mcp.example.json; вставити потрібні записи в поле mcp власного Vault JSON, додати grants mcp.list і mcp.call. Ці приклади надають лише діагностичні операції. Context Mode запускається на кожний запит окремо: сесійні метрики не агрегують всю історію агента. Для тривалої пам’яті використовується Hindsight. REA native engines/desktop/device bridges не входять у цей контейнер; discovery не доводить їхню готовність. Для кожного реального пакета спочатку list_tools, потім вузький allowlist, потім smoke конкретної операції. Context Mode hooks/Compact Guard не монтувати глобально в production supervisor. Skill Seekers outputs повторно сканувати, зберігати source/license/hash і не виконувати generated code автоматично.
+MCP: transport stdio SDK перевірений на local synthetic server, а також на встановлених Context Mode 1.0.169, REA 6.5.0 та Skill Seekers 3.10.0: initialize, list_tools і виклики ctx_stats, list_unknowns, list_configs відповідно. До `deploy/requirements-integrations.txt` додано pin `mcp-server-time==2026.10.10`; у `config/integration_mcp.example.json` наведено лише `get_current_time` і `convert_time` (timezone utility, без credentials/network). Це лише staged example: integration image не збирався, новий server не запускався, Vault/grants не змінювалися. Конвертація приймає HH:MM та використовує поточну дату, тому не є date-aware для майбутніх DST-переходів. Інші готові мінімальні конфігурації також є в `config/integration_mcp.example.json`; копіювати потрібні записи у власний Vault JSON і додавати grants `mcp.list`/`mcp.call` можна лише як окремий operator крок. Context Mode запускається на кожний запит окремо: сесійні метрики не агрегують всю історію агента. Для тривалої пам’яті використовується Hindsight. REA native engines/desktop/device bridges не входять у цей контейнер; discovery не доводить їхню готовність. Для кожного нового package спочатку перегляд source/license/version/tool semantics, потім exact allowlist і окремий ізольований smoke. Context Mode hooks/Compact Guard не монтувати глобально в production supervisor. Skill Seekers outputs повторно сканувати, зберігати source/license/hash і не виконувати generated code автоматично.
+
+MCP catalog pool: `mcp_servers/` — untrusted discovery snapshot, окремий від curated `mcp_servers/pool/registry.json`; жоден запис не означає approval чи runtime grant. `ServiceHub` має `mcp.pool.search/read` лише для bounded local metadata access; потрібні і точний host operation grant, і `mcp_pool_access.reader_agents`. Generic example лишається default-deny; окремі read-only worker templates для KODEX/Architect/Marshal підготовлені, але не завантажені у Vault/runtime. Це не підключає server і не дає `mcp.call`; профілі лишаються `prepared_not_enabled`. Image не збирали, MCP server не запускали, live grants не змінювали.
 
 ### Крок 6 — клієнт і domain workers
 

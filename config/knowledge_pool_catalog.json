@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "catalog_status": "prepared_not_enabled",
+  "policy": {
+    "search_mode": "local_lexical",
+    "search_limit_max": 5,
+    "default_search_limit": 3,
+    "full_text_requires_explicit_read": true,
+    "approved_shared_readers": "explicit_host_allowlist_and_valid_marshal_hmac",
+    "review_pending_readers": [
+      "kodex",
+      "marshal"
+    ],
+    "agent_target_tags_are_recommendations_not_grants": true,
+    "external_search_order": "pool_first_then_controlled_gateway",
+    "raw_source_files_committed": false,
+    "n8n": {
+      "status": "not_configured",
+      "activate": false,
+      "purpose": "async review/index notifications only"
+    },
+    "permissions_from_content": false,
+    "review_pending_host_grant_required": true,
+    "approval_key_status": "not_configured",
+    "approval_writer": "not_implemented"
+  },
+  "source_registry": {
+    "path": "config/knowledge_source_registry.json",
+    "sha256": "c7543455ebff62721a2f2fb0faaabba7da1cedb2ba5b0625010587aa4a7c5269"
+  },
+  "registries": [
+    {
+      "id": "skills",
+      "path": "config/skill_pool_registry.json",
+      "sha256": "40a2b2be424531c10b31c29cecb6ff2f45e8dbf385cf89a978237db261999378",
+      "allowed_kinds": [
+        "skill"
+      ]
+    },
+    {
+      "id": "prompts",
+      "path": "config/prompt_pool_registry.json",
+      "sha256": "879529027f61b713e0a5acf846ad1ceb9dfc94bd96bb60cb44bd1b8fc4159ba2",
+      "allowed_kinds": [
+        "prompt_index",
+        "prompt_template"
+      ]
+    },
+    {
+      "id": "references",
+      "path": "config/knowledge_reference_registry.json",
+      "sha256": "cb5fc2519159be68b3f86bcadf57a187873ed92eafb05beb58e31849553cdbb4",
+      "allowed_kinds": [
+        "reference"
+      ]
+    }
+  ]
+}
