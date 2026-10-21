@@ -56,6 +56,7 @@ AGENTS_IDS: Tuple[str, ...] = (
     "jack",
     "alice",
     "antigravity",
+    "trainer",
 )
 
 #: Which *extra* services each agent may read, on top of ``INFRA_SERVICES`` and
@@ -74,6 +75,7 @@ AGENT_SERVICES: Dict[str, Tuple[str, ...]] = {
     # Legacy profile retired: Antigravity is an SDK/runtime technology, not a
     # separate agent. Keep its policy file generated but grant no secret paths.
     "antigravity": (),
+    "trainer": (),
 }
 
 

@@ -137,12 +137,11 @@ class EvaOrchestrator:
         "kira_socratic_next": "kira_socratic",
         "kira_socratic_solve": "kira_socratic",
 
-        # ─── Floor 9: Health & Energy (Doc) ─────────────────────────────────
+        # ─── Floor 9: Health & Energy (Doc & Trainer) ─────────────────────────────────
+        # Doc (Strictly Clinical Health & Medical Intelligence)
         "analyze_document": "doc",
         "summarize": "doc",
         "morning_readiness": "doc",
-        "training_protocol": "doc",
-        "nutrition_plan": "doc",
         "biomarker_trend": "doc",
         "screening_calendar": "doc",
         "emergency_card": "doc",
@@ -150,6 +149,19 @@ class EvaOrchestrator:
         "nervous_system": "doc",
         "swarm_research_doc": "doc",
         "morning_data_doc": "doc",
+
+        # Trainer (Physical Performance, Workouts, Sports Nutrition, Self-Improvement)
+        "training_protocol": "trainer",
+        "workout_plan": "trainer",
+        "exercise_search": "trainer",
+        "nutrition_plan": "trainer",
+        "recipe_plan": "trainer",
+        "shopping_list": "trainer",
+        "supplement_protocol": "trainer",
+        "habit_tracker": "trainer",
+        "active_recovery": "trainer",
+        "swarm_research_trainer": "trainer",
+        "morning_data_trainer": "trainer",
 
         # ─── Floor 10: Command Floor (Eva, Fin, Marshal, Architect, Services) ─
         # Eva & Curators
@@ -389,6 +401,7 @@ class EvaOrchestrator:
 
         # Floor 9: Health & Energy (Doc)
         builder.add_node("doc_agent", self._doc_agent_handler)
+        builder.add_node("trainer_agent", self._trainer_agent_handler)
 
         # Floor 10: Command Floor
         builder.add_node("eva_direct", self._eva_direct_handler)
@@ -432,6 +445,7 @@ class EvaOrchestrator:
             "kira": "kira_agent",
             "kira_socratic": "kira_socratic",
             "doc": "doc_agent",
+            "trainer": "trainer_agent",
             "eva": "eva_direct",
             "eva_curator": "eva_curator",
             "eva_office": "eva_office",
@@ -853,6 +867,26 @@ class EvaOrchestrator:
             "analyze_document": "summarize",
             "morning_data_doc": "morning_data",
             "swarm_research_doc": "swarm_research",
+        }
+        payload.setdefault("action", action_map.get(state["task_type"], state["task_type"]))
+        result = await agent.execute(payload)
+        state["result"] = result
+        state["status"] = "completed"
+        return state
+
+    async def _trainer_agent_handler(self, state: AgentState) -> AgentState:
+        from src.agents.trainer import TrainerAgent
+
+        agent = TrainerAgent(
+            memory=self._memory,
+            llm=self._llm,
+            config=self._config.get("trainer", self._config),
+            registry=self._registry,
+        )
+        payload = dict(state["payload"])
+        action_map = {
+            "morning_data_trainer": "morning_data",
+            "swarm_research_trainer": "swarm_research",
         }
         payload.setdefault("action", action_map.get(state["task_type"], state["task_type"]))
         result = await agent.execute(payload)
@@ -1368,6 +1402,7 @@ class EvaOrchestrator:
             "kira": self._kira_agent_handler,
             "kira_socratic": self._kira_socratic_handler,
             "doc": self._doc_agent_handler,
+            "trainer": self._trainer_agent_handler,
             "eva": self._eva_direct_handler,
             "eva_curator": self._eva_curator_handler,
             "eva_office": self._eva_office_handler,

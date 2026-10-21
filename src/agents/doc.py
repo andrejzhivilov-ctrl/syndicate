@@ -1,6 +1,8 @@
 """
-Doc Agent — Health, Training, Nutrition, and Medical Intelligence Specialist.
-v4.1 Verified:
+Doc Agent — Clinical Health, Biomarkers, and Medical Intelligence Specialist.
+v5.0 Verified (Domain Separation):
+- Doc is strictly a medical agent (biomarkers, screening calendar, pre-visit dossiers, clinical HRV, emergency medical card).
+- Training protocols, workouts, sports nutrition (Mifflin-St Jeor), recipes, and shopping lists are delegated to TrainerAgent ('trainer').
 - Zero fabricated emergency medical data (strict safety rule: never invent blood type/allergies).
 - Uses `await self._llm.ainvoke([HumanMessage(content=...)])` instead of synchronous `.generate()`.
 - Matches `MemoryManager.save_episode(session_id=..., agent_id=..., role=..., content=..., metadata=...)`.
@@ -52,8 +54,10 @@ def _opt_int(payload: Dict[str, Any], key: str) -> Optional[int]:
 
 class DocAgent:
     """
-    Health, training, and nutrition agent (Doc).
-    Handles physiological data, readiness, protocols, nutrition, and medical records.
+    Medical intelligence and clinical health agent (Doc).
+    Handles physiological data, clinical readiness, biomarkers, preventive screening,
+    pre-visit dossiers, and emergency medical records.
+    Training, workout plans, and sports nutrition are delegated to TrainerAgent ('trainer').
     """
 
     AGENT_ID = "doc"
@@ -94,11 +98,13 @@ class DocAgent:
         }
 
     async def _shopping_list(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Список продуктів для Єви (детермінований; рецепти — з бази знань Дока)."""
-        from src.agents.doc_shopping import build_shopping_list
+        """Delegated to TrainerAgent: Doc is strictly medical."""
+        from src.agents.trainer import TrainerAgent
 
-        return {"agent": self.AGENT_ID,
-                **build_shopping_list(payload.get("items", []), payload.get("meal_plan_ref"))}
+        trainer = TrainerAgent(memory=self._memory, llm=self._llm, config=self._config, registry=self._registry)
+        res = await trainer.execute({**payload, "action": "shopping_list"})
+        res["delegated_by"] = self.AGENT_ID
+        return res
 
     async def _llm_ask(self, prompt: str, fallback: str) -> str:
         """Invoke the LLM with bounded memory, treating prior health data as historical."""
@@ -348,145 +354,22 @@ class DocAgent:
         return result
 
     async def _training_protocol(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        readiness_score = _opt_float(payload, "readiness_score")
-        training_type = payload.get("training_type", "strength")
-        goal = payload.get("goal", "hypertrophy")
-        # Absent equipment stays absent — assuming a barbell rack is assuming
-        # the operator's gym, not reporting it.
-        equipment = payload.get("equipment_available")
-        warnings: List[str] = []
-        if equipment is None:
-            warnings.append("equipment_available not supplied — plan left equipment-agnostic")
+        """Delegated to TrainerAgent: Doc is strictly medical."""
+        from src.agents.trainer import TrainerAgent
 
-        if readiness_score is None:
-            result = {
-                **self._unavailable(
-                    "training_protocol",
-                    "readiness_score not supplied — intensity and duration not prescribed "
-                    "(run morning_readiness first)",
-                ),
-                "training_type": training_type,
-                "goal": goal,
-                "equipment_available": equipment,
-                "workout": None,
-                "duration_min": None,
-                "intensity": None,
-                "warnings": warnings,
-            }
-            await self._save(payload, "training_protocol", result)
-            return result
-
-        if readiness_score < 45:
-            intensity = "low (deload / recovery)"
-            duration = 25
-        elif readiness_score < 70:
-            intensity = "moderate"
-            duration = 45
-        else:
-            intensity = "high"
-            duration = 60
-
-        equipment_text = ", ".join(equipment) if equipment else "not specified"
-        notes = await self._llm_ask(
-            f"Create a concise training note for a {training_type} session ({goal}), readiness {readiness_score}/100, equipment: {equipment_text}.",
-            fallback=f"Structured {training_type} protocol calibrated for readiness {readiness_score}.",
-        )
-
-        result = {
-            "agent": self.AGENT_ID,
-            "status": "ok",
-            "workout": {
-                "warmup": "10 min dynamic mobility + joint activation",
-                "main_block": [
-                    "Compound Primary Lift: 4x6-8 @ RPE 7.5",
-                    "Secondary Accessory: 3x10-12",
-                    "Core & Postural Stability: 3 sets",
-                ],
-                "cooldown": "5 min parasympathetic nasal breathing",
-            },
-            "duration_min": duration,
-            "intensity": intensity,
-            "notes": notes,
-            "equipment_available": equipment,
-            "warnings": warnings,
-        }
-        await self._save(payload, "training_protocol", result, {"readiness": readiness_score})
-        return result
+        trainer = TrainerAgent(memory=self._memory, llm=self._llm, config=self._config, registry=self._registry)
+        res = await trainer.execute({**payload, "action": "training_protocol"})
+        res["delegated_by"] = self.AGENT_ID
+        return res
 
     async def _nutrition_plan(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        goal = payload.get("goal", "maintenance")
-        # Mifflin-St Jeor needs real body metrics; a default 80 kg / 180 cm / 35 y
-        # produced calorie targets for a body nobody described.
-        weight_kg = _opt_float(payload, "weight_kg")
-        height_cm = _opt_float(payload, "height_cm")
-        age = _opt_int(payload, "age")
-        sex = payload.get("sex")
-        activity_level = payload.get("activity_level")
+        """Delegated to TrainerAgent: Doc is strictly medical."""
+        from src.agents.trainer import TrainerAgent
 
-        multipliers = {
-            "sedentary": 1.2,
-            "light": 1.375,
-            "moderate": 1.55,
-            "active": 1.725,
-            "very_active": 1.9,
-        }
-        missing = [
-            name
-            for name, value in (
-                ("weight_kg", weight_kg),
-                ("height_cm", height_cm),
-                ("age", age),
-                ("sex", sex),
-                ("activity_level", activity_level),
-            )
-            if value is None
-        ]
-        if activity_level is not None and activity_level not in multipliers:
-            missing.append(f"activity_level (unknown value {activity_level!r})")
-        if sex is not None and sex not in ("male", "female"):
-            missing.append(f"sex (unknown value {sex!r})")
-        if missing:
-            result = {
-                **self._unavailable(
-                    "nutrition_plan",
-                    "body metrics required for Mifflin-St Jeor are missing: " + ", ".join(missing),
-                ),
-                "calories": None,
-                "protein_g": None,
-                "fat_g": None,
-                "carbs_g": None,
-                "water_ml": None,
-                "missing_inputs": missing,
-            }
-            await self._save(payload, "nutrition_plan", result, {"goal": goal})
-            return result
-
-        # Real Mifflin-St Jeor formula
-        bmr = (10.0 * weight_kg) + (6.25 * height_cm) - (5.0 * age) + (5.0 if sex == "male" else -161.0)
-        tdee = bmr * multipliers[activity_level]
-
-        if goal == "cut":
-            calories = tdee - 400
-        elif goal == "bulk":
-            calories = tdee + 300
-        else:
-            calories = tdee
-
-        protein_g = weight_kg * 2.0
-        fat_g = weight_kg * 1.0
-        carbs_g = max(50.0, (calories - (protein_g * 4.0) - (fat_g * 9.0)) / 4.0)
-        water_ml = weight_kg * 35.0
-
-        plan = {
-            "agent": self.AGENT_ID,
-            "calories": round(calories),
-            "protein_g": round(protein_g),
-            "fat_g": round(fat_g),
-            "carbs_g": round(carbs_g),
-            "water_ml": round(water_ml),
-        }
-        await self._save(payload, "nutrition_plan", plan, {"weight": weight_kg, "goal": goal})
-        return plan
+        trainer = TrainerAgent(memory=self._memory, llm=self._llm, config=self._config, registry=self._registry)
+        res = await trainer.execute({**payload, "action": "nutrition_plan"})
+        res["delegated_by"] = self.AGENT_ID
+        return res
 
     async def _biomarker_trend(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         biomarkers = payload.get("biomarkers", [])

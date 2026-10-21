@@ -101,6 +101,40 @@ services:
   # Retired compatibility stub: Antigravity is a runtime technology, not an
   # independently activatable agent. This profile is intentionally excluded
   # from the general `directors` profile.
+  trainer-agent:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.director
+    profiles:
+    - directors
+    - health
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m
+    environment:
+      SYNDICATE_DIRECTOR_ID: trainer
+      SYNDICATE_DIRECTOR_ACTIONS: ${TRAINER_ACTIONS:-training_protocol,workout_plan,exercise_search,nutrition_plan,recipe_plan,shopping_list,supplement_protocol,habit_tracker,active_recovery,morning_data,capabilities}
+      EVA_DATA_DIR: /data/director
+      VAULT_ADDR: ${VAULT_ADDR:?set reachable Vault URL}
+      VAULT_ROLE_ID: ${TRAINER_VAULT_ROLE_ID:?set trainer AppRole}
+      VAULT_SECRET_ID: ${TRAINER_VAULT_SECRET_ID:?set trainer SecretID}
+      SYNDICATE_DIRECTOR_PROVIDERS: ${TRAINER_PROVIDERS:-}
+    volumes:
+    - trainer_data:/data/director
+    networks:
+    - trainer_control
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 128
+    ulimits:
+      nofile:
+        soft: 1024
+        hard: 2048
   antigravity-agent:
     build:
       context: ..
@@ -141,8 +175,11 @@ networks:
     driver: bridge
   antigravity_control:
     driver: bridge
+  trainer_control:
+    driver: bridge
 volumes:
   oscar_data: {}
   tyler_data: {}
   jack_data: {}
   antigravity_data: {}
+  trainer_data: {}

@@ -16,10 +16,11 @@ from src.agents.director_providers import build_provider
 from src.agents.jack import JackAgent
 from src.agents.oscar import OscarAgent
 from src.agents.tyler import TylerAgent
+from src.agents.trainer import TrainerAgent
 from src.vault_client import VaultClient, is_placeholder_secret
 from src.vault_paths import agent_secret_path
 
-AGENTS = {"oscar": OscarAgent, "tyler": TylerAgent, "jack": JackAgent}
+AGENTS = {"oscar": OscarAgent, "tyler": TylerAgent, "jack": JackAgent, "trainer": TrainerAgent}
 
 
 class DirectorRequest(BaseModel):

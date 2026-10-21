@@ -38,7 +38,7 @@ class SkillLibrary:
 
     def __init__(self, root: Path = ROOT) -> None:
         self.root = root.resolve()
-        catalog = json.loads((self.root / 'config/skill_library.json').read_text())
+        catalog = json.loads((self.root / 'config/skill_library.json').read_text(encoding='utf-8'))
         if catalog['schema_version'] != 1:
             raise ValueError('unsupported_skill_catalog')
         self.entries = {item['id']: item for item in catalog['skills']}
@@ -50,7 +50,7 @@ class SkillLibrary:
         if not re.fullmatch(r'[a-z][a-z0-9_]{0,63}', agent_id):
             raise ValueError('invalid_agent_id')
         profile = self.root / 'config/agents' / f'{agent_id}.profile.json'
-        manifest = json.loads(profile.read_text())
+        manifest = json.loads(profile.read_text(encoding='utf-8'))
         if manifest['agent_id'] != agent_id:
             raise ValueError('agent_identity_mismatch')
         return [self.entries[key].copy() for key in manifest.get('reference_skills', [])]

@@ -16,6 +16,7 @@ _EXPORTS = {
     "OscarAgent": "src.agents.oscar",
     "TylerAgent": "src.agents.tyler",
     "JackAgent": "src.agents.jack",
+    "TrainerAgent": "src.agents.trainer",
 }
 __all__ = list(_EXPORTS)
 

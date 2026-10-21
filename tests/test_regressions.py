@@ -3817,7 +3817,7 @@ class TestPinnedSkillLibrary:
         library = SkillLibrary()
         assert library.verify()['scripts_executed'] is False
         for path in (ROOT / 'config/agents').glob('*.profile.json'):
-            profile = json.loads(path.read_text())
+            profile = json.loads(path.read_text(encoding='utf-8'))
             assert profile['activation'] == 'prepared_not_enabled'
             assert library.for_agent(profile['agent_id'])
         result = library.read('oscar', 'content-engine')
