@@ -63,3 +63,8 @@ config/browser_profiles/
 # Сховище файлів KODEX (особисті дані, не в git)
 /kodex_data/
 /kodex_storage/
+
+backups/
+*.tar.gz
+*.manifest.json
+

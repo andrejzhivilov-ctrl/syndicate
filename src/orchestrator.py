@@ -1,13 +1,20 @@
 """
 EVA Orchestrator — LangGraph-based multi-agent coordination system.
-Full 10-Floor Architecture Integration:
-- Floor 1: Server & n8n (SensoryRouter, ErrorCollector, n8n templates, ProactiveScheduler)
-- Floor 2: Content Factory (Floor2Coordinator, Humanizer, VideoPromptEnhancer, ReleasePackBuilder)
-- Floors 3-6: Reserved Floors (Graceful reserved handling)
-- Floor 7: Quant & Capital (SamAgent, ConfluenceEngine, strict HITL)
-- Floor 8: SYNDICATE Academy (KiraAgent, SocraticTutor)
-- Floor 9: Health & Energy (DocAgent, morning readiness, emergency card)
-- Floor 10: Command Floor (Eva, Fin, Marshal, Architect, Sentinel, Council, OrcVerifier, ChangeRequests, Vault, MemoryCommands)
+SYNDICATE ROUND TABLE & NEURAL CORE:
+- Central Neural Core: Eva Orchestrator, Shared Memory (pgvector), Vault Keyring, Confidence Gate, Outbound Veto
+- Directorial Round Table (Radial Peer-to-Peer Network):
+  * Command & Strategy: Eva (Chief of Staff), LLM Council, OrcVerifier, ChangeRequests
+  * Systems & Engineering: Architect (CTO), Alice (SDK Integration), Antigravity Bridge
+  * Security & Compliance: Marshal (CSO), Sentinel Zero-Trust Protocol
+  * Capital & Governance: Fin (CFO), Monobank sync, Runway, Basket fund approvals
+  * Quant & Markets: Sam (Director of Trading & Confluence Engine)
+  * Clinical Medicine: Doc (Chief Medical Officer, biomarkers, clinical screenings)
+  * Physical Performance & Lifestyle: Trainer (Workouts, Mifflin-St Jeor TDEE, meal plans, habits)
+  * Academy & Synthesis: Kira (Dean of Academy, Socratic Tutor, Micro-quizzes)
+  * Media & Creative Operations: Oscar (Creative Director, viral video, release packs)
+  * Operations & Commerce: Tyler (Director of Operations, supplier check, price comparisons)
+  * Quant Probabilities: Jack (Kelly criterion, anti-tilt, probabilistic modeling)
+  * Knowledge & Archive: Kodex (Archivist, Obsidian, NotebookLM)
 """
 
 from __future__ import annotations

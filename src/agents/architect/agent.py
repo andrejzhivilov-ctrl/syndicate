@@ -67,6 +67,9 @@ class ArchitectAgent:
             (("generate_ui_scaffold", "build_ui", "app_generator"), self.generate_ui_scaffold),
             (("verify_code", "verify_integrity", "ast_check"), self._act_verify_code),
             (("self_healing_generate", "verified_codegen"), self.self_healing_generate),
+            (("delegate_to_antigravity", "delegate_contractor"), self.delegate_to_antigravity),
+            (("ingest_antigravity_result", "verify_contractor_code"), self.ingest_antigravity_result),
+            (("antigravity_bridge_status", "bridge_status"), self.antigravity_bridge_status),
             (("capabilities", "status"), self._act_capabilities),
         ):
             for name in names:
@@ -716,4 +719,49 @@ class ArchitectAgent:
                 "idempotency on webhook workflows",
             ],
             "llm_configured": self._llm is not None,
+        }
+
+
+    def _get_bridge(self):
+        from src.agents.architect.antigravity_bridge import AntigravityBridge
+        bridge_dir = self._config.get("antigravity_bridge_dir")
+        secret = self._config.get("antigravity_bridge_secret")
+        sentinel = getattr(self._registry, "sentinel", None) if self._registry else None
+        return AntigravityBridge(bridge_dir=bridge_dir, secret_key=secret, sentinel=sentinel)
+
+    async def delegate_to_antigravity(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Delegate complex engineering task to external Antigravity contractor."""
+        task_type = payload.get("task_type", "engineering_task")
+        title = payload.get("title", "Antigravity Engineering Task")
+        prompt = payload.get("prompt", "")
+        task_payload = payload.get("payload", {})
+
+        bridge = self._get_bridge()
+        envelope = bridge.dispatch_task(
+            task_type=task_type,
+            title=title,
+            prompt=prompt,
+            payload=task_payload,
+            task_id=payload.get("task_id"),
+        )
+        return {
+            "status": "dispatched",
+            "task_id": envelope["task_id"],
+            "task_type": task_type,
+            "signature": envelope["signature"][:16] + "...",
+            "recipient": envelope["recipient"],
+        }
+
+    async def ingest_antigravity_result(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Verify HMAC signature, Sentinel injection/leakage scans, and syntax of returned contractor code."""
+        result_envelope = payload.get("result_envelope") or payload
+        bridge = self._get_bridge()
+        return bridge.verify_and_ingest_result(result_envelope)
+
+    async def antigravity_bridge_status(self, _payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Return status of Antigravity contractor delegation queues."""
+        bridge = self._get_bridge()
+        return {
+            "status": "ok",
+            "bridge": bridge.get_status(),
         }
