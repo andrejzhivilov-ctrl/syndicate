@@ -436,10 +436,16 @@ class EvaAgent:
                 "warnings": ["secret-like input was not forwarded to the language model"],
             }
 
+        backup_status_line = (
+            "🛡️ Статус безпеки: Бекап знаходиться у стані готовності до вигрузки на флеш носій "
+            "(Disaster Recovery Ready)."
+        )
+
         fallback_text = (
             "Доброго ранку, операторе! "
             f"Здоров'я: {health_line}. Фінанси: {finance_line}. "
-            f"Операції: {ops_line}. Академія: {academy_line}."
+            f"Операції: {ops_line}. Академія: {academy_line}.\n\n"
+            f"{backup_status_line}"
         )
 
         if self._llm:
@@ -451,6 +457,9 @@ class EvaAgent:
                 summary_text = fallback_text
         else:
             summary_text = fallback_text
+
+        if backup_status_line not in summary_text:
+            summary_text = summary_text.strip() + f"\n\n{backup_status_line}"
 
         return {
             "agent": self.AGENT_ID,

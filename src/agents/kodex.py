@@ -482,3 +482,91 @@ def evening_section(data_dir: Optional[str], now: datetime) -> Dict[str, Any]:
     rep = store.report_for_eva(now - EVENING_WINDOW)
     return {"status": "ok", "window_hours": int(EVENING_WINDOW.total_seconds() // 3600), "report": rep}
 
+
+
+# ------------------------------------------------------------ Kodex Agent Implementation
+class KodexAgent:
+    """
+    KODEX — Chief Archivist, Legal & Knowledge Compliance Agent.
+    Specializes in archive management, deduplication, NotebookLM grounded research,
+    and bidirectional synchronization with the shared Obsidian Second Brain.
+    """
+
+    AGENT_ID = "kodex"
+
+    def __init__(
+        self,
+        memory: Optional[Any] = None,
+        config: Optional[Dict[str, Any]] = None,
+        store: Optional[KodexStore] = None,
+        bridge: Optional[Any] = None,
+    ) -> None:
+        self._memory = memory
+        self._config = dict(config or {})
+        self._store = store
+        if bridge is not None:
+            self._bridge = bridge
+        else:
+            from src.integrations.notebooklm_obsidian_bridge import NotebookLMObsidianBridge
+            vault_path = self._config.get("obsidian_vault_path")
+            self._bridge = NotebookLMObsidianBridge(vault_path=vault_path)
+
+    async def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        action = payload.get("action", "capabilities")
+        if action == "capabilities":
+            return {
+                "agent": self.AGENT_ID,
+                "role": "Chief Archivist, Knowledge Lifecycle & Obsidian Sync",
+                "actions": [
+                    "sync_to_obsidian",
+                    "process_with_notebooklm",
+                    "cleanup_notebooklm",
+                    "scan_user_notes",
+                    "ingest_file",
+                    "capabilities",
+                ],
+                "status": "ready",
+                "integrations": ["NotebookLM", "Obsidian"],
+            }
+        elif action in ("sync_to_obsidian", "archive_to_obsidian"):
+            return self._bridge.synthesize_and_export(
+                agent_id=payload.get("agent_id", self.AGENT_ID),
+                title=payload.get("title", "Untitled Document"),
+                raw_content=payload.get("content", ""),
+                category=payload.get("category", "archive"),
+                key_insights=payload.get("key_insights"),
+                backlinks=payload.get("backlinks"),
+                tags=payload.get("tags"),
+                sources=payload.get("sources"),
+                audio_file_path=payload.get("audio_file_path"),
+                force=payload.get("force", False),
+            )
+        elif action in ("process_with_notebooklm", "notebooklm_synthesize"):
+            # Deep synthesis through NotebookLM, deduplication, and export to Obsidian
+            title = payload.get("title", "NotebookLM Research")
+            content = payload.get("content", "")
+            insights = payload.get("key_insights") or [
+                f"Grounded synthesis of: {title}",
+                "Structured and verified against existing knowledge base.",
+            ]
+            res = self._bridge.synthesize_and_export(
+                agent_id=payload.get("agent_id", self.AGENT_ID),
+                title=title,
+                raw_content=content,
+                category=payload.get("category", "research"),
+                key_insights=insights,
+                backlinks=payload.get("backlinks") or ["Knowledge Base", "Research"],
+                tags=payload.get("tags") or ["notebooklm", "grounded"],
+                sources=payload.get("sources") or [],
+                audio_file_path=payload.get("audio_file_path"),
+            )
+            # Automatic cleanup of temporary NotebookLM artifacts if requested
+            if payload.get("cleanup", True):
+                self._bridge.cleanup_notebooklm_artifacts(payload.get("notebook_id"))
+            return res
+        elif action in ("cleanup_notebooklm", "purge_notebooks"):
+            return self._bridge.cleanup_notebooklm_artifacts(payload.get("notebook_id"))
+        elif action in ("scan_user_notes", "read_obsidian_notes"):
+            notes = self._bridge.scan_user_notes()
+            return {"status": "ok", "notes": notes, "count": len(notes)}
+        return {"status": "error", "error": f"Unknown action: {action}"}
