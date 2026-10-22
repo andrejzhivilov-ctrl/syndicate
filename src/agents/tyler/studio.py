@@ -8,16 +8,27 @@ from PIL import Image, ImageDraw, ImageFont
 from src.data_paths import ensure_dir
 
 
+def _load_font(size: int):
+    for candidate in ("DejaVuSans.ttf", "arial.ttf", "segoeui.ttf"):
+        try:
+            return ImageFont.truetype(candidate, size)
+        except OSError:
+            continue
+    return ImageFont.load_default(size=size)
+
+
 def render_personalization(caption: str) -> dict:
     folder = ensure_dir("tyler", "data/tyler") / "assets"
     folder.mkdir(parents=True, exist_ok=True, mode=0o700)
     artifact_id = uuid.uuid4().hex
-    font = ImageFont.truetype("DejaVuSans.ttf", 150)
+    font_size = 150
+    font = _load_font(font_size)
     artwork = Image.new("RGBA", (3600, 4500), (255, 255, 255, 0))
     draw = ImageDraw.Draw(artwork)
     # A bounded caption is fitted, rather than clipped or silently truncated.
-    while draw.textbbox((0, 0), caption, font=font)[2] > 3200 and font.size > 12:
-        font = ImageFont.truetype("DejaVuSans.ttf", font.size - 2)
+    while draw.textbbox((0, 0), caption, font=font)[2] > 3200 and font_size > 12:
+        font_size -= 2
+        font = _load_font(font_size)
     draw.text((1800, 1600), caption, font=font, fill="#111111", anchor="mm")
     print_path = folder / f"{artifact_id}-print.png"
     artwork.save(print_path, dpi=(300, 300))

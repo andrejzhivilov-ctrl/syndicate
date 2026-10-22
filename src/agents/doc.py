@@ -103,7 +103,8 @@ class DocAgent:
 
         trainer = TrainerAgent(memory=self._memory, llm=self._llm, config=self._config, registry=self._registry)
         res = await trainer.execute({**payload, "action": "shopping_list"})
-        res["delegated_by"] = self.AGENT_ID
+        res["delegated_to"] = res.get("agent", "trainer")
+        res["agent"] = self.AGENT_ID
         return res
 
     async def _llm_ask(self, prompt: str, fallback: str) -> str:
@@ -360,6 +361,7 @@ class DocAgent:
         trainer = TrainerAgent(memory=self._memory, llm=self._llm, config=self._config, registry=self._registry)
         res = await trainer.execute({**payload, "action": "training_protocol"})
         res["delegated_by"] = self.AGENT_ID
+        res["delegated_to"] = "trainer"
         return res
 
     async def _nutrition_plan(self, payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -369,6 +371,7 @@ class DocAgent:
         trainer = TrainerAgent(memory=self._memory, llm=self._llm, config=self._config, registry=self._registry)
         res = await trainer.execute({**payload, "action": "nutrition_plan"})
         res["delegated_by"] = self.AGENT_ID
+        res["delegated_to"] = "trainer"
         return res
 
     async def _biomarker_trend(self, payload: Dict[str, Any]) -> Dict[str, Any]:

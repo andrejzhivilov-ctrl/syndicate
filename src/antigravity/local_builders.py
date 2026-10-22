@@ -37,10 +37,15 @@ p{{line-height:1.7;white-space:pre-wrap}}small{{color:#abb7d4}}
 
 def poster(ws: Workspace, title: str) -> str:
     text = reviewed_text(title, 160)
-    try:
-        font = ImageFont.truetype("DejaVuSans.ttf", 52)
-    except OSError as exc:
-        raise StudioError("dejavu_font_unavailable") from exc
+    font = None
+    for _candidate in ("DejaVuSans.ttf", "arial.ttf", "segoeui.ttf"):
+        try:
+            font = ImageFont.truetype(_candidate, 52)
+            break
+        except OSError:
+            continue
+    if font is None:
+        raise StudioError("dejavu_font_unavailable")
     image = Image.new("RGB", (1280, 720), "#101628")
     draw = ImageDraw.Draw(image)
     draw.rectangle((52, 52, 1228, 668), outline="#5ed9c1", width=3)

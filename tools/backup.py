@@ -163,8 +163,16 @@ def _sha256(path: Path) -> str:
 
 
 def _run(command: Sequence[str], env: Optional[Dict[str, str]] = None) -> subprocess.CompletedProcess:
+    cmd = list(command)
+    if sys.platform == "win32" and cmd and Path(cmd[0]).is_file():
+        try:
+            if Path(cmd[0]).read_bytes().startswith(b"#!"):
+                bash_bin = shutil.which("bash") or r"C:\Users\Admin\.gemini\antigravity\brain\3212bbb7-eaa9-42ef-8dd7-47ab843f1594\scratch\mingit\usr\bin\bash.exe"
+                cmd = [bash_bin, *cmd]
+        except OSError:
+            pass
     return subprocess.run(  # noqa: S603 - argv list, no shell
-        list(command),
+        cmd,
         capture_output=True,
         text=True,
         env={**os.environ, **(env or {})},

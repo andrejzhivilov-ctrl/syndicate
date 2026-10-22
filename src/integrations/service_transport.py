@@ -76,7 +76,7 @@ async def run_process(argv: list[str], body: dict, *, cwd: str, timeout: int = 1
             return output
     finally:
         if process.returncode is None:
-            os.killpg(process.pid, signal.SIGKILL)
+            os.killpg(process.pid, signal.SIGKILL) if hasattr(os, 'killpg') else process.kill()
             await process.wait()
         for reader in readers:
             reader.cancel()

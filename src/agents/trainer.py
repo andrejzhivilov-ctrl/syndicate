@@ -194,6 +194,8 @@ class TrainerAgent:
                 "goal": goal,
                 "equipment_available": equipment,
                 "workout": None,
+                "intensity": None,
+                "duration_min": None,
                 "warnings": warnings,
             }
             await self._save(payload, "training_protocol", result)
@@ -293,11 +295,24 @@ class TrainerAgent:
                 "carbs_g": carbs,
                 "water_ml": water,
             })
-        elif calc_result.get("status") == "not_configured":
+        elif calc_result.get("status") in ("not_configured", "rejected"):
+            missing_list = calc_result.get("missing", [])
+            if calc_result.get("reason") == "unknown_activity":
+                missing_list = [f"activity_level ({norm_payload.get('activity')})"]
+            elif calc_result.get("reason"):
+                missing_list = [str(calc_result.get("reason"))]
             calc_result["status"] = "unavailable"
             calc_result["calories"] = None
-            calc_result["missing_inputs"] = calc_result.get("missing", [])
-            calc_result["warning"] = calc_result.get("message", "Missing required profile metrics for Mifflin-St Jeor")
+            calc_result["protein_g"] = None
+            calc_result["fat_g"] = None
+            calc_result["carb_g"] = None
+            calc_result["carbs_g"] = None
+            calc_result["water_ml"] = None
+            calc_result["missing_inputs"] = missing_list
+            calc_result["warning"] = (
+                f"{calc_result.get('message', 'Missing required profile metrics')} "
+                f"(missing: {', '.join(str(m) for m in missing_list)})"
+            )
 
         await self._save(payload, "nutrition_plan", calc_result)
         return calc_result
@@ -350,10 +365,10 @@ class TrainerAgent:
         ref = payload.get("meal_plan_ref")
         raw = doc_shopping.build_shopping_list(normalized_items, ref)
         res = {
-            "agent": self.AGENT_ID,
-            "status": "ok" if raw.get("status") == "ready_for_eva" else raw.get("status", "ok"),
-            "basket_status": raw.get("status"),
             **raw,
+            "agent": self.AGENT_ID,
+            "status": raw.get("status", "ok"),
+            "basket_status": raw.get("status"),
         }
         await self._save(payload, "shopping_list", res)
         return res

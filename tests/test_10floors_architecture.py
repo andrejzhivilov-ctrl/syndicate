@@ -24,11 +24,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
-# Ensure UTF-8 output on Windows console
-if sys.platform == "win32":
-    import codecs
-    sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
-    sys.stderr = codecs.getwriter("utf-8")(sys.stderr.detach())
+# Ensure UTF-8 output on Windows console without detaching pytest capture buffers
+if sys.platform == "win32" and __name__ == "__main__":
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # Isolate every artefact the suite writes. Previously the tests wrote straight
 # into the tracked ``scratch/`` directory, so each run left the repository dirty

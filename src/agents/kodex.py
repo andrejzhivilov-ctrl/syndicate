@@ -569,4 +569,28 @@ class KodexAgent:
         elif action in ("scan_user_notes", "read_obsidian_notes"):
             notes = self._bridge.scan_user_notes()
             return {"status": "ok", "notes": notes, "count": len(notes)}
+        elif action in ("dispatch_task", "create_task"):
+            task_id = str(payload.get("task_id") or f"TASK-{uuid.uuid4().hex[:6].upper()}")
+            return self._bridge.create_task_card(
+                task_id=task_id,
+                title=str(payload.get("title", "Syndicate Task")),
+                description=str(payload.get("description", "")),
+                assigned_to=str(payload.get("target_agent", payload.get("assigned_to", "kodex"))),
+                created_by=str(payload.get("created_by", "eva")),
+                priority=str(payload.get("priority", "medium")),
+                linked_concepts=payload.get("linked_concepts"),
+                tags=payload.get("tags"),
+            )
+        elif action in ("triage_task_web", "triage_tasks"):
+            return self._bridge.triage_tasks_as_kodex()
+        elif action == "storage_stats":
+            kb_files = list(self._bridge.knowledge_dir.rglob("*.md"))
+            task_files = list(self._bridge.tasks_dir.rglob("*.md"))
+            return {
+                "status": "ok",
+                "agent": self.AGENT_ID,
+                "knowledge_cards_count": len(kb_files),
+                "task_cards_count": len(task_files),
+                "vault_path": str(self._bridge.vault_path),
+            }
         return {"status": "error", "error": f"Unknown action: {action}"}

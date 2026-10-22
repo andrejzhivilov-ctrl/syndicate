@@ -10,12 +10,21 @@ from src.data_paths import ensure_dir
 from src.agents.director_base import text
 
 
+def _load_font(size: int):
+    for candidate in ("DejaVuSans.ttf", "arial.ttf", "segoeui.ttf"):
+        try:
+            return ImageFont.truetype(candidate, size)
+        except OSError:
+            continue
+    return ImageFont.load_default(size=size)
+
+
 def thumbnail(title: str, brand: str) -> dict:
     folder = ensure_dir("oscar", "data/oscar") / "assets"
     folder.mkdir(parents=True, exist_ok=True, mode=0o700)
     image = Image.new("RGB", (1280, 720), "#122033")
     draw = ImageDraw.Draw(image)
-    font = ImageFont.truetype("DejaVuSans.ttf", 66)
+    font = _load_font(66)
     # Wrap by measured pixels rather than character count.
     lines, current = [], ""
     for word in title.split():
@@ -29,7 +38,7 @@ def thumbnail(title: str, brand: str) -> dict:
     if len(lines) > 5 or any(draw.textlength(line, font=font) > 1120 for line in lines):
         raise ValueError("thumbnail_title_too_long")
     draw.multiline_text((80, 100), "\n".join(lines), font=font, fill="white", spacing=18)
-    draw.text((80, 630), brand, font=ImageFont.truetype("DejaVuSans.ttf", 30), fill="#57e8bc")
+    draw.text((80, 630), brand, font=_load_font(30), fill="#57e8bc")
     path = folder / f"{uuid.uuid4().hex}-thumbnail.png"
     image.save(path)
     path.chmod(0o600)

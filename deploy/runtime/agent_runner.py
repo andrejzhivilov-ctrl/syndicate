@@ -755,6 +755,12 @@ async def cockpit_interface(state: AppState = Depends(require_read)):  # noqa: A
     for p in candidates:
         if p.exists():
             text = p.read_text(encoding="utf-8")
+            if "<html" not in text.lower() and len(text.strip()) < 260:
+                target = (p.parent / text.strip()).resolve()
+                if target.is_file():
+                    text = target.read_text(encoding="utf-8")
+                else:
+                    continue
             if "SYNDIKAT" not in text and "SYNDICATE" in text:
                 text = text.replace("<title>SYNDICATE", "<title>SYNDIKAT / SYNDICATE")
             return HTMLResponse(content=text)

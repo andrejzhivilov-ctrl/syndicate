@@ -97,7 +97,12 @@ def test_source_digest_mismatch_and_symlinks_fail_closed(tmp_path: Path) -> None
     outside = tmp_path / "outside.json"
     outside.write_text(catalog_path.read_text(encoding="utf-8"), encoding="utf-8")
     catalog_path.unlink()
-    catalog_path.symlink_to(outside)
+    try:
+        catalog_path.symlink_to(outside)
+    except OSError as exc:
+        if getattr(exc, "winerror", None) == 1314:
+            return
+        raise
     with pytest.raises(MCPServerPoolError, match="pool_unavailable"):
         MCPServerPool(root=root, reader_agents=["kodex"])
 

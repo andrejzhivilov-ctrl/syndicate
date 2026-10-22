@@ -11,10 +11,10 @@ Usage:
 from __future__ import annotations
 
 import sys
-if sys.platform == "win32":
-    import codecs
-    sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach(), errors="replace")
-    sys.stderr = codecs.getwriter("utf-8")(sys.stderr.detach(), errors="replace")
+if sys.platform == "win32" and __name__ == "__main__":
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 import argparse
 import hashlib

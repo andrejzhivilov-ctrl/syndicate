@@ -218,11 +218,20 @@ def write_pdf(r: dict, path: Path) -> Path:
     from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
     # Pillow searches the platform's font directories, including non-Debian layouts.
-    try:
-        regular = ImageFont.truetype("DejaVuSans.ttf", 12).path
-        bold = ImageFont.truetype("DejaVuSans-Bold.ttf", 12).path
-    except OSError as exc:
-        raise RuntimeError("PDF: немає шрифту з кирилицею (DejaVuSans)") from exc
+    regular = bold = None
+    for reg_cand, bold_cand in (
+        ("DejaVuSans.ttf", "DejaVuSans-Bold.ttf"),
+        ("arial.ttf", "arialbd.ttf"),
+        ("segoeui.ttf", "segoeuib.ttf"),
+    ):
+        try:
+            regular = ImageFont.truetype(reg_cand, 12).path
+            bold = ImageFont.truetype(bold_cand, 12).path
+            break
+        except OSError:
+            continue
+    if not regular or not bold:
+        raise RuntimeError("PDF: немає шрифту з кирилицею (DejaVuSans)")
     pdfmetrics.registerFont(TTFont("DejaVu", regular))
     pdfmetrics.registerFont(TTFont("DejaVu-Bold", bold))
     st = getSampleStyleSheet()

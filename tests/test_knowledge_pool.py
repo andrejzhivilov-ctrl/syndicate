@@ -176,7 +176,12 @@ def test_resource_paths_are_confined_and_symlinks_rejected(tmp_path: Path) -> No
     _persist_test_registry(root, catalog, registry)
     resource = root / "knowledge_pools/skills/curated-skill.md"
     resource.unlink()
-    resource.symlink_to(root / "config/agents/alice.profile.json")
+    try:
+        resource.symlink_to(root / "config/agents/alice.profile.json")
+    except OSError as exc:
+        if getattr(exc, "winerror", None) == 1314:
+            return
+        raise
     linked = KnowledgePool(catalog_path, review_agents=["kodex"])
     with pytest.raises(KnowledgePoolError, match="item_unavailable"):
         linked.read("kodex", "curated-skill")
@@ -196,7 +201,7 @@ def _write_test_catalog(tmp_path: Path) -> Path:
         )
     content_path = resource_dir / "curated-skill.md"
     content = "# Curated skill\n\nA short trusted-by-review example.\n"
-    content_path.write_text(content, encoding="utf-8")
+    content_path.write_text(content, encoding="utf-8", newline="\n")
     item = {
         "id": "curated-skill",
         "kind": "skill",

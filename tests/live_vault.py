@@ -17,7 +17,9 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
+import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -287,8 +289,13 @@ def run_vault_init(
     ``env`` is merged over a deterministic, non-placeholder baseline so the
     guards in the script pass unless a test deliberately breaks one.
     """
+    mingit_usr = r"C:\Users\Admin\.gemini\antigravity\brain\3212bbb7-eaa9-42ef-8dd7-47ab843f1594\scratch\mingit\usr\bin"
+    mingit_w64 = r"C:\Users\Admin\.gemini\antigravity\brain\3212bbb7-eaa9-42ef-8dd7-47ab843f1594\scratch\mingit\mingw64\bin"
+    venv_bin = str(Path(sys.executable).parent)
+    extra_path = os.pathsep.join([venv_bin, mingit_usr, mingit_w64, os.environ.get("PATH", "/usr/bin:/bin")])
+    bash_bin = shutil.which("bash", path=extra_path) or "bash"
     base_env = {
-        "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+        "PATH": extra_path,
         "VAULT_ADDR": vault.address,
         "SECRETS_DIR": str(secrets_dir),
         "POSTGRES_PASSWORD": "db-pass-for-tests",
@@ -296,7 +303,7 @@ def run_vault_init(
     }
     base_env.update(env or {})
     return subprocess.run(
-        ["bash", str(REPO_ROOT / "deploy" / "scripts" / "vault_init.sh")],
+        [bash_bin, str(REPO_ROOT / "deploy" / "scripts" / "vault_init.sh")],
         capture_output=True,
         text=True,
         env=base_env,

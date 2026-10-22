@@ -229,6 +229,16 @@ class EvaOrchestrator:
         "vault_read_ground_truth": "vault",
         "vault_reindex": "vault",
         "floors_overview": "floor_registry",
+        # Kodex (Chief Archivist — NotebookLM & Obsidian Second Brain)
+        "kodex_ingest_notebook": "kodex",
+        "kodex_export_obsidian": "kodex",
+        "kodex_dispatch_task": "kodex",
+        "kodex_triage_tasks": "kodex",
+        "kodex_storage_stats": "kodex",
+        # Antigravity (External 24/7 VM Super-Agent Contractor Gateway)
+        "antigravity_contractor_dispatch": "antigravity_gateway",
+        "antigravity_contractor_compact": "antigravity_gateway",
+        "antigravity_contractor_status": "antigravity_gateway",
     }
 
     def __init__(
@@ -424,6 +434,8 @@ class EvaOrchestrator:
         builder.add_node("memory_command", self._memory_command_handler)
         builder.add_node("vault", self._vault_handler)
         builder.add_node("floor_registry", self._floor_registry_handler)
+        builder.add_node("kodex_agent", self._kodex_agent_handler)
+        builder.add_node("antigravity_gateway", self._antigravity_gateway_handler)
 
         # Governance & output gates
         builder.add_node("confidence_gate", self._confidence_gate)
@@ -466,6 +478,8 @@ class EvaOrchestrator:
             "memory_command": "memory_command",
             "vault": "vault",
             "floor_registry": "floor_registry",
+            "kodex": "kodex_agent",
+            "antigravity_gateway": "antigravity_gateway",
         }
 
         builder.add_conditional_edges(
@@ -1214,6 +1228,56 @@ class EvaOrchestrator:
         state["status"] = "completed"
         return state
 
+    async def _kodex_agent_handler(self, state: AgentState) -> AgentState:
+        from src.agents.kodex import KodexAgent
+        from src.integrations.notebooklm_obsidian_bridge import NotebookLMObsidianBridge
+
+        vault_root = Path(getattr(self._vault, "root", None) or getattr(self._vault, "_root", None) or "scratch")
+        bridge = NotebookLMObsidianBridge(vault_path=vault_root / "second_brain")
+        agent = KodexAgent(
+            memory=self._memory,
+            config=self._config.get("kodex", self._config),
+            bridge=bridge,
+        )
+        payload = dict(state.get("payload") or {})
+        action_map = {
+            "kodex_ingest_notebook": "process_with_notebooklm",
+            "kodex_export_obsidian": "sync_to_obsidian",
+            "kodex_dispatch_task": "dispatch_task",
+            "kodex_triage_tasks": "triage_task_web",
+            "kodex_storage_stats": "storage_stats",
+        }
+        payload.setdefault("action", action_map.get(state.get("task_type", ""), "storage_stats"))
+        if "content" not in payload and "summary" in payload:
+            payload["content"] = payload["summary"]
+        state["result"] = await agent.execute(payload)
+        state["status"] = "completed"
+        return state
+
+    async def _antigravity_gateway_handler(self, state: AgentState) -> AgentState:
+        from src.integrations.antigravity_contractor_gateway import AntigravityContractorGateway
+
+        vault_root = Path(getattr(self._vault, "root", None) or getattr(self._vault, "_root", None) or "scratch")
+        gw = AntigravityContractorGateway(
+            channels_dir=vault_root / "antigravity_contractor",
+        )
+        task_type = state.get("task_type", "")
+        payload = dict(state.get("payload") or {})
+        if task_type == "antigravity_contractor_dispatch":
+            state["result"] = gw.agent_submits_task(
+                agent_id=str(payload.get("requester_agent", payload.get("agent_id", "architect"))),
+                task_title=str(payload.get("objective", payload.get("title", "Analyze architecture"))),
+                task_prompt=str(payload.get("context_summary", payload.get("prompt", "Execute R&D task"))),
+                attachments=list(payload.get("target_files") or []),
+            )
+        elif task_type == "antigravity_contractor_compact":
+            channel = gw.get_channel(str(payload.get("agent_id", "architect")))
+            state["result"] = channel.compact_thread()
+        else:
+            state["result"] = gw.get_status()
+        state["status"] = "completed"
+        return state
+
     async def _hitl_gate(self, state: AgentState) -> AgentState:
         if state.get("requires_hitl"):
             logger.warning("HITL required", reason=state.get("hitl_reason"))
@@ -1423,6 +1487,8 @@ class EvaOrchestrator:
             "memory_command": self._memory_command_handler,
             "vault": self._vault_handler,
             "floor_registry": self._floor_registry_handler,
+            "kodex": self._kodex_agent_handler,
+            "antigravity_gateway": self._antigravity_gateway_handler,
         }
 
         handler = dispatch_table.get(target, self._eva_direct_handler)

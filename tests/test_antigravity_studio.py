@@ -48,7 +48,12 @@ def test_traversal_denied(ws, path):
 def test_symlink_input_and_output_denied(ws, tmp_path):
     external = tmp_path / "external.txt"
     external.write_text("private")
-    (ws.root / "inbox/link.txt").symlink_to(external)
+    try:
+        (ws.root / "inbox/link.txt").symlink_to(external)
+    except OSError as exc:
+        if getattr(exc, "winerror", None) == 1314:
+            pytest.skip("Windows symlink privilege not enabled")
+        raise
     with pytest.raises(StudioError, match="symlinks"):
         ws.read("inbox/link.txt")
     with pytest.raises(StudioError, match="symlinks"):
@@ -60,7 +65,12 @@ def test_symlink_root_denied(tmp_path, monkeypatch):
     target = tmp_path / "target"
     target.mkdir()
     link = tmp_path / "link"
-    link.symlink_to(target, target_is_directory=True)
+    try:
+        link.symlink_to(target, target_is_directory=True)
+    except OSError as exc:
+        if getattr(exc, "winerror", None) == 1314:
+            pytest.skip("Windows symlink privilege not enabled")
+        raise
     monkeypatch.setenv("EVA_DATA_DIR", str(link))
     with pytest.raises(StudioError, match="symlinks"):
         Workspace()
@@ -68,8 +78,9 @@ def test_symlink_root_denied(tmp_path, monkeypatch):
 
 def test_size_modes_and_no_overwrite(ws):
     path = ws.write("inbox/test.txt", b"abc")
-    assert path.stat().st_mode & 0o777 == 0o600
-    assert ws.root.stat().st_mode & 0o777 == 0o700
+    if os.name != "nt":
+        assert path.stat().st_mode & 0o777 == 0o600
+        assert ws.root.stat().st_mode & 0o777 == 0o700
     with pytest.raises(StudioError, match="too_large"):
         ws.read("inbox/test.txt", limit=2)
     with pytest.raises(StudioError, match="already_exists"):
@@ -78,6 +89,8 @@ def test_size_modes_and_no_overwrite(ws):
 
 
 def test_fifo_does_not_block_reader(ws):
+    if not hasattr(os, "mkfifo"):
+        pytest.skip("mkfifo requires POSIX")
     os.mkfifo(ws.root / "inbox/pipe")
     with pytest.raises(StudioError, match="not_regular"):
         ws.read("inbox/pipe")

@@ -58,7 +58,7 @@ class Workspace:
         if not path.parent.is_dir():
             raise StudioError("parent_not_found")
         try:
-            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, 'O_NOFOLLOW', 0), 0o600)
         except FileExistsError as exc:
             raise StudioError("output_already_exists") from exc
         with os.fdopen(fd, "wb") as stream:
@@ -67,7 +67,7 @@ class Workspace:
 
     def read(self, relative: str, limit: int = MAX_INPUT_BYTES) -> bytes:
         path = self.path(relative)
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        fd = os.open(path, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0))
         with os.fdopen(fd, "rb") as stream:
             info = os.fstat(stream.fileno())
             if not stat.S_ISREG(info.st_mode) or info.st_size > limit:

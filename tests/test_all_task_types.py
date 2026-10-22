@@ -263,6 +263,35 @@ def _payloads(tmp_path: Path) -> Dict[str, Dict[str, Any]]:
         "vault_read_ground_truth": {"path": "wiki/probe1.md"},
         "vault_reindex": {},
         "floors_overview": {},
+        "kodex_ingest_notebook": {
+            "agent_id": "kodex",
+            "title": "Probe Source",
+            "content": "Probe text for NotebookLM ingestion.",
+            "source_type": "markdown",
+            "tags": ["probe"],
+        },
+        "kodex_export_obsidian": {
+            "agent_id": "kodex",
+            "title": "Probe Obsidian Note",
+            "summary": "Synthesized knowledge from NotebookLM.",
+            "key_insights": ["Insight 1"],
+            "tags": ["probe"],
+        },
+        "kodex_dispatch_task": {
+            "target_agent": "sam",
+            "title": "Analyze BTC funding rate",
+            "description": "Check perpetual funding rate divergence.",
+            "priority": "high",
+        },
+        "kodex_triage_tasks": {},
+        "kodex_storage_stats": {},
+        "antigravity_contractor_dispatch": {
+            "requester_agent": "architect",
+            "objective": "Design async event bus",
+            "order_type": "architecture_audit",
+        },
+        "antigravity_contractor_compact": {"agent_id": "architect", "keep_recent": 3},
+        "antigravity_contractor_status": {},
     }
 
 
