@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Deployment-readiness checks for the Architect contract-only profile."""
 
 from __future__ import annotations

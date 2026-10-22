@@ -43,12 +43,14 @@
     "brand-voice",
     "tyler-price-compare",
     "tyler-supplier-research",
-    "tyler-listing-draft",
-    "tyler-store-legitimacy-review"
+    "tyler-store-legitimacy-review",
+    "tyler-listing-draft"
   ],
   "n8n": {
     "status": "not_configured",
     "mode": "design_and_mount_only",
     "activate": false
-  }
+  },
+  "display_name": "TYLER (Print-on-Demand & Custom Merch)",
+  "role_title": "Керівник напрямку Print-on-Demand (POD) та кастомного мерчу"
 }

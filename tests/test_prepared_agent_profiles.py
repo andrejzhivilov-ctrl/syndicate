@@ -20,7 +20,7 @@ from src.agent_platform.registry import AgentRegistry
 ROOT = Path(__file__).resolve().parents[1]
 PROFILES_DIR = ROOT / "config" / "agents"
 EXPECTED_IDS = frozenset({"eva", "architect", "marshal", "fin", "doc", "kira", "sam", "kodex", "alice", "oscar", "tyler", "jack", "ray", "dex", "atlas", "trainer"})
-FORMED_IDENTITY = frozenset({"eva", "architect", "marshal", "sam", "fin", "alice", "oscar", "tyler", "jack"})
+FORMED_IDENTITY = frozenset({"eva", "architect", "marshal", "sam", "fin", "alice", "oscar", "tyler", "jack", "ray", "dex"})
 
 
 def _manifests() -> dict[str, dict]:
