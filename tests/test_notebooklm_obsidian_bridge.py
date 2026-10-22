@@ -141,3 +141,58 @@ def test_cold_recovery_bundle_generation(tmp_path: Path):
     assert (dest / "restore_syndicate.py").exists()
     assert (dest / "restore_syndicate.sh").exists()
     assert (dest / "restore_syndicate.bat").exists()
+
+
+def test_obsidian_task_web_lifecycle_and_kodex_triage(tmp_path: Path):
+    vault = tmp_path / "obsidian_vault"
+    bridge = NotebookLMObsidianBridge(vault_path=vault)
+
+    # 1. Eva creates a task in Task Web (Inbox)
+    task_res = bridge.create_task_card(
+        task_id="TASK-101",
+        title="Build Mobile Navigation UI",
+        description="Implement APEX-UI bottom bar in React Native.",
+        assigned_to="architect",
+        created_by="eva",
+        priority="high",
+        linked_concepts=["APEX-UI", "Mobile App"],
+    )
+    assert task_res["status"] == "created"
+    assert task_res["stage"] == "inbox"
+    assert (bridge.tasks_inbox / "TASK-101_build_mobile_navigation_ui.md").exists()
+
+    # 2. Architect picks up task and logs interim progress (moves to In_Progress)
+    up1 = bridge.update_task_progress(
+        task_id="TASK-101",
+        agent_id="architect",
+        status="in_progress",
+        note="Scaffolded components, wired bottom bar.",
+    )
+    assert up1["status"] == "updated"
+    assert up1["current_stage"] == "in_progress"
+    assert (bridge.tasks_in_progress / "TASK-101_build_mobile_navigation_ui.md").exists()
+
+    # 3. Architect reports a blocker/difficulty (moves to Blocked)
+    up2 = bridge.update_task_progress(
+        task_id="TASK-101",
+        agent_id="architect",
+        status="blocked",
+        blocker="Missing SVG vector assets for Kira icon.",
+    )
+    assert up2["current_stage"] == "blocked"
+    assert (bridge.tasks_blocked / "TASK-101_build_mobile_navigation_ui.md").exists()
+
+    # 4. Blocker resolved, work submitted for Review
+    up3 = bridge.update_task_progress(
+        task_id="TASK-101",
+        agent_id="architect",
+        status="review",
+        note="Received SVG icons from Oscar, ready for review.",
+    )
+    assert up3["current_stage"] == "review"
+    assert (bridge.tasks_review / "TASK-101_build_mobile_navigation_ui.md").exists()
+
+    # 5. Kodex runs triage and moves to Completed
+    triage_res = bridge.triage_tasks_as_kodex()
+    assert triage_res["reviewed_and_completed"] == 1
+    assert (bridge.tasks_completed / "TASK-101_build_mobile_navigation_ui.md").exists()
