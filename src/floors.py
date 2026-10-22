@@ -68,24 +68,19 @@ BOARDROOM_DIRECTORS: Dict[str, Dict[str, Any]] = {
         "role": "Supplier verification, price comparison, order fulfillment",
     },
     "jack": {
-        "title": "Director of Probabilistic Analytics",
-        "department": "Quant Risk & Game Theory",
-        "role": "Odds evaluation, anti-tilt tracking, probabilistic modeling",
-    },
-    "alice": {
-        "title": "SDK & Systems Integration Engineer",
-        "department": "Platform SDK & Workers",
-        "role": "Autonomous code review, Hermes worker bridge, SDK engineering",
+        "title": "Chief Sports Betting & Probabilistic Quant",
+        "department": "Sports Quant & Game Theory",
+        "role": "PariMatch and Vbet odds parsing, Value Betting (+EV), anti-tilt risk management",
     },
     "kodex": {
-        "title": "Chief Archivist & Knowledge Custodian",
-        "department": "Knowledge Base & Archives",
-        "role": "Obsidian sync, NotebookLM integration, prompt and skill cataloging",
+        "title": "Chief Archivist & Big Data Custodian",
+        "department": "Knowledge Base, Archives & Media Pipeline",
+        "role": "Big data ingestion, cloud and Telegram storage gateway, Obsidian sync, NotebookLM purge",
     },
     "antigravity": {
-        "title": "Chief External Super-Agent & Deep Engineer",
-        "department": "External High-Cognitive Bridge",
-        "role": "High-complexity reasoning, app cloning, reverse engineering, system scaling",
+        "title": "Chief External Super-Agent & R&D Contractor (Alice)",
+        "department": "External High-Cognitive 24/7 VM Bridge",
+        "role": "High-complexity reasoning, app cloning, fullstack engineering, reverse engineering, dedicated agent channels",
     },
 }
 
