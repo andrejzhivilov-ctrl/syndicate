@@ -1,3 +1,8 @@
+---
+name: kodex-mcp-connector-scout
+description: Discover, compare, and evaluate candidate MCP connectors for a requested service using read-only metadata, immutable provenance, and minimal scope analysis before Architect and Marshal review.
+---
+
 # KODEX Skill: MCP Connector Scout
 
 **Status:** draft, reference-only, discovery-only. This skill does not grant internet, MCP, package-install, runtime, Vault, or account access.

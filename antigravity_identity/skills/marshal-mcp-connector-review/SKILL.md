@@ -1,3 +1,8 @@
+---
+name: marshal-mcp-connector-review
+description: Perform independent zero-trust security review of candidate MCP connectors after KODEX discovery and Architect design, verifying provenance, scopes, egress, and isolation.
+---
+
 # Marshal Skill: MCP Connector Independent Review
 
 **Status:** draft, reference-only. Review does not enable a connector, grant access, approve a Vault secret, or authorize live use.

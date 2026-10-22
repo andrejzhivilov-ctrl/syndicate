@@ -124,3 +124,21 @@ def test_restore_identity_from_repo_roundtrip(tmp_path: Path) -> None:
     assert (vm_config_dir / "skills" / "syndicate-app-cloner" / "SKILL.md").is_file()
     assert (vm_config_dir / "skills" / "replica-recon" / "SKILL.md").is_file()
     assert (vm_config_dir / "memory" / "CORE_IDENTITY_AND_MEMORY.md").is_file()
+
+
+def test_all_skills_have_valid_yaml_frontmatter() -> None:
+    """Every SKILL.md in antigravity_identity/skills must have valid YAML frontmatter with name and description."""
+    import yaml
+
+    skill_files = sorted((REPO_IDENTITY_DIR / "skills").rglob("SKILL.md"))
+    assert len(skill_files) >= 48
+    for p in skill_files:
+        text = p.read_text(encoding="utf-8")
+        assert text.startswith("---"), f"Missing frontmatter delimiter in {p}"
+        parts = text.split("---", 2)
+        assert len(parts) >= 3, f"Unclosed frontmatter in {p}"
+        data = yaml.safe_load(parts[1])
+        assert isinstance(data, dict), f"Frontmatter is not a YAML mapping in {p}"
+        assert data.get("name"), f"Missing 'name' in frontmatter of {p}"
+        assert data.get("description"), f"Missing 'description' in frontmatter of {p}"
+

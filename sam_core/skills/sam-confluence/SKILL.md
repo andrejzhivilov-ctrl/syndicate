@@ -1,4 +1,6 @@
 ---
+name: sam-confluence
+description: Evaluate 5-layer market confluence (SMC, macro, COT, derivatives, news shield) with strict unavailable-data handling and proposal/auto-gate thresholds.
 id: sam-confluence
 activation: draft
 ---

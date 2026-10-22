@@ -1,4 +1,6 @@
 ---
+name: sam-risk-guard
+description: Enforce deterministic capital protection rules including 1%/0.5% position risk, Hard SL, 3% daily drawdown cap, R-multiple >= 2.5, and 30-min news freeze.
 id: sam-risk-guard
 activation: draft
 ---
