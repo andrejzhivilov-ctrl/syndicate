@@ -23,7 +23,40 @@ services:
       SYNDICATE_DIRECTOR_PROVIDERS: ${OSCAR_PROVIDERS:-}
     volumes:
     - oscar_data:/data/director
+      sonar-agent:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.director
+    profiles:
+    - directors
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m
+    environment:
+      SYNDICATE_DIRECTOR_ID: sonar
+      SYNDICATE_DIRECTOR_ACTIONS: ${SONAR_ACTIONS:-capabilities}
+      EVA_DATA_DIR: /data/director
+      VAULT_ADDR: ${VAULT_ADDR:?set reachable Vault URL}
+      VAULT_ROLE_ID: ${SONAR_VAULT_ROLE_ID:?set sonar AppRole}
+      VAULT_SECRET_ID: ${SONAR_VAULT_SECRET_ID:?set sonar SecretID}
+      SYNDICATE_DIRECTOR_PROVIDERS: ${SONAR_PROVIDERS:-}
+    volumes:
+    - sonar_data:/data/director
     networks:
+    - sonar_control
+    mem_limit: 1024m
+    cpus: 1.0
+    pids_limit: 128
+    ulimits:
+      nofile:
+        soft: 1024
+        hard: 2048
+networks:
     - oscar_control
     mem_limit: 768m
     cpus: 1.0
@@ -296,6 +329,8 @@ services:
         soft: 2048
         hard: 4096
 networks:
+  sonar_control:
+    driver: bridge
   oscar_control:
     driver: bridge
   tyler_control:
@@ -315,6 +350,7 @@ networks:
   trainer_control:
     driver: bridge
 volumes:
+  sonar_data: {}
   oscar_data: {}
   tyler_data: {}
   jack_data: {}

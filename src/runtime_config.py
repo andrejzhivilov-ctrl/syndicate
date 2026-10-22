@@ -276,8 +276,14 @@ def build_runtime_config(env: Optional[Dict[str, str]] = None) -> Dict[str, Any]
                 "biomarker_trend", "weekly_review",
             ],
         },
+        "perplexity": {
+            "api_key": get("PERPLEXITY_API_KEY"),
+            "model_fast": get("PERPLEXITY_MODEL_FAST") or "sonar",
+            "model_deep": get("PERPLEXITY_MODEL_DEEP") or "sonar-deep-research",
+            "model_reasoning": get("PERPLEXITY_MODEL_REASONING") or "sonar-reasoning-pro",
+        },
     }
-    for agent_id in ("oscar", "tyler", "jack", "alice", "scout", "dex", "ray", "atlas"):
+    for agent_id in ("oscar", "tyler", "jack", "alice", "scout", "dex", "ray", "atlas", "sonar"):
         prefix = agent_id.upper()
         config[agent_id] = {
             "enabled": _to_bool(get(f"{prefix}_WORKER_ENABLED")),

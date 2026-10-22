@@ -7,23 +7,54 @@
       "command": "CMD:NOTEBOOKLM_PROCESS",
       "target_agent": "antigravity",
       "allowed_callers": [
-        "kodex", "jack", "sam", "doc", "trainer", "kira",
-        "tyler", "oscar", "scout", "dex", "ray", "atlas",
-        "fin", "marshal", "architect", "eva", "alice"
+        "kodex",
+        "jack",
+        "sam",
+        "doc",
+        "trainer",
+        "kira",
+        "tyler",
+        "oscar",
+        "scout",
+        "dex",
+        "ray",
+        "atlas",
+        "fin",
+        "marshal",
+        "architect",
+        "eva",
+        "alice",
+        "sonar"
       ],
       "description": "Requests Alice (Antigravity) to run deep analytical synthesis in Google NotebookLM and export knowledge dossier into Obsidian Second Brain.",
-      "required_params": ["notebook_id", "category", "requested_by"],
-      "optional_params": ["title", "backlinks", "tags"],
+      "required_params": [
+        "notebook_id",
+        "category",
+        "requested_by"
+      ],
+      "optional_params": [
+        "title",
+        "backlinks",
+        "tags"
+      ],
       "token_cost_overhead": 0,
       "estimated_runtime_seconds": 15
     },
     {
       "command": "CMD:N8N_BUILD_WORKFLOW",
       "target_agent": "antigravity",
-      "allowed_callers": ["architect"],
+      "allowed_callers": [
+        "architect"
+      ],
       "description": "Requests Alice (Antigravity) to validate FlowLint rules, compile native n8n JSON, and stage the workflow for server deployment.",
-      "required_params": ["blueprint_id", "blueprint_data"],
-      "optional_params": ["tags", "category"],
+      "required_params": [
+        "blueprint_id",
+        "blueprint_data"
+      ],
+      "optional_params": [
+        "tags",
+        "category"
+      ],
       "token_cost_overhead": 0,
       "estimated_runtime_seconds": 3
     },
@@ -31,85 +62,264 @@
       "command": "CMD:TASK_WEB_TRANSITION",
       "target_agent": "kodex",
       "allowed_callers": [
-        "antigravity", "alice", "eva", "architect", "jack", "sam",
-        "doc", "trainer", "kira", "tyler", "oscar", "scout",
-        "dex", "ray", "atlas", "fin", "marshal"
+        "antigravity",
+        "alice",
+        "eva",
+        "architect",
+        "jack",
+        "sam",
+        "doc",
+        "trainer",
+        "kira",
+        "tyler",
+        "oscar",
+        "scout",
+        "dex",
+        "ray",
+        "atlas",
+        "fin",
+        "marshal",
+        "sonar"
       ],
       "description": "Requests Kodex to transition a task card state in Obsidian 04_Tasks_Web and update timeline logs.",
-      "required_params": ["task_id", "new_status", "agent_id"],
-      "optional_params": ["note"],
+      "required_params": [
+        "task_id",
+        "new_status",
+        "agent_id"
+      ],
+      "optional_params": [
+        "note"
+      ],
       "token_cost_overhead": 0,
       "estimated_runtime_seconds": 1
     },
     {
       "command": "CMD:APP_CLONE_RECON",
       "target_agent": "antigravity",
-      "allowed_callers": ["jack", "sam", "tyler", "ray", "dex", "scout", "architect", "eva"],
+      "allowed_callers": [
+        "jack",
+        "sam",
+        "tyler",
+        "ray",
+        "dex",
+        "scout",
+        "architect",
+        "eva"
+      ],
       "description": "Requests Alice (Antigravity) to generate S01..Sxx screen inventory, user flow F01, and NeuroFlow UI spec for an application target.",
-      "required_params": ["app_name", "target_platform", "requested_by"],
-      "optional_params": ["focus_features"],
+      "required_params": [
+        "app_name",
+        "target_platform",
+        "requested_by"
+      ],
+      "optional_params": [
+        "focus_features"
+      ],
       "token_cost_overhead": 0,
       "estimated_runtime_seconds": 5
     },
     {
       "command": "CMD:DOC_GENERATE",
       "target_agent": "antigravity",
-      "allowed_callers": ["fin", "doc", "trainer", "eva", "kodex", "marshal", "scout", "oscar", "atlas"],
+      "allowed_callers": [
+        "fin",
+        "doc",
+        "trainer",
+        "eva",
+        "kodex",
+        "marshal",
+        "scout",
+        "oscar",
+        "atlas",
+        "sonar"
+      ],
       "description": "Requests Alice (Antigravity) to generate formal DOCX, XLSX, or PDF documents in the workspace.",
-      "required_params": ["doc_type", "title", "data"],
-      "optional_params": ["template"],
+      "required_params": [
+        "doc_type",
+        "title",
+        "data"
+      ],
+      "optional_params": [
+        "template"
+      ],
       "token_cost_overhead": 0,
       "estimated_runtime_seconds": 2
     },
     {
       "command": "CMD:SCOUT_MARKETING_BRIEF",
       "target_agent": "oscar",
-      "allowed_callers": ["scout", "eva"],
+      "allowed_callers": [
+        "scout",
+        "eva"
+      ],
       "description": "Dispatches a structured marketing brief from Scout (niche, pain points, 0-3s hooks, inception angle) to Oscar for blog/video production.",
-      "required_params": ["niche", "pain_point", "target_wing"],
-      "optional_params": ["hooks", "inception_angle"],
+      "required_params": [
+        "niche",
+        "pain_point",
+        "target_wing"
+      ],
+      "optional_params": [
+        "hooks",
+        "inception_angle"
+      ],
       "token_cost_overhead": 0,
       "estimated_runtime_seconds": 1
     },
     {
       "command": "CMD:OSCAR_BLOG_CLUSTER_DRAFT",
       "target_agent": "oscar",
-      "allowed_callers": ["scout", "dex", "tyler", "ray", "eva"],
+      "allowed_callers": [
+        "scout",
+        "dex",
+        "tyler",
+        "ray",
+        "eva"
+      ],
       "description": "Requests Oscar to draft a bilingual (UA/EN) blog article in one of the 3 clusters (health_fitness, ai_tech, finance_ecommerce) with mandatory legal disclaimer and monetization links.",
-      "required_params": ["cluster_id", "topic", "language"],
-      "optional_params": ["monetization_links", "sources"],
+      "required_params": [
+        "cluster_id",
+        "topic",
+        "language"
+      ],
+      "optional_params": [
+        "monetization_links",
+        "sources"
+      ],
       "token_cost_overhead": 0,
       "estimated_runtime_seconds": 5
     },
     {
       "command": "CMD:DEX_AFFILIATE_BUNDLE",
       "target_agent": "oscar",
-      "allowed_callers": ["dex"],
+      "allowed_callers": [
+        "dex"
+      ],
       "description": "Delivers verified affiliate tracking links (UTM + sub_id) from Dex to Oscar for seamless injection into blog articles and social descriptions.",
-      "required_params": ["cluster", "campaign", "tracked_url"],
-      "optional_params": ["offer_name", "epc_usd"],
+      "required_params": [
+        "cluster",
+        "campaign",
+        "tracked_url"
+      ],
+      "optional_params": [
+        "offer_name",
+        "epc_usd"
+      ],
       "token_cost_overhead": 0,
       "estimated_runtime_seconds": 1
     },
     {
       "command": "CMD:TYLER_MERCH_SHOWCASE",
       "target_agent": "oscar",
-      "allowed_callers": ["tyler"],
+      "allowed_callers": [
+        "tyler"
+      ],
       "description": "Delivers high-margin (>=35%) POD merch mockup and storefront link from Tyler to Oscar for native blog/social integration.",
-      "required_params": ["collection_name", "mockup_path", "store_url"],
-      "optional_params": ["cluster", "margin_pct"],
+      "required_params": [
+        "collection_name",
+        "mockup_path",
+        "store_url"
+      ],
+      "optional_params": [
+        "cluster",
+        "margin_pct"
+      ],
       "token_cost_overhead": 0,
       "estimated_runtime_seconds": 1
     },
     {
       "command": "CMD:RAY_DROPSHIP_SHOWCASE",
       "target_agent": "oscar",
-      "allowed_callers": ["ray"],
+      "allowed_callers": [
+        "ray"
+      ],
       "description": "Delivers verified physical dropshipping product specs and review data from Ray to Oscar for product comparison articles.",
-      "required_params": ["product_title", "category", "store_url"],
-      "optional_params": ["net_margin_pct", "delivery_days"],
+      "required_params": [
+        "product_title",
+        "category",
+        "store_url"
+      ],
+      "optional_params": [
+        "net_margin_pct",
+        "delivery_days"
+      ],
       "token_cost_overhead": 0,
       "estimated_runtime_seconds": 1
+    },
+    {
+      "command": "CMD:SONAR_DEEP_RESEARCH",
+      "target_agent": "sonar",
+      "allowed_callers": [
+        "eva",
+        "scout",
+        "oscar",
+        "fin",
+        "doc",
+        "ray",
+        "tyler",
+        "dex",
+        "sam",
+        "jack",
+        "architect",
+        "kodex",
+        "alice",
+        "andrii"
+      ],
+      "description": "Requests Sonar to run comprehensive multi-source deep intelligence research via Perplexity sonar-deep-research, citation auditing, and Obsidian-ready packaging.",
+      "required_params": [
+        "topic",
+        "target_wing"
+      ],
+      "optional_params": [
+        "depth",
+        "confidence_threshold"
+      ],
+      "token_cost_overhead": 0,
+      "estimated_runtime_seconds": 15
+    },
+    {
+      "command": "CMD:SONAR_VERIFY_SOURCES",
+      "target_agent": "sonar",
+      "allowed_callers": [
+        "oscar",
+        "scout",
+        "fin",
+        "doc",
+        "eva",
+        "ray",
+        "architect"
+      ],
+      "description": "Requests Sonar to conduct rigorous fact-checking and source verification against Tier A/B evidence hierarchies.",
+      "required_params": [
+        "claim",
+        "sources"
+      ],
+      "optional_params": [
+        "notes"
+      ],
+      "token_cost_overhead": 0,
+      "estimated_runtime_seconds": 5
+    },
+    {
+      "command": "CMD:SONAR_COMPARE_MATRIX",
+      "target_agent": "sonar",
+      "allowed_callers": [
+        "eva",
+        "scout",
+        "dex",
+        "ray",
+        "tyler",
+        "architect",
+        "fin"
+      ],
+      "description": "Requests Sonar to build an objective side-by-side comparison matrix across multiple entities, competitors, or platforms.",
+      "required_params": [
+        "entities"
+      ],
+      "optional_params": [
+        "criteria"
+      ],
+      "token_cost_overhead": 0,
+      "estimated_runtime_seconds": 4
     }
   ]
 }

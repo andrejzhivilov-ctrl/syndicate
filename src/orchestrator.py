@@ -85,6 +85,11 @@ class EvaOrchestrator:
         "dex_task": "dex",
         "ray_task": "ray",
         "atlas_task": "atlas",
+        "sonar_task": "sonar",
+        "deep_research": "sonar",
+        "verify_sources": "sonar",
+        "compare_entities": "sonar",
+        "crawl_markdown": "sonar",
         "alice_engineer": "alice",
         "alice_code_review": "alice",
         "alice_status": "alice",
@@ -401,6 +406,7 @@ class EvaOrchestrator:
         builder.add_node("dex_agent", self._director_handler)
         builder.add_node("ray_agent", self._director_handler)
         builder.add_node("atlas_agent", self._director_handler)
+        builder.add_node("sonar_agent", self._director_handler)
         builder.add_node("router", self._route_task)
         builder.add_node("lessons_check", self._lessons_check)
 
@@ -465,6 +471,7 @@ class EvaOrchestrator:
             "dex": "dex_agent",
             "ray": "ray_agent",
             "atlas": "atlas_agent",
+            "sonar": "sonar_agent",
             "sensory": "sensory",
             "error_collector": "error_collector",
             "n8n_templates": "n8n_templates",
@@ -797,9 +804,10 @@ class EvaOrchestrator:
         from src.agents.dex import DexAgent
         from src.agents.ray import RayAgent
         from src.agents.atlas import AtlasAgent
+        from src.agents.sonar import SonarAgent
 
         agent_id = state["current_agent"]
-        classes = {"oscar": OscarAgent, "tyler": TylerAgent, "jack": JackAgent, "alice": AliceAgent, "scout": ScoutAgent, "dex": DexAgent, "ray": RayAgent, "atlas": AtlasAgent}
+        classes = {"oscar": OscarAgent, "tyler": TylerAgent, "jack": JackAgent, "alice": AliceAgent, "scout": ScoutAgent, "dex": DexAgent, "ray": RayAgent, "atlas": AtlasAgent, "sonar": SonarAgent}
         config = self._config.get(agent_id, {})
         payload = dict(state.get("payload") or {})
         default_actions = {
@@ -1482,6 +1490,7 @@ class EvaOrchestrator:
             "dex": self._director_handler,
             "ray": self._director_handler,
             "atlas": self._director_handler,
+            "sonar": self._director_handler,
             "sensory": self._sensory_handler,
             "error_collector": self._error_collector_handler,
             "n8n_templates": self._n8n_templates_handler,
@@ -1570,3 +1579,10 @@ class EvaOrchestrator:
             "active": active_floors(),
             "reserved": reserved_floors(),
         }
+
+
+    async def quick_perplexity_search(self, query: str) -> dict:
+        """Fast Perplexity lookup directly in Eva for immediate 2-3s answers."""
+        from src.agents.sonar import SonarAgent
+        agent = SonarAgent(memory=self._memory, config=self._config.get("sonar", {}))
+        return await agent.quick_search({"query": query})

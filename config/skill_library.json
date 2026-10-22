@@ -138,7 +138,8 @@
         "alice",
         "architect",
         "dex",
-        "kodex"
+        "kodex",
+        "sonar"
       ],
       "resources": {
         "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/documentation-and-adrs/SKILL.md",
@@ -161,7 +162,8 @@
       "mode": "reference_only",
       "agents": [
         "alice",
-        "architect"
+        "architect",
+        "sonar"
       ],
       "resources": {
         "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/source-driven-development/SKILL.md",
@@ -296,6 +298,7 @@
         "ray",
         "sam",
         "scout",
+        "sonar",
         "trainer"
       ],
       "resources": {
@@ -397,6 +400,7 @@
         "ray",
         "sam",
         "scout",
+        "sonar",
         "tyler"
       ],
       "resources": {
@@ -539,7 +543,8 @@
       "license": "internal",
       "mode": "reference_only",
       "agents": [
-        "kodex"
+        "kodex",
+        "sonar"
       ],
       "resources": {
         "SKILL.md": "kodex_core/skills/kodex-notebooklm/SKILL.md"
@@ -554,7 +559,8 @@
       "license": "internal",
       "mode": "reference_only",
       "agents": [
-        "kodex"
+        "kodex",
+        "sonar"
       ],
       "resources": {
         "SKILL.md": "kodex_core/skills/kodex-obsidian/SKILL.md"

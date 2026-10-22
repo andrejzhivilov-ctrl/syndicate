@@ -1,0 +1,171 @@
+{
+  "schema_version": 1,
+  "agent_id": "sonar",
+  "activation": "prepared_not_enabled",
+  "runtime": "hermes",
+  "runtime_profile": "sonar",
+  "display_name": "SONAR (Chief of Global Intelligence & Deep Research)",
+  "role_title": "Головний аналітик та керівник відділу глобальної розвідки, глибокого пошуку та верифікації першоджерел",
+  "memory_namespace": "agents/sonar",
+  "prompt_file": "src/agents/sonar_runtime_prompt.md",
+  "prompt_status": "draft",
+  "role_status": "agreed_draft",
+  "model_status": "not_selected",
+  "task_source": "andrii_only",
+  "reports_to": "eva",
+  "capabilities": [],
+  "grants": [],
+  "resource_scopes": [],
+  "services_enabled": [],
+  "skills": [],
+  "telegram": {
+    "status": "configured_draft",
+    "bot_name": "SYNDICATE_SONAR_BOT",
+    "channel": "sonar_deep_intelligence",
+    "interactive_keyboards": [
+      {
+        "row": 1,
+        "buttons": [
+          {
+            "text": "🔍 Глибокий ресерч",
+            "callback_data": "cmd:sonar:deep_research"
+          },
+          {
+            "text": "📊 Порівняльна матриця",
+            "callback_data": "cmd:sonar:compare"
+          }
+        ]
+      },
+      {
+        "row": 2,
+        "buttons": [
+          {
+            "text": "🛡️ Верифікація першоджерел",
+            "callback_data": "cmd:sonar:verify"
+          },
+          {
+            "text": "🌐 Firecrawl у Markdown",
+            "callback_data": "cmd:sonar:crawl"
+          }
+        ]
+      },
+      {
+        "row": 3,
+        "buttons": [
+          {
+            "text": "📚 Упакувати в Obsidian",
+            "callback_data": "cmd:sonar:obsidian_export"
+          },
+          {
+            "text": "📈 Статус та ліміти",
+            "callback_data": "cmd:sonar:status"
+          }
+        ]
+      }
+    ],
+    "allowlist": []
+  },
+  "live_modes": {
+    "api": false,
+    "internet": false,
+    "browser_automation": false,
+    "github": false,
+    "image_generation": false,
+    "video_render": false,
+    "billing": false,
+    "history_ingest": false,
+    "production_deployment": false,
+    "telegram_bot": false
+  },
+  "internet": {
+    "enabled": false,
+    "mode": "controlled_gateway",
+    "default_policy": "deny",
+    "allowed_domains": []
+  },
+  "egress": {
+    "mode": "controlled_gateway",
+    "default": "deny",
+    "allowed_domains": []
+  },
+  "network": {
+    "internet_enabled": false,
+    "controlled_gateway": true,
+    "default_policy": "deny",
+    "allowed_domains": []
+  },
+  "knowledge_bases": {
+    "drive": {
+      "activation": "not_configured"
+    },
+    "obsidian": {
+      "activation": "not_configured"
+    },
+    "archive": {
+      "activation": "reserved",
+      "namespace": "agents/sonar"
+    }
+  },
+  "reports": {
+    "to_eva": "payload_only",
+    "full_report": "andrii_direct_request"
+  },
+  "reference_skills": [
+    "documentation-and-adrs",
+    "kodex-notebooklm",
+    "kodex-obsidian",
+    "market-research",
+    "scientific-critical-thinking",
+    "source-driven-development"
+  ],
+  "proposed_grants": [
+    {
+      "capability": "sonar.research.perplexity",
+      "status": "proposed_not_applied",
+      "purpose": "Глибокі аналітичні дослідження через шлюз Perplexity API (sonar-deep-research, sonar-reasoning-pro)."
+    },
+    {
+      "capability": "sonar.crawl.markdown",
+      "status": "proposed_not_applied",
+      "purpose": "Очищений веб-скрейпінг через Playwright та Firecrawl у структурований Markdown."
+    },
+    {
+      "capability": "sonar.sources.verify",
+      "status": "proposed_not_applied",
+      "purpose": "Академічна верифікація першоджерел, оцінка авторитетності та фактчекінг тверджень."
+    },
+    {
+      "capability": "sonar.report.eva",
+      "status": "proposed_not_applied",
+      "purpose": "Стислі аналітичні звіти Єві та експорт масивів у NotebookLM і Obsidian."
+    },
+    {
+      "capability": "sonar.memory.read",
+      "status": "proposed_not_applied",
+      "resource_scope": "agents/sonar",
+      "purpose": "Читання власної бази досліджень та уроків (lessons)."
+    },
+    {
+      "capability": "sonar.memory.write",
+      "status": "proposed_not_applied",
+      "resource_scope": "agents/sonar",
+      "purpose": "Збереження верифікованих аналітичних досьє."
+    },
+    {
+      "capability": "sonar.n8n.integration",
+      "status": "proposed_not_applied",
+      "purpose": "Модульне підключення до n8n workflow для запланованих моніторингів без auto-execute."
+    }
+  ],
+  "deployment_deferred": [
+    "Telegram-бот",
+    "інтернет-шлюз Perplexity",
+    "Playwright/Firecrawl пісочниця",
+    "вибір production LLM"
+  ],
+  "n8n": {
+    "status": "not_configured",
+    "mode": "design_and_mount_only",
+    "activate": false
+  }
+}

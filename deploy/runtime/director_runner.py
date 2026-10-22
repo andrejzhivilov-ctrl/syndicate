@@ -19,6 +19,7 @@ from src.agents.jack import JackAgent
 from src.agents.oscar import OscarAgent
 from src.agents.ray import RayAgent
 from src.agents.scout import ScoutAgent
+from src.agents.sonar import SonarAgent
 from src.agents.trainer import TrainerAgent
 from src.agents.tyler import TylerAgent
 from src.vault_client import VaultClient, is_placeholder_secret
@@ -33,6 +34,7 @@ AGENTS = {
     "dex": DexAgent,
     "ray": RayAgent,
     "atlas": AtlasAgent,
+    "sonar": SonarAgent,
 }
 
 

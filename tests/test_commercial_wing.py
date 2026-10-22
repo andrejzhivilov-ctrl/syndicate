@@ -15,6 +15,7 @@ from src.agents.oscar import OscarAgent
 from src.agents.oscar.agent import LEGAL_DISCLAIMERS
 from src.agents.ray import RayAgent
 from src.agents.scout import ScoutAgent
+from src.agents.sonar import SonarAgent
 from src.runtime_config import build_runtime_config
 
 
@@ -27,7 +28,7 @@ def director_data(tmp_path, monkeypatch):
     monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
 
 
-@pytest.mark.parametrize("cls", [ScoutAgent, DexAgent, RayAgent, AtlasAgent])
+@pytest.mark.parametrize("cls", [ScoutAgent, DexAgent, RayAgent, AtlasAgent, SonarAgent])
 def test_new_directors_reject_unknown_actions(cls):
     result = run(cls(), "unknown_action_xyz")
     assert result["status"] == "error"
@@ -41,6 +42,8 @@ def test_new_directors_reject_unknown_actions(cls):
         (DexAgent, "activate_paid_traffic"),
         (RayAgent, "place_supplier_order"),
         (AtlasAgent, "book_ticket"),
+        (SonarAgent, "live_scrape"),
+        (SonarAgent, "autonomous_crawl"),
     ],
 )
 def test_new_directors_block_external_spend_without_hitl(cls, blocked_action):
@@ -214,7 +217,7 @@ def test_atlas_route_planning_and_destination_evaluation():
 
 def test_director_runner_and_command_hub_include_all_commercial_agents():
     cfg = build_runtime_config({})
-    for agent_id in ("oscar", "tyler", "jack", "scout", "dex", "ray", "atlas"):
+    for agent_id in ("oscar", "tyler", "jack", "scout", "dex", "ray", "atlas", "sonar"):
         assert agent_id in AGENTS
         assert cfg[agent_id]["enabled"] is False
         assert cfg[agent_id]["allowed_actions"] == ["capabilities"]
@@ -227,3 +230,95 @@ def test_director_runner_and_command_hub_include_all_commercial_agents():
     assert "CMD:DEX_AFFILIATE_BUNDLE" in cmd_ids
     assert "CMD:TYLER_MERCH_SHOWCASE" in cmd_ids
     assert "CMD:RAY_DROPSHIP_SHOWCASE" in cmd_ids
+    assert "CMD:SONAR_DEEP_RESEARCH" in cmd_ids
+    assert "CMD:SONAR_VERIFY_SOURCES" in cmd_ids
+    assert "CMD:SONAR_COMPARE_MATRIX" in cmd_ids
+
+
+def test_sonar_deep_research_and_intelligence_capabilities():
+    sonar = SonarAgent()
+
+    # Deep Research
+    research = run(
+        sonar,
+        "deep_research",
+        topic="Multi-Tenant Agent Security Architecture",
+        depth="comprehensive",
+        target_wing="eva",
+        confidence_score=0.96,
+    )
+    assert research["status"] == "ok"
+    dossier = research["dossier"]
+    assert dossier["topic"] == "Multi-Tenant Agent Security Architecture"
+    assert dossier["engine"] == "sonar-deep-research"
+    assert dossier["evidence_grade"] == "Tier A"
+    assert dossier["confidence_score"] == 0.96
+    assert "tags: [intelligence, deep_research, verified, holding]" in dossier["obsidian_markdown"]
+
+    # Quick Search (Fast Lookup)
+    quick = run(sonar, "quick_search", query="What is current inflation rate in EU?")
+    assert quick["status"] == "ok"
+    assert quick["engine"] == "sonar-pro"
+    assert quick["execution_mode"] == "fast_lookup"
+
+    # Verify Sources
+    verification = run(
+        sonar,
+        "verify_sources",
+        claim="Zero-Token architecture reduces token consumption by 95%",
+        sources=[
+            {"url": "https://syndicate.internal/benchmarks/zero_token", "tier": "Tier A", "notes": "Empirical run logs"},
+            {"url": "https://industry-review.org/analysis", "tier": "Tier B", "notes": "Independent auditor"}
+        ]
+    )
+    assert verification["status"] == "ok"
+    assert verification["verification"]["verified"] is True
+    assert verification["verification"]["verdict"] == "verified_authoritative"
+
+    # Compare Entities
+    compare = run(
+        sonar,
+        "compare_entities",
+        entities=["Firecrawl", "Playwright", "Puppeteer"],
+        criteria=["LLM Readiness", "Anti-Bot Bypass", "Token Efficiency"]
+    )
+    assert compare["status"] == "ok"
+    assert len(compare["comparison"]["entities"]) == 3
+    assert compare["comparison"]["winner"] == "Firecrawl"
+
+    # Crawl and Extract (Sanitized Markdown)
+    crawl = run(
+        sonar,
+        "crawl_and_extract",
+        url="https://docs.perplexity.ai/reference/post_chat_completions",
+        page_title="Perplexity API Reference"
+    )
+    assert crawl["status"] == "ok"
+    assert crawl["domain"] == "docs.perplexity.ai"
+    assert crawl["noise_stripped"] is True
+
+    # Package for Obsidian
+    package = run(sonar, "package_for_obsidian", dossier_id=dossier["id"])
+    assert package["status"] == "ok"
+    assert package["export_target"] == "obsidian_second_brain"
+    assert package["notebooklm_ready"] is True
+
+    # Report
+    rep = run(sonar, "report")
+    assert rep["status"] == "ok"
+    assert rep["dossiers_completed"] == 1
+    assert rep["verifications_conducted"] == 1
+    assert rep["comparisons_built"] == 1
+    assert rep["external_actions"] is False
+
+
+def test_orchestrator_eva_quick_perplexity_search():
+    from src.orchestrator import EvaOrchestrator
+    orchestrator = object.__new__(EvaOrchestrator)
+    orchestrator._config = {"sonar": {"enabled": True}}
+    orchestrator._memory = None
+
+    result = asyncio.run(orchestrator.quick_perplexity_search("Quick holding status"))
+    assert result["status"] == "ok"
+    assert result["engine"] == "sonar-pro"
+    assert result["execution_mode"] == "fast_lookup"
