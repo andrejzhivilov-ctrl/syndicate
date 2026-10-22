@@ -5,7 +5,7 @@
   "runtime": "antigravity_sdk",
   "runtime_profile": "alice",
   "memory_namespace": "agents/alice",
-  "role_title": "Керівниця інженерного відділу (Head of Engineering)",
+  "role_title": "Керівник відділу реалізації (Head of Implementation / Delivery & R&D)",
   "reports_to": "eva",
   "authority": {
     "ceo": "eva",
@@ -195,5 +195,6 @@
       "activation": "reserved",
       "namespace": "agents/alice"
     }
-  }
+  },
+  "display_name": "ALICE / Antigravity (Head of Implementation & R&D)"
 }

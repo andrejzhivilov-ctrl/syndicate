@@ -2,7 +2,12 @@
   "id": "julian_pierce",
   "name": "Julian Pierce",
   "brand": "The CashFlow Blueprint",
-  "niche": "Solopreneurship and digital assets",
-  "voice": "Calm, pragmatic; explicit P&L, CAC and LTV; no income promises",
-  "language": "en"
+  "cluster": "finance_ecommerce",
+  "cluster_title_ua": "Фінанси, Заробіток, Крипта, YouTube/TikTok, Маркетинг та E-Commerce",
+  "cluster_title_en": "Finance, Wealth, Crypto, YouTube/TikTok, Marketing & E-Commerce",
+  "niche": "Solopreneurship, finance, crypto, YouTube/TikTok growth, marketing and e-commerce",
+  "voice": "Calm, analytical, pragmatic; explicit P&L, CAC and LTV; no income promises",
+  "language": "en",
+  "supported_languages": ["ua", "en"],
+  "disclaimer_type": "finance"
 }

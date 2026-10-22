@@ -1,13 +1,17 @@
 {
   "schema_version": 1,
   "hub_id": "syndicate_command_hub",
-  "description": "Deterministic Zero-Token RPC Command Catalog for inter-agent operations across SYNDICATE.",
+  "description": "Deterministic Zero-Token RPC Command Catalog for inter-agent operations across SYNDICATE Holding.",
   "commands": [
     {
       "command": "CMD:NOTEBOOKLM_PROCESS",
       "target_agent": "antigravity",
-      "allowed_callers": ["kodex", "jack", "sam", "doc", "trainer", "kira", "tyler", "oscar", "fin", "marshal", "architect", "eva"],
-      "description": "Requests Antigravity to run deep analytical synthesis in Google NotebookLM and export knowledge dossier into Obsidian Second Brain.",
+      "allowed_callers": [
+        "kodex", "jack", "sam", "doc", "trainer", "kira",
+        "tyler", "oscar", "scout", "dex", "ray", "atlas",
+        "fin", "marshal", "architect", "eva", "alice"
+      ],
+      "description": "Requests Alice (Antigravity) to run deep analytical synthesis in Google NotebookLM and export knowledge dossier into Obsidian Second Brain.",
       "required_params": ["notebook_id", "category", "requested_by"],
       "optional_params": ["title", "backlinks", "tags"],
       "token_cost_overhead": 0,
@@ -17,7 +21,7 @@
       "command": "CMD:N8N_BUILD_WORKFLOW",
       "target_agent": "antigravity",
       "allowed_callers": ["architect"],
-      "description": "Requests Antigravity to validate FlowLint rules, compile native n8n JSON, and stage the workflow for server deployment.",
+      "description": "Requests Alice (Antigravity) to validate FlowLint rules, compile native n8n JSON, and stage the workflow for server deployment.",
       "required_params": ["blueprint_id", "blueprint_data"],
       "optional_params": ["tags", "category"],
       "token_cost_overhead": 0,
@@ -26,7 +30,11 @@
     {
       "command": "CMD:TASK_WEB_TRANSITION",
       "target_agent": "kodex",
-      "allowed_callers": ["antigravity", "eva", "architect", "jack", "sam", "doc", "trainer", "kira", "tyler", "oscar", "fin", "marshal"],
+      "allowed_callers": [
+        "antigravity", "alice", "eva", "architect", "jack", "sam",
+        "doc", "trainer", "kira", "tyler", "oscar", "scout",
+        "dex", "ray", "atlas", "fin", "marshal"
+      ],
       "description": "Requests Kodex to transition a task card state in Obsidian 04_Tasks_Web and update timeline logs.",
       "required_params": ["task_id", "new_status", "agent_id"],
       "optional_params": ["note"],
@@ -36,8 +44,8 @@
     {
       "command": "CMD:APP_CLONE_RECON",
       "target_agent": "antigravity",
-      "allowed_callers": ["jack", "sam", "tyler", "architect", "eva"],
-      "description": "Requests Antigravity to generate S01..Sxx screen inventory, user flow F01, and NeuroFlow UI spec for an application target.",
+      "allowed_callers": ["jack", "sam", "tyler", "ray", "dex", "scout", "architect", "eva"],
+      "description": "Requests Alice (Antigravity) to generate S01..Sxx screen inventory, user flow F01, and NeuroFlow UI spec for an application target.",
       "required_params": ["app_name", "target_platform", "requested_by"],
       "optional_params": ["focus_features"],
       "token_cost_overhead": 0,
@@ -46,12 +54,62 @@
     {
       "command": "CMD:DOC_GENERATE",
       "target_agent": "antigravity",
-      "allowed_callers": ["fin", "doc", "trainer", "eva", "kodex", "marshal"],
-      "description": "Requests Antigravity to generate formal DOCX, XLSX, or PDF documents in the workspace.",
+      "allowed_callers": ["fin", "doc", "trainer", "eva", "kodex", "marshal", "scout", "oscar", "atlas"],
+      "description": "Requests Alice (Antigravity) to generate formal DOCX, XLSX, or PDF documents in the workspace.",
       "required_params": ["doc_type", "title", "data"],
       "optional_params": ["template"],
       "token_cost_overhead": 0,
       "estimated_runtime_seconds": 2
+    },
+    {
+      "command": "CMD:SCOUT_MARKETING_BRIEF",
+      "target_agent": "oscar",
+      "allowed_callers": ["scout", "eva"],
+      "description": "Dispatches a structured marketing brief from Scout (niche, pain points, 0-3s hooks, inception angle) to Oscar for blog/video production.",
+      "required_params": ["niche", "pain_point", "target_wing"],
+      "optional_params": ["hooks", "inception_angle"],
+      "token_cost_overhead": 0,
+      "estimated_runtime_seconds": 1
+    },
+    {
+      "command": "CMD:OSCAR_BLOG_CLUSTER_DRAFT",
+      "target_agent": "oscar",
+      "allowed_callers": ["scout", "dex", "tyler", "ray", "eva"],
+      "description": "Requests Oscar to draft a bilingual (UA/EN) blog article in one of the 3 clusters (health_fitness, ai_tech, finance_ecommerce) with mandatory legal disclaimer and monetization links.",
+      "required_params": ["cluster_id", "topic", "language"],
+      "optional_params": ["monetization_links", "sources"],
+      "token_cost_overhead": 0,
+      "estimated_runtime_seconds": 5
+    },
+    {
+      "command": "CMD:DEX_AFFILIATE_BUNDLE",
+      "target_agent": "oscar",
+      "allowed_callers": ["dex"],
+      "description": "Delivers verified affiliate tracking links (UTM + sub_id) from Dex to Oscar for seamless injection into blog articles and social descriptions.",
+      "required_params": ["cluster", "campaign", "tracked_url"],
+      "optional_params": ["offer_name", "epc_usd"],
+      "token_cost_overhead": 0,
+      "estimated_runtime_seconds": 1
+    },
+    {
+      "command": "CMD:TYLER_MERCH_SHOWCASE",
+      "target_agent": "oscar",
+      "allowed_callers": ["tyler"],
+      "description": "Delivers high-margin (>=35%) POD merch mockup and storefront link from Tyler to Oscar for native blog/social integration.",
+      "required_params": ["collection_name", "mockup_path", "store_url"],
+      "optional_params": ["cluster", "margin_pct"],
+      "token_cost_overhead": 0,
+      "estimated_runtime_seconds": 1
+    },
+    {
+      "command": "CMD:RAY_DROPSHIP_SHOWCASE",
+      "target_agent": "oscar",
+      "allowed_callers": ["ray"],
+      "description": "Delivers verified physical dropshipping product specs and review data from Ray to Oscar for product comparison articles.",
+      "required_params": ["product_title", "category", "store_url"],
+      "optional_params": ["net_margin_pct", "delivery_days"],
+      "token_cost_overhead": 0,
+      "estimated_runtime_seconds": 1
     }
   ]
 }

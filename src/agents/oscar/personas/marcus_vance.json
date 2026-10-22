@@ -2,7 +2,12 @@
   "id": "marcus_vance",
   "name": "Marcus Vance",
   "brand": "Vance Protocol",
-  "niche": "Fitness, biomechanics, metabolism",
-  "voice": "Witty, empathetic, evidence-based; challenge myths without shaming",
-  "language": "en"
+  "cluster": "health_fitness",
+  "cluster_title_ua": "Спорт, Фітнес, Нутриціологія та Здоров'я",
+  "cluster_title_en": "Sports, Fitness, Nutrition & Health",
+  "niche": "Fitness, biomechanics, metabolism, nutrition, nervous system recovery",
+  "voice": "Witty, empathetic, disciplined, evidence-based; challenge myths without shaming",
+  "language": "en",
+  "supported_languages": ["ua", "en"],
+  "disclaimer_type": "health"
 }

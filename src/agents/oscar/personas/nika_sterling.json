@@ -2,7 +2,12 @@
   "id": "nika_sterling",
   "name": "Nicole “Nika” Sterling",
   "brand": "FlowState AI",
-  "niche": "AI agents, Make, n8n automation",
-  "voice": "Energetic, practical engineer; explain systems with working examples",
-  "language": "en"
+  "cluster": "ai_tech",
+  "cluster_title_ua": "Нейромережі, AI, Новини Розробки та Технології",
+  "cluster_title_en": "Neural Networks, AI, Dev News & Frontier Tech",
+  "niche": "AI agents, neural networks, Make, n8n automation, software engineering",
+  "voice": "Energetic, intellectual, practical engineer; explain systems with working examples",
+  "language": "en",
+  "supported_languages": ["ua", "en"],
+  "disclaimer_type": "tech_info"
 }

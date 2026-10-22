@@ -12,15 +12,28 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
+from src.agents.atlas import AtlasAgent
+from src.agents.dex import DexAgent
 from src.agents.director_providers import build_provider
 from src.agents.jack import JackAgent
 from src.agents.oscar import OscarAgent
-from src.agents.tyler import TylerAgent
+from src.agents.ray import RayAgent
+from src.agents.scout import ScoutAgent
 from src.agents.trainer import TrainerAgent
+from src.agents.tyler import TylerAgent
 from src.vault_client import VaultClient, is_placeholder_secret
 from src.vault_paths import agent_secret_path
 
-AGENTS = {"oscar": OscarAgent, "tyler": TylerAgent, "jack": JackAgent, "trainer": TrainerAgent}
+AGENTS = {
+    "oscar": OscarAgent,
+    "tyler": TylerAgent,
+    "jack": JackAgent,
+    "trainer": TrainerAgent,
+    "scout": ScoutAgent,
+    "dex": DexAgent,
+    "ray": RayAgent,
+    "atlas": AtlasAgent,
+}
 
 
 class DirectorRequest(BaseModel):

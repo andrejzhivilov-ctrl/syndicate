@@ -277,7 +277,7 @@ def build_runtime_config(env: Optional[Dict[str, str]] = None) -> Dict[str, Any]
             ],
         },
     }
-    for agent_id in ("oscar", "tyler", "jack", "alice"):
+    for agent_id in ("oscar", "tyler", "jack", "alice", "scout", "dex", "ray", "atlas"):
         prefix = agent_id.upper()
         config[agent_id] = {
             "enabled": _to_bool(get(f"{prefix}_WORKER_ENABLED")),

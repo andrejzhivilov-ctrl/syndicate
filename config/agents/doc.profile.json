@@ -5,8 +5,8 @@
   "runtime": "hermes",
   "runtime_profile": "doc",
   "memory_namespace": "agents/doc",
-  "prompt_status": "not_prepared",
-  "role_status": "not_agreed",
+  "prompt_status": "draft",
+  "role_status": "agreed_draft",
   "model_status": "not_selected",
   "capabilities": [],
   "resource_scopes": [],
@@ -83,5 +83,8 @@
     "status": "not_configured",
     "mode": "design_and_mount_only",
     "activate": false
-  }
+  },
+  "prompt_file": "src/agents/doc_runtime_prompt.md",
+  "display_name": "DOC (Health, Biomarkers & Nervous System Recovery)",
+  "role_title": "Керівник відділу медицини, біомаркерів, ранкової готовності та відновлення нервової системи"
 }

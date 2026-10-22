@@ -98,9 +98,138 @@ services:
       nofile:
         soft: 1024
         hard: 2048
-  # Retired compatibility stub: Antigravity is a runtime technology, not an
-  # independently activatable agent. This profile is intentionally excluded
-  # from the general `directors` profile.
+  scout-agent:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.director
+    profiles:
+    - directors
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m
+    environment:
+      SYNDICATE_DIRECTOR_ID: scout
+      SYNDICATE_DIRECTOR_ACTIONS: ${SCOUT_ACTIONS:-capabilities}
+      EVA_DATA_DIR: /data/director
+      VAULT_ADDR: ${VAULT_ADDR:?set reachable Vault URL}
+      VAULT_ROLE_ID: ${SCOUT_VAULT_ROLE_ID:?set scout AppRole}
+      VAULT_SECRET_ID: ${SCOUT_VAULT_SECRET_ID:?set scout SecretID}
+      SYNDICATE_DIRECTOR_PROVIDERS: ${SCOUT_PROVIDERS:-}
+    volumes:
+    - scout_data:/data/director
+    networks:
+    - scout_control
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 128
+    ulimits:
+      nofile:
+        soft: 1024
+        hard: 2048
+  dex-agent:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.director
+    profiles:
+    - directors
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m
+    environment:
+      SYNDICATE_DIRECTOR_ID: dex
+      SYNDICATE_DIRECTOR_ACTIONS: ${DEX_ACTIONS:-capabilities}
+      EVA_DATA_DIR: /data/director
+      VAULT_ADDR: ${VAULT_ADDR:?set reachable Vault URL}
+      VAULT_ROLE_ID: ${DEX_VAULT_ROLE_ID:?set dex AppRole}
+      VAULT_SECRET_ID: ${DEX_VAULT_SECRET_ID:?set dex SecretID}
+      SYNDICATE_DIRECTOR_PROVIDERS: ${DEX_PROVIDERS:-}
+    volumes:
+    - dex_data:/data/director
+    networks:
+    - dex_control
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 128
+    ulimits:
+      nofile:
+        soft: 1024
+        hard: 2048
+  ray-agent:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.director
+    profiles:
+    - directors
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m
+    environment:
+      SYNDICATE_DIRECTOR_ID: ray
+      SYNDICATE_DIRECTOR_ACTIONS: ${RAY_ACTIONS:-capabilities}
+      EVA_DATA_DIR: /data/director
+      VAULT_ADDR: ${VAULT_ADDR:?set reachable Vault URL}
+      VAULT_ROLE_ID: ${RAY_VAULT_ROLE_ID:?set ray AppRole}
+      VAULT_SECRET_ID: ${RAY_VAULT_SECRET_ID:?set ray SecretID}
+      SYNDICATE_DIRECTOR_PROVIDERS: ${RAY_PROVIDERS:-}
+    volumes:
+    - ray_data:/data/director
+    networks:
+    - ray_control
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 128
+    ulimits:
+      nofile:
+        soft: 1024
+        hard: 2048
+  atlas-agent:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile.director
+    profiles:
+    - directors
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m
+    environment:
+      SYNDICATE_DIRECTOR_ID: atlas
+      SYNDICATE_DIRECTOR_ACTIONS: ${ATLAS_ACTIONS:-capabilities}
+      EVA_DATA_DIR: /data/director
+      VAULT_ADDR: ${VAULT_ADDR:?set reachable Vault URL}
+      VAULT_ROLE_ID: ${ATLAS_VAULT_ROLE_ID:?set atlas AppRole}
+      VAULT_SECRET_ID: ${ATLAS_VAULT_SECRET_ID:?set atlas SecretID}
+      SYNDICATE_DIRECTOR_PROVIDERS: ${ATLAS_PROVIDERS:-}
+    volumes:
+    - atlas_data:/data/director
+    networks:
+    - atlas_control
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 128
+    ulimits:
+      nofile:
+        soft: 1024
+        hard: 2048
   trainer-agent:
     build:
       context: ..
@@ -173,6 +302,14 @@ networks:
     driver: bridge
   jack_control:
     driver: bridge
+  scout_control:
+    driver: bridge
+  dex_control:
+    driver: bridge
+  ray_control:
+    driver: bridge
+  atlas_control:
+    driver: bridge
   antigravity_control:
     driver: bridge
   trainer_control:
@@ -181,5 +318,9 @@ volumes:
   oscar_data: {}
   tyler_data: {}
   jack_data: {}
+  scout_data: {}
+  dex_data: {}
+  ray_data: {}
+  atlas_data: {}
   antigravity_data: {}
   trainer_data: {}

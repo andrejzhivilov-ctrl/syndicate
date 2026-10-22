@@ -113,5 +113,8 @@
     "status": "not_configured",
     "mode": "design_and_mount_only",
     "activate": false
-  }
+  },
+  "prompt_status": "draft",
+  "display_name": "EVA (Chief Executive Officer / CEO)",
+  "role_title": "Генеральний директор холдингу (CEO), координатор структурних відділів"
 }

@@ -81,6 +81,10 @@ class EvaOrchestrator:
         "oscar_task": "oscar",
         "tyler_task": "tyler",
         "jack_task": "jack",
+        "scout_task": "scout",
+        "dex_task": "dex",
+        "ray_task": "ray",
+        "atlas_task": "atlas",
         "alice_engineer": "alice",
         "alice_code_review": "alice",
         "alice_status": "alice",
@@ -393,6 +397,10 @@ class EvaOrchestrator:
         builder.add_node("tyler_agent", self._director_handler)
         builder.add_node("jack_agent", self._director_handler)
         builder.add_node("alice_agent", self._director_handler)
+        builder.add_node("scout_agent", self._director_handler)
+        builder.add_node("dex_agent", self._director_handler)
+        builder.add_node("ray_agent", self._director_handler)
+        builder.add_node("atlas_agent", self._director_handler)
         builder.add_node("router", self._route_task)
         builder.add_node("lessons_check", self._lessons_check)
 
@@ -453,6 +461,10 @@ class EvaOrchestrator:
             "tyler": "tyler_agent",
             "jack": "jack_agent",
             "alice": "alice_agent",
+            "scout": "scout_agent",
+            "dex": "dex_agent",
+            "ray": "ray_agent",
+            "atlas": "atlas_agent",
             "sensory": "sensory",
             "error_collector": "error_collector",
             "n8n_templates": "n8n_templates",
@@ -781,9 +793,13 @@ class EvaOrchestrator:
         from src.agents.tyler import TylerAgent
         from src.agents.jack import JackAgent
         from src.agents.alice import AliceAgent
+        from src.agents.scout import ScoutAgent
+        from src.agents.dex import DexAgent
+        from src.agents.ray import RayAgent
+        from src.agents.atlas import AtlasAgent
 
         agent_id = state["current_agent"]
-        classes = {"oscar": OscarAgent, "tyler": TylerAgent, "jack": JackAgent, "alice": AliceAgent}
+        classes = {"oscar": OscarAgent, "tyler": TylerAgent, "jack": JackAgent, "alice": AliceAgent, "scout": ScoutAgent, "dex": DexAgent, "ray": RayAgent, "atlas": AtlasAgent}
         config = self._config.get(agent_id, {})
         payload = dict(state.get("payload") or {})
         default_actions = {
@@ -1462,6 +1478,10 @@ class EvaOrchestrator:
             "tyler": self._director_handler,
             "jack": self._director_handler,
             "alice": self._director_handler,
+            "scout": self._director_handler,
+            "dex": self._director_handler,
+            "ray": self._director_handler,
+            "atlas": self._director_handler,
             "sensory": self._sensory_handler,
             "error_collector": self._error_collector_handler,
             "n8n_templates": self._n8n_templates_handler,
