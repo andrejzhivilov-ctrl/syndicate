@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "agent_id": "publicist",
+  "activation": "prepared_not_enabled",
+  "runtime": "hermes",
+  "runtime_profile": "publicist",
+  "display_name": "PUBLICIST (Multi-Blog Network & Content Publishing)",
+  "role_title": "Керівник мережі нішевих блогів, видавничого конвеєра та публікацій",
+  "memory_namespace": "agents/publicist",
+  "prompt_file": "src/agents/publicist_runtime_prompt.md",
+  "prompt_status": "draft",
+  "role_status": "agreed_draft",
+  "model_status": "not_selected",
+  "task_source": "andrii_only",
+  "reports_to": "eva",
+  "capabilities": [],
+  "grants": [],
+  "resource_scopes": [],
+  "services_enabled": [],
+  "skills": [],
+  "telegram": {
+    "status": "not_connected",
+    "allowlist": []
+  },
+  "live_modes": {
+    "api": false,
+    "internet": false,
+    "browser_automation": false,
+    "github": false,
+    "image_generation": false,
+    "video_render": false,
+    "billing": false,
+    "history_ingest": false,
+    "production_deployment": false,
+    "telegram_bot": false
+  },
+  "internet": {
+    "enabled": false,
+    "mode": "controlled_gateway",
+    "default_policy": "deny",
+    "allowed_domains": []
+  },
+  "egress": {
+    "mode": "controlled_gateway",
+    "default": "deny",
+    "allowed_domains": []
+  },
+  "network": {
+    "internet_enabled": false,
+    "controlled_gateway": true,
+    "default_policy": "deny",
+    "allowed_domains": []
+  },
+  "knowledge_bases": {
+    "drive": {
+      "activation": "not_configured"
+    },
+    "obsidian": {
+      "activation": "not_configured"
+    },
+    "archive": {
+      "activation": "reserved",
+      "namespace": "agents/publicist"
+    }
+  },
+  "reports": {
+    "to_eva": "payload_only",
+    "full_report": "andrii_direct_request"
+  },
+  "reference_skills": [
+    "content-engine",
+    "brand-voice",
+    "internal-comms",
+    "market-research"
+  ],
+  "proposed_grants": [
+    {
+      "capability": "publicist.blog.publish",
+      "status": "proposed_not_applied",
+      "purpose": "Публікація статей у блоги Ghost/WordPress за схваленням."
+    },
+    {
+      "capability": "publicist.social.post",
+      "status": "proposed_not_applied",
+      "purpose": "Публікація контенту в соцмережі через відкладений буфер."
+    },
+    {
+      "capability": "publicist.report.eva",
+      "status": "proposed_not_applied",
+      "purpose": "Звіти про публікації Єві."
+    },
+    {
+      "capability": "publicist.memory.read",
+      "status": "proposed_not_applied",
+      "resource_scope": "agents/publicist",
+      "purpose": "Читання власної пам'яті."
+    },
+    {
+      "capability": "publicist.memory.write",
+      "status": "proposed_not_applied",
+      "resource_scope": "agents/publicist",
+      "purpose": "Запис чернеток статей і контент-планів."
+    },
+    {
+      "capability": "publicist.n8n.integration",
+      "status": "proposed_not_applied",
+      "purpose": "Інтеграція з n8n: дизайн та монтаж workflow публікацій без activate."
+    }
+  ],
+  "deployment_deferred": [
+    "Telegram-бот",
+    "Ghost/WordPress API",
+    "соцмережі",
+    "вибір LLM"
+  ],
+  "n8n": {
+    "status": "not_configured",
+    "mode": "design_and_mount_only",
+    "activate": false
+  }
+}

@@ -19,8 +19,8 @@ from src.agent_platform.registry import AgentRegistry
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILES_DIR = ROOT / "config" / "agents"
-EXPECTED_IDS = frozenset({"eva", "architect", "marshal", "fin", "doc", "kira", "sam", "kodex", "alice", "oscar", "tyler", "jack", "ray", "dex", "atlas", "trainer"})
-FORMED_IDENTITY = frozenset({"eva", "architect", "marshal", "sam", "fin", "alice", "oscar", "tyler", "jack", "ray", "dex"})
+EXPECTED_IDS = frozenset({"eva", "architect", "marshal", "fin", "doc", "kira", "sam", "kodex", "alice", "oscar", "tyler", "jack", "ray", "dex", "atlas", "trainer", "publicist"})
+FORMED_IDENTITY = frozenset({"eva", "architect", "marshal", "sam", "fin", "alice", "oscar", "tyler", "jack", "ray", "dex", "publicist"})
 
 
 def _manifests() -> dict[str, dict]:
@@ -76,7 +76,7 @@ def test_all_prepared_manifests_are_default_deny_and_isolated() -> None:
             assert manifest["services_enabled"] == []
             assert manifest["knowledge_base"]["protection"]["label"] == "andrii_protected"
             assert manifest["knowledge_base"]["protection"]["labeled_files"]["edit_or_delete"] == "лише з дозволом Андрія"
-        elif agent_id in {"ray", "dex", "atlas", "trainer"}:
+        elif agent_id in {"ray", "dex", "atlas", "trainer", "publicist"}:
             assert manifest["capabilities"] == []
             assert manifest["resource_scopes"] == []
             assert manifest["services_enabled"] == []

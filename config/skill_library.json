@@ -250,6 +250,7 @@
         "fin",
         "kodex",
         "oscar",
+        "publicist",
         "trainer"
       ],
       "resources": {
@@ -372,6 +373,7 @@
       "mode": "reference_only",
       "agents": [
         "oscar",
+        "publicist",
         "trainer",
         "tyler"
       ],
@@ -392,6 +394,7 @@
         "eva",
         "fin",
         "oscar",
+        "publicist",
         "ray",
         "sam",
         "tyler"
@@ -428,6 +431,7 @@
       "agents": [
         "atlas",
         "oscar",
+        "publicist",
         "ray",
         "tyler"
       ],
