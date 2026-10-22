@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "owner": "antigravity",
+  "description": "Curated practical MCP server configurations and 70-category index for Antigravity (24/7 VM & Workstation)",
+  "total_catalog_records": 18789,
+  "total_categories": 70,
+  "categories": [
+    "01_Development",
+    "02_Productivity",
+    "03_Other",
+    "04_Search",
+    "05_Marketing",
+    "06_Cloud_Service",
+    "07_Communication",
+    "08_Finance",
+    "09_Database",
+    "10_Developer_Tools",
+    "11_Web_Scraping",
+    "12_Finance___Fintech",
+    "13_Knowledge___Memory",
+    "14_Design",
+    "15_Memory",
+    "16_Search___Data_Extraction",
+    "17_Security",
+    "18_Other_Tools_and_Integrations",
+    "19_Databases",
+    "20_Cloud_Platforms",
+    "21_Version_Control",
+    "22_Workplace___Productivity",
+    "23_Aggregators",
+    "24_File_System",
+    "25_Browser_Automation",
+    "26_Coding_Agents",
+    "27_Art___Culture",
+    "28_Monitoring",
+    "29_Multimedia_Process",
+    "30_Gaming",
+    "31_Social_Media",
+    "32_Travel___Transportation",
+    "33_Location_Services",
+    "34_Research",
+    "35_Cloud_Storage",
+    "36_Biology__Medicine_and_Bioinformatics",
+    "37_File_Systems",
+    "38_Data_Platforms",
+    "39_Sports",
+    "40_Data_Science_Tools",
+    "41_E-Commerce",
+    "42_Legal",
+    "43_Architecture___Design",
+    "44_Command_Line",
+    "45_Customer_Data_Platforms",
+    "46_Code_Execution",
+    "47_Embedded_System",
+    "48_OS_Automation",
+    "49_Delivery",
+    "50_Product_Management",
+    "51_Agreements___Coordination",
+    "52_Support___Service_Management",
+    "53_Education",
+    "54_Real_Estate",
+    "55_Spirituality___Esoterica",
+    "56_Data_Visualization",
+    "57_Home_Automation",
+    "58_Environment___Nature",
+    "59_Text-to-Speech",
+    "60_Conversational_AI",
+    "61_Health___Wellness",
+    "62_end_to_end_RAG_platforms",
+    "63_Translation_Services",
+    "64_Cryptography",
+    "65_Industrial___IoT",
+    "66_Podcasts",
+    "67_Speech-to-Text",
+    "68_Aerospace___Astrodynamics",
+    "69_Accessibility",
+    "70_Identity"
+  ],
+  "practical_servers": {
+    "time": {
+      "package": "mcp-server-time==2026.10.10",
+      "transport": "stdio",
+      "command": "python",
+      "args": [
+        "-m",
+        "mcp_server_time",
+        "--local-timezone=Europe/Kyiv"
+      ],
+      "purpose": "Deterministic UTC / Europe/Kyiv time & timezone conversion"
+    },
+    "filesystem": {
+      "package": "@modelcontextprotocol/server-filesystem",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "${SYNDICATE_WORKSPACE_ROOT}"
+      ],
+      "purpose": "Sandboxed filesystem access for repository and Obsidian Second Brain"
+    },
+    "git": {
+      "package": "mcp-server-git",
+      "transport": "stdio",
+      "command": "python",
+      "args": [
+        "-m",
+        "mcp_server_git",
+        "--repository",
+        "${SYNDICATE_REPO_ROOT}"
+      ],
+      "purpose": "Git history, diff verification, branch & commit management"
+    },
+    "postgres": {
+      "package": "@modelcontextprotocol/server-postgres",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "${POSTGRES_READONLY_DSN}"
+      ],
+      "purpose": "Schema inspection & pgvector memory diagnostics"
+    },
+    "playwright": {
+      "package": "@playwright/mcp",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest",
+        "--headless"
+      ],
+      "purpose": "E2E browser automation, UI cloning reconnaissance, and visual verification"
+    },
+    "firecrawl": {
+      "package": "firecrawl-mcp",
+      "transport": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "firecrawl-mcp"
+      ],
+      "env_vars_required": [
+        "FIRECRAWL_API_KEY"
+      ],
+      "purpose": "Deep web scraping & documentation extraction into clean LLM Markdown"
+    }
+  }
+}
