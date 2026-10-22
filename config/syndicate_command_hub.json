@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "hub_id": "syndicate_command_hub",
+  "description": "Deterministic Zero-Token RPC Command Catalog for inter-agent operations across SYNDICATE.",
+  "commands": [
+    {
+      "command": "CMD:NOTEBOOKLM_PROCESS",
+      "target_agent": "antigravity",
+      "allowed_callers": ["kodex", "jack", "sam", "doc", "trainer", "kira", "tyler", "oscar", "fin", "marshal", "architect", "eva"],
+      "description": "Requests Antigravity to run deep analytical synthesis in Google NotebookLM and export knowledge dossier into Obsidian Second Brain.",
+      "required_params": ["notebook_id", "category", "requested_by"],
+      "optional_params": ["title", "backlinks", "tags"],
+      "token_cost_overhead": 0,
+      "estimated_runtime_seconds": 15
+    },
+    {
+      "command": "CMD:N8N_BUILD_WORKFLOW",
+      "target_agent": "antigravity",
+      "allowed_callers": ["architect"],
+      "description": "Requests Antigravity to validate FlowLint rules, compile native n8n JSON, and stage the workflow for server deployment.",
+      "required_params": ["blueprint_id", "blueprint_data"],
+      "optional_params": ["tags", "category"],
+      "token_cost_overhead": 0,
+      "estimated_runtime_seconds": 3
+    },
+    {
+      "command": "CMD:TASK_WEB_TRANSITION",
+      "target_agent": "kodex",
+      "allowed_callers": ["antigravity", "eva", "architect", "jack", "sam", "doc", "trainer", "kira", "tyler", "oscar", "fin", "marshal"],
+      "description": "Requests Kodex to transition a task card state in Obsidian 04_Tasks_Web and update timeline logs.",
+      "required_params": ["task_id", "new_status", "agent_id"],
+      "optional_params": ["note"],
+      "token_cost_overhead": 0,
+      "estimated_runtime_seconds": 1
+    },
+    {
+      "command": "CMD:APP_CLONE_RECON",
+      "target_agent": "antigravity",
+      "allowed_callers": ["jack", "sam", "tyler", "architect", "eva"],
+      "description": "Requests Antigravity to generate S01..Sxx screen inventory, user flow F01, and NeuroFlow UI spec for an application target.",
+      "required_params": ["app_name", "target_platform", "requested_by"],
+      "optional_params": ["focus_features"],
+      "token_cost_overhead": 0,
+      "estimated_runtime_seconds": 5
+    },
+    {
+      "command": "CMD:DOC_GENERATE",
+      "target_agent": "antigravity",
+      "allowed_callers": ["fin", "doc", "trainer", "eva", "kodex", "marshal"],
+      "description": "Requests Antigravity to generate formal DOCX, XLSX, or PDF documents in the workspace.",
+      "required_params": ["doc_type", "title", "data"],
+      "optional_params": ["template"],
+      "token_cost_overhead": 0,
+      "estimated_runtime_seconds": 2
+    }
+  ]
+}
