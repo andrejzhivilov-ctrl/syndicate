@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "agent_id": "publicist",
+  "agent_id": "scout",
   "activation": "prepared_not_enabled",
   "runtime": "hermes",
-  "runtime_profile": "publicist",
-  "display_name": "PUBLICIST (Multi-Blog Network & Content Publishing)",
-  "role_title": "Керівник мережі нішевих блогів, видавничого конвеєра та публікацій",
-  "memory_namespace": "agents/publicist",
-  "prompt_file": "src/agents/publicist_runtime_prompt.md",
+  "runtime_profile": "scout",
+  "display_name": "SCOUT (Chief Marketing Strategist & Trend Scout)",
+  "role_title": "Головний маркетолог холдингу, аналітик трендів, болей аудиторії та ніш",
+  "memory_namespace": "agents/scout",
+  "prompt_file": "src/agents/scout_runtime_prompt.md",
   "prompt_status": "draft",
   "role_status": "agreed_draft",
   "model_status": "not_selected",
@@ -60,7 +60,7 @@
     },
     "archive": {
       "activation": "reserved",
-      "namespace": "agents/publicist"
+      "namespace": "agents/scout"
     }
   },
   "reports": {
@@ -68,49 +68,49 @@
     "full_report": "andrii_direct_request"
   },
   "reference_skills": [
+    "market-research",
     "content-engine",
     "brand-voice",
-    "internal-comms",
-    "market-research"
+    "scientific-critical-thinking"
   ],
   "proposed_grants": [
     {
-      "capability": "publicist.blog.publish",
+      "capability": "scout.web.search",
       "status": "proposed_not_applied",
-      "purpose": "Публікація статей у блоги Ghost/WordPress за схваленням."
+      "purpose": "Пошук трендів та моніторинг ніш через контрольований шлюз."
     },
     {
-      "capability": "publicist.social.post",
+      "capability": "scout.comments.parse",
       "status": "proposed_not_applied",
-      "purpose": "Публікація контенту в соцмережі через відкладений буфер."
+      "purpose": "Парсинг коментарів та питань аудиторії під відео та в соцмережах."
     },
     {
-      "capability": "publicist.report.eva",
+      "capability": "scout.report.eva",
       "status": "proposed_not_applied",
-      "purpose": "Звіти про публікації Єві."
+      "purpose": "Звіти по трендах та маркетингових гіпотезах Єві."
     },
     {
-      "capability": "publicist.memory.read",
+      "capability": "scout.memory.read",
       "status": "proposed_not_applied",
-      "resource_scope": "agents/publicist",
+      "resource_scope": "agents/scout",
       "purpose": "Читання власної пам'яті."
     },
     {
-      "capability": "publicist.memory.write",
+      "capability": "scout.memory.write",
       "status": "proposed_not_applied",
-      "resource_scope": "agents/publicist",
-      "purpose": "Запис чернеток статей і контент-планів."
+      "resource_scope": "agents/scout",
+      "purpose": "Запис маркетингових досліджень та брифів."
     },
     {
-      "capability": "publicist.n8n.integration",
+      "capability": "scout.n8n.integration",
       "status": "proposed_not_applied",
-      "purpose": "Інтеграція з n8n: дизайн та монтаж workflow публікацій без activate."
+      "purpose": "Інтеграція з n8n: дизайн та монтаж workflow аналітики без activate."
     }
   ],
   "deployment_deferred": [
     "Telegram-бот",
-    "Ghost/WordPress API",
-    "соцмережі",
+    "інтернет-шлюз",
+    "парсери коментарів",
     "вибір LLM"
   ],
   "n8n": {
