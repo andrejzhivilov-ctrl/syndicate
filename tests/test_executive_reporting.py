@@ -151,3 +151,60 @@ def test_alice_autonomous_daemon_reflection_and_bridge_report(tmp_path: Path) ->
     report = daemon.build_bridge_report_for_eva(period="morning_0700", date_str="2026-10-26")
     assert report["agent_id"] == "alice"
     assert len(report["own_rd_ideas_and_proposals"]) >= 2
+
+
+def test_all_18_agents_live_modes_telegram_buttons_eva_telephony_and_hitl_skill_gate() -> None:
+    from src.voice import (
+        AGENT_LIVE_AND_BOT_SPECS,
+        KNOWLEDGE_ACCESS_ARCHITECTURE,
+        EvaTelephonySIPBridge,
+        SkillIdeaApprovalGate,
+        build_agent_telegram_keyboard,
+    )
+
+    # 1. All 18 agents have Live modes, voices, and interactive Telegram buttons
+    assert len(AGENT_LIVE_AND_BOT_SPECS) == 18
+    for agent_id in AGENT_LIVE_AND_BOT_SPECS:
+        kb = build_agent_telegram_keyboard(agent_id)
+        assert kb["agent_id"] == agent_id
+        assert len(kb["inline_keyboard"]) >= 4
+
+    # Content factory agents have content_factory_live mode
+    for cf_agent in ("oscar", "tyler", "ray", "dex", "scout"):
+        assert "content_factory_live" in AGENT_LIVE_AND_BOT_SPECS[cf_agent]["live_modes"]
+
+    # 2. Eva SIP Telephony (Outbound call to Andrii, Inbound call from Andrii, Agent bridging)
+    sip = EvaTelephonySIPBridge()
+    out_call = sip.initiate_outbound_call_to_andrii(call_id="call-001", reason="Терміновий ранковий звіт")
+    assert out_call["status"] == "outbound_sip_call_ringing_and_connected"
+    in_call = sip.receive_inbound_call_from_andrii(call_id="call-002", caller_number="+380990000000")
+    assert in_call["status"] == "inbound_sip_call_answered"
+    bridged = sip.switch_or_bridge_agent_into_call(call_id="call-002", new_agent_id="ray")
+    assert bridged["active_agent"] == "ray"
+
+    # 3. Strict HITL Skill/Idea Approval Gate (Pending -> Personal Live Interview -> Approve via Eva -> Central System)
+    gate = SkillIdeaApprovalGate()
+    prop = gate.register_0330_proposal(
+        proposal_id="prop-ray-01",
+        agent_id="ray",
+        title="cj-dropshipping-margin-scanner",
+        what_it_gives_and_improves_uk="Автоматичний розрахунок чистої маржі з урахуванням доставки в ЄС та США",
+    )
+    assert prop.status == "PENDING_ANDRII_APPROVAL"
+
+    interview = gate.request_personal_agent_interview("prop-ray-01")
+    assert interview["status"] == "personal_interview_scheduled"
+    assert "syndicate-ray" in interview["livekit_room"]
+
+    approved = gate.approve_and_connect_via_eva("prop-ray-01")
+    assert approved["status"] == "skill_approved_and_connected_to_central_system"
+    assert approved["approved_by"] == "andrii"
+    assert approved["gated_by"] == "eva"
+    assert approved["central_registry_connected"] is True
+
+    # 4. Shared Obsidian Read-All + 18 Dedicated NotebookLM Working Notebooks
+    assert KNOWLEDGE_ACCESS_ARCHITECTURE["obsidian_second_brain"]["mode"] == (
+        "SHARED_READ_ALL_WITH_SCOPED_WRITE_AND_KODEX_CURATION"
+    )
+    assert len(KNOWLEDGE_ACCESS_ARCHITECTURE["notebooklm_workspaces"]["per_agent_dedicated_notebooks"]) == 18
+

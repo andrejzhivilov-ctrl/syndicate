@@ -615,7 +615,10 @@ class ExecutiveReportEngine:
         note_path = target_dir / f"{date_str}_0330_Саморефлексія_{agent_key}.md"
         note_path.write_text(record.to_markdown(), encoding="utf-8")
 
-        # Automatically generate RPC tasks for Kodex if the agent requested new skills
+        # Stage skill/service requests as PENDING_ANDRII_APPROVAL_VIA_EVA:
+        # Per Andrii's strict rule, NO skill or service is connected without Andrii's approval.
+        # Once approved (immediately with Eva or after a 1-on-1 Live interview with the agent),
+        # the agent self-authors its SKILL.md and Architect/Kodex/Marshal connect it to the central system.
         kodex_skill_tasks = [
             {
                 "command": "CMD:KODEX_CREATE_AND_BIND_SKILL",
@@ -624,6 +627,13 @@ class ExecutiveReportEngine:
                 "skill_name": sr.get("skill_name", f"{agent_key}-auto-skill"),
                 "destination": sr.get("target", "shared_pool_or_agent_profile"),
                 "reason": sr.get("reason", "Виявлено під час нічної саморефлексії о 03:30"),
+                "approval_status": "PENDING_ANDRII_APPROVAL_VIA_EVA",
+                "self_authored_by_agent": True,
+                "andrii_options": [
+                    "APPROVE_VIA_EVA",
+                    "INTERVIEW_AGENT_IN_LIVE_FIRST",
+                    "REJECT",
+                ],
             }
             for sr in skills_req
         ]
@@ -797,7 +807,8 @@ tags: ["syndicate", "knowledge-harvest", "alice-audit", "marshal-verified", "not
                     f"### 🔹 `{ag_id.upper()}` — {headline} (`{kpi}`)\n"
                     f"  ↳ 🪞 **Саморефлексія та самонавчання (03:30):** {reflection_summary}\n"
                     f"  ↳ 🧠 **Чому навчився:** {learned} | 💡 **Ідеї агента:** {ideas}\n"
-                    f"  ↳ 🧩 **Потреби / Скіли через Кодекса:** {needed} (Замовлено скілів: {kodex_skills})"
+                    f"  ↳ 🧩 **Потреби / Пропозиція скілів (самонаписання агентом після згоди):** {needed} (Запит: {kodex_skills})\n"
+                    f"  ↳ 🔒 **Рішення Андрія (через Єву):** `[✅ Погодити підключення]` | `[🎙️ Переговорити з агентом особисто]` | `[❌ Відхилити]`"
                 )
                 voice_1_agent_narratives.append(
                     f"Дирекція {ag_id.upper()}: {headline}. По нічній саморефлексії: {learned}. Ідея агента: {ideas}."
