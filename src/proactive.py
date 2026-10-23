@@ -1,7 +1,15 @@
-"""Dormant schedule contract for a prepared Eva-only text review.
+"""Dormant schedule contract for a prepared Eva-only text review + Full Holding Chronogram.
 
-No job in this module dispatches tasks to other agents or performs external
-actions. The nightly source provider and production/n8n activation remain unconfigured.
+Default constructor keeps the single `nightly_analysis` job for backward compatibility with
+sandbox tests, while `FULL_HOLDING_JOBS` and `build_full_holding_scheduler()` provide the
+complete 24/7 SYNDICATE operational & reporting cycle:
+- 03:00 Daily: Nightly System Audit & Backup (`0 3 * * *`)
+- 03:30 Daily: All 18 Agents Self-Learning, Self-Analysis, Reflection & Self-Critique (`30 3 * * *`)
+- 04:00 Mon & Thu: Web Knowledge Harvest -> NotebookLM -> Alice Remote Audit -> Obsidian (`0 4 * * 1,4`)
+- 06:45 Daily: Morning Agent Reports Collection into Eva's Basket (`45 6 * * *`)
+- 07:00 Daily: Eva Mandatory Morning Telegram Briefing + Voice + PDF -> Google Drive & Obsidian (`0 7 * * *`)
+- 20:45 Daily: Evening Agent Reports Collection (`45 20 * * *`)
+- 21:00 Daily: Eva Mandatory Evening Telegram Audit + Voice + PDF -> Google Drive & Obsidian (`0 21 * * *`)
 """
 
 from __future__ import annotations
@@ -31,6 +39,58 @@ DEFAULT_JOBS: List[ScheduledJob] = [
         "0 3 * * *",
         "proactive_nightly_analysis",
         "Євин текстовий аналіз без запуску інших агентів",
+        "Europe/Kyiv",
+    ),
+]
+
+FULL_HOLDING_JOBS: List[ScheduledJob] = [
+    ScheduledJob(
+        "nightly_analysis",
+        "0 3 * * *",
+        "proactive_nightly_analysis",
+        "03:00 Системний нічний аудит та бекап (Atlas, Marshal, Kodex)",
+        "Europe/Kyiv",
+    ),
+    ScheduledJob(
+        "agents_self_reflection_0330",
+        "30 3 * * *",
+        "proactive_agents_self_reflection",
+        "03:30 Режим самонавчання, самоаналізу, рефлексії та самокритичності всіх 18 агентів",
+        "Europe/Kyiv",
+    ),
+    ScheduledJob(
+        "biweekly_web_knowledge_harvest_0400",
+        "0 4 * * 1,4",
+        "proactive_biweekly_knowledge_harvest",
+        "04:00 (Пн, Чт) Вихід у мережу, оновлення баз у NotebookLM, аудит даних Алісою та експорт в Obsidian",
+        "Europe/Kyiv",
+    ),
+    ScheduledJob(
+        "morning_reports_collection_0645",
+        "45 6 * * *",
+        "proactive_collect_morning_reports",
+        "06:45 Збір ранкових JSON-рапортів від 18 агентів у кошик Єви",
+        "Europe/Kyiv",
+    ),
+    ScheduledJob(
+        "eva_morning_telegram_briefing_0700",
+        "0 7 * * *",
+        "proactive_daily_briefing",
+        "07:00 Ранковий Виконавчий Бюлетень Єви в Telegram (текст + голос Kokoro-82M + PDF на Google Drive та в Obsidian)",
+        "Europe/Kyiv",
+    ),
+    ScheduledJob(
+        "evening_reports_collection_2045",
+        "45 20 * * *",
+        "proactive_collect_evening_reports",
+        "20:45 Збір вечірніх підсумків роботи та PnL від усіх 18 агентів",
+        "Europe/Kyiv",
+    ),
+    ScheduledJob(
+        "eva_evening_telegram_briefing_2100",
+        "0 21 * * *",
+        "proactive_evening_reflection",
+        "21:00 Вечірній Підсумок Дня Єви в Telegram (текст + голос + PDF на Google Drive та в Obsidian)",
         "Europe/Kyiv",
     ),
 ]
@@ -95,3 +155,8 @@ class ProactiveScheduler:
                 logger.error("scheduled_job_failed", job=job.name, error=str(exc))
                 results[job.name] = {"error": str(exc)}
         return results
+
+
+def build_full_holding_scheduler() -> ProactiveScheduler:
+    """Return a ProactiveScheduler configured with the full 24/7 SYNDICATE Holding chronogram."""
+    return ProactiveScheduler(jobs=FULL_HOLDING_JOBS)

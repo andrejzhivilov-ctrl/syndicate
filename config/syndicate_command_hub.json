@@ -45,6 +45,89 @@
       "estimated_runtime_seconds": 15
     },
     {
+      "command": "CMD:AGENT_NIGHTLY_SELF_CRITIQUE",
+      "target_agent": "kodex",
+      "allowed_callers": [
+        "eva",
+        "marshal",
+        "architect",
+        "atlas",
+        "alice",
+        "kodex",
+        "fin",
+        "sam",
+        "jack",
+        "scout",
+        "oscar",
+        "tyler",
+        "ray",
+        "dex",
+        "sonar",
+        "doc",
+        "trainer",
+        "kira"
+      ],
+      "description": "Triggered daily at 03:30 Kyiv time: records each agent's self-analysis, reflection, and self-critique of completed work into LessonsStore and Obsidian 07_Звітність_та_Аналітика_Холдингу/04_Нічна_Саморефлексія_0330.",
+      "required_params": [
+        "agent_id",
+        "date_str"
+      ],
+      "optional_params": [
+        "mistakes_found",
+        "token_critique",
+        "missed_opportunities",
+        "corrective_rules",
+        "score"
+      ],
+      "token_cost_overhead": 0,
+      "estimated_runtime_seconds": 2
+    },
+    {
+      "command": "CMD:ALICE_KNOWLEDGE_AUDIT_AND_OBSIDIAN_EXPORT",
+      "target_agent": "alice",
+      "allowed_callers": [
+        "eva",
+        "kodex",
+        "sonar",
+        "scout",
+        "architect"
+      ],
+      "description": "Triggered every Monday and Thursday at 04:00 Kyiv time after agents harvest web updates into Google NotebookLM: instructs Alice (running on her dedicated machine) to audit the data and knowledge and export verified Ukrainian dossiers into Obsidian Second Brain.",
+      "required_params": [
+        "notebook_id",
+        "date"
+      ],
+      "optional_params": [
+        "weekday",
+        "agents_sources_count",
+        "agents_participating",
+        "language"
+      ],
+      "token_cost_overhead": 0,
+      "estimated_runtime_seconds": 20
+    },
+    {
+      "command": "CMD:EVA_COMPILE_PDF_AND_TELEGRAM_BRIEFING",
+      "target_agent": "eva",
+      "allowed_callers": [
+        "eva",
+        "alice",
+        "kodex"
+      ],
+      "description": "Triggered daily at 07:00 and 21:00 Kyiv time: compiles all 18 agent reports into Eva's Executive Bulletin, sends mandatory concise text + Kokoro-82M voice summary + PDF to Telegram, uploads the PDF to Google Drive, and logs the report node in Obsidian.",
+      "required_params": [
+        "period",
+        "date_str",
+        "agent_reports"
+      ],
+      "optional_params": [
+        "self_reflection_highlights",
+        "alice_knowledge_audit_note"
+      ],
+      "token_cost_overhead": 0,
+      "estimated_runtime_seconds": 5
+    },
+    {
       "command": "CMD:NOTEBOOKLM_INFORMATION_ALCHEMY",
       "target_agent": "kodex",
       "allowed_callers": [
