@@ -281,4 +281,21 @@ def test_selective_live_meetups_leader_seal_notebooklm_300_lifecycle_and_eva_ala
     assert rem_esc["backup_eva_escalation_triggered"] is True
     assert rem_esc["active_delivery_agent"] == "eva"
 
+    # 5. Multi-Messenger MCP Gateways & Unblockable Internet Call Cascade (when both GSM & Telegram are down)
+    from src.voice import OMNICHANNEL_MESSENGER_MCP_GATEWAYS, EvaResilientCallCascade
+
+    assert {"telegram", "sovereign_sip_over_tls_443", "matrix_element_sovereign", "whatsapp", "signal", "threema"}.issubset(
+        set(OMNICHANNEL_MESSENGER_MCP_GATEWAYS.keys())
+    )
+    cascade = EvaResilientCallCascade()
+    failover = cascade.execute_failover_call(
+        reason_uk="Терміновий будильник / Важливий звіт",
+        gsm_network_available=False,
+        telegram_reachable=False,
+        wifi_or_starlink_available=True,
+    )
+    assert failover["status"] == "connected_via_sovereign_internet_sip_tls443"
+    assert failover["active_channel"] == "sovereign_sip_tls443_linphone_wifi"
+
+
 

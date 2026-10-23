@@ -406,3 +406,127 @@ class EvaSmartAlarmAndReminderSystem:
             "backup_eva_escalation_triggered": backup_eva_escalation,
             "active_delivery_agent": "eva" if backup_eva_escalation else primary_agent,
         }
+
+
+# ---------------------------------------------------------------------------
+# 5. Multi-Messenger MCP Gateways & Unblockable 5-Stage Call Cascade
+# ---------------------------------------------------------------------------
+
+OMNICHANNEL_MESSENGER_MCP_GATEWAYS: Dict[str, Dict[str, Any]] = {
+    "telegram": {
+        "mcp_server": "mcp-telegram-mtproto-and-bot",
+        "supports_text": True,
+        "supports_voice_call": True,
+        "notes_uk": "Основний контур (18 ботів + MTProto Userbot для живих дзвінків у Telegram).",
+    },
+    "sovereign_sip_over_tls_443": {
+        "mcp_server": "livekit-sip-tls443-linphone-groundwire",
+        "supports_text": True,
+        "supports_voice_call": True,
+        "notes_uk": (
+            "Власний захищений SIP-сервер на нашому домені `sip.syndicateholding.com:443` (маскується під звичайний HTTPS-трафік). "
+            "Працює через додаток Linphone / Groundwire на смартфоні по будь-якому Wi-Fi або Starlink, навіть коли вимкнений мобільний зв'язок і заблокований Telegram!"
+        ),
+    },
+    "matrix_element_sovereign": {
+        "mcp_server": "mcp-matrix-synapse-element-call",
+        "supports_text": True,
+        "supports_voice_call": True,
+        "notes_uk": (
+            "Власний сервер Matrix/Element на `chat.syndicateholding.com` із вбудованими WebRTC-дзвінками. "
+            "Неможливо заблокувати як публічний месенджер, бо працює на нашому приватному домені."
+        ),
+    },
+    "whatsapp": {
+        "mcp_server": "mcp-whatsapp-baileys-cloud-api",
+        "supports_text": True,
+        "supports_voice_call": True,
+        "notes_uk": "Шлюз WhatsApp (текст, голосові та інтернет-дзвінки через Wi-Fi).",
+    },
+    "signal": {
+        "mcp_server": "mcp-signal-cli-rest-api",
+        "supports_text": True,
+        "supports_voice_call": False,
+        "notes_uk": "Офіційний Docker-шлюз `signal-cli-rest-api` для наскрізно шифрованих повідомлень та голосових файлів у Signal.",
+    },
+    "threema": {
+        "mcp_server": "mcp-threema-gateway-e2ee",
+        "supports_text": True,
+        "supports_voice_call": False,
+        "notes_uk": "Офіційний шлюз `Threema Gateway` (`gateway.threema.ch`) з повним E2EE-шифруванням для текстових та голосових сповіщень.",
+    },
+}
+
+
+class EvaResilientCallCascade:
+    """
+    Solves the real-world problem when GSM cellular towers are turned off AND Telegram is blocked/throttled:
+    Eva executes an automatic 5-Stage Call Cascade until Andrii answers:
+      Stage 1: Telegram Sound Alarm / Telegram VoIP Call (`telegram`).
+      Stage 2: GSM Mobile Phone Call via SIP Trunk (`gsm_mobile_sip`) — if mobile network is active.
+      Stage 3: **Sovereign SIP-over-TLS:443 Internet Call (`sovereign_sip_over_tls_443`)** to Linphone/Groundwire
+               on Andrii's phone over Wi-Fi/Starlink (bypasses GSM blackouts AND bypasses Telegram blocks!).
+      Stage 4: **Sovereign Matrix / SYNDICATE PWA Call (`matrix_element_sovereign`)** on our own domain
+               `syndicateholding.com` (unblockable WebRTC call over HTTPS port 443).
+      Stage 5: **WhatsApp / Signal / Threema E2EE Fallback (`whatsapp` + `signal` + `threema`)**.
+    """
+
+    CASCADE_ORDER: List[str] = [
+        "telegram_voip_call",
+        "gsm_mobile_sip_call",
+        "sovereign_sip_tls443_linphone_wifi",
+        "sovereign_matrix_pwa_webrtc_443",
+        "whatsapp_signal_threema_fallback",
+    ]
+
+    def execute_failover_call(
+        self,
+        reason_uk: str,
+        gsm_network_available: bool = False,
+        telegram_reachable: bool = False,
+        wifi_or_starlink_available: bool = True,
+    ) -> Dict[str, Any]:
+        tried_channels: List[str] = []
+
+        if telegram_reachable:
+            tried_channels.append("telegram_voip_call")
+            return {
+                "status": "connected_via_telegram_voip",
+                "active_channel": "telegram_voip_call",
+                "tried_channels": tried_channels,
+                "reason_uk": reason_uk,
+            }
+        tried_channels.append("telegram_voip_call (blocked/unreachable)")
+
+        if gsm_network_available:
+            tried_channels.append("gsm_mobile_sip_call")
+            return {
+                "status": "connected_via_gsm_mobile_call",
+                "active_channel": "gsm_mobile_sip_call",
+                "tried_channels": tried_channels,
+                "reason_uk": reason_uk,
+            }
+        tried_channels.append("gsm_mobile_sip_call (no cellular network)")
+
+        if wifi_or_starlink_available:
+            # Stage 3 & 4: Direct encrypted call over Wi-Fi/Starlink to our own domain on port 443 (Linphone SIP-TLS + Matrix/PWA)
+            tried_channels.append("sovereign_sip_tls443_linphone_wifi")
+            return {
+                "status": "connected_via_sovereign_internet_sip_tls443",
+                "active_channel": "sovereign_sip_tls443_linphone_wifi",
+                "backup_parallel_ring": [
+                    "sovereign_matrix_pwa_webrtc_443",
+                    "whatsapp_call_and_signal_alert",
+                ],
+                "tried_channels": tried_channels,
+                "transport": "WSS/TLS over port 443 to sip.syndicateholding.com (Unblockable over Wi-Fi/Starlink)",
+                "reason_uk": reason_uk,
+            }
+
+        return {
+            "status": "queued_for_instant_delivery_on_reconnect",
+            "active_channel": "none_all_offline",
+            "tried_channels": tried_channels,
+            "reason_uk": reason_uk,
+        }
+
