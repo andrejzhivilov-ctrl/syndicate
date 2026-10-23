@@ -297,5 +297,28 @@ def test_selective_live_meetups_leader_seal_notebooklm_300_lifecycle_and_eva_ala
     assert failover["status"] == "connected_via_sovereign_internet_sip_tls443"
     assert failover["active_channel"] == "sovereign_sip_tls443_linphone_wifi"
 
+    # 6. Threema Gateway E2EE & Telegram Wartime Shield
+    from src.security.threema_and_telegram_hardening import (
+        SOVEREIGN_MESSENGER_ALTERNATIVES,
+        TelegramWartimeShield,
+        ThreemaGatewayBridge,
+    )
+
+    threema = ThreemaGatewayBridge(gateway_threema_id="*SYNDIC8", andrii_threema_id="ANDRII88")
+    msg = threema.encrypt_and_send_e2ee_message("Привіт, Андрію! Це резервний E2EE-канал через Threema.")
+    assert msg.sender_threema_id == "*SYNDIC8"
+    assert msg.recipient_threema_id == "ANDRII88"
+    assert len(msg.ciphertext_base64) > 10
+
+    incoming = threema.handle_incoming_threema_webhook("ANDRII88", "/sam що з криптою?")
+    assert incoming["target_agent"] == "sam"
+    assert incoming["payload_text"] == "що з криптою?"
+
+    shield_audit = TelegramWartimeShield.audit_security_checklist()
+    assert shield_audit["status"] == "HARDENED"
+    assert shield_audit["wartime_security_score"] == 100
+    assert "cinny" in SOVEREIGN_MESSENGER_ALTERNATIVES
+
+
 
 
