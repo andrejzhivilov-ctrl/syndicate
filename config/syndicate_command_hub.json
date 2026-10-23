@@ -505,6 +505,62 @@
       ],
       "token_cost_overhead": 0,
       "estimated_runtime_seconds": 4
+    },
+    {
+      "command": "CMD:KODEX_CREATE_AND_BIND_SKILL",
+      "target_agent": "kodex",
+      "allowed_callers": [
+        "eva",
+        "marshal",
+        "architect",
+        "atlas",
+        "alice",
+        "antigravity",
+        "kodex",
+        "fin",
+        "sam",
+        "jack",
+        "scout",
+        "oscar",
+        "tyler",
+        "ray",
+        "dex",
+        "sonar",
+        "doc",
+        "trainer",
+        "kira"
+      ],
+      "description": "Dispatched during 03:30 agent self-reflection or on-demand: requests Kodex (Master Skill Creator) to author a new SKILL.md, archive it in the Knowledge Pool, and bind it to the requesting agent or shared pool.",
+      "required_params": [
+        "skill_name",
+        "requested_by"
+      ],
+      "optional_params": [
+        "scope",
+        "rationale"
+      ],
+      "token_cost_overhead": 0,
+      "estimated_runtime_seconds": 3
+    },
+    {
+      "command": "CMD:ALICE_KNOWLEDGE_AUDIT_AND_OBSIDIAN_EXPORT",
+      "target_agent": "antigravity",
+      "allowed_callers": [
+        "eva",
+        "kodex",
+        "architect",
+        "marshal"
+      ],
+      "description": "Dispatched at 04:20 on Monday & Thursday to Alice's dedicated remote machine via AntigravityBridge to audit all newly harvested NotebookLM packs and export structured Markdown notes to Obsidian.",
+      "required_params": [
+        "date",
+        "sources_count"
+      ],
+      "optional_params": [
+        "marshal_supervision"
+      ],
+      "token_cost_overhead": 0,
+      "estimated_runtime_seconds": 10
     }
   ]
 }
