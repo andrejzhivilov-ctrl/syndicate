@@ -7,6 +7,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 COPY deploy/requirements-directors.txt /app/requirements-directors.txt
 RUN pip install -r requirements-directors.txt
 COPY --chown=1001:1001 src /app/src
+# Trainer's offline exercise search reads this allowlisted, image-only dataset.
+COPY --chown=1001:1001 doc_core/vendor/free-exercise-db/dist/exercises.json /app/doc_core/vendor/free-exercise-db/dist/exercises.json
+COPY --chown=1001:1001 doc_core/vendor/free-exercise-db/LICENSE.md /app/doc_core/vendor/free-exercise-db/LICENSE.md
+COPY --chown=1001:1001 doc_core/vendor/free-exercise-db/SOURCES.lock.yaml /app/doc_core/vendor/free-exercise-db/SOURCES.lock.yaml
 COPY --chown=1001:1001 deploy/runtime /app/runtime
 RUN useradd --uid 1001 --create-home --shell /usr/sbin/nologin director \
     && mkdir -p /data/director && chown 1001:1001 /data/director

@@ -1,20 +1,30 @@
-# Directive: Scrape Website to Markdown
+# Directive: Scrape a Public Website to Markdown
 
-## Goal
-Scrape any given target URL and extract clean, token-efficient Markdown content without ads, navbars, or cookie notices.
+## Goal and authorization
+
+Fetch one public, static HTML page and convert it to Markdown. Use this only for pages the operator is authorized to access and where automated retrieval is permitted. Do not scrape private/account-only content, submit forms, evade paywalls, defeat rate limits, or bypass Cloudflare or other access controls.
 
 ## Inputs
-- `target_url`: The URL to scrape.
-- `output_format`: Defaults to markdown.
 
-## Tools & Execution Scripts
-- Use `execution/scrape_single_site.py <url> [output_file.md]`
-- Script uses MarkItDown or Firecrawl (if installed / API provided) or requests + BeautifulSoup.
+- `target_url`: an `http` or `https` URL on a publicly routable host, using port 80 or 443. URLs with embedded credentials and local/private destinations are rejected.
+- `output_file`: optional Markdown filename. It must be a single filename and is written only under ignored `scratch/scraper/`; arbitrary paths are rejected.
+
+## Execution
+
+Run:
+
+```text
+python execution/scrape_single_site.py --confirm-authorized <url> [output_file.md]
+```
+
+The required `--confirm-authorized` flag is an operator attestation that access is authorized and automated retrieval is permitted; it is not a permission check or a way around a site's controls. The script uses a bounded direct HTTP(S) request with IP pinning, public-address checks for DNS and every redirect, a redirect limit, timeouts, and a 2 MiB response cap. It accepts HTML/XHTML only and converts the fetched bytes locally with MarkItDown. It does not execute JavaScript, use a browser, use ambient proxies, or invoke a cloud scraping service.
+
+## Access-control and rendering limits
+
+- If the page requires login, authorization, JavaScript execution, a CAPTCHA, or presents a bot/access-control challenge, stop. Request an approved API/export or operator-authorized access path; do not switch to Firecrawl, Playwright, proxy rotation, stealth mode, or another bypass.
+- Respect the site's published terms, robots guidance, rate limits, and applicable law. Do not repeatedly retry a denied request.
+- Dynamic content may be absent. Report that limitation as unavailable rather than attempting to evade the site's controls.
 
 ## Output
-- Clean `.md` file in `.tmp/` or designated deliverables path.
-- Extracted title, headings, and core body text.
 
-## Edge Cases & Annealing Notes
-- If Cloudflare challenge detected: Switch from basic fetch to Firecrawl API or Playwright scraper.
-- If content is empty: Check for client-side JavaScript rendering requirement.
+Markdown is stored in `scratch/scraper/` with private file permissions. Do not copy scraped personal, confidential, or access-controlled data into Git, logs, chat, or deliverables.

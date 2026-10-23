@@ -181,7 +181,7 @@ class DeviceTokenStore:
         if pool is None:
             self._mem_tokens[token_id] = record
             self._enforce_limit(device_id)
-            logger.info("device_token_issued", token_id=token_id, device_id=device_id, backend="memory")
+            logger.info("device_token_issued", token_id=token_id, backend="memory")
         else:
             try:
                 async with pool.acquire() as conn:
@@ -194,10 +194,10 @@ class DeviceTokenStore:
                         token_id, record.secret_hash, device_id, record.label,
                         json.dumps(record.scopes), datetime.fromisoformat(record.expires_at),
                     )
-                logger.info("device_token_issued", token_id=token_id, device_id=device_id, backend="postgres")
+                logger.info("device_token_issued", token_id=token_id, backend="postgres")
             except Exception as exc:  # noqa: BLE001
-                logger.error("device_token_write_failed", error=str(exc))
-                raise RuntimeError(f"device token issuance failed: {exc}") from exc
+                logger.error("device_token_write_failed", error_type=type(exc).__name__)
+                raise RuntimeError("device_token_issuance_failed") from exc
 
         return {
             "token": f"{token_id}.{secret}",   # shown once, never stored
@@ -218,7 +218,7 @@ class DeviceTokenStore:
         active.sort()
         for _issued, token_id in active[: len(active) - self._max_per_device]:
             self._mem_tokens.pop(token_id, None)
-            logger.warning("device_token_evicted", token_id=token_id, device_id=device_id)
+            logger.warning("device_token_evicted", token_id=token_id)
 
     # --------------------------------------------------------------- loading
     async def _load(self, token_id: str) -> Optional[DeviceToken]:
@@ -237,7 +237,7 @@ class DeviceTokenStore:
                     token_id,
                 )
         except Exception as exc:  # noqa: BLE001
-            logger.warning("device_token_read_failed", error=str(exc))
+            logger.warning("device_token_read_failed", error_type=type(exc).__name__)
             return None
         if row is None:
             return None
@@ -274,7 +274,7 @@ class DeviceTokenStore:
                     token_id, now,
                 )
         except Exception as exc:  # noqa: BLE001
-            logger.warning("device_token_touch_failed", error=str(exc))
+            logger.warning("device_token_touch_failed", error_type=type(exc).__name__)
 
     # -------------------------------------------------------------- verifying
     async def verify(self, token: Optional[str], required_scope: Optional[str] = None) -> Optional[DeviceToken]:
@@ -338,7 +338,7 @@ class DeviceTokenStore:
             logger.info("device_token_revoked", token_id=token_id, backend="postgres")
             return revoked
         except Exception as exc:  # noqa: BLE001
-            logger.warning("device_token_revoke_failed", error=str(exc))
+            logger.warning("device_token_revoke_failed", error_type=type(exc).__name__)
             return False
 
     async def list_devices(self) -> List[Dict[str, Any]]:
@@ -358,7 +358,7 @@ class DeviceTokenStore:
                         """
                     )
             except Exception as exc:  # noqa: BLE001
-                logger.warning("device_token_list_failed", error=str(exc))
+                logger.warning("device_token_list_failed", error_type=type(exc).__name__)
                 return []
             records = []
             for row in rows:
@@ -396,7 +396,7 @@ class DeviceTokenStore:
                 )
             return int(str(result).split()[-1]) if result else 0
         except Exception as exc:  # noqa: BLE001
-            logger.warning("device_token_purge_failed", error=str(exc))
+            logger.warning("device_token_purge_failed", error_type=type(exc).__name__)
             return 0
 
 

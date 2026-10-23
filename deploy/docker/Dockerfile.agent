@@ -31,6 +31,10 @@ RUN python -m pip install --upgrade pip \
 # Source and runtime are bind-mounted in docker-compose; COPY them as well so
 # the image is self-contained when it is built and run on its own.
 COPY src /app/src
+# Offline Trainer exercise search uses this small, licensed dataset.
+COPY doc_core/vendor/free-exercise-db/dist/exercises.json /app/doc_core/vendor/free-exercise-db/dist/exercises.json
+COPY doc_core/vendor/free-exercise-db/LICENSE.md /app/doc_core/vendor/free-exercise-db/LICENSE.md
+COPY doc_core/vendor/free-exercise-db/SOURCES.lock.yaml /app/doc_core/vendor/free-exercise-db/SOURCES.lock.yaml
 COPY deploy/runtime /app/runtime
 COPY static/cockpit.html /app/cockpit.html
 

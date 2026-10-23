@@ -45,6 +45,10 @@ WORKDIR /app
 
 # Copy application code (read-only at runtime)
 COPY --chown=1001:1001 src/ ./src/
+# Offline Trainer exercise search uses this small, licensed dataset.
+COPY --chown=1001:1001 doc_core/vendor/free-exercise-db/dist/exercises.json ./doc_core/vendor/free-exercise-db/dist/exercises.json
+COPY --chown=1001:1001 doc_core/vendor/free-exercise-db/LICENSE.md ./doc_core/vendor/free-exercise-db/LICENSE.md
+COPY --chown=1001:1001 doc_core/vendor/free-exercise-db/SOURCES.lock.yaml ./doc_core/vendor/free-exercise-db/SOURCES.lock.yaml
 COPY --chown=1001:1001 deploy/runtime/ ./runtime/
 
 # Switch to non-root user
