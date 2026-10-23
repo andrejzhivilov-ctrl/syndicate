@@ -1,0 +1,88 @@
+# ==============================================================================
+# SYNDICATE — Zero-Token Real-Time Voice & Second Brain Stack (Contabo VPS 12)
+# Target Hardware: Contabo Cloud VPS 12 (12 vCPU, 48 GB RAM, 400 GB NVMe/SSD)
+# Corporate Domain: syndicateholding.com
+# ==============================================================================
+
+services:
+  livekit-server:
+    image: livekit/livekit-server:v1.7
+    container_name: syndicate-livekit
+    restart: unless-stopped
+    ports:
+      - "7880:7880/tcp"
+      - "7881:7881/tcp"
+      - "7882:7882/udp"
+    environment:
+      - LIVEKIT_KEYS=${LIVEKIT_API_KEY:-devkey}: ${LIVEKIT_API_SECRET:-secret}
+      - LIVEKIT_DOMAIN=voice.syndicateholding.com
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  kokoro-tts:
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:v0.2.2
+    container_name: syndicate-kokoro-tts
+    restart: unless-stopped
+    expose:
+      - "8880"
+    environment:
+      - ONNX_NUM_THREADS=2
+      - DEFAULT_VOICE=0.65*af_bella+0.35*bf_emma
+    volumes:
+      - /data/voices/kokoro:/app/voices:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1536M
+
+  voice-cloner:
+    image: ghcr.io/swivid/f5-tts:latest
+    container_name: syndicate-voice-cloner
+    restart: unless-stopped
+    expose:
+      - "8881"
+    volumes:
+      - /data/voices/clones:/data/voices/clones:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 3072M
+
+  pronunciation-coach:
+    image: python:3.11-slim
+    container_name: syndicate-pronunciation-coach
+    restart: unless-stopped
+    working_dir: /app
+    command: ["python", "-m", "src.voice.pronunciation_coach"]
+    volumes:
+      - ../src:/app/src:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1536M
+
+  obsidian-syncthing:
+    image: lscr.io/linuxserver/syncthing:latest
+    container_name: syndicate-obsidian-sync
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Kyiv
+    volumes:
+      - /data/obsidian_vault:/data/Second_Brain
+      - /data/syncthing_config:/config
+    ports:
+      - "22000:22000/tcp"
+      - "22000:22000/udp"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M

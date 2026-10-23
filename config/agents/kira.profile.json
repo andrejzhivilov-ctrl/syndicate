@@ -27,6 +27,20 @@
       "capability": "kira.n8n.integration",
       "status": "proposed_not_applied",
       "purpose": "Інтеграція з n8n: дизайн/монтаж workflow без activate."
+    },
+    {
+      "capability": "kira.voice.livekit_psychotherapy",
+      "scope": "livekit://syndicate-kira-psychotherapy",
+      "purpose": "Повнодуплексні Live-сеанси психотерапії та емоційної декомпресії через LiveKit + Silero VAD v5 + Kokoro-82M ($0 токенів, 100% локальна приватність)",
+      "status": "proposed_not_applied",
+      "needs": "рішення Андрія після розгортання Contabo Cloud VPS 12 та домену syndicateholding.com"
+    },
+    {
+      "capability": "kira.voice.pronunciation_coach",
+      "scope": "voice://wav2vec2-gop-phoneme-scorer",
+      "purpose": "Акустична оцінка англійської вимови Андрія на рівні фонем IPA (Wav2Vec2-GOP + Gemini Live Native Audio) без автокорекції Whisper",
+      "status": "proposed_not_applied",
+      "needs": "рішення Андрія після розгортання голосового стеку"
     }
   ],
   "reference_skills": [
@@ -38,6 +52,6 @@
     "activate": false
   },
   "prompt_file": "src/agents/kira_runtime_prompt.md",
-  "display_name": "KIRA (Education, Skill Mastery & Socratic Tutor)",
-  "role_title": "Керівник відділу освіти, розвитку навичок, критичного мислення та інтелектуального капіталу"
+  "display_name": "KIRA (Education, Live Psychotherapist, English Pronunciation Coach & Socratic Tutor)",
+  "role_title": "Керівник відділу освіти, розвитку навичок, психотерапії в Live-режимі та інтелектуального капіталу"
 }

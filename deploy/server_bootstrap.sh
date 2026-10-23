@@ -1,7 +1,8 @@
 #!/bin/bash
 # ===============================================================
 # SYNDICATE — server_bootstrap.sh
-# Підготовка Contabo VPS Ubuntu 24.04 LTS до розгортання
+# Підготовка Contabo Cloud VPS 12 (12 vCPU / 48 GB RAM / 400 GB SSD)
+# ОС: Ubuntu 24.04 LTS | Корпоративний домен: syndicateholding.com
 # Запускати: sudo bash server_bootstrap.sh
 # ===============================================================
 
@@ -19,6 +20,10 @@ section() { echo -e "\n${BLUE}════════════════�
 
 [[ $EUID -ne 0 ]] && error "Запускай від root: sudo bash $0"
 
+CORPORATE_DOMAIN="${SYNDICATE_DOMAIN:-syndicateholding.com}"
+section "КРОК 0: Перевірка корпоративного домену ($CORPORATE_DOMAIN)"
+warn "🔔 НАГАДУВАННЯ АНДРІЮ: Переконайся, що домен $CORPORATE_DOMAIN придбано, а A-записи (@, voice.$CORPORATE_DOMAIN, sync.$CORPORATE_DOMAIN) спрямовані на IP цього сервера!"
+
 PROJECT_DIR="/opt/syndicate"
 LEGACY_PROJECT_DIR="/opt/eva-syndicate"
 if [[ -e "$PROJECT_DIR" && -e "$LEGACY_PROJECT_DIR" ]]; then
@@ -29,8 +34,8 @@ if [[ -e "$LEGACY_PROJECT_DIR" && ! -e "$PROJECT_DIR" ]]; then
     warn "Збережено наявний шлях розгортання для сумісності: $PROJECT_DIR"
 fi
 
-# ── КРОК 1: ОНОВЛЕННЯ СИСТЕМИ ──────────────────────────────────
-section "КРОК 1: Оновлення Ubuntu 24.04 LTS"
+# ── КРОК 1: ОНОВЛЕННЯ СИСТЕМИ ТА АУДІО-БІБЛІОТЕК (ДЛЯ KOKORO-82M / WAV2VEC2) ──
+section "КРОК 1: Оновлення Ubuntu 24.04 LTS та встановлення системних пакетів"
 apt-get update -qq
 apt-get upgrade -y -qq
 apt-get install -y -qq \
@@ -39,8 +44,9 @@ apt-get install -y -qq \
     htop ncdu \
     ca-certificates gnupg \
     lsb-release \
+    ffmpeg libsndfile1 espeak-ng \
     python3 python3-pip
-log "✅ Система оновлена"
+log "✅ Система та аудіо-рушії (ffmpeg, libsndfile1, espeak-ng для Kokoro-82M та IPA) встановлені"
 
 # ── КРОК 2: СТВОРЕННЯ NON-ROOT КОРИСТУВАЧА ─────────────────────
 section "КРОК 2: Створення користувача syndicate"
@@ -69,8 +75,8 @@ else
     warn "Docker вже встановлено: $(docker --version)"
 fi
 
-# ── КРОК 4: UFW БРАНДМАУЕР ─────────────────────────────────────
-section "КРОК 4: Налаштування UFW брандмауера"
+# ── КРОК 4: UFW БРАНДМАУЕР (+ LIVEKIT WEBRTC & OBSIDIAN SYNCTHING) ──
+section "КРОК 4: Налаштування UFW брандмауера (HTTPS + LiveKit WebRTC + Syncthing)"
 ufw --force reset
 ufw default deny incoming
 ufw default deny outgoing
@@ -80,21 +86,26 @@ ufw allow out 443/tcp comment "HTTPS"
 ufw allow out 80/tcp comment "HTTP (для оновлень)"
 ufw allow out 53/udp comment "DNS"
 ufw allow out 53/tcp comment "DNS over TCP"
+ufw allow out 7882/udp comment "LiveKit WebRTC UDP media out"
+ufw allow out 22000/tcp comment "Obsidian Syncthing P2P sync out"
 
-# Вхідний — SSH та HTTPS
+# Вхідний — SSH, HTTPS, LiveKit WebRTC (Голос Кіри/Єви) та Syncthing (Obsidian Second Brain)
 ufw allow in 22/tcp comment "SSH"
 ufw allow in 80/tcp comment "HTTP (redirect to HTTPS)"
 ufw allow in 443/tcp comment "HTTPS"
+ufw allow in 7880/tcp comment "LiveKit WebRTC Signaling"
+ufw allow in 7881/tcp comment "LiveKit WebRTC TCP Fallback"
+ufw allow in 7882/udp comment "LiveKit WebRTC UDP Low-Latency Audio"
+ufw allow in 22000/tcp comment "Obsidian Second Brain Syncthing TCP"
+ufw allow in 22000/udp comment "Obsidian Second Brain Syncthing QUIC"
 
 # Docker internal
 ufw allow in on docker0
 ufw allow out on docker0
-
-# Дозволити внутрішні Docker мережі
 ufw allow in on br-+ comment "Docker bridge networks"
 
 ufw --force enable
-log "✅ UFW налаштовано: SSH + HTTPS дозволено, все інше — заборонено"
+log "✅ UFW налаштовано: SSH, HTTPS, LiveKit WebRTC (7880-7882) та Obsidian Syncthing (22000) відкрито"
 
 # ── КРОК 5: FAIL2BAN ───────────────────────────────────────────
 section "КРОК 5: Налаштування Fail2ban"
@@ -126,15 +137,17 @@ systemctl restart sshd
 warn "⚠️  SSH: пароль вимкнено! Переконайся що твій SSH-ключ вже додано до authorized_keys"
 log "✅ SSH захищено: root login = NO, password auth = NO"
 
-# ── КРОК 7: СТРУКТУРА ДИРЕКТОРІЙ ──────────────────────────────
+# ── КРОК 7: СТРУКТУРА ДИРЕКТОРІЙ (+ ГОЛОСОВІ КЛОНИ ТА OBSIDIAN VAULT) ──
 section "КРОК 7: Створення структури директорій"
 mkdir -p "$PROJECT_DIR"/{deploy,config,scripts,secrets,logs}
 mkdir -p "$PROJECT_DIR"/config/{postgres,nginx,vault}
 mkdir -p "$PROJECT_DIR"/config/nginx/conf.d
-mkdir -p /data/{eva,marshal,architect,fin,doc,sam,n8n,postgres,redis,vault,audit,clamav,suricata/logs,nginx-certs}
+mkdir -p /data/{eva,marshal,architect,fin,doc,sam,kira,kodex,n8n,postgres,redis,vault,audit,clamav,suricata/logs,nginx-certs}
+mkdir -p /data/voices/{kokoro,clones}
+mkdir -p /data/obsidian_vault/{00_Майстер_Хаб,01_Архітектура_та_RAG,02_Студія_та_Артефакти,03_Автоматизація_та_MCP,04_Інформаційна_Алхімія_та_PKM,05_Бізнес_Кейси_SYNDICATE,06_Навчальний_Посібник_та_Тести}
 chown -R syndicate:syndicate "$PROJECT_DIR" /data
 chmod 700 "$PROJECT_DIR/secrets"
-log "✅ Директорії створено у $PROJECT_DIR та /data"
+log "✅ Директорії створено у $PROJECT_DIR, /data/voices та /data/obsidian_vault"
 
 # ── КРОК 7b: ПЕРВИННИЙ SSL БУТСТРАП ДЛЯ NGINX ───────────────────
 section "КРОК 7b: Первинний SSL бутстрап (захист від збою Nginx)"
@@ -144,9 +157,8 @@ if [ ! -f "$DUMMY_CERT_DIR/fullchain.pem" ]; then
     openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
         -keyout "$DUMMY_CERT_DIR/privkey.pem" \
         -out "$DUMMY_CERT_DIR/fullchain.pem" \
-        -subj "/C=UA/ST=Kyiv/L=Kyiv/O=SYNDICATE/CN=localhost" 2>/dev/null
-    log "✅ Створено початковий SSL-сертифікат (Nginx не впаде при першому старті)"
-    log "   Після прив'язки домену запусти certbot для бойового Let's Encrypt / Cloudflare"
+        -subj "/C=UA/ST=Kyiv/L=Kyiv/O=SYNDICATE/CN=$CORPORATE_DOMAIN" 2>/dev/null
+    log "✅ Створено початковий SSL-сертифікат для $CORPORATE_DOMAIN"
 else
     log "SSL-сертифікати вже існують"
 fi
@@ -170,12 +182,13 @@ else
 fi
 
 # ── КРОК 9: ОПТИМІЗАЦІЯ ПАМ'ЯТІ ТА SWAP ────────────────────────
-section "КРОК 9: Оптимізація пам'яті (Redis/Postgres) та Swap"
-# Налаштовуємо swappiness=10 замість 60 (щоб система не заморожувала I/O)
+section "КРОК 9: Оптимізація пам'яті (Redis/Postgres/WebRTC) та Swap"
 cat > /etc/sysctl.d/99-syndicate.conf << 'EOF'
 vm.swappiness = 10
 vm.overcommit_memory = 1
 net.core.somaxconn = 1024
+net.core.rmem_max = 26214400
+net.core.wmem_max = 26214400
 EOF
 sysctl -p /etc/sysctl.d/99-syndicate.conf >/dev/null
 
@@ -185,7 +198,7 @@ if [ ! -f /swapfile ]; then
     mkswap /swapfile
     swapon /swapfile
     echo '/swapfile none swap sw 0 0' >> /etc/fstab
-    log "✅ Swap 4GB активовано (swappiness=10, overcommit_memory=1)"
+    log "✅ Swap 4GB та UDP буфери для LiveKit WebRTC активовано"
 else
     log "Swap вже існує"
 fi
@@ -206,21 +219,10 @@ else
 fi
 
 # ── ПІДСУМОК ───────────────────────────────────────────────────
-section "✅ BOOTSTRAP ЗАВЕРШЕНО"
+section "✅ BOOTSTRAP CONTABO CLOUD VPS 12 ЗАВЕРШЕНО"
 echo ""
-echo "  Система:     Ubuntu 24.04 LTS"
-echo "  Docker:      $(docker --version)"
-echo "  UFW:         Активний (SSH + HTTPS)"
-echo "  Fail2ban:    Активний"
-echo "  SSH:         Тільки по ключу"
-echo ""
-echo "  📂 Проект:   $PROJECT_DIR/"
-echo "  📂 Дані:     /data/"
-echo ""
-echo "  НАСТУПНИЙ КРОК:"
-echo "  cd $PROJECT_DIR/deploy"
-echo "  cp .env.example .env"
-echo "  nano .env  (заповни значення)"
-echo "  docker compose up -d postgres redis vault nginx"
-echo "  ./scripts/vault_init.sh"
+echo "  Сервер:      Contabo Cloud VPS 12 (12 vCPU / 48 GB RAM / 400 GB SSD)"
+echo "  Домен:       $CORPORATE_DOMAIN"
+echo "  Голос:       LiveKit WebRTC + Silero VAD v5 + Kokoro-82M + F5-TTS + Wav2Vec2-GOP"
+echo "  База знань:  Obsidian Second Brain + NotebookLM Master (0a882755-acbf-468c-be37-21e40395dd50)"
 echo ""

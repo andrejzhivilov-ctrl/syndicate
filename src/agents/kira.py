@@ -1,9 +1,9 @@
 """
-Kira Agent — Academic Mentor, Intellectual Sparring Partner & SYNDICATE Academy Director.
-Floor 8: Enlightenment, Academy & Mentorship.
+Kira Agent — Academic Mentor, Live Psychotherapist, English Pronunciation Coach & SYNDICATE Academy Director.
+Floor 8: Enlightenment, Academy, Psychological Resilience & Mentorship.
 
 Strict Domain Isolation:
-Dedicated solely to education, cognitive elevation, and skill mastery for Andriy.
+Dedicated solely to education, cognitive elevation, live psychotherapy, and skill mastery for Andriy.
 Дисципліни, банк питань і ранкові елементи — у каталозі (``kira_catalog_seed.json``),
 доповнення схвалює Андрій (``kira_learning``). Нові дисципліни додаються даними, не кодом.
 
@@ -12,6 +12,9 @@ Dedicated solely to education, cognitive elevation, and skill mastery for Andriy
 - Квізи — лише з банку з ключем відповіді. Відповіді, які LLM генерує без перевірки, не дають
   оцінки знань.
 - Метрики (accuracy) з'являються лише від реальних відповідей і лише після мінімальної кількості.
+- Акустична оцінка вимови (``english_pronunciation_assessment``) та LiveKit-сесії (``live_therapy_session``)
+  працюють детерміновано через локальний стек ``LiveKit + Silero VAD v5 + Kokoro-82M + PronunciationCoach``
+  за $0.00 токенів.
 """
 
 from __future__ import annotations
@@ -35,6 +38,8 @@ from src.agent_memory import (
 )
 from src.agents.kira_catalog import MORNING_KINDS, load_seed
 from src.agents.kira_learning import KiraLearningStore
+from src.voice.livekit_realtime import LiveKitRealtimeBridge
+from src.voice.pronunciation_coach import PronunciationCoach
 
 logger = structlog.get_logger(__name__)
 
@@ -47,8 +52,9 @@ DISCIPLINES: Dict[str, Any] = load_seed()["disciplines"]
 
 class KiraAgent:
     """
-    Academic Mentor & Director of Floor 8 (SYNDICATE Academy).
-    Cultivates deep mastery, guides Socratic dialogue, and generates personalized curricula.
+    Academic Mentor, Live Psychotherapist, English Pronunciation Coach & Director of Floor 8.
+    Cultivates deep mastery, guides Socratic dialogue, conducts zero-token live voice therapy,
+    and evaluates phoneme-level English pronunciation.
     """
 
     AGENT_ID = "kira"
@@ -61,6 +67,8 @@ class KiraAgent:
         config: Optional[Dict[str, Any]] = None,
         registry: Optional[Any] = None,
         learning: Optional[KiraLearningStore] = None,
+        livekit_bridge: Optional[LiveKitRealtimeBridge] = None,
+        pronunciation_coach: Optional[PronunciationCoach] = None,
     ) -> None:
         self._memory = memory
         self._llm = llm
@@ -70,6 +78,8 @@ class KiraAgent:
             data_dir = os.getenv("KIRA_DATA_DIR")
             learning = KiraLearningStore(Path(data_dir) / "kira_learning.json" if data_dir else None)
         self._learning = learning
+        self._livekit = livekit_bridge or LiveKitRealtimeBridge()
+        self._pronunciation_coach = pronunciation_coach or PronunciationCoach()
         self._memory_context: ContextVar[Optional[Dict[str, Any]]] = ContextVar(
             f"kira_memory_context_{id(self)}", default=None
         )
@@ -126,7 +136,7 @@ class KiraAgent:
 
     # ------------------------------------------------------------ диспетчер
     async def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Dispatch academic or mentorship action."""
+        """Dispatch academic, psychotherapy, or pronunciation coaching action."""
         action = payload.get("action", "socratic_dialogue")
         logger.info("kira_action_dispatched", action=action)
 
@@ -135,6 +145,8 @@ class KiraAgent:
             "lesson_plan": self.lesson_plan,
             "code_review": self.code_review_mentor,
             "language_practice": self.language_practice,
+            "english_pronunciation_assessment": self.english_pronunciation_assessment,
+            "live_therapy_session": self.live_therapy_session,
             "history_synthesis": self.history_synthesis,
             "vibecoding_session": self.vibecoding_session,
             "micro_quiz": self.micro_quiz,
@@ -149,9 +161,6 @@ class KiraAgent:
 
         handler = dispatch_table.get(action)
         if handler is None:
-            # Previously an unknown action silently fell through to
-            # ``socratic_dialogue``, so a typo produced a plausible-looking but
-            # unrelated answer instead of an error.
             logger.warning("kira_unknown_action", action=action)
             return {
                 "status": "error",
@@ -203,6 +212,72 @@ class KiraAgent:
             "quiz_items": len(catalog["quiz_bank"]),
             "active_students": ["Андрій (Founder & Sovereign)"],
             "philosophy": "Сувора спеціалізація. Сократівський метод. Миттєве застосування знань у практиці.",
+            "live_capabilities": [
+                "LiveKit + Silero VAD v5 + Kokoro-82M Psychotherapy Mode ($0 tokens)",
+                "Wav2Vec2-GOP Acoustic English Pronunciation Coach (IPA phoneme scoring)",
+            ],
+        }
+
+    # ------------------------------------------------------------ Live Psychotherapy & English Pronunciation
+    async def live_therapy_session(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Start or process a full-duplex LiveKit + Silero VAD v5 + Kokoro-82M Psychotherapy session.
+        100% local voice processing ($0.00 voice tokens, zero third-party audio leakage).
+        """
+        session_id = str(payload.get("session_id", "kira-therapy-live"))
+        mode = str(payload.get("mode", "psychotherapy"))
+        user_reflection = payload.get("user_reflection")
+
+        room_info = self._livekit.start_session(
+            session_id=session_id,
+            agent_id=self.AGENT_ID,
+            mode=mode,
+            privacy_local_only=True,
+        )
+
+        # Optional LLM therapeutic reflection if LLM is configured and user shared thoughts
+        therapeutic_reply: Optional[str] = None
+        if isinstance(user_reflection, str) and user_reflection.strip() and self._llm:
+            prompt = (
+                "Ви — Кіра, емпатичний психотерапевт (CBT та екзистенційний підхід) і ментор Андрія. "
+                f"Андрій поділився станом під час Live-сесії: \"{user_reflection}\". "
+                "Дайте теплу, спокійну, глибоку підтримку українською мовою та поставте одне м'яке рефлексивне запитання."
+            )
+            therapeutic_reply, _ = await self._llm_ask(prompt)
+
+        return {
+            "status": "ok",
+            "agent": self.AGENT_ID,
+            "floor": self.FLOOR,
+            "live_room": room_info,
+            "therapeutic_reply": therapeutic_reply,
+            "voice_profile": "0.70*af_heart + 0.30*af_nicole (speed=0.90x empathetic cadence)",
+            "voice_token_cost_usd": 0.0,
+        }
+
+    async def english_pronunciation_assessment(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Acoustic phoneme & IPA pronunciation assessment for Andrii's spoken English.
+        Detects phonetic errors (/θ/, /ð/, /w/ vs /v/, vowel length) that standard Whisper STT auto-corrects.
+        """
+        target_phrase = payload.get("target_phrase") or payload.get("user_input")
+        if not isinstance(target_phrase, str) or not target_phrase.strip():
+            return self._unavailable("english_pronunciation_assessment", "target_phrase_required")
+
+        acoustic_phonemes = payload.get("acoustic_phonemes_detected")
+        substitutions = payload.get("simulated_substitutions")
+
+        report = self._pronunciation_coach.evaluate_utterance(
+            target_phrase=target_phrase,
+            acoustic_phonemes_detected=acoustic_phonemes,
+            simulated_substitutions=substitutions if isinstance(substitutions, dict) else None,
+        )
+
+        return {
+            "status": "ok",
+            "agent": self.AGENT_ID,
+            "floor": self.FLOOR,
+            "assessment": report.to_dict(),
         }
 
     # ------------------------------------------------------------ LLM-дії (без LLM — unavailable)
@@ -227,7 +302,7 @@ class KiraAgent:
 1. Застосуйте сократівський діалог. Не давайте готову банальну відповідь.
 2. Знайдіть приховані припущення та слабкі місця у твердженні.
 3. Поставте 2-3 точні, гострі контр-питання, які змусять мислити від перших принципів (First Principles).
-4. Наведіть одну сильну аналогію (з інженерії, військової історії або когнітивних наук).
+4. Наведіть одну сильну аналогію (з інженерії, історії управління або когнітивних наук).
 5. Формат: чіткий, захоплюючий, вишуканий стиль українською мовою."""
 
         text, reason = await self._llm_ask(prompt)
@@ -352,7 +427,7 @@ Provide:
 
 Проведіть глибокий історичний синтез:
 1. 🏛️ Історичний прецедент (наприклад: реформи Діоклетіана, Венеційська республіка, стратегія Бісмарка або доктрина візантійського балансу).
-2. 🧠 Фундаментальна модель влади та контролю (First Principles).
+2. 🧠 Фундаментальна модель управління та балансу інституцій (First Principles).
 3. ⚡ Прямий висновок для архітектури SYNDICATE сьогодні."""
 
         text, reason = await self._llm_ask(prompt)

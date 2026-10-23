@@ -1,7 +1,7 @@
 """
 VoiceManager — provider-agnostic voice with priority + fallback chains.
 
-TTS priority example: ["elevenlabs", "xai_grok", "openai"]
+TTS priority example: ["kokoro_local", "f5_voice_clone", "elevenlabs", "xai_grok", "openai"]
 STT priority example: ["whisper_local", "groq_whisper"]
 
 Providers are tried in order; on failure the next provider is used. The first
@@ -17,6 +17,7 @@ import structlog
 
 from src.voice.base import BaseSTTProvider, BaseTTSProvider, VoiceResult
 from src.voice.elevenlabs import ElevenLabsTTS
+from src.voice.kokoro_tts import KokoroTTSProvider, ZeroShotVoiceCloner
 from src.voice.openai_tts import OpenAITTS
 from src.voice.whisper_stt import GroqWhisperSTT, WhisperSTT
 from src.voice.xai_grok import XAIGrokVoice
@@ -24,6 +25,8 @@ from src.voice.xai_grok import XAIGrokVoice
 logger = structlog.get_logger(__name__)
 
 _TTS_REGISTRY = {
+    KokoroTTSProvider.PROVIDER_NAME: KokoroTTSProvider,
+    ZeroShotVoiceCloner.PROVIDER_NAME: ZeroShotVoiceCloner,
     ElevenLabsTTS.PROVIDER_NAME: ElevenLabsTTS,
     XAIGrokVoice.PROVIDER_NAME: XAIGrokVoice,
     OpenAITTS.PROVIDER_NAME: OpenAITTS,
@@ -77,7 +80,7 @@ def build_voice_manager(vault_client: Any = None, config: Optional[Dict[str, Any
     config keys:
       tts_priority: list[str] | comma-string  (default elevenlabs,xai_grok,openai)
       stt_priority: list[str] | comma-string  (default whisper_local,groq_whisper)
-      <provider_name>: dict  — per-provider config (e.g. elevenlabs voice_id, whisper_url)
+      <provider_name>: dict  — per-provider config (e.g. kokoro_local, elevenlabs, whisper_url)
     """
     config = config or {}
 

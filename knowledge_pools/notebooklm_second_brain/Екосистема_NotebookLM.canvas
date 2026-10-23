@@ -1,0 +1,135 @@
+{
+  "nodes": [
+    {
+      "id": "hub",
+      "x": 0,
+      "y": 0,
+      "width": 320,
+      "height": 180,
+      "type": "file",
+      "file": "00_Майстер_Хаб/00_Майстер_Хаб_NotebookLM.md",
+      "color": "1"
+    },
+    {
+      "id": "arch",
+      "x": -450,
+      "y": -250,
+      "width": 300,
+      "height": 160,
+      "type": "file",
+      "file": "01_Архітектура_та_Заземлення/Strict_Grounding_та_Точкові_Цитати.md",
+      "color": "2"
+    },
+    {
+      "id": "limits",
+      "x": -450,
+      "y": 0,
+      "width": 300,
+      "height": 160,
+      "type": "file",
+      "file": "01_Архітектура_та_Заземлення/Технічні_Ліміти_та_Формати_Джерел.md",
+      "color": "2"
+    },
+    {
+      "id": "studio",
+      "x": 450,
+      "y": -250,
+      "width": 300,
+      "height": 160,
+      "type": "file",
+      "file": "02_Мультимедійна_Студія_Studio/Audio_Overviews_та_Режим_Join.md",
+      "color": "3"
+    },
+    {
+      "id": "video",
+      "x": 450,
+      "y": 0,
+      "width": 300,
+      "height": 160,
+      "type": "file",
+      "file": "02_Мультимедійна_Студія_Studio/Video_Overviews_та_Google_Vids.md",
+      "color": "3"
+    },
+    {
+      "id": "cases",
+      "x": 0,
+      "y": 350,
+      "width": 320,
+      "height": 160,
+      "type": "file",
+      "file": "03_12_Бізнес_Кейсів/12_Бізнес_Кейсів_Матриця.md",
+      "color": "4"
+    },
+    {
+      "id": "alchemy",
+      "x": -450,
+      "y": 350,
+      "width": 300,
+      "height": 160,
+      "type": "file",
+      "file": "04_Хаки_та_Промпти/Хак_Information_Alchemy_Стиснення_Джерел.md",
+      "color": "5"
+    },
+    {
+      "id": "karpathy",
+      "x": 450,
+      "y": 350,
+      "width": 300,
+      "height": 160,
+      "type": "file",
+      "file": "05_Другий_Мозок_та_Інтеграції/Метод_Obsidian_RAG_Андрея_Карпати.md",
+      "color": "6"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "fromNode": "hub",
+      "fromSide": "left",
+      "toNode": "arch",
+      "toSide": "right"
+    },
+    {
+      "id": "e2",
+      "fromNode": "hub",
+      "fromSide": "left",
+      "toNode": "limits",
+      "toSide": "right"
+    },
+    {
+      "id": "e3",
+      "fromNode": "hub",
+      "fromSide": "right",
+      "toNode": "studio",
+      "toSide": "left"
+    },
+    {
+      "id": "e4",
+      "fromNode": "hub",
+      "fromSide": "right",
+      "toNode": "video",
+      "toSide": "left"
+    },
+    {
+      "id": "e5",
+      "fromNode": "hub",
+      "fromSide": "bottom",
+      "toNode": "cases",
+      "toSide": "top"
+    },
+    {
+      "id": "e6",
+      "fromNode": "cases",
+      "fromSide": "left",
+      "toNode": "alchemy",
+      "toSide": "right"
+    },
+    {
+      "id": "e7",
+      "fromNode": "cases",
+      "fromSide": "right",
+      "toNode": "karpathy",
+      "toSide": "left"
+    }
+  ]
+}

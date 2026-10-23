@@ -1,6 +1,9 @@
 {
   "schema_version": 1,
   "hub_id": "syndicate_command_hub",
+  "corporate_domain": "syndicateholding.com",
+  "master_notebook_id": "0a882755-acbf-468c-be37-21e40395dd50",
+  "default_studio_language": "uk",
   "description": "Deterministic Zero-Token RPC Command Catalog for inter-agent operations across SYNDICATE Holding.",
   "commands": [
     {
@@ -26,7 +29,7 @@
         "alice",
         "sonar"
       ],
-      "description": "Requests Alice (Antigravity) to run deep analytical synthesis in Google NotebookLM and export knowledge dossier into Obsidian Second Brain.",
+      "description": "Requests Alice (Antigravity) to run deep analytical synthesis in Google NotebookLM (Master ID 0a882755-acbf-468c-be37-21e40395dd50, language=uk) and export knowledge dossier into Obsidian Second Brain.",
       "required_params": [
         "notebook_id",
         "category",
@@ -35,10 +38,109 @@
       "optional_params": [
         "title",
         "backlinks",
-        "tags"
+        "tags",
+        "language"
       ],
       "token_cost_overhead": 0,
       "estimated_runtime_seconds": 15
+    },
+    {
+      "command": "CMD:NOTEBOOKLM_INFORMATION_ALCHEMY",
+      "target_agent": "kodex",
+      "allowed_callers": [
+        "alice",
+        "antigravity",
+        "eva",
+        "kira",
+        "sonar",
+        "scout",
+        "architect",
+        "doc",
+        "sam",
+        "fin"
+      ],
+      "description": "Compresses 5-10 raw sources into a single dense analytical Markdown source (Compress & Convert to Source) in Obsidian & Master NotebookLM to bypass the 300/500 source ceiling.",
+      "required_params": [
+        "cluster_title",
+        "raw_sources"
+      ],
+      "optional_params": [
+        "agent_id"
+      ],
+      "token_cost_overhead": 0,
+      "estimated_runtime_seconds": 3
+    },
+    {
+      "command": "CMD:KIRA_LIVE_THERAPY",
+      "target_agent": "kira",
+      "allowed_callers": [
+        "eva",
+        "doc",
+        "andrii"
+      ],
+      "description": "Initializes a full-duplex LiveKit WebRTC + Silero VAD v5 + Kokoro-82M live psychotherapy & emotional decompression session ($0 voice tokens, 100% local privacy).",
+      "required_params": [
+        "session_id"
+      ],
+      "optional_params": [
+        "mode",
+        "user_reflection"
+      ],
+      "token_cost_overhead": 0,
+      "estimated_runtime_seconds": 1
+    },
+    {
+      "command": "CMD:KIRA_PRONUNCIATION_COACH",
+      "target_agent": "kira",
+      "allowed_callers": [
+        "eva",
+        "andrii"
+      ],
+      "description": "Runs phoneme-level IPA acoustic pronunciation evaluation (Wav2Vec2-GOP + Gemini Live Native Audio) on Andrii's spoken English without Whisper auto-correction.",
+      "required_params": [
+        "target_phrase"
+      ],
+      "optional_params": [
+        "acoustic_phonemes_detected",
+        "simulated_substitutions"
+      ],
+      "token_cost_overhead": 0,
+      "estimated_runtime_seconds": 2
+    },
+    {
+      "command": "CMD:VOICE_KOKORO_SYNTHESIZE",
+      "target_agent": "eva",
+      "allowed_callers": [
+        "eva",
+        "kira",
+        "architect",
+        "marshal",
+        "fin",
+        "doc",
+        "sam",
+        "kodex",
+        "alice",
+        "oscar",
+        "tyler",
+        "jack",
+        "ray",
+        "dex",
+        "atlas",
+        "trainer",
+        "scout",
+        "sonar"
+      ],
+      "description": "Synthesizes speech using local Kokoro-82M mathematical voice blending or F5-TTS zero-shot voice cloning at $0.00 token cost.",
+      "required_params": [
+        "text",
+        "agent_id"
+      ],
+      "optional_params": [
+        "therapy_mode",
+        "language"
+      ],
+      "token_cost_overhead": 0,
+      "estimated_runtime_seconds": 1
     },
     {
       "command": "CMD:N8N_BUILD_WORKFLOW",
