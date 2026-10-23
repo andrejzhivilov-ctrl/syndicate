@@ -208,3 +208,77 @@ def test_all_18_agents_live_modes_telegram_buttons_eva_telephony_and_hitl_skill_
     )
     assert len(KNOWLEDGE_ACCESS_ARCHITECTURE["notebooklm_workspaces"]["per_agent_dedicated_notebooks"]) == 18
 
+
+def test_selective_live_meetups_leader_seal_notebooklm_300_lifecycle_and_eva_alarm(tmp_path: Path) -> None:
+    from src.voice import (
+        EvaSmartAlarmAndReminderSystem,
+        LeaderDocumentGuard,
+        NotebookLMHubLifecycleManager,
+        SyndicateLiveMeetupHub,
+    )
+
+    # 1. Selective Multi-Agent Live Meetup Room (e.g. Oscar + Ray + Dex) with $0 audio tokens
+    meetup = SyndicateLiveMeetupHub()
+    room = meetup.create_selective_meetup_room(
+        room_id="cf-01",
+        selected_agents=["oscar", "ray", "dex"],
+        title="Контент-Завод: Інтеграція оферів",
+    )
+    assert room["status"] == "selective_meetup_room_ready"
+    round_res = meetup.run_brainstorm_round(
+        room_id="cf-01",
+        andrii_prompt_uk="Обговоріть між собою зв'язку статей Оскара з товарами Рея та лінками Декса",
+        obsidian_vault_path=tmp_path,
+    )
+    assert round_res["participants_count"] == 3
+    assert round_res["audio_token_cost_usd"] == 0.0
+    assert Path(round_res["obsidian_protocol_path"]).exists()
+
+    # 2. Leader Digital Signature (`ANDRII_SOVEREIGN_SEAL_ED25519`): Read-All, Never Edit/Delete, Move only with approval
+    signed_doc = LeaderDocumentGuard.sign_leader_markdown(
+        content_md="# Стратегічний приватний документ Андрія",
+        doc_title="Leader_Strategy_2026",
+    )
+    assert LeaderDocumentGuard.check_agent_operation(signed_doc, "ray", "read")["allowed"] is True
+    assert LeaderDocumentGuard.check_agent_operation(signed_doc, "ray", "edit")["allowed"] is False
+    assert LeaderDocumentGuard.check_agent_operation(signed_doc, "kodex", "delete")["allowed"] is False
+    assert LeaderDocumentGuard.check_agent_operation(signed_doc, "kodex", "move", andrii_move_approved=False)["allowed"] is False
+    assert LeaderDocumentGuard.check_agent_operation(signed_doc, "kodex", "move", andrii_move_approved=True)["allowed"] is True
+
+    # 3. NotebookLM 300-Source Ephemeral Hub (Agent sources purged after full lossless MD export; Andrii's kept!)
+    nlm = NotebookLMHubLifecycleManager(obsidian_vault_path=tmp_path)
+    agent_batch = nlm.process_and_export_notebook_batch(
+        agent_id="sam",
+        sources=[{"title": "Macro Report", "full_text": "Повний розгорнутий текст звіту без стиснення."}],
+        owner="agent",
+    )
+    assert agent_batch["full_expanded_uncompressed"] is True
+    assert agent_batch["purged_from_notebooklm_after_export"] is True
+    assert agent_batch["remaining_sources_in_notebooklm"] == 0
+
+    andrii_batch = nlm.process_and_export_notebook_batch(
+        agent_id="eva",
+        sources=[{"title": "Особиста книга Андрія", "full_text": "Повний текст книги."}],
+        owner="andrii",
+    )
+    assert andrii_batch["leader_signed"] is True
+    assert andrii_batch["purged_from_notebooklm_after_export"] is False
+    assert andrii_batch["remaining_sources_in_notebooklm"] == 1
+
+    # 4. Eva 3-Stage Escalating Alarm Clock (60s Telegram -> 60s Telegram -> Real Mobile Phone Call on 3rd attempt)
+    alarm = EvaSmartAlarmAndReminderSystem()
+    att1 = alarm.trigger_alarm_attempt("06:50", attempt_number=1)
+    assert att1["status"] == "telegram_sound_alarm_ringing_60s"
+    assert att1["ring_duration_seconds"] == 60
+    att3 = alarm.trigger_alarm_attempt("06:56", attempt_number=3)
+    assert att3["status"] == "escalated_to_real_mobile_phone_call"
+
+    # Reminder routing (Trainer handles meal/workout, escalates to Eva if unanswered >= 60 min)
+    rem_meal = alarm.route_reminder("meal_calories", "Обід та підрахунок КБЖВ", "13:30", unanswered_minutes=0)
+    assert rem_meal["primary_agent_bot"] == "trainer"
+    assert rem_meal["active_delivery_agent"] == "trainer"
+    rem_esc = alarm.route_reminder("vitamins", "Прийом вітамінів", "09:00", unanswered_minutes=65)
+    assert rem_esc["backup_eva_escalation_triggered"] is True
+    assert rem_esc["active_delivery_agent"] == "eva"
+
+

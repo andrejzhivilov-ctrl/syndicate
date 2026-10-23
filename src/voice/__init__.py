@@ -16,6 +16,15 @@ from src.voice.kokoro_tts import (
 )
 from src.voice.livekit_realtime import LiveKitRealtimeBridge, SileroVADProcessor
 from src.voice.manager import VoiceManager, build_voice_manager
+from src.voice.meetup_sip_obsidian_alarm import (
+    LEADER_SIGNATURE_TAG,
+    MEETUP_ROOM_PRESETS,
+    EvaSmartAlarmAndReminderSystem,
+    LeaderDocumentGuard,
+    NotebookLMHubLifecycleManager,
+    SelectiveLiveMeetupRoom,
+    SyndicateLiveMeetupHub,
+)
 from src.voice.pronunciation_coach import PronunciationCoach, PronunciationReport
 
 __all__ = [
@@ -23,15 +32,22 @@ __all__ = [
     "AgentSkillOrIdeaProposal",
     "AgentVoiceProfile",
     "EvaPhoneCallRecord",
+    "EvaSmartAlarmAndReminderSystem",
     "EvaTelephonySIPBridge",
     "KNOWLEDGE_ACCESS_ARCHITECTURE",
     "KokoroTTSProvider",
+    "LEADER_SIGNATURE_TAG",
+    "LeaderDocumentGuard",
     "LiveKitRealtimeBridge",
+    "MEETUP_ROOM_PRESETS",
+    "NotebookLMHubLifecycleManager",
     "PronunciationCoach",
     "PronunciationReport",
     "SYNDICATE_VOICE_PROFILES",
+    "SelectiveLiveMeetupRoom",
     "SileroVADProcessor",
     "SkillIdeaApprovalGate",
+    "SyndicateLiveMeetupHub",
     "VoiceManager",
     "ZeroShotVoiceCloner",
     "build_agent_telegram_keyboard",
