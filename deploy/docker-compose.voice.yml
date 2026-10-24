@@ -42,6 +42,8 @@ services:
   voice-cloner:
     image: ghcr.io/swivid/f5-tts:latest
     container_name: syndicate-voice-cloner
+    profiles:
+      - f5-clone
     restart: unless-stopped
     expose:
       - "8881"
