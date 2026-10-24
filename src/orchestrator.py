@@ -183,6 +183,24 @@ class EvaOrchestrator:
         # Eva & Curators
         "chat": "eva",
         "webhook_telegram": "eva",
+        "webhook_telegram_eva": "eva",
+        "webhook_telegram_alice": "alice",
+        "webhook_telegram_sonar": "sonar",
+        "webhook_telegram_architect": "architect",
+        "webhook_telegram_kodex": "kodex",
+        "webhook_telegram_marshal": "marshal",
+        "webhook_telegram_fin": "fin",
+        "webhook_telegram_sam": "sam",
+        "webhook_telegram_jack": "jack",
+        "webhook_telegram_scout": "scout",
+        "webhook_telegram_oscar": "oscar",
+        "webhook_telegram_tyler": "tyler",
+        "webhook_telegram_ray": "ray",
+        "webhook_telegram_dex": "dex",
+        "webhook_telegram_doc": "doc",
+        "webhook_telegram_trainer": "trainer",
+        "webhook_telegram_kira": "kira",
+        "webhook_telegram_atlas": "atlas",
         "weekly_review": "eva_curator",
         "record_decision": "eva_curator",
         "deadline_check": "eva_curator",
@@ -313,52 +331,135 @@ class EvaOrchestrator:
         self._release_pack = release_pack_builder
 
     def _init_llms(self) -> None:
-        """Tiered LLM setup. Every provider failure degrades, never raises."""
-        anthropic_key = self._llm_config.get("anthropic_api_key", "")
-        openai_key = self._llm_config.get("openai_api_key", "")
+        """Tiered LLM setup supporting OpenRouter, Gemini, Anthropic, and OpenAI."""
+        anthropic_key = self._llm_config.get("anthropic_api_key") or self._llm_config.get("anthropic", "")
+        openai_key = self._llm_config.get("openai_api_key") or self._llm_config.get("openai", "")
+        openrouter_key = self._llm_config.get("openrouter_api_key") or self._llm_config.get("openrouter", "")
+        gemini_key = (
+            self._llm_config.get("gemini_api_key")
+            or self._llm_config.get("gemini", "")
+            or self._llm_config.get("google_api_key", "")
+            or self._llm_config.get("google", "")
+        )
         reasoning_model = self._llm_config.get("reasoning_model", "o3-mini")
 
+        # 1. Primary LLM: Anthropic -> OpenRouter (claude-3-5-sonnet) -> Gemini Pro -> OpenAI (gpt-4o)
         if anthropic_key and anthropic_key != "PLACEHOLDER_UPDATE_ME":
             try:
                 from langchain_anthropic import ChatAnthropic
-
                 self._llm = ChatAnthropic(
                     api_key=anthropic_key,
                     model="claude-3-5-sonnet-20241022",
                     temperature=0,
                 )
+                logger.info("Initialized primary LLM via Direct Anthropic")
             except Exception as exc:  # noqa: BLE001
                 logger.warning("Failed to initialize ChatAnthropic", error=str(exc))
 
-        if not (openai_key and openai_key != "PLACEHOLDER_UPDATE_ME"):
-            return
+        if self._llm is None and openrouter_key and openrouter_key != "PLACEHOLDER_UPDATE_ME":
+            try:
+                self._llm = ChatOpenAI(
+                    base_url="https://openrouter.ai/api/v1",
+                    api_key=openrouter_key,
+                    model=self._llm_config.get("openrouter_model", "anthropic/claude-3.5-sonnet"),
+                    temperature=0,
+                    default_headers={
+                        "HTTP-Referer": "https://syndicateholding.com",
+                        "X-Title": "SYNDICATE Holding",
+                    },
+                )
+                logger.info("Initialized primary LLM via OpenRouter", model="anthropic/claude-3.5-sonnet")
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Failed to initialize OpenRouter primary LLM", error=str(exc))
 
-        try:
-            self._llm_fast = ChatOpenAI(
-                api_key=openai_key,
-                model="gpt-4o-mini",
-                temperature=0,
-            )
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("Failed to initialize fast LLM", error=str(exc))
+        if self._llm is None and gemini_key and gemini_key != "PLACEHOLDER_UPDATE_ME":
+            try:
+                self._llm = ChatOpenAI(
+                    base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+                    api_key=gemini_key,
+                    model="gemini-2.5-pro",
+                    temperature=0,
+                )
+                logger.info("Initialized primary LLM via Gemini Pro")
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Failed to initialize Gemini Pro primary LLM", error=str(exc))
 
-        try:
-            self._llm_reasoning = ChatOpenAI(
-                api_key=openai_key,
-                model=reasoning_model,
-            )
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("Failed to initialize reasoning LLM, falling back to primary LLM", error=str(exc))
-
-        if self._llm is None:
+        if self._llm is None and openai_key and openai_key != "PLACEHOLDER_UPDATE_ME":
             try:
                 self._llm = ChatOpenAI(
                     api_key=openai_key,
                     model="gpt-4o",
                     temperature=0,
                 )
+                logger.info("Initialized primary LLM via OpenAI")
             except Exception as exc:  # noqa: BLE001
-                logger.warning("Failed to initialize primary LLM", error=str(exc))
+                logger.warning("Failed to initialize OpenAI primary LLM", error=str(exc))
+
+        # 2. Fast LLM: Gemini Flash -> OpenRouter Gemini Flash -> OpenAI gpt-4o-mini
+        if gemini_key and gemini_key != "PLACEHOLDER_UPDATE_ME":
+            try:
+                self._llm_fast = ChatOpenAI(
+                    base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+                    api_key=gemini_key,
+                    model="gemini-2.5-flash",
+                    temperature=0,
+                )
+                logger.info("Initialized fast LLM via Gemini Flash")
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Failed to initialize Gemini Flash fast LLM", error=str(exc))
+
+        if self._llm_fast is None and openrouter_key and openrouter_key != "PLACEHOLDER_UPDATE_ME":
+            try:
+                self._llm_fast = ChatOpenAI(
+                    base_url="https://openrouter.ai/api/v1",
+                    api_key=openrouter_key,
+                    model="google/gemini-2.5-flash",
+                    temperature=0,
+                    default_headers={
+                        "HTTP-Referer": "https://syndicateholding.com",
+                        "X-Title": "SYNDICATE Holding",
+                    },
+                )
+                logger.info("Initialized fast LLM via OpenRouter Gemini Flash")
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Failed to initialize OpenRouter fast LLM", error=str(exc))
+
+        if self._llm_fast is None and openai_key and openai_key != "PLACEHOLDER_UPDATE_ME":
+            try:
+                self._llm_fast = ChatOpenAI(
+                    api_key=openai_key,
+                    model="gpt-4o-mini",
+                    temperature=0,
+                )
+                logger.info("Initialized fast LLM via OpenAI")
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Failed to initialize OpenAI fast LLM", error=str(exc))
+
+        # 3. Reasoning LLM: OpenRouter (deepseek-r1 or o3-mini) -> OpenAI o3-mini -> Fallback to primary LLM
+        if openrouter_key and openrouter_key != "PLACEHOLDER_UPDATE_ME":
+            try:
+                self._llm_reasoning = ChatOpenAI(
+                    base_url="https://openrouter.ai/api/v1",
+                    api_key=openrouter_key,
+                    model=self._llm_config.get("reasoning_model", "deepseek/deepseek-r1"),
+                    default_headers={
+                        "HTTP-Referer": "https://syndicateholding.com",
+                        "X-Title": "SYNDICATE Holding",
+                    },
+                )
+                logger.info("Initialized reasoning LLM via OpenRouter", model="deepseek/deepseek-r1")
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Failed to initialize OpenRouter reasoning LLM", error=str(exc))
+
+        if self._llm_reasoning is None and openai_key and openai_key != "PLACEHOLDER_UPDATE_ME":
+            try:
+                self._llm_reasoning = ChatOpenAI(
+                    api_key=openai_key,
+                    model=reasoning_model,
+                )
+                logger.info("Initialized reasoning LLM via OpenAI")
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Failed to initialize OpenAI reasoning LLM", error=str(exc))
 
     def _init_verification_stack(self) -> None:
         """Council / Orc / release-pack are created once and reused."""
