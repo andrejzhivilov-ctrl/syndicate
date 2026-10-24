@@ -23,7 +23,17 @@ services:
       SYNDICATE_DIRECTOR_PROVIDERS: ${OSCAR_PROVIDERS:-}
     volumes:
     - oscar_data:/data/director
-      sonar-agent:
+    networks:
+    - oscar_control
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 128
+    ulimits:
+      nofile:
+        soft: 1024
+        hard: 2048
+
+  sonar-agent:
     build:
       context: ..
       dockerfile: deploy/docker/Dockerfile.director
@@ -50,15 +60,6 @@ services:
     networks:
     - sonar_control
     mem_limit: 1024m
-    cpus: 1.0
-    pids_limit: 128
-    ulimits:
-      nofile:
-        soft: 1024
-        hard: 2048
-networks:
-    - oscar_control
-    mem_limit: 768m
     cpus: 1.0
     pids_limit: 128
     ulimits:
