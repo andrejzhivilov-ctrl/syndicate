@@ -24,4 +24,4 @@ ui = false
 # Lease configuration
 default_lease_ttl = "1h"
 max_lease_ttl     = "24h"
-disable_mlock     = false
+disable_mlock     = true

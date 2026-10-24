@@ -62,7 +62,7 @@ class TrainerAgent:
 
     def __init__(
         self,
-        memory: Any,
+        memory: Any = None,
         llm: Optional[Any] = None,
         config: Optional[Dict[str, Any]] = None,
         registry: Optional[Any] = None,
@@ -76,6 +76,7 @@ class TrainerAgent:
         )
 
         self._ACTION_MAP: Dict[str, Any] = {
+            "capabilities": self._capabilities,
             "training_protocol": self._training_protocol,
             "workout_plan": self._workout_plan,
             "exercise_search": self._exercise_search,
@@ -88,6 +89,7 @@ class TrainerAgent:
             "morning_data": self._morning_data,
             "swarm_research": self._swarm_research,
         }
+        self.ACTIONS = self._ACTION_MAP
 
     async def _llm_ask(self, prompt: str, fallback: str) -> str:
         """Invoke LLM with historical memory bounding."""
@@ -172,6 +174,10 @@ class TrainerAgent:
         except Exception as exc:  # noqa: BLE001
             logger.exception("Error executing TrainerAgent action", action=action, exc_info=exc)
             return {"error": str(exc), "agent": self.AGENT_ID}
+
+
+    async def _capabilities(self, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        return {"status": "ok", "agent": "trainer", "actions": list(self._ACTION_MAP.keys())}
 
     async def _training_protocol(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Generate today's workout protocol adapted to readiness score."""

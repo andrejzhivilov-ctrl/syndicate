@@ -25,6 +25,7 @@ services:
     - oscar_data:/data/director
     networks:
     - oscar_control
+    - syndicate_backend
     mem_limit: 768m
     cpus: 1.0
     pids_limit: 128
@@ -59,6 +60,7 @@ services:
     - sonar_data:/data/director
     networks:
     - sonar_control
+    - syndicate_backend
     mem_limit: 1024m
     cpus: 1.0
     pids_limit: 128
@@ -92,6 +94,7 @@ services:
     - tyler_data:/data/director
     networks:
     - tyler_control
+    - syndicate_backend
     mem_limit: 768m
     cpus: 1.0
     pids_limit: 128
@@ -125,6 +128,7 @@ services:
     - jack_data:/data/director
     networks:
     - jack_control
+    - syndicate_backend
     mem_limit: 768m
     cpus: 1.0
     pids_limit: 128
@@ -158,6 +162,7 @@ services:
     - scout_data:/data/director
     networks:
     - scout_control
+    - syndicate_backend
     mem_limit: 768m
     cpus: 1.0
     pids_limit: 128
@@ -191,6 +196,7 @@ services:
     - dex_data:/data/director
     networks:
     - dex_control
+    - syndicate_backend
     mem_limit: 768m
     cpus: 1.0
     pids_limit: 128
@@ -224,6 +230,7 @@ services:
     - ray_data:/data/director
     networks:
     - ray_control
+    - syndicate_backend
     mem_limit: 768m
     cpus: 1.0
     pids_limit: 128
@@ -257,6 +264,7 @@ services:
     - atlas_data:/data/director
     networks:
     - atlas_control
+    - syndicate_backend
     mem_limit: 768m
     cpus: 1.0
     pids_limit: 128
@@ -291,6 +299,7 @@ services:
     - trainer_data:/data/director
     networks:
     - trainer_control
+    - syndicate_backend
     mem_limit: 768m
     cpus: 1.0
     pids_limit: 128
@@ -322,6 +331,7 @@ services:
     - antigravity_data:/data/director
     networks:
     - antigravity_control
+    - syndicate_backend
     mem_limit: 1536m
     cpus: 1.5
     pids_limit: 256
@@ -330,6 +340,8 @@ services:
         soft: 2048
         hard: 4096
 networks:
+  syndicate_backend:
+    external: true
   sonar_control:
     driver: bridge
   oscar_control:

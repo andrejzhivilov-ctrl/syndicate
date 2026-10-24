@@ -1,4 +1,3 @@
-# Native domain tools; no Hermes shell/browser toolset is enabled by this image.
 fastapi==0.115.0
 uvicorn==0.30.6
 pydantic==2.9.2
@@ -8,3 +7,6 @@ tenacity>=8.2.3,<9.0.0
 pillow>=10.0.0
 numpy>=1.26.4,<2.0.0
 scipy>=1.14.1
+langchain-core>=0.2.40,<0.3.0
+hvac==2.3.0
+python-dotenv==1.0.1
