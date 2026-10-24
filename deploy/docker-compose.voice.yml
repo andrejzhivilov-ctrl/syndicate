@@ -60,7 +60,7 @@ services:
     container_name: syndicate-pronunciation-coach
     restart: unless-stopped
     working_dir: /app
-    command: ["python", "-m", "src.voice.pronunciation_coach"]
+    command: ["sh", "-c", "pip install -q httpx structlog && python -m src.voice.pronunciation_coach"]
     volumes:
       - ../src:/app/src:ro
     deploy:
