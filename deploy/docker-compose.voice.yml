@@ -26,11 +26,11 @@ services:
     image: ghcr.io/remsky/kokoro-fastapi-cpu:v0.2.2
     container_name: syndicate-kokoro-tts
     restart: unless-stopped
-    expose:
-      - "8880"
+    ports:
+      - "127.0.0.1:8880:8880"
     environment:
       - ONNX_NUM_THREADS=2
-      - DEFAULT_VOICE=0.65*af_bella+0.35*bf_emma
+      - DEFAULT_VOICE=af_bella
     volumes:
       - /data/voices/kokoro:/app/voices:ro
     deploy:
