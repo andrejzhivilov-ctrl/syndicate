@@ -12,6 +12,12 @@ RUN pip install --no-cache-dir \
     uvicorn[standard]==0.30.6 \
     python-multipart==0.0.12 \
     faster-whisper==1.0.3 \
+    # faster-whisper 1.0.3 imports requests; unpinned huggingface_hub 2.x
+    # no longer pulls it in and the container died at import time.
+    huggingface_hub==0.26.2 \
+    requests==2.32.3 \
+    tokenizers==0.20.3 \
+    ctranslate2==4.8.3 \
     structlog==24.4.0
 
 COPY deploy/docker/whisper_server.py /app/whisper_server.py

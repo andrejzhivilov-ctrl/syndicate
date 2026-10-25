@@ -28,7 +28,7 @@
 
 ## 2026-10-25 — Claude Code: розгортання v5 на сервері 169.58.178.154
 
-**Гілка:** `fix/voice-livekit-frontend-network`. **Сервер:** `/opt/syndicate` на `20d4234` (main).
+**Гілка:** `fix/v5-server-rollout`. **Сервер:** `/opt/syndicate` на `20d4234` (main).
 **Ворота** (на сервері, у копії дерева з патчем): pytest, 10 поверхів, sandbox, контракт API, Vault-політики,
 жива PostgreSQL (pgserver), секрети, compose-синхронізація — PASS. Ruff 41/11/7 — FAIL, ті самі числа й
 файли, що були до цієї сесії (див. `docs/PREDEPLOY_V5.md`); нових зауважень немає.
@@ -56,22 +56,37 @@
   файли `.approle.env` у форматі `vault_init.sh`, оновлення `.env` і `deploy/.env` (бекап у
   `/opt/eva/vault-secrets/pre-v5-<stamp>/`), знищення старих SecretID.
 
+- Оператор запустив `/root/v5_vault_admin.sh` (root-токен передано з файлу через pipe, агент його не бачив):
+  20 політик завантажено, 5 AppRole (sonar/scout/dex/ray/atlas) отримали нові SecretID (login перевірено,
+  по 1 старому SecretID знищено), бекап `.env` у `/opt/eva/vault-secrets/pre-v5-20261025T040700Z/`.
+  Усі 5 директорів перестворено по одному: healthy + `Vault authenticated`.
+- `embeddings` і `whisper` раніше не були запущені. Створено `/data/embeddings` (1001) і `/data/whisper` (1000).
+  Два дефекти образів через незакріплені залежності, виправлено в гілці:
+  - `whisper.Dockerfile`: `huggingface_hub` 2.x більше не тягне `requests`, а `faster-whisper==1.0.3` його
+    імпортує → контейнер падав при старті. Закріплено `huggingface_hub==0.26.2`, `requests`, `tokenizers`,
+    `ctranslate2==4.8.3` (4.4.0 не вантажиться на ядрі сервера: executable stack).
+  - `embeddings.Dockerfile`: `transformers` 4.57 відмовляється вантажити `pytorch_model.bin` BGE-M3 з torch < 2.6
+    (CVE-2025-32434). torch → 2.6.0 CPU, закріплено `transformers==4.46.3`, `huggingface_hub==0.26.2`.
+  На сервері запущено образи, зібрані з цих Dockerfile: embeddings healthy, `/embed` з eva-agent → 1024 виміри,
+  `embedding_failures: 0`; whisper healthy (модель large-v3 вантажиться при першому запиті).
+
 ### Не дороблено / свідомо залишено
-- **Vault-політики та AppRole (кроки 2–3) не застосовано**: потрібен root-токен, а `vault-init.json` агентові
-  читати заборонено. Скрипт чекає, поки оператор запустить його сам. Після запуску треба перестворити 5 директорів.
+- Root-токен з ініціалізації **досі дійсний** (скрипт працював саме з ним). Його варто відкликати, а
+  `vault-init.json` — після офлайн-збереження unseal-ключів — знищити через `deploy/scripts/vault_finalize.sh`.
 - Telegram-вебхуки не реєструвалися: немає токенів ботів (оператор внесе через `scripts/syndicate_vault.py`).
-- `embeddings` (BGE-M3) не запущено: eva-agent пише `embeddings service unreachable`, а `/health` при цьому
-  каже `semantic_search_enabled: true` — це суперечить Zero-Faking, треба виправити в коді.
+- `embeddings` (BGE-M3) не був запущений: eva-agent писав `embeddings service unreachable`. `/health` при цьому
+  каже `semantic_search_enabled: true` — це задокументована ознака конфігурації, а не живий пробник
+  (`deploy/runtime/agent_runner.py`, поле `HealthResponse`); реальні збої видно в `embedding_failures`.
 - LLM-ключі відсутні: `llm_ready: false`. `python -m tools.check_models` не запускався.
 - Інтерфейсу `tailscale0` на сервері немає → Syncthing із зовнішніми пристроями не синхронізується.
 - На сервері лишилися `/root/ci-wt`, `/root/ci-venv`, `/root/ci-check.log`, `/root/voice.patch`,
   `/root/nginx.running.conf` (копія старого конфігу) — службові, можна видалити.
 
 ### Наступне
-1. Оператор: `bash /root/v5_vault_admin.sh` → перестворити sonar/scout/dex/ray/atlas.
-2. Злити `fix/voice-livekit-frontend-network` у main і `git pull` на сервері.
+1. Оператор: відкликати root-токен ініціалізації і запустити `vault_finalize.sh` (рішення людини).
+2. Злити `fix/v5-server-rollout` у main і `git pull` на сервері.
 3. Ключі LLM і токени ботів → `tools.check_models` → `POST /admin/telegram/register`.
-4. Запустити `embeddings` і виправити `/health`, щоб він не звітував `semantic_search_enabled`, коли сервіс недоступний.
+4. Тримати `embeddings` і `whisper` запущеними (вони в основному compose без профілю).
 
 ### Ризики й спостереження
 - Будь-який `git pull` на сервері знову «відв'яже» nginx від файлу → після кожного оновлення `nginx.conf`
