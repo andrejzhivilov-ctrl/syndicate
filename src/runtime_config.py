@@ -24,6 +24,7 @@ Design notes
 
 from __future__ import annotations
 
+from src.model_registry import model_for
 import os
 from typing import Any, Dict, List, Optional
 
@@ -263,8 +264,8 @@ def build_runtime_config(env: Optional[Dict[str, str]] = None) -> Dict[str, Any]
         # v4.0 NEW: Tiered LLM routing
         # ═══════════════════════════════════════════════════════════════
         "llm_routing": {
-            "cheap_model": get("LLM_CHEAP_MODEL") or "gemini-2.0-flash",
-            "expensive_model": get("LLM_EXPENSIVE_MODEL") or "claude-sonnet-4-20250514",
+            "cheap_model": get("LLM_CHEAP_MODEL") or model_for("LLM_CHEAP"),
+            "expensive_model": get("LLM_EXPENSIVE_MODEL") or model_for("LLM_EXPENSIVE"),
             # Tasks routed to cheap model (formatting, simple routing, health checks)
             "cheap_tasks": _split_csv(get("LLM_CHEAP_TASKS")) or [
                 "summarize", "health", "status", "morning_data",

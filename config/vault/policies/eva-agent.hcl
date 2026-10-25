@@ -216,6 +216,22 @@ path "secret/metadata/eva-syndicate/agents/*" {
   capabilities = ["list", "read"]
 }
 
+path "secret/data/syndicate/telegram/*" {
+  capabilities = ["read"]
+}
+
+path "secret/metadata/syndicate/telegram/*" {
+  capabilities = ["list", "read"]
+}
+
+path "secret/data/eva-syndicate/telegram/*" {
+  capabilities = ["read"]
+}
+
+path "secret/metadata/eva-syndicate/telegram/*" {
+  capabilities = ["list", "read"]
+}
+
 path "auth/token/renew-self" {
   capabilities = ["update"]
 }

@@ -10,12 +10,22 @@ services:
     container_name: syndicate-livekit
     restart: unless-stopped
     ports:
-      - "7880:7880/tcp"
+      # 7880 (signalling) is reached through nginx over TLS; never publish it.
+      - "127.0.0.1:7880:7880/tcp"
+      # WebRTC media must be reachable by clients: TCP fallback + UDP.
       - "7881:7881/tcp"
       - "7882:7882/udp"
     environment:
-      LIVEKIT_KEYS: "${LIVEKIT_API_KEY:-devkey}: ${LIVEKIT_API_SECRET:-secret}"
-      LIVEKIT_DOMAIN: "voice.syndicateholding.com"
+      # No default key pair: a stack that boots with devkey/secret lets anyone
+      # mint a valid room token. Compose refuses to start without real values
+      # (generate: openssl rand -hex 16 / openssl rand -hex 32).
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY:?set LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET:?set LIVEKIT_API_SECRET}"
+      LIVEKIT_CONFIG: |
+        port: 7880
+        rtc:
+          tcp_port: 7881
+          udp_port: 7882
+          use_external_ip: true
     deploy:
       resources:
         limits:
@@ -60,7 +70,12 @@ services:
     container_name: syndicate-pronunciation-coach
     restart: unless-stopped
     working_dir: /app
-    command: ["sh", "-c", "pip install -q httpx structlog && python -m src.voice.pronunciation_coach"]
+    # Disabled by default. The module is a placeholder (no acoustic model), so it
+    # must not run as a service until a real scorer is wired in; and the old
+    # `pip install` at container start pulled unpinned code at every boot.
+    profiles:
+      - pronunciation-coach-experimental
+    command: ["python", "-m", "src.voice.pronunciation_coach"]
     volumes:
       - ../src:/app/src:ro
     deploy:
@@ -73,16 +88,22 @@ services:
     image: lscr.io/linuxserver/syncthing:latest
     container_name: syndicate-obsidian-sync
     restart: unless-stopped
+    volumes:
+      - /data/obsidian_vault:/data/Second_Brain
+      - /data/syncthing_config:/config
     environment:
       - PUID=1000
       - PGID=1000
       - TZ=Europe/Kyiv
-    volumes:
-      - /data/obsidian_vault:/data/Second_Brain
-      - /data/syncthing_config:/config
     ports:
-      - "22000:22000/tcp"
-      - "22000:22000/udp"
+      # Sync protocol: bind to the server's Tailscale IP (SYNCTHING_BIND_IP=100.x.y.z).
+      # Docker-published ports bypass UFW, so "allow only from my devices" cannot be
+      # enforced with UFW alone; binding to 127.0.0.1 (the default) keeps it closed.
+      - "${SYNCTHING_BIND_IP:-127.0.0.1}:22000:22000/tcp"
+      - "${SYNCTHING_BIND_IP:-127.0.0.1}:22000:22000/udp"
+      # Web GUI: loopback only — reach it with `ssh -L 8384:127.0.0.1:8384 server`.
+      # Set a GUI password on first login.
+      - "127.0.0.1:8384:8384/tcp"
     deploy:
       resources:
         limits:

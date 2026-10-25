@@ -143,14 +143,17 @@ def test_alice_autonomous_daemon_reflection_and_bridge_report(tmp_path: Path) ->
     from src.agents.alice_autonomous_daemon import AliceAutonomousDaemon
 
     daemon = AliceAutonomousDaemon(obsidian_vault_path=tmp_path)
-    reflection = daemon.run_0330_self_reflection(date_str="2026-10-26")
+    reflection = daemon.run_0330_self_reflection(date_str="2026-10-26", new_skills_to_request=["skill-a"])
     assert reflection["agent_id"] == "alice"
+    # Zero-Faking: unmeasured values are None, never plausible defaults.
+    assert reflection["score"] is None and reflection["commits_pushed"] is None
     assert reflection["execution_node"] == "alice_dedicated_machine"
     assert reflection["kodex_skill_requests"][0]["command"] == "CMD:KODEX_CREATE_AND_BIND_SKILL"
 
     report = daemon.build_bridge_report_for_eva(period="morning_0700", date_str="2026-10-26")
     assert report["agent_id"] == "alice"
-    assert len(report["own_rd_ideas_and_proposals"]) >= 2
+    assert report["own_rd_ideas_and_proposals"] == [] and report["queued_tasks_count"] == 0
+    assert report["bridge_status"].startswith("UNKNOWN")
 
 
 def test_all_18_agents_live_modes_telegram_buttons_eva_telephony_and_hitl_skill_gate() -> None:

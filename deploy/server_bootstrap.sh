@@ -3,7 +3,8 @@
 # SYNDICATE — server_bootstrap.sh
 # Підготовка Contabo Cloud VPS 12 (12 vCPU / 48 GB RAM / 400 GB SSD)
 # ОС: Ubuntu 24.04 LTS | Корпоративний домен: syndicateholding.com
-# Запускати: sudo bash server_bootstrap.sh
+# Запускати: sudo GITHUB_TOKEN=<fine-grained read-only token> bash server_bootstrap.sh
+# (токен лише через змінну середовища — не аргумент командного рядка і не в URL)
 # ===============================================================
 
 set -euo pipefail
@@ -86,18 +87,20 @@ ufw allow out 443/tcp comment "HTTPS"
 ufw allow out 80/tcp comment "HTTP (для оновлень)"
 ufw allow out 53/udp comment "DNS"
 ufw allow out 53/tcp comment "DNS over TCP"
+ufw allow out 123/udp comment "NTP"
+ufw allow out 41641/udp comment "Tailscale WireGuard"
+ufw allow out 3478/udp comment "Tailscale STUN"
 ufw allow out 7882/udp comment "LiveKit WebRTC UDP media out"
-ufw allow out 22000/tcp comment "Obsidian Syncthing P2P sync out"
 
-# Вхідний — SSH, HTTPS, LiveKit WebRTC (Голос Кіри/Єви) та Syncthing (Obsidian Second Brain)
+# Вхідний — лише те, що має бути публічним.
+# 7880 (LiveKit signalling) НЕ відкривається: він проксується nginx-ом через 443.
+# Syncthing (22000) НЕ відкривається у світ: синхронізація йде через Tailscale (tailscale0).
 ufw allow in 22/tcp comment "SSH"
 ufw allow in 80/tcp comment "HTTP (redirect to HTTPS)"
 ufw allow in 443/tcp comment "HTTPS"
-ufw allow in 7880/tcp comment "LiveKit WebRTC Signaling"
 ufw allow in 7881/tcp comment "LiveKit WebRTC TCP Fallback"
 ufw allow in 7882/udp comment "LiveKit WebRTC UDP Low-Latency Audio"
-ufw allow in 22000/tcp comment "Obsidian Second Brain Syncthing TCP"
-ufw allow in 22000/udp comment "Obsidian Second Brain Syncthing QUIC"
+ufw allow in on tailscale0 comment "Tailscale mesh (Syncthing, admin)"
 
 # Docker internal
 ufw allow in on docker0
@@ -105,7 +108,8 @@ ufw allow out on docker0
 ufw allow in on br-+ comment "Docker bridge networks"
 
 ufw --force enable
-log "✅ UFW налаштовано: SSH, HTTPS, LiveKit WebRTC (7880-7882) та Obsidian Syncthing (22000) відкрито"
+warn "Docker-published ports ОБХОДЯТЬ UFW: у compose-файлах усе внутрішнє має бути на 127.0.0.1 або Tailscale IP."
+log "✅ UFW налаштовано: SSH, 80/443, LiveKit 7881/tcp + 7882/udp; Syncthing лише через tailscale0"
 
 # ── КРОК 5: FAIL2BAN ───────────────────────────────────────────
 section "КРОК 5: Налаштування Fail2ban"
@@ -128,14 +132,30 @@ log "✅ Fail2ban активний: 3 спроби SSH → бан на 24 год
 
 # ── КРОК 6: НАЛАШТУВАННЯ SSH БЕЗПЕКИ ──────────────────────────
 section "КРОК 6: Захист SSH"
-cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
-sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
-sed -i 's/PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
-sed -i 's/#PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
-sed -i 's/PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
-systemctl restart sshd
-warn "⚠️  SSH: пароль вимкнено! Переконайся що твій SSH-ключ вже додано до authorized_keys"
-log "✅ SSH захищено: root login = NO, password auth = NO"
+# Захист від самоблокування: вимикаємо паролі/root лише якщо для користувача syndicate
+# вже є робочий authorized_keys (копіюємо ключі root, якщо вони є).
+SYN_KEYS="/home/syndicate/.ssh/authorized_keys"
+if [ ! -s "$SYN_KEYS" ] && [ -s /root/.ssh/authorized_keys ]; then
+    install -d -m 700 -o syndicate -g syndicate /home/syndicate/.ssh
+    install -m 600 -o syndicate -g syndicate /root/.ssh/authorized_keys "$SYN_KEYS"
+fi
+if [ -s "$SYN_KEYS" ]; then
+    cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
+    cat > /etc/ssh/sshd_config.d/00-syndicate-hardening.conf << 'EOF'
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no
+EOF
+    if sshd -t; then
+        systemctl reload ssh || systemctl reload sshd
+        log "✅ SSH захищено: root login = NO, password auth = NO (вхід: ssh syndicate@<host>)"
+    else
+        rm -f /etc/ssh/sshd_config.d/00-syndicate-hardening.conf
+        warn "sshd -t не пройшов — зміни SSH скасовано"
+    fi
+else
+    warn "⚠️  Немає SSH-ключів для syndicate/root — SSH НЕ закрито, щоб не втратити доступ. Додай ключ і запусти скрипт знову."
+fi
 
 # ── КРОК 7: СТРУКТУРА ДИРЕКТОРІЙ (+ ГОЛОСОВІ КЛОНИ ТА OBSIDIAN VAULT) ──
 section "КРОК 7: Створення структури директорій"
@@ -150,7 +170,7 @@ chmod 700 "$PROJECT_DIR/secrets"
 log "✅ Директорії створено у $PROJECT_DIR, /data/voices та /data/obsidian_vault"
 
 # ── КРОК 7b: ПЕРВИННИЙ SSL БУТСТРАП ДЛЯ NGINX ───────────────────
-section "КРОК 7b: Первинний SSL бутстрап (захист від збою Nginx)"
+section "КРОК 7b: Первинний SSL бутстрап (самопідписаний; реальний сертифікат — deploy/scripts/setup_ssl.sh)"
 DUMMY_CERT_DIR="/data/nginx-certs/live/default"
 if [ ! -f "$DUMMY_CERT_DIR/fullchain.pem" ]; then
     mkdir -p "$DUMMY_CERT_DIR"
@@ -166,16 +186,20 @@ fi
 # ── КРОК 8: КЛОНУВАННЯ РЕПОЗИТОРІЮ ────────────────────────────
 section "КРОК 8: Клонування репозиторію SYNDICATE"
 if [ ! -d "$PROJECT_DIR/.git" ]; then
-    GITHUB_TOKEN="${1:-}"
+    GITHUB_TOKEN="${GITHUB_TOKEN:-}"
     if [ -z "$GITHUB_TOKEN" ]; then
-        warn "GitHub токен не передано. Клонуй вручну:"
-        warn "  cd $PROJECT_DIR"
-        warn "  git clone https://<TOKEN>@github.com/andrejzhivilov-ctrl/syndicate.git ."
+        warn "GITHUB_TOKEN не задано. Клонуй вручну (токен вводь у запиті пароля, не в URL):"
+        warn "  git clone https://github.com/andrejzhivilov-ctrl/syndicate.git $PROJECT_DIR"
     else
-        cd "$PROJECT_DIR"
-        git clone "https://${GITHUB_TOKEN}@github.com/andrejzhivilov-ctrl/syndicate.git" .
+        ASKPASS="$(mktemp)"
+        printf '#!/bin/sh\necho "$GITHUB_TOKEN"\n' > "$ASKPASS"; chmod 700 "$ASKPASS"
+        GIT_ASKPASS="$ASKPASS" GIT_TERMINAL_PROMPT=0 GITHUB_TOKEN="$GITHUB_TOKEN" \
+            git clone "https://x-access-token@github.com/andrejzhivilov-ctrl/syndicate.git" "$PROJECT_DIR"
+        rm -f "$ASKPASS"
+        # Токен не лишається в .git/config: remote без облікових даних.
+        git -C "$PROJECT_DIR" remote set-url origin "https://github.com/andrejzhivilov-ctrl/syndicate.git"
         chown -R syndicate:syndicate "$PROJECT_DIR"
-        log "✅ Репозиторій клоновано"
+        log "✅ Репозиторій клоновано (remote без токена)"
     fi
 else
     warn "Репозиторій вже клоновано — пропускаємо"
@@ -205,15 +229,15 @@ fi
 
 # ── КРОК 10: ВСТАНОВЛЕННЯ CILIUM TETRAGON (eBPF Kernel Security) ──
 section "КРОК 10: Встановлення Cilium Tetragon (eBPF на хості)"
-if ! command -v tetragon &>/dev/null; then
-    log "Завантаження та встановлення Tetragon v1.2.0..."
+if [ "${INSTALL_TETRAGON:-0}" != "1" ]; then
+    warn "Tetragon пропущено (опційно). Для встановлення: INSTALL_TETRAGON=1 TETRAGON_SHA256=<sha256 з релізу> bash $0"
+elif ! command -v tetragon &>/dev/null; then
+    [ -n "${TETRAGON_SHA256:-}" ] || error "INSTALL_TETRAGON=1 потребує TETRAGON_SHA256 (перевірка цілісності)"
     TETRAGON_VER="v1.2.0"
-    curl -fsSL -o /tmp/tetragon.tar.gz "https://github.com/cilium/tetragon/releases/download/${TETRAGON_VER}/tetragon-${TETRAGON_VER}-amd64.tar.gz" || warn "Не вдалося завантажити Tetragon бінарник (можна встановити пізніше)"
-    if [ -f /tmp/tetragon.tar.gz ]; then
-        tar -xzf /tmp/tetragon.tar.gz -C /usr/local/bin/ || true
-        rm -f /tmp/tetragon.tar.gz
-        log "✅ Tetragon встановлено в /usr/local/bin"
-    fi
+    curl -fsSL -o /tmp/tetragon.tar.gz "https://github.com/cilium/tetragon/releases/download/${TETRAGON_VER}/tetragon-${TETRAGON_VER}-amd64.tar.gz"
+    echo "${TETRAGON_SHA256}  /tmp/tetragon.tar.gz" | sha256sum -c - || { rm -f /tmp/tetragon.tar.gz; error "Checksum Tetragon не збігається"; }
+    tar -xzf /tmp/tetragon.tar.gz -C /usr/local/ && rm -f /tmp/tetragon.tar.gz
+    log "✅ Tetragon встановлено"
 else
     log "Tetragon вже встановлено"
 fi

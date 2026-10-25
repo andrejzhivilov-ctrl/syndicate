@@ -33,6 +33,16 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 POLICY_DIR="${REPO_ROOT}/config/vault/policies"
 KEEP_ROOT_TOKEN="${KEEP_ROOT_TOKEN:-0}"
 ROTATE="${ROTATE:-0}"
+# SecretID lifetime. It used to be "0" (never expires): a leaked env file was
+# valid forever. 90 days + deploy/scripts/vault_rotate_approle.sh keeps a leak
+# bounded without a monthly outage. Override with SECRET_ID_TTL.
+SECRET_ID_TTL="${SECRET_ID_TTL:-2160h}"
+# 1 = also write the first 3 unseal keys to a root-only file so that
+# deploy/systemd/syndicate-vault-unseal.service can unseal after a reboot.
+# This trades some secrecy for availability (keys sit on the same host as
+# Vault) — see DEPLOYMENT_RUNBOOK.md §"Vault unseal decision". Default: off.
+AUTO_UNSEAL="${AUTO_UNSEAL:-0}"
+UNSEAL_KEYS_FILE="${UNSEAL_KEYS_FILE:-/etc/syndicate/vault-unseal.keys}"
 VAULT_TOKEN=""
 
 log() { echo "[VAULT-INIT] $(date '+%H:%M:%S') $*"; }
@@ -173,9 +183,18 @@ create_approles() {
     local policy_files=("$POLICY_DIR"/*.hcl)
     shopt -u nullglob
 
-    local policy_file policy_name role_id secret_id role_env secret_env
+    local policy_file policy_name role_id secret_id role_env secret_env agent_key
+    # One combined file with <AGENT>_VAULT_ROLE_ID / <AGENT>_VAULT_SECRET_ID names,
+    # exactly what deploy/docker-compose.directors.yml and docker-compose.alice.yml
+    # expect — so the operator appends one file to the protected .env.
+    local combined="${SECRETS_DIR}/directors.env"
+    : > "$combined"
+    chmod 600 "$combined"
     for policy_file in "${policy_files[@]}"; do
         policy_name="$(basename "$policy_file" .hcl)"
+        if [[ "$policy_name" == "eva-operator" ]]; then
+            continue  # the operator uses a periodic token, not an AppRole
+        fi
         role_env="VAULT_ROLE_ID"
         secret_env="VAULT_SECRET_ID"
         if [[ "$policy_name" == "eva-alice" ]]; then
@@ -190,7 +209,7 @@ create_approles() {
             \"token_max_ttl\": \"24h\",
             \"token_num_uses\": 0,
             \"secret_id_num_uses\": 0,
-            \"secret_id_ttl\": \"0\"
+            \"secret_id_ttl\": \"${SECRET_ID_TTL}\"
         }" > /dev/null
 
         role_id=$(api GET "auth/approle/role/${policy_name}/role-id" | jq -r '.data.role_id // empty')
@@ -208,9 +227,16 @@ ${role_env}=${role_id}
 ${secret_env}=${secret_id}
 EOF
         chmod 600 "${SECRETS_DIR}/${policy_name}.approle.env"
+        agent_key="${policy_name#eva-}"
+        if [[ "$agent_key" != "agent" ]]; then
+            {
+                echo "${agent_key^^}_VAULT_ROLE_ID=${role_id}"
+                echo "${agent_key^^}_VAULT_SECRET_ID=${secret_id}"
+            } >> "$combined"
+        fi
         log "  ${policy_name}: role + secret id written to ${policy_name}.approle.env"
     done
-    log "AppRoles created. Copy ${SECRETS_DIR}/eva-agent.approle.env into .env."
+    log "AppRoles created. Copy ${SECRETS_DIR}/eva-agent.approle.env AND ${combined} into the protected .env."
 }
 
 store_secret() {  # store_secret <path> <json-data> [--rotate]
@@ -317,6 +343,35 @@ store_llm_keys() {
     store_secret "api-keys" "$data" "$rotate"
 }
 
+create_operator_token() {
+    # Periodic token restricted by eva-operator: lets scripts/syndicate_vault.py
+    # store provider keys and bot tokens after the root token is revoked.
+    local out token
+    out=$(api POST "auth/token/create" '{"policies":["eva-operator"],"period":"720h","display_name":"operator","renewable":true,"no_parent":true}')
+    token=$(echo "$out" | jq -r '.auth.client_token // empty')
+    [[ -n "$token" ]] || err "could not create the operator token"
+    umask 077
+    printf '%s\n' "$token" > "${SECRETS_DIR}/operator.token"
+    chmod 600 "${SECRETS_DIR}/operator.token"
+    log "Operator token written to ${SECRETS_DIR}/operator.token (policy eva-operator)."
+}
+
+install_auto_unseal_keys() {
+    if [[ "$AUTO_UNSEAL" != "1" ]]; then
+        log "AUTO_UNSEAL=0: after every reboot Vault stays sealed until you run vault_unseal.sh."
+        return 0
+    fi
+    mkdir -p "$(dirname "$UNSEAL_KEYS_FILE")"
+    chmod 700 "$(dirname "$UNSEAL_KEYS_FILE")"
+    umask 077
+    {
+        for i in 0 1 2; do jq -r ".keys_base64[$i]" "$INIT_OUTPUT_FILE"; done
+    } > "$UNSEAL_KEYS_FILE"
+    chmod 400 "$UNSEAL_KEYS_FILE"
+    log "AUTO_UNSEAL=1: 3 unseal keys written to $UNSEAL_KEYS_FILE (root-only)."
+    log "Keep keys 4 and 5 OFFLINE only. Enable: systemctl enable --now syndicate-vault-unseal"
+}
+
 revoke_root_token() {
     if [[ "$KEEP_ROOT_TOKEN" == "1" ]]; then
         log "KEEP_ROOT_TOKEN=1 — root token NOT revoked. Revoke it manually when done:"
@@ -344,12 +399,16 @@ main() {
     upload_policies
     store_initial_secrets
     create_approles
+    create_operator_token
+    install_auto_unseal_keys
     revoke_root_token
     log "====== Vault initialization complete ======"
     log "Next steps:"
     log "  1. cp ${SECRETS_DIR}/eva-agent.approle.env  →  append to .env, then delete it"
-    log "  2. Run vault_unseal.sh after every Vault restart."
-    log "  3. Verify policies match the code:  python tools/vault_policies.py --check"
+    log "  2. Copy ALL 5 unseal keys from ${INIT_OUTPUT_FILE} into your password manager,"
+    log "     then run: bash deploy/scripts/vault_finalize.sh   (shreds vault-init.json)"
+    log "  3. Unseal after every Vault restart (vault_unseal.sh, or the systemd unit if AUTO_UNSEAL=1)."
+    log "  4. Verify policies match the code:  python tools/vault_policies.py --check"
 }
 
 main "$@"

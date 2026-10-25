@@ -50,6 +50,28 @@ SAVEABLE_STATUSES = ("ok", "partial", "completed")
 DISCIPLINES: Dict[str, Any] = load_seed()["disciplines"]
 
 
+import re as _re
+
+# Deterministic, zero-token crisis screen. Kira is a tutor, not a clinician: on a
+# match she stops tutoring, gives a fixed safe message and flags the operator.
+_CRISIS_PATTERNS = _re.compile(
+    r"(не хочу жити|хочу померти|покінчити з собою|покінчу з собою|самогубств|суїцид|вбити себе|"
+    r"нашкодити собі|не бачу сенсу жити|не хочу жить|хочу умереть|покончить с собой|убить себя|"
+    r"kill myself|want to die|end my life|suicid|self[- ]harm)",
+    _re.IGNORECASE,
+)
+CRISIS_REPLY_UK = (
+    "Я чую, що тобі зараз дуже важко, і це важливо. Я навчальний наставник, а не фахівець з кризової допомоги, "
+    "тому не можу бути єдиною опорою. Якщо є ризик для життя просто зараз — подзвони 112. "
+    "Також, будь ласка, напиши або зателефонуй близькій людині чи лікарю просто зараз. "
+    "Я повідомила оператора, що тобі потрібна підтримка."
+)
+
+
+def detect_crisis(text: object) -> bool:
+    return isinstance(text, str) and bool(_CRISIS_PATTERNS.search(text))
+
+
 class KiraAgent:
     """
     Academic Mentor, Live Psychotherapist, English Pronunciation Coach & Director of Floor 8.
@@ -266,6 +288,10 @@ class KiraAgent:
 
         acoustic_phonemes = payload.get("acoustic_phonemes_detected")
         substitutions = payload.get("simulated_substitutions")
+        if not acoustic_phonemes and not substitutions:
+            # No audio model is wired in: without phoneme input there is nothing to
+            # score, and we must not report a pronunciation grade we did not measure.
+            return self._unavailable("english_pronunciation_assessment", "no_acoustic_analysis_input")
 
         report = self._pronunciation_coach.evaluate_utterance(
             target_phrase=target_phrase,
@@ -286,6 +312,14 @@ class KiraAgent:
         Socratic Sparring: Challenges assumptions, deconstructs mental models,
         and pushes Andriy toward first-principles thinking.
         """
+        if detect_crisis(payload.get("statement")) or detect_crisis(payload.get("topic")):
+            return {
+                "status": "ok",
+                "agent": self.AGENT_ID,
+                "crisis_support": True,
+                "reply": CRISIS_REPLY_UK,
+                "escalate_to_operator": True,
+            }
         topic = payload.get("topic", "Architectural tradeoffs in autonomous agent swarms")
         statement = payload.get("statement", "We should use microservices for all agent communication.")
         discipline = payload.get("discipline", "programming")

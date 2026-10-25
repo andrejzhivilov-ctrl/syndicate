@@ -24,6 +24,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, TypedDict
 
 import structlog
+
+from src.model_registry import model_for
 from langchain_openai import ChatOpenAI
 
 from src.lessons import LessonsStore
@@ -38,6 +40,7 @@ from src.vault_md import MarkdownVault, VaultError
 from src.council import LLMCouncil
 from src.verifier import OrcVerifier
 from src.change_requests import ChangeRequestError, ChangeRequestStore
+from src.hitl_queue import HitlQueue
 from src.skill_store import SkillStore
 from src.tool_contracts import ToolRegistry
 from src.memory_commands import parse_command, execute_command
@@ -55,6 +58,13 @@ except ImportError:
 
 logger = structlog.get_logger(__name__)
 
+# Task types that only a verified human operator may trigger. They are refused
+# on the generic /execute surface and re-checked inside the CR handler.
+OPERATOR_ONLY_TASK_TYPES = frozenset({"review_change_request", "apply_change_request"})
+# The reviewer identity recorded for operator decisions. It is a constant, not
+# a payload field: a caller must not be able to pick who "approved" a change.
+OPERATOR_IDENTITY = "operator"
+
 
 class AgentState(TypedDict):
     """Shared state for the EVA orchestration graph."""
@@ -69,6 +79,9 @@ class AgentState(TypedDict):
     hitl_reason: Optional[str]
     error: Optional[str]
     status: str  # pending | running | awaiting_hitl | completed | failed
+    # True only when the HTTP layer authenticated an operator (HITL scope or
+    # master key) for this exact call. Never derived from the payload.
+    operator_verified: bool
 
 
 SYSTEM_PROMPT = (Path(__file__).with_name("agents") / "eva_runtime_prompt.md").read_text(encoding="utf-8")
@@ -292,7 +305,9 @@ class EvaOrchestrator:
         release_pack_builder: Optional[ReleasePackBuilder] = None,
         director_clients: Optional[Dict[str, Any]] = None,
         vault_client: Optional[Any] = None,
+        hitl_queue: Optional[HitlQueue] = None,
     ) -> None:
+        self._hitl_queue = hitl_queue or HitlQueue()
         self._memory = memory_manager
         self._sentinel = sentinel
         self._llm_config = dict(llm_config or {})
@@ -377,7 +392,7 @@ class EvaOrchestrator:
                 self._llm = ChatOpenAI(
                     base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
                     api_key=gemini_key,
-                    model="gemini-2.5-pro",
+                    model=model_for("GEMINI_PRO"),
                     temperature=0,
                 )
                 logger.info("Initialized primary LLM via Gemini Pro")
@@ -388,7 +403,7 @@ class EvaOrchestrator:
             try:
                 self._llm = ChatOpenAI(
                     api_key=openai_key,
-                    model="gpt-4o",
+                    model=model_for("OPENAI_PRIMARY"),
                     temperature=0,
                 )
                 logger.info("Initialized primary LLM via OpenAI")
@@ -401,7 +416,7 @@ class EvaOrchestrator:
                 self._llm_fast = ChatOpenAI(
                     base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
                     api_key=gemini_key,
-                    model="gemini-2.5-flash",
+                    model=model_for("GEMINI_FAST"),
                     temperature=0,
                 )
                 logger.info("Initialized fast LLM via Gemini Flash")
@@ -413,7 +428,7 @@ class EvaOrchestrator:
                 self._llm_fast = ChatOpenAI(
                     base_url="https://openrouter.ai/api/v1",
                     api_key=openrouter_key,
-                    model="google/gemini-2.5-flash",
+                    model=model_for("OPENROUTER_FAST"),
                     temperature=0,
                     default_headers={
                         "HTTP-Referer": "https://syndicateholding.com",
@@ -683,8 +698,15 @@ class EvaOrchestrator:
 
     async def _confidence_gate(self, state: AgentState) -> AgentState:
         if self._confidence and state.get("result"):
-            confidence = state["result"].get("confidence", 0.90)
-            action_risk = state["result"].get("action_risk", "low")
+            result = state["result"]
+            action_risk = result.get("action_risk", "low")
+            confidence = result.get("confidence")
+            if confidence is None:
+                # An agent that does not report confidence must not be trusted
+                # by default for anything that can act on the outside world.
+                # Read-only, low-risk results keep the historical 0.90.
+                acts_outside = bool(result.get("outbound_actions")) or action_risk != "low"
+                confidence = 0.0 if acts_outside else 0.90
             escalation = self._confidence.evaluate(
                 agent_id=state.get("current_agent", "eva"),
                 confidence=confidence,
@@ -692,8 +714,8 @@ class EvaOrchestrator:
                 action_risk=action_risk,
             )
             if escalation.level == EscalationLevel.REFUSE:
-                state["result"]["refused"] = True
-                state["result"]["refuse_reason"] = escalation.reason
+                result["refused"] = True
+                result["refuse_reason"] = escalation.reason
             elif escalation.level == EscalationLevel.ASK:
                 state["requires_hitl"] = True
                 state["hitl_reason"] = f"Confidence gate: {escalation.reason}"
@@ -971,7 +993,15 @@ class EvaOrchestrator:
         action_map = {
             "mentor_code_review": "code_review",
             "morning_data_kira": "morning_data",
+            # A free-text Telegram message to Kira is a conversation turn: the
+            # user's own words are the statement to challenge. (Without this the
+            # agent argued with a hard-coded demo statement.)
+            "webhook_telegram_kira": "socratic_dialogue",
         }
+        if state["task_type"] == "webhook_telegram_kira":
+            incoming = str(payload.get("text") or "").strip()
+            payload.setdefault("statement", incoming)
+            payload.setdefault("topic", incoming[:120])
         payload.setdefault("action", action_map.get(state["task_type"], state["task_type"]))
         result = await agent.execute(payload)
         state["result"] = result
@@ -1014,6 +1044,17 @@ class EvaOrchestrator:
             "morning_data_doc": "morning_data",
             "swarm_research_doc": "swarm_research",
         }
+        if state["task_type"] == "webhook_telegram_doc":
+            # Doc works on documents and structured metrics, not free chat, and
+            # health data must never be guessed from a chat line.
+            state["result"] = {
+                "agent": "doc",
+                "status": "unavailable",
+                "value": None,
+                "reason": "free_text_not_supported: send a document or use a command",
+            }
+            state["status"] = "completed"
+            return state
         payload.setdefault("action", action_map.get(state["task_type"], state["task_type"]))
         result = await agent.execute(payload)
         state["result"] = result
@@ -1033,6 +1074,7 @@ class EvaOrchestrator:
         action_map = {
             "morning_data_trainer": "morning_data",
             "swarm_research_trainer": "swarm_research",
+            "webhook_telegram_trainer": "capabilities",
         }
         payload.setdefault("action", action_map.get(state["task_type"], state["task_type"]))
         result = await agent.execute(payload)
@@ -1047,7 +1089,7 @@ class EvaOrchestrator:
         from src.agents.eva_access import eva_telegram_inbound_allowed, extract_telegram_chat_id
 
         payload = dict(state["payload"])
-        if state.get("task_type") == "webhook_telegram" and not eva_telegram_inbound_allowed(
+        if state.get("task_type") in {"webhook_telegram", "webhook_telegram_eva"} and not eva_telegram_inbound_allowed(
             extract_telegram_chat_id(payload)
         ):
             state["result"] = {
@@ -1241,15 +1283,25 @@ class EvaOrchestrator:
                     # refused as self-approval once the guard was enforced.
                     author=payload.get("author", "agent"),
                 )
-            elif task_type == "review_change_request":
-                state["result"] = self._change_requests.review(
-                    cr_id=payload.get("cr_id", ""),
-                    decision=payload.get("decision", "approve"),
-                    reviewer=payload.get("reviewer", "operator"),
-                    comment=payload.get("comment", ""),
-                )
-            elif task_type == "apply_change_request":
-                state["result"] = self._change_requests.apply(cr_id=payload.get("cr_id", ""))
+            elif task_type in OPERATOR_ONLY_TASK_TYPES:
+                # Approval is a human act. Only the authenticated /cr/review and
+                # /cr/apply endpoints set ``operator_verified``; a caller cannot
+                # supply it (nor a ``reviewer`` name) through the payload.
+                if not state.get("operator_verified"):
+                    logger.warning("operator_only_task_refused", task_type=task_type)
+                    state["result"] = {
+                        "status": "error",
+                        "error": "operator_verification_required",
+                    }
+                elif task_type == "review_change_request":
+                    state["result"] = self._change_requests.review(
+                        cr_id=payload.get("cr_id", ""),
+                        decision=payload.get("decision", "approve"),
+                        reviewer=OPERATOR_IDENTITY,
+                        comment=payload.get("comment", ""),
+                    )
+                else:
+                    state["result"] = self._change_requests.apply(cr_id=payload.get("cr_id", ""))
             else:
                 state["result"] = {"status": "error", "error": f"Unknown CR task: {task_type}"}
         except ChangeRequestError as exc:
@@ -1404,13 +1456,47 @@ class EvaOrchestrator:
         return state
 
     async def _hitl_gate(self, state: AgentState) -> AgentState:
-        if state.get("requires_hitl"):
-            logger.warning("HITL required", reason=state.get("hitl_reason"))
-            # In testing/sandbox: auto-approve low-risk tasks while preserving hitl_reason in result
-            if state.get("result"):
-                state["result"]["required_hitl"] = True
-                state["result"]["hitl_reason"] = state.get("hitl_reason")
-            state["requires_hitl"] = False
+        """Park the task for a human instead of letting its actions through.
+
+        Outbound actions are removed from the result and stored in the HITL
+        queue; they come back only via an approved ``HitlQueue.release``.
+        If the queue itself fails we fail closed: the actions are dropped and
+        the result says so, rather than being released unreviewed.
+        """
+        if not state.get("requires_hitl"):
+            return state
+        reason = str(state.get("hitl_reason") or "approval_required")
+        logger.warning("hitl_required", reason=reason, task_type=state.get("task_type"))
+        result = state.get("result")
+        if not isinstance(result, dict):
+            result = {"value": result} if result is not None else {}
+        held = list(result.pop("outbound_actions", None) or [])
+        if result.get("approval_cr_id") and not held:
+            # The agent already parked this as a change request, which has its
+            # own approval inbox (/cr/pending). Do not create a second item.
+            result["hitl_item_id"] = None
+            result["hitl_via"] = "change_request"
+        else:
+            try:
+                result["hitl_item_id"] = self._hitl_queue.enqueue(
+                    agent_id=str(state.get("current_agent", "eva")),
+                    task_type=str(state.get("task_type", "unknown")),
+                    task_id=str(state.get("task_id", "")),
+                    reason=reason,
+                    held_actions=held,
+                )
+            except Exception as exc:  # noqa: BLE001 - fail closed, never release unreviewed
+                logger.error("hitl_enqueue_failed", error_type=type(exc).__name__)
+                result["hitl_item_id"] = None
+                result["hitl_queue_error"] = "enqueue_failed_actions_dropped"
+        result["required_hitl"] = True
+        result["hitl_reason"] = reason
+        result["held_actions_count"] = len(held)
+        state["result"] = result
+        # The task itself finished (it produced a proposal); what is held is the
+        # *effect*. The flag is cleared so the graph proceeds to finalize — the
+        # old hitl_gate -> hitl_gate loop edge would otherwise spin forever.
+        state["requires_hitl"] = False
         return state
 
     @staticmethod
@@ -1532,8 +1618,14 @@ class EvaOrchestrator:
         task_type: str,
         payload: Dict[str, Any],
         session_id: Optional[str] = None,
+        *,
+        operator_verified: bool = False,
     ) -> Dict[str, Any]:
-        """Execute a task through the orchestration graph across any of the 10 floors."""
+        """Execute a task through the orchestration graph across any of the 10 floors.
+
+        ``operator_verified`` must only be passed by code that has itself
+        authenticated a human operator (see ``/cr/review`` and ``/cr/apply``).
+        """
         task_id = str(uuid.uuid4())
         provided_session_id = (
             session_id.strip()
@@ -1560,6 +1652,7 @@ class EvaOrchestrator:
             "hitl_reason": None,
             "error": None,
             "status": "pending",
+            "operator_verified": bool(operator_verified),
         }
 
         if self._graph:

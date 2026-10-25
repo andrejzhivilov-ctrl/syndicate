@@ -93,7 +93,7 @@ class _StubCrOrchestrator:
     def __init__(self, store) -> None:
         self.store = store
 
-    async def execute(self, task_type, payload, session_id=None):  # noqa: ARG002
+    async def execute(self, task_type, payload, session_id=None, *, operator_verified=False):  # noqa: ARG002
         try:
             if task_type == "submit_change_request":
                 inner = self.store.submit(
@@ -104,14 +104,20 @@ class _StubCrOrchestrator:
                     author=payload.get("author", "agent"),
                 )
             elif task_type == "review_change_request":
-                inner = self.store.review(
-                    cr_id=payload.get("cr_id", ""),
-                    decision=payload.get("decision", "approve"),
-                    reviewer=payload.get("reviewer", "operator"),
-                    comment=payload.get("comment", ""),
-                )
+                if not operator_verified:
+                    inner = {"status": "error", "error": "operator_verification_required"}
+                else:
+                    inner = self.store.review(
+                        cr_id=payload.get("cr_id", ""),
+                        decision=payload.get("decision", "approve"),
+                        reviewer="operator",
+                        comment=payload.get("comment", ""),
+                    )
             elif task_type == "apply_change_request":
-                inner = self.store.apply(cr_id=payload.get("cr_id", ""))
+                if not operator_verified:
+                    inner = {"status": "error", "error": "operator_verification_required"}
+                else:
+                    inner = self.store.apply(cr_id=payload.get("cr_id", ""))
             else:
                 inner = {"status": "error", "error": f"unknown:{task_type}"}
         except ChangeRequestError as exc:

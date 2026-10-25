@@ -246,20 +246,22 @@ def test_sonar_deep_research_and_intelligence_capabilities():
         depth="comprehensive",
         target_wing="eva",
         confidence_score=0.96,
+        citations=[{"id": "c1", "title": "Doc", "url": "https://example.org/doc", "tier": "Tier A", "excerpt": "x"}],
     )
+    # Zero-Faking: without sources there is no dossier at all.
+    assert run(sonar, "deep_research", topic="No sources here")["status"] == "unavailable"
     assert research["status"] == "ok"
     dossier = research["dossier"]
     assert dossier["topic"] == "Multi-Tenant Agent Security Architecture"
     assert dossier["engine"] == "sonar-deep-research"
     assert dossier["evidence_grade"] == "Tier A"
     assert dossier["confidence_score"] == 0.96
-    assert "tags: [intelligence, deep_research, verified, holding]" in dossier["obsidian_markdown"]
+    assert "unreviewed" in dossier["obsidian_markdown"]
+    assert [c["url"] for c in dossier["citations"]] == ["https://example.org/doc"]
 
     # Quick Search (Fast Lookup)
     quick = run(sonar, "quick_search", query="What is current inflation rate in EU?")
-    assert quick["status"] == "ok"
-    assert quick["engine"] == "sonar-pro"
-    assert quick["execution_mode"] == "fast_lookup"
+    assert quick["status"] == "unavailable"  # no search client => no invented answer
 
     # Verify Sources
     verification = run(
@@ -282,6 +284,14 @@ def test_sonar_deep_research_and_intelligence_capabilities():
         entities=["Firecrawl", "Playwright", "Puppeteer"],
         criteria=["LLM Readiness", "Anti-Bot Bypass", "Token Efficiency"]
     )
+    assert compare["status"] == "unavailable"  # no scores supplied => no invented ratings
+    compare = run(
+        sonar,
+        "compare_entities",
+        entities=["Firecrawl", "Playwright", "Puppeteer"],
+        criteria=["LLM Readiness"],
+        scores={"Firecrawl": {"LLM Readiness": 90}, "Playwright": {"LLM Readiness": 70}, "Puppeteer": {"LLM Readiness": 60}},
+    )
     assert compare["status"] == "ok"
     assert len(compare["comparison"]["entities"]) == 3
     assert compare["comparison"]["winner"] == "Firecrawl"
@@ -293,9 +303,9 @@ def test_sonar_deep_research_and_intelligence_capabilities():
         url="https://docs.perplexity.ai/reference/post_chat_completions",
         page_title="Perplexity API Reference"
     )
-    assert crawl["status"] == "ok"
-    assert crawl["domain"] == "docs.perplexity.ai"
-    assert crawl["noise_stripped"] is True
+    assert crawl["status"] == "unavailable"  # nothing is fetched here
+    crawl = run(sonar, "crawl_and_extract", url="https://docs.perplexity.ai/x", page_text="Body text")
+    assert crawl["status"] == "ok" and crawl["domain"] == "docs.perplexity.ai" and crawl["fetched"] is False
 
     # Package for Obsidian
     package = run(sonar, "package_for_obsidian", dossier_id=dossier["id"])
@@ -319,6 +329,4 @@ def test_orchestrator_eva_quick_perplexity_search():
     orchestrator._memory = None
 
     result = asyncio.run(orchestrator.quick_perplexity_search("Quick holding status"))
-    assert result["status"] == "ok"
-    assert result["engine"] == "sonar-pro"
-    assert result["execution_mode"] == "fast_lookup"
+    assert result["status"] == "unavailable"

@@ -12,7 +12,6 @@ from __future__ import annotations
 from typing import Any, Dict, Optional
 import structlog
 
-from src.departments.compliance.antidetect_browser import AntiDetectProfileManager
 from src.departments.compliance.policy_sentinel import PolicySentinel
 from src.departments.content_factory.broll_scout import BRollScout
 from src.departments.content_factory.caption_engine import CaptionEngine
@@ -49,7 +48,6 @@ class Floor2Coordinator:
         self.pod_analyzer = PODAnalyzer()
         self.growth_analyst = GrowthAnalyst()
         self.policy_sentinel = PolicySentinel()
-        self.antidetect_mgr = AntiDetectProfileManager()
         self._action_map = self._build_action_map()
 
     async def _act_render_short_video(self, payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -137,9 +135,14 @@ class Floor2Coordinator:
         return {"status": "ok", "performance": perf, "cfo_dossier": cfo_dossier}
 
     async def _act_setup_antidetect_profile(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        acc = payload.get("account_name", "eva_growth_01")
-        plat = payload.get("platform", "threads")
-        return {"status": "ok", "profile": self.antidetect_mgr.create_isolated_profile(acc, plat)}
+        # Policy: no anti-detection / fingerprint-evasion tooling. Accounts the holding
+        # operates must be openly its own and comply with platform rules; AI-generated
+        # publications carry a disclosure. The profile manager is intentionally not wired.
+        return {
+            "status": "refused",
+            "reason": "antidetect_profiles_not_permitted_by_policy",
+            "alternative": "Use the platform's official API / business account with a disclosed AI label.",
+        }
 
     def _build_action_map(self) -> Dict[str, Any]:
         """Action -> handler. Replaces a 12-branch if/elif chain."""

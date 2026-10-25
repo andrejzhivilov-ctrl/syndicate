@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import re
 from types import SimpleNamespace
-from typing import Any, Dict, Optional
 
 import httpx
 
@@ -23,17 +22,18 @@ LLM_ENDPOINTS = {
 BOOKMAKERS = {"parimatch", "vbet", "pinnacle", "betfair_ex_uk", "betfair_ex_eu"}
 
 
+from src.model_registry import model_for  # noqa: E402
+
+
 class VaultLLM:
     def __init__(self, provider: str, secret: dict, *, transport=None) -> None:
         if provider not in LLM_ENDPOINTS:
             raise ValueError(f"unknown_provider: {provider}")
         self.provider = provider
         self.key = text(secret["api_key"], "api_key", 1000)
-        default_model = "anthropic/claude-3.5-sonnet" if provider == "openrouter" else (
-            "gemini-2.5-flash" if provider == "gemini" else (
-                "grok-2" if provider == "grok" else "claude-3-5-haiku-20241022"
-            )
-        )
+        default_model = model_for({
+            "openrouter": "OPENROUTER_DIRECTOR", "gemini": "GEMINI_FAST", "grok": "GROK_DIRECTOR",
+        }.get(provider, "ANTHROPIC_DIRECTOR"))
         self.model = text(secret.get("model") or default_model, "model", 200)
         self.transport = transport
 

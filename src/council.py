@@ -9,6 +9,7 @@ final synthesis. Weak agreement or a missing quorum forces human review.
 
 from __future__ import annotations
 
+from src.model_registry import model_for
 import asyncio
 import os
 import re
@@ -232,7 +233,7 @@ def build_council_members(llm_config: Dict[str, Any]) -> Dict[str, Any]:
             members["openai"] = ChatOpenAI(api_key=openai_key, model=llm_config.get("openai_model", "gpt-4o"), temperature=0)
         if google_key and google_key != placeholder:
             from langchain_google_genai import ChatGoogleGenerativeAI
-            members["google"] = ChatGoogleGenerativeAI(google_api_key=google_key, model=llm_config.get("google_model", "gemini-2.0-flash"), temperature=0)
+            members["google"] = ChatGoogleGenerativeAI(google_api_key=google_key, model=llm_config.get("google_model") or model_for("COUNCIL_GOOGLE"), temperature=0)
     except Exception as exc:  # noqa: BLE001
         logger.warning("council_member_init_failed", error=str(exc))
     preferred = os.getenv("DEFAULT_LLM_PROVIDER", "")

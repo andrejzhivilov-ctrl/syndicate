@@ -213,3 +213,26 @@ docs/FIX_REPORT.md       звіт про аудит 2026-10-05 (українсь
 2. Виправляє скрипт в execution/ і тестує його знову.
 3. Оновлює відповідну інструкцію в directives/ (додаючи ліміти API, нові параметри чи обробку крайніх випадків).
 4. Проміжне сміття складається в .tmp/ і ніколи не комітиться.
+
+---
+
+## 13. Правила безпеки pre-deploy v5 (обов'язкові для будь-якого агента, зокрема Antigravity/Gemini)
+
+1. **Перед будь-якою зміною** — `bash tools/check.sh`. Червоні ворота до твоїх змін = зупинись і скажи людині.
+2. **Без підтвердження людини НЕ чіпати:** `config/nginx/nginx.conf`, будь-який `docker-compose*.yml`
+   (root і `deploy/` мають бути ідентичні), `deploy/scripts/vault_*.sh`, `config/vault/policies/*` (генеруються
+   `tools/vault_policies.py` з `src/vault_paths.py`, вручну не правити), `deploy/server_bootstrap.sh`, UFW/SSH.
+3. **Секрети:** ніколи не друкуй, не коміть, не клади в URL/argv токени, ключі, SecretID, `vault-init.json`,
+   `directors.env`, `operator.token`. Секрети живуть лише у Vault; вводяться через `scripts/syndicate_vault.py`.
+4. **Zero-Faking:** якщо даних/клієнта/ключа немає — повертай `{"status": "unavailable", "reason": ...}`.
+   Не вигадуй цитати, оцінки, лічильники, «статус ONLINE». Незнане = `None`.
+5. **Підтвердження дій людиною (HITL):** `review_change_request` / `apply_change_request` виконує лише оператор через
+   `/cr/*` з його ключем; `/execute` їх відхиляє. Вихідні дії (`outbound_actions`) паркуються в `src/hitl_queue.py`
+   і звільняються лише після `/hitl/decide` оператора. Не обходь це «для зручності».
+6. **Lockdown** вмикається через `POST /admin/lockdown`; зняти можна лише на сервері (`tools/unlock_lockdown.py`).
+7. **Модельні ID** — тільки через `src/model_registry.py` (`LLM_MODEL_<KEY>`); не вгадуй назви моделей,
+   перевіряй `python -m tools.check_models`.
+8. **Заборонено:** anti-detect/fingerprint-evasion, видача AI-контенту за людський без розкриття, запис у
+   `/preferences`-подібні налаштування інструкцій, що знижують чесність.
+9. **Звітуй факти:** що запускав, що пройшло/впало, що НЕ перевірено (наприклад `nginx -t`, `docker compose config`
+   без Docker). Не пиши «готово», якщо ворота червоні.

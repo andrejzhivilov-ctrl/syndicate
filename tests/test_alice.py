@@ -71,7 +71,7 @@ def test_alice_profile_is_named_for_the_agent_and_stays_default_off() -> None:
     assert manifest["runtime"] == "antigravity_sdk"
     assert manifest["runtime_profile"] == "alice"
     assert manifest["activation"] == "prepared_not_enabled"
-    assert manifest["role_title"] == "Керівниця інженерного відділу (Head of Engineering)"
+    assert manifest["role_title"] == "Керівниця відділу реалізації (Head of Delivery / R&D)"
     assert manifest["reports_to"] == "eva"
     assert manifest["authority"]["ceo"] == "eva"
     assert manifest["authority"]["alice_is_ceo"] is False

@@ -68,3 +68,14 @@ backups/
 *.tar.gz
 *.manifest.json
 
+
+# Conversation dumps / generated manifests: they have contained live credentials.
+/EVA_SYNDICATE_FULL_DIALOGUE*
+/SYNDICATE_STRUCTURE_MANIFEST*
+*DIALOGUE*.txt
+*.pdf.txt
+vault-init.json
+directors.env
+operator.token
+.env
+.env.production

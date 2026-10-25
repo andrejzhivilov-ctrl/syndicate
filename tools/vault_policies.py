@@ -107,12 +107,10 @@ def agent_policy(agent_id: str) -> Tuple[str, str]:
     else:
         own_scope = f"{vault_paths.agent_secret_path(agent_id, '<name>')}"
         own_scope_label = "Own subtree"
-    no_infrastructure_ids = {"oscar", "tyler", "jack", "alice", "antigravity"}
-    infrastructure = (
-        ", ".join(vault_paths.INFRA_SERVICES)
-        if agent_id not in no_infrastructure_ids
-        else "none"
-    )
+    if agent_id in vault_paths.ISOLATED_WORKERS or agent_id in {"alice", "antigravity"}:
+        infrastructure = "none"
+    else:
+        infrastructure = ", ".join(vault_paths.INFRA_SERVICES)
     title = (
         f"Agent policy: {agent_id}.\n"
         f"# Infrastructure: {infrastructure}.\n"
@@ -126,6 +124,23 @@ def agent_policy(agent_id: str) -> Tuple[str, str]:
     return f"eva-{agent_id}", _policy_text(title, paths)
 
 
+OPERATOR_POLICY_NAME = "eva-operator"
+
+
+def operator_policy() -> Tuple[str, str]:
+    """Short-lived human operator token: store keys and bot tokens, nothing more."""
+    title = (
+        "Operator policy (scripts/syndicate_vault.py).\n"
+        "# Create/update provider keys, the master API key and Telegram bot tokens.\n"
+        "# Issue with:  vault token create -policy=eva-operator -ttl=1h\n"
+        "# No access to AppRole/auth/policy administration or other mounts."
+    )
+    paths = [(p, '["create", "update", "read"]') for p in vault_paths.operator_write_paths() if "/data/" in p]
+    paths += [(p, '["list", "read"]') for p in vault_paths.operator_write_paths() if "/metadata/" in p]
+    paths += list(TOKEN_SELF_PATHS)
+    return OPERATOR_POLICY_NAME, _policy_text(title, paths)
+
+
 def container_agents() -> Tuple[str, ...]:
     """Agents that will get their own container (all of them except Eva)."""
     return tuple(a for a in vault_paths.AGENTS_IDS if a != "eva")
@@ -134,6 +149,7 @@ def container_agents() -> Tuple[str, ...]:
 def build_policies() -> Dict[str, str]:
     """Return ``{policy_name: hcl_text}`` for every policy the deployment needs."""
     policies = dict([runtime_policy()])
+    policies.update(dict([operator_policy()]))
     for agent_id in container_agents():
         name, text = agent_policy(agent_id)
         policies[name] = text

@@ -420,11 +420,41 @@ class TestProtectedReadSurface:
         assert enroll.status_code == 401
 
     def test_nginx_proxies_protected_pages_instead_of_serving_a_static_bypass(self):
+        import re
+
         config = (REPO_ROOT / "config" / "nginx" / "nginx.conf").read_text(encoding="utf-8")
-        assert "location = /cockpit {\n            proxy_pass http://eva_agent/cockpit;" in config
-        assert "location = /floors {\n            limit_req zone=api burst=10 nodelay;\n            proxy_pass http://eva_agent/floors;" in config
-        assert "location /cockpit/ {\n            return 404;" in config
+
+        def block(header: str) -> str:
+            start = config.index(header)
+            depth, i = 0, config.index("{", start)
+            for j in range(i, len(config)):
+                depth += config[j] == "{"
+                depth -= config[j] == "}"
+                if depth == 0:
+                    return config[i:j]
+            raise AssertionError(header)
+
+        assert "proxy_pass http://eva_agent/cockpit;" in block("location = /cockpit {")
+        assert "proxy_pass http://eva_agent/floors;" in block("location = /floors {")
+        assert "return 404;" in block("location /cockpit/ {")
         assert "alias /usr/share/nginx/static/;" not in config
+        # Credentials must never reach the access log through the query string.
+        log_format = re.search(r"log_format main(.*?);", config, re.S).group(1)
+        assert "$request " not in log_format and "$request\"" not in log_format
+        assert "$args" not in log_format and "$query_string" not in log_format
+        # Unknown Host headers / the bare IP are dropped, not served the cockpit.
+        assert "return 444;" in config
+        assert "server_name syndicateholding.com www.syndicateholding.com;" in config
+        # The only catch-all server_name is the one that returns 444.
+        catch_all = [m.start() for m in re.finditer(r"server_name _;", config)]
+        assert catch_all and all("return 444;" in config[pos: pos + 80] for pos in catch_all)
+
+    def test_syncthing_gui_and_query_tokens_are_not_exposed(self):
+        config = (REPO_ROOT / "config" / "nginx" / "nginx.conf").read_text(encoding="utf-8")
+        assert "syncthing_backend" not in config
+        assert "8384" not in config
+        idx = config.index("server_name sync.syndicateholding.com;")
+        assert "return 403;" in config[idx: idx + 120]
 
 
 # ─────────────────────────────────────────────────────────────────────────────

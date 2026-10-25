@@ -1,0 +1,22 @@
+# OPTIONAL — only if you chose AUTO_UNSEAL=1 (see DEPLOYMENT_RUNBOOK.md).
+# Unseals Vault after a reboot using the root-only key file. Keys 4 and 5 must
+# stay offline; with them off the host an attacker who reads this file still
+# holds only 3 of 5 — but it IS enough to unseal, so treat the host as the trust boundary.
+[Unit]
+Description=SYNDICATE Vault auto-unseal
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/syndicate/deploy/scripts/vault_unseal_from_file.sh
+RemainAfterExit=yes
+User=root
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadOnlyPaths=/etc/syndicate
+
+[Install]
+WantedBy=multi-user.target

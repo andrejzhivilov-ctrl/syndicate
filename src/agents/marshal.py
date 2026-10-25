@@ -12,6 +12,7 @@ deterministic, zero-token Python algorithms (0 LLM tokens burned).
 from __future__ import annotations
 
 import re
+import unicodedata
 import json
 import hmac
 import hashlib
@@ -60,11 +61,27 @@ _ZERO_WIDTH = re.compile("[\u200b\u200c\u200d\u2060\ufeff\u202e]")
 _EXTERNAL_INJECTION_RULES = [
     ("ignore_instructions_en", re.compile(r"ignore (all |any )?(previous|prior|above) (instructions|rules|prompts)", re.I), 0.6),
     ("ignore_instructions_ru_uk", re.compile(r"(игнорируй|ігноруй|забудь)\s+(все\s+)?(предыдущ|попередн|прежн)", re.I), 0.6),
+    # Ukrainian/Russian, any inflection and word order that matters in practice:
+    # "Ігноруй усі попередні інструкції", "Проігноруйте всі попередні правила",
+    # "Не зважай на системні вказівки", "Забудь все, що тобі казали раніше".
+    ("ignore_instructions_ru_uk_wide", re.compile(
+        r"(ігнор\w*|проігнор\w*|не\s+зважай\w*|забу[дв]\w*|скасуй\w*|игнор\w*|проигнор\w*|не\s+обращай\w*|отмени\w*)"
+        r"\s+(на\s+)?(усі|всі|все|всё|будь-які|любые|свої|твої|ваші)?\s*"
+        r"(попередн\w*|минул\w*|раніш\w*|системн\w*|прежн\w*|предыдущ\w*|вищевказан\w*|вышеуказан\w*|первоначальн\w*)"
+        r"\s+(інструкц\w*|правил\w*|промпт\w*|команд\w*|вказівк\w*|настанов\w*|обмеженн\w*|инструкц\w*|указан\w*|ограничен\w*)",
+        re.I), 0.7),
+    ("forget_everything_ru_uk", re.compile(r"(забудь|забудьте)\s+(все|всё|усе)\b.{0,40}(казал|говорил|навчен|учили|вказан|указан)", re.I | re.S), 0.6),
+    ("role_override_ru_uk", re.compile(r"(ти\s+тепер|тепер\s+ти|відтепер\s+ти|ты\s+теперь|с\s+этого\s+момента\s+ты|поводься\s+як|веди\s+себя\s+как)", re.I), 0.35),
+    ("reveal_prompt_ru_uk", re.compile(r"(покажи|виведи|надішли|покажите|выведи|покажи)\s+(свій|свої|твій|твої|свои|твои|системн\w*)\s+(системн\w*\s+)?(промпт|інструкц\w*|инструкц\w*)", re.I), 0.6),
     ("role_override", re.compile(r"\b(you are now|act as|from now on you)\b", re.I), 0.35),
     ("system_marker", re.compile(r"(^|\n)\s*(system|assistant)\s*:", re.I), 0.35),
     ("code_fence_system", re.compile(r"```\s*system", re.I), 0.5),
     ("exfiltration", re.compile(r"(send|post|upload|email|exfiltrate|відправ|отправь).{0,60}(\.env|api[_ -]?key|secret|token|password|ssh)", re.I | re.S), 0.7),
+    ("exfiltration_ru_uk", re.compile(
+        r"(надішли\w*|надсилай\w*|відправ\w*|перешли\w*|вивантаж\w*|скинь\w*|скиньте|вышли\w*|пришли\w*|отправ\w*|выгрузи\w*)"
+        r".{0,60}(\.env|api[_ -]?key|ключ\w*|секрет\w*|токен\w*|парол\w*|пароль|ssh|vault)", re.I | re.S), 0.7),
     ("tool_hijack", re.compile(r"(run|execute|виконай|выполни).{0,40}(curl|wget|bash|powershell|rm -rf)", re.I | re.S), 0.6),
+    ("tool_hijack_ru_uk", re.compile(r"(запусти\w*|виконай\w*|выполни\w*|запусти)\s.{0,40}(curl|wget|bash|powershell|rm -rf|sudo)", re.I | re.S), 0.6),
     ("hidden_html_instruction", re.compile(r"<!--.{0,200}(ignore|instruction|system).{0,200}-->", re.I | re.S), 0.5),
     ("override_keyword", re.compile(r"\bOVERRIDE\b"), 0.3),
 ]
@@ -290,7 +307,17 @@ class MarshalAgent:
         policy = OUTBOUND_POLICIES.get(act_type)
 
         if not policy:
-            return ValidationResult(allowed=True, reason="Action allowed by default", risk_score=0.0)
+            # Fail closed: an outbound action type nobody classified is held for
+            # the operator instead of being waved through. ("allowed by default"
+            # meant any new action type bypassed every outbound rule.)
+            res = ValidationResult(
+                allowed=True,
+                reason=f"Marshal Gate: unclassified outbound action '{act_type}' requires operator approval",
+                risk_score=0.7,
+                metadata={"requires_hitl": True, "unclassified_action": True},
+            )
+            self._audit({"agent_id": agent_id, "action": action}, res)
+            return res
 
         rule = policy["rule"]
         if rule == "block_always":
@@ -314,7 +341,9 @@ class MarshalAgent:
         """Pure regex prompt injection detector (0 tokens burned)."""
         score = 0.0
         matches = []
-        clean = _ZERO_WIDTH.sub("", text)
+        # NFKC folds full-width / compatibility forms (e.g. "ｉｇｎｏｒｅ") so they
+        # cannot dodge the patterns; zero-width and bidi controls are dropped.
+        clean = _ZERO_WIDTH.sub("", unicodedata.normalize("NFKC", text))
 
         for name, pattern, weight in _EXTERNAL_INJECTION_RULES:
             if pattern.search(clean):

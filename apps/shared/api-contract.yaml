@@ -7,9 +7,9 @@
 # Verify in CI with: python tools/export_openapi.py --check
 # ============================================================
 #
-# contract_sha256: 878f5b54762a0b6481adfa3df731c070f40c3d7ee6b5ff61d6f33f42149031ee
+# contract_sha256: ae3faa85c26366929ff1ef26504b77a96a1aa806b6a6fc87db582db3481c2905
 # api_version:     4.1.0
-# paths:           27
+# paths:           35
 #
 ---
 components:
@@ -161,6 +161,26 @@ components:
       - orchestrator_ready
       title: HealthResponse
       type: object
+    HitlDecision:
+      properties:
+        comment:
+          default: ''
+          maxLength: 500
+          title: Comment
+          type: string
+        decision:
+          pattern: ^(approve|reject)$
+          title: Decision
+          type: string
+        item_id:
+          maxLength: 40
+          title: Item Id
+          type: string
+      required:
+      - item_id
+      - decision
+      title: HitlDecision
+      type: object
     IntegrationDispatchRequest:
       properties:
         operation:
@@ -173,6 +193,26 @@ components:
       required:
       - operation
       title: IntegrationDispatchRequest
+      type: object
+    LockdownRequest:
+      properties:
+        reason:
+          default: ''
+          maxLength: 300
+          title: Reason
+          type: string
+      title: LockdownRequest
+      type: object
+    TelegramRegisterRequest:
+      properties:
+        base_url:
+          maxLength: 200
+          pattern: ^https://[A-Za-z0-9.-]+(:\d+)?$
+          title: Base Url
+          type: string
+      required:
+      - base_url
+      title: TelegramRegisterRequest
       type: object
     ValidationError:
       properties:
@@ -236,6 +276,130 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Cockpit Interface
+  /admin/lockdown:
+    get:
+      operationId: lockdown_status_admin_lockdown_get
+      parameters:
+      - in: header
+        name: X-API-Key
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Api-Key
+      - in: header
+        name: Authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                title: Response Lockdown Status Admin Lockdown Get
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Lockdown Status
+    post:
+      description: 'PANIC STOP: block every state-changing route until released on
+        the server.
+
+
+        There is intentionally no unlock endpoint — see ``tools/unlock_lockdown.py``.'
+      operationId: engage_lockdown_admin_lockdown_post
+      parameters:
+      - in: header
+        name: X-API-Key
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Api-Key
+      - in: header
+        name: Authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LockdownRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                title: Response Engage Lockdown Admin Lockdown Post
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Engage Lockdown
+  /admin/telegram/register:
+    post:
+      description: Point all 18 bots at this gateway (master key only). Reports per-bot
+        status.
+      operationId: register_telegram_webhooks_admin_telegram_register_post
+      parameters:
+      - in: header
+        name: X-API-Key
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Api-Key
+      - in: header
+        name: Authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelegramRegisterRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                title: Response Register Telegram Webhooks Admin Telegram Register
+                  Post
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Register Telegram Webhooks
   /auth/device/enroll:
     post:
       description: Issue a new per-device token. Returns the plaintext token exactly
@@ -616,7 +780,12 @@ paths:
       summary: Cr Pending
   /cr/review:
     post:
-      description: Review Change Request (approve/reject) (Floor 10). HITL-scoped.
+      description: 'Review Change Request (approve/reject) (Floor 10). HITL-scoped.
+
+
+        The reviewer identity is fixed by the orchestrator; a ``reviewer`` field in
+
+        the body is ignored, so the caller cannot pick who "approved".'
       operationId: review_cr_cr_review_post
       parameters:
       - in: header
@@ -772,6 +941,49 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Cr Detail
+  /directors:
+    get:
+      description: 'The 18-director roster with *honest* live facts only.
+
+
+        ``enabled`` is the orchestrator config flag (not a heartbeat) and
+
+        ``bot_configured`` only says that a bot token exists in Vault. There is no
+
+        fabricated "Working / Idle" state: if a fact is unknown it is ``null``.'
+      operationId: list_directors_directors_get
+      parameters:
+      - in: header
+        name: X-API-Key
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Api-Key
+      - in: header
+        name: Authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                title: Response List Directors Directors Get
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: List Directors
   /execute:
     post:
       description: Execute an agent task via the orchestrator (authenticated).
@@ -918,6 +1130,167 @@ paths:
                 $ref: '#/components/schemas/HealthResponse'
           description: Successful Response
       summary: Health Check
+  /hitl/decide:
+    post:
+      description: Approve or reject a held action. The actor comes from the credential.
+      operationId: hitl_decide_hitl_decide_post
+      parameters:
+      - in: header
+        name: X-API-Key
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Api-Key
+      - in: header
+        name: Authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HitlDecision'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                title: Response Hitl Decide Hitl Decide Post
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Hitl Decide
+  /hitl/pending:
+    get:
+      operationId: hitl_pending_hitl_pending_get
+      parameters:
+      - in: header
+        name: X-API-Key
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Api-Key
+      - in: header
+        name: Authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                title: Response Hitl Pending Hitl Pending Get
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Hitl Pending
+  /hitl/release/{item_id}:
+    post:
+      description: Hand the held actions of an *approved* item to the caller — exactly
+        once.
+      operationId: hitl_release_hitl_release__item_id__post
+      parameters:
+      - in: path
+        name: item_id
+        required: true
+        schema:
+          title: Item Id
+          type: string
+      - in: header
+        name: X-API-Key
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Api-Key
+      - in: header
+        name: Authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                title: Response Hitl Release Hitl Release  Item Id  Post
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Hitl Release
+  /hitl/{item_id}:
+    get:
+      operationId: hitl_item_hitl__item_id__get
+      parameters:
+      - in: path
+        name: item_id
+        required: true
+        schema:
+          title: Item Id
+          type: string
+      - in: header
+        name: X-API-Key
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Api-Key
+      - in: header
+        name: Authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                title: Response Hitl Item Hitl  Item Id  Get
+                type: object
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Hitl Item
   /integrations/{agent_id}/execute:
     post:
       description: Operator entry point; worker grants remain independently enforced.
@@ -1141,18 +1514,80 @@ paths:
       summary: Status
   /webhook/error:
     post:
-      description: Dead-letter error recording from n8n / subagents (Floor 1).
+      description: 'Dead-letter error recording from n8n / subagents (Floor 1).
+
+
+        Authenticated: the n8n templates already send ``X-API-Key``. It used to be
+
+        open to anyone who could reach the port.'
       operationId: error_webhook_webhook_error_post
+      parameters:
+      - in: header
+        name: X-API-Key
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Api-Key
+      - in: header
+        name: Authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       responses:
         '200':
           content:
             application/json:
               schema: {}
           description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
       summary: Error Webhook
+  /webhook/telegram/{agent_id}:
+    post:
+      description: One of the 18 director bots. Per-bot secret, owner-only, honest
+        replies.
+      operationId: telegram_webhook_webhook_telegram__agent_id__post
+      parameters:
+      - in: path
+        name: agent_id
+        required: true
+        schema:
+          title: Agent Id
+          type: string
+      - in: header
+        name: X-Telegram-Bot-Api-Secret-Token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Telegram-Bot-Api-Secret-Token
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Telegram Webhook
   /webhook/{source}:
     post:
-      description: Unified webhook endpoint with HMAC signature / secret token verification.
+      description: Generic signed webhook (n8n, CI, partners). HMAC-SHA256 over the
+        raw body.
       operationId: webhook_handler_webhook__source__post
       parameters:
       - in: path
@@ -1177,14 +1612,6 @@ paths:
           - type: string
           - type: 'null'
           title: X-Webhook-Signature
-      - in: header
-        name: X-Telegram-Bot-Api-Secret-Token
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: X-Telegram-Bot-Api-Secret-Token
       responses:
         '200':
           content:

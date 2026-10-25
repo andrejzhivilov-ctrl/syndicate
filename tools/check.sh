@@ -79,7 +79,7 @@ step "Vault (політики й скрипти)"
 # Політики генеруються з src/vault_paths.py. Застарілий файл = агент отримає
 # 403 на секреті, який читає на старті, — тому це ворота, а не побажання.
 run "політики відповідають коду" "$PY" tools/vault_policies.py --check
-run "vault_init.sh / vault_unseal.sh — синтаксис" bash -n deploy/scripts/vault_init.sh deploy/scripts/vault_unseal.sh
+run "vault/bootstrap скрипти — синтаксис" bash -c 'for f in deploy/scripts/vault_*.sh deploy/scripts/setup_ssl.sh deploy/server_bootstrap.sh; do bash -n "$f" || exit 1; done' 
 
 step "PostgreSQL (жива схема й SQL-шляхи)"
 # SQL-гілки в src/ позначені "needs live DB": без справжньої бази вони не
@@ -94,6 +94,10 @@ else
     printf '  \033[33mℹ️  INFO\033[0m  живого PostgreSQL немає (ані EVA_TEST_DATABASE_URL, ані pgserver)\n'
     printf '        SQL-шляхи в цій сесії не перевірено. CI: pgvector/pgvector:pg16 + EVA_REQUIRE_LIVE_DB=1\n'
 fi
+
+step "Секрети"
+# Жодних токенів у відстежуваних файлах (GitHub, Anthropic/OpenAI-стиль, Telegram bot).
+run "немає витоків токенів у git" bash -c '! git grep -nIE "gh[pousr]_[A-Za-z0-9]{30,}|sk-ant-[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9]{40,}|[0-9]{8,10}:AA[A-Za-z0-9_-]{33}" -- . ":!tests" ":!tools/check.sh"'
 
 step "Гігієна репозиторію"
 if [ -f docker-compose.yml ] && [ -f deploy/docker-compose.yml ]; then

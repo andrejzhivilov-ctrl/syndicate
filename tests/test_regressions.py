@@ -3554,7 +3554,10 @@ class TestVaultInitScript:
 
         expected = set(vault_policies.build_policies())
         assert set(vault.policies) == expected
-        assert set(vault.roles) == expected
+        # The operator uses a periodic token, not an AppRole.
+        expected_roles = expected - {"eva-operator"}
+        assert set(vault.roles) == expected_roles
+        expected = expected_roles
         for name in expected:
             creds = secrets_dir / f"{name}.approle.env"
             assert creds.is_file(), f"no credentials file for {name}"

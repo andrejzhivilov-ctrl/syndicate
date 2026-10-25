@@ -426,7 +426,7 @@ async def run_sandbox_suite():
 
     # 8e. Anti-detect browser profile creation
     ad_res = await coord.execute({"action": "setup_antidetect_profile", "account_name": "agent_alpha", "platform": "threads"})
-    assert ad_res["status"] == "ok" and "user_agent" in ad_res["profile"]
+    assert ad_res["status"] == "refused"  # anti-detect tooling is not permitted by policy
     print("  ✅ Content Factory (Pillow POD, Grok, Edge-TTS), Policy Veto, Fin CFO Dossier, and AntiDetect Browser verified!")
 
     print("\n" + "=" * 72)

@@ -31,6 +31,8 @@ DIRS = {
     "broll_cache": "media/broll_cache",
     "browser_profiles": "config/browser_profiles",
     "reports": "media/reports",
+    "hitl": "hitl",
+    "lockdown": "lockdown",
 }
 
 

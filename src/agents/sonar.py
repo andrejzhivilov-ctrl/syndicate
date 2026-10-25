@@ -1,7 +1,6 @@
 """Sonar Agent — Chief of Global Intelligence & Deep Research for SYNDICATE Holding."""
 from __future__ import annotations
 
-import re
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from urllib.parse import urlparse
@@ -55,29 +54,25 @@ class SonarAgent(DirectorAgent):
         # If live client provided, invoke it; otherwise generate structured analytical dossier
         engine = "sonar-deep-research" if depth == "comprehensive" else "sonar-reasoning-pro"
         
-        # Build synthesis & citations
+        # Zero-Faking: without a live research client or caller-supplied sources there is
+        # nothing real to cite, so say so instead of inventing "internal" references.
         citations = payload.get("citations", [])
-        if not citations:
-            citations = [
-                {
-                    "id": "cit_1",
-                    "title": f"Primary Documentation & Analysis for {clean_topic[:60]}",
-                    "url": f"https://docs.syndicate.internal/sources/{clean_topic[:20].lower().replace(' ', '_')}",
-                    "tier": "Tier A",
-                    "excerpt": f"Empirical data confirming foundational architecture and requirements for {clean_topic}."
-                },
-                {
-                    "id": "cit_2",
-                    "title": f"Industry Benchmark & Standards: {clean_topic[:60]}",
-                    "url": "https://standards.syndicate.internal/benchmarks",
-                    "tier": "Tier B",
-                    "excerpt": f"Cross-validation across multi-tenant production implementations."
-                }
-            ]
+        if not isinstance(citations, list):
+            raise ValueError("citations_must_be_a_list")
+        if not citations and self.perplexity_client is None:
+            return {
+                "status": "unavailable",
+                "reason": "no_research_client_and_no_sources_supplied",
+                "topic": clean_topic,
+                "hint": "Provide payload.citations (real sources) or configure the Perplexity client in Vault.",
+            }
 
-        confidence_val = number(payload.get("confidence_score", 0.94), "confidence_score", 0.0, 1.0)
-        confidence = float(Decimal(str(confidence_val)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
-        grade = "Tier A" if confidence >= 0.90 else ("Tier B" if confidence >= 0.75 else "Tier C")
+        if payload.get("confidence_score") is None:
+            confidence, grade = None, "unrated"  # never a made-up default confidence
+        else:
+            confidence_val = number(payload["confidence_score"], "confidence_score", 0.0, 1.0)
+            confidence = float(Decimal(str(confidence_val)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+            grade = "Tier A" if confidence >= 0.90 else ("Tier B" if confidence >= 0.75 else "Tier C")
 
         obsidian_note = (
             f"---\n"
@@ -88,15 +83,11 @@ class SonarAgent(DirectorAgent):
             f"evidence_grade: {grade}\n"
             f"confidence_score: {confidence}\n"
             f"engine: {engine}\n"
-            f"tags: [intelligence, deep_research, verified, holding]\n"
+            f"tags: [intelligence, deep_research, unreviewed]\n"
             f"---\n\n"
             f"# Досьє глибинної розвідки: {clean_topic}\n\n"
-            f"## 1. Executive Summary\n"
-            f"Комплексне дослідження проведено аналітичним крилом SONAR. Виявлено ключові закономірності, "
-            f"архітектурні вимоги та верифіковані метрики для напрямку {target_wing}.\n\n"
-            f"## 2. Ключові висновки та аналітика\n"
-            f"- Підтверджена актуальність теми без галюцинацій та сторонніх маніпуляцій [1].\n"
-            f"- Інтеграційні ризики зведені до мінімуму завдяки ізоляції пісочниці [2].\n\n"
+            f"## 1. Статус\n"
+            f"Нотатка містить лише надані джерела; висновків, не підкріплених джерелами, немає.\n\n"
             f"## 3. Першоджерела та Література\n"
             + "\n".join(f"- [{i+1}] [{c['title']}]({c['url']}) ({c['tier']}): {c['excerpt']}" for i, c in enumerate(citations))
         )
@@ -112,9 +103,9 @@ class SonarAgent(DirectorAgent):
                 "evidence_grade": grade,
                 "citations_count": len(citations),
                 "citations": citations,
-                "executive_summary": f"Вичерпний аналіз теми '{clean_topic}' для відділу {target_wing} з рівнем довіри {confidence}.",
+                "executive_summary": None,
                 "obsidian_markdown": obsidian_note,
-                "state": "research_verified",
+                "state": "sources_recorded_unreviewed",
             }
         )
         return {"status": "ok", "dossier": record}
@@ -123,17 +114,9 @@ class SonarAgent(DirectorAgent):
         query = text(payload["query"], "query", 500)
         clean_query, _ = self.redactor.redact(query)
         
-        # Fast 2-3 second fact check
-        return {
-            "status": "ok",
-            "query": clean_query,
-            "engine": "sonar-pro",
-            "fast_answer": f"Підтверджена інформація за запитом '{clean_query}': джерела верифіковано, дані актуальні.",
-            "citations": [
-                {"title": "Official Portal", "url": "https://official.org/data", "tier": "Tier A"}
-            ],
-            "execution_mode": "fast_lookup"
-        }
+        if self.perplexity_client is None:
+            return {"status": "unavailable", "reason": "no_search_client_configured", "query": clean_query}
+        return {"status": "unavailable", "reason": "live_search_not_wired", "query": clean_query}
 
     async def verify_sources(self, payload: dict) -> dict:
         claim = text(payload["claim"], "claim", 1000)
@@ -154,8 +137,9 @@ class SonarAgent(DirectorAgent):
             verified_sources.append({
                 "url": url,
                 "tier": tier,
-                "status": "corroborated" if tier in ("Tier A", "Tier B") else "unverified_sentiment",
-                "notes": text(src.get("notes", "Source authority audited"), "notes", 300)
+                "status": "tier_asserted_by_caller" if tier in ("Tier A", "Tier B") else "unverified_sentiment",
+                "fetched": False,
+                "notes": text(src.get("notes", ""), "notes", 300)
             })
 
         has_authoritative = any(s["tier"] == "Tier A" for s in verified_sources)
@@ -180,12 +164,18 @@ class SonarAgent(DirectorAgent):
             criteria = ["Reliability", "Cost", "Scalability", "API Maturity"]
 
         clean_entities = [text(e, "entity", 100) for e in entities]
+        supplied = payload.get("scores")
+        if not isinstance(supplied, dict):
+            return {"status": "unavailable", "reason": "scores_required_no_invented_ratings", "entities": clean_entities}
         matrix = []
         for ent in clean_entities:
-            scores = {}
-            for c in criteria:
-                scores[c] = 85.0
-            matrix.append({"entity": ent, "metrics": scores, "composite_score": 85.0})
+            row = supplied.get(ent)
+            if not isinstance(row, dict) or any(c not in row for c in criteria):
+                return {"status": "unavailable", "reason": "scores_missing_for_entity", "entity": ent}
+            scores = {c: number(row[c], "score", 0, 100) for c in criteria}
+            matrix.append({"entity": ent, "metrics": scores, "composite_score": round(sum(scores.values()) / len(scores), 2)})
+        matrix.sort(key=lambda m: -m["composite_score"])
+        clean_entities = [m["entity"] for m in matrix]
 
         record = self.store.add(
             "comparison",
@@ -194,7 +184,7 @@ class SonarAgent(DirectorAgent):
                 "criteria": criteria,
                 "matrix": matrix,
                 "winner": clean_entities[0],
-                "recommendation": f"Рекомендовано обрати '{clean_entities[0]}' на основі найвищої збалансованості показників.",
+                "recommendation": f"Рекомендовано обрати '{clean_entities[0]}' на основі наданих оцінок (середній бал).",
             }
         )
         return {"status": "ok", "comparison": record}
@@ -207,17 +197,20 @@ class SonarAgent(DirectorAgent):
         if parsed.username or parsed.password:
             raise ValueError("credentials_in_url_prohibited")
 
-        # Strip html and noisy boilerplate, output clean Markdown
-        clean_title = text(payload.get("page_title", f"Extracted Documentation from {parsed.netloc}"), "title", 200)
-        simulated_md = f"# {clean_title}\n\n*Першоджерело: {raw_url}*\n\nОчищений Markdown зміст веб-сторінки без реклами та навігаційних скриптів."
+        # No network fetch happens here. Only caller-supplied page text is cleaned.
+        page_text = payload.get("page_text")
+        if not isinstance(page_text, str) or not page_text.strip():
+            return {"status": "unavailable", "reason": "no_page_text_supplied_crawler_not_wired", "url": raw_url}
+        clean_title = text(payload.get("page_title", parsed.netloc), "title", 200)
+        md = f"# {clean_title}\n\n*Першоджерело: {raw_url}*\n\n{page_text.strip()[:20000]}"
         return {
             "status": "ok",
             "url": raw_url,
             "domain": parsed.netloc,
-            "engine": "firecrawl_playwright_sandbox",
-            "clean_markdown": simulated_md,
-            "words_extracted": len(simulated_md.split()),
-            "noise_stripped": True,
+            "engine": "caller_supplied_text",
+            "clean_markdown": md,
+            "words_extracted": len(md.split()),
+            "fetched": False,
         }
 
     async def package_for_obsidian(self, payload: dict) -> dict:

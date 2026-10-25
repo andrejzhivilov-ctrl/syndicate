@@ -57,6 +57,32 @@ AGENTS_IDS: Tuple[str, ...] = (
     "alice",
     "antigravity",
     "trainer",
+    # Added for the 18-director holding: these had containers/roles referenced
+    # in deploy/docker-compose.directors.yml but no policy or AppRole, so the
+    # containers could not authenticate to Vault.
+    "sonar",
+    "kodex",
+    "scout",
+    "ray",
+    "dex",
+    "atlas",
+)
+
+#: The 18 directors of the holding (``antigravity`` is a runtime, not a director).
+DIRECTOR_IDS: Tuple[str, ...] = (
+    "eva", "alice", "sonar", "architect", "kodex", "marshal",
+    "fin", "sam", "jack", "scout", "oscar", "tyler",
+    "ray", "dex", "doc", "trainer", "kira", "atlas",
+)
+
+#: Isolated tool-worker containers (one process, volume, API key and Vault role
+#: each). They get NO infrastructure secrets: only their own ``agents/<id>/*``
+#: subtree. Provider keys reach a worker as per-agent copies written by
+#: ``scripts/syndicate_vault.py distribute-keys`` (``agents/<id>/<provider>``),
+#: which ``director_providers.build_provider`` reads first. A compromised
+#: worker therefore exposes only the providers it uses, never the whole pool.
+ISOLATED_WORKERS: Tuple[str, ...] = (
+    "oscar", "tyler", "jack", "sonar", "scout", "dex", "ray", "atlas",
 )
 
 #: Which *extra* services each agent may read, on top of ``INFRA_SERVICES`` and
@@ -72,6 +98,12 @@ AGENT_SERVICES: Dict[str, Tuple[str, ...]] = {
     "kira": (),
     "sam": (),
     "alice": (),
+    "sonar": (),
+    "kodex": ("google_workspace",),
+    "scout": (),
+    "ray": (),
+    "dex": (),
+    "atlas": (),
     # Legacy profile retired: Antigravity is an SDK/runtime technology, not a
     # separate agent. Keep its policy file generated but grant no secret paths.
     "antigravity": (),
@@ -187,7 +219,37 @@ def policy_paths() -> List[str]:
     for prefix in PREFIXES:
         grants.append(f"{MOUNT}/data/{prefix}/{AGENTS}/*")
         grants.append(f"{MOUNT}/metadata/{prefix}/{AGENTS}/*")
+    grants.extend(telegram_bot_paths())
     return grants
+
+
+def telegram_bot_paths() -> List[str]:
+    """Per-agent Telegram bot tokens: ``telegram/<agent_id>`` (gateway reads all).
+
+    Only the Telegram gateway inside the runtime reads these, so only the
+    runtime policy carries the glob. No worker or other agent can read a bot
+    token that is not its own business.
+    """
+    grants: List[str] = []
+    for prefix in PREFIXES:
+        grants.append(f"{MOUNT}/data/{prefix}/telegram/*")
+        grants.append(f"{MOUNT}/metadata/{prefix}/telegram/*")
+    return grants
+
+
+def operator_write_paths() -> List[str]:
+    """What the human operator's short-lived token may write (setup tooling).
+
+    Deliberately no AppRole/auth-method/policy administration and no read of
+    other mounts: the operator token is for storing provider keys and bot
+    tokens, not for administering Vault.
+    """
+    paths: List[str] = []
+    for service in (API_KEYS, AUTH, "telegram", "telegram_bots", "google_workspace", "youtube", "mcp"):
+        paths.extend(policy_paths_for_service(service)[:2])  # canonical data + metadata
+    paths.extend([f"{MOUNT}/data/{PREFIX}/telegram/*", f"{MOUNT}/metadata/{PREFIX}/telegram/*"])
+    paths.extend([f"{MOUNT}/data/{PREFIX}/{AGENTS}/*", f"{MOUNT}/metadata/{PREFIX}/{AGENTS}/*"])
+    return paths
 
 
 def agent_policy_paths(agent_id: str) -> List[str]:
@@ -216,7 +278,7 @@ def agent_policy_paths(agent_id: str) -> List[str]:
         return grants
 
     # Domain tool workers need only their own auth/provider subtree.
-    infra = () if agent_id in {"oscar", "tyler", "jack"} else INFRA_SERVICES
+    infra = () if agent_id in ISOLATED_WORKERS else INFRA_SERVICES
     services = infra + AGENT_SERVICES.get(agent_id, ())
     grants = []
     for service in services:

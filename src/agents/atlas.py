@@ -43,7 +43,8 @@ class AtlasAgent(DirectorAgent):
     async def evaluate_destination(self, payload: dict) -> dict:
         city = text(payload["city"], "city", 150)
         country = text(payload["country"], "country", 150)
-        safety_index = number(payload.get("safety_index", 75.0), "safety_index", 0, 100)
+        raw_safety = payload.get("safety_index")
+        safety_index = None if raw_safety is None else number(raw_safety, "safety_index", 0, 100)
         visa_required = bool(payload.get("visa_required", False))
         timezone_utc = text(payload.get("timezone_utc", "UTC+2"), "timezone_utc", 20)
 
@@ -55,7 +56,7 @@ class AtlasAgent(DirectorAgent):
                 "safety_index": safety_index,
                 "visa_required": visa_required,
                 "timezone_utc": timezone_utc,
-                "recommendation": "recommended" if safety_index >= 60.0 else "caution_advised",
+                "recommendation": "unknown_no_safety_data" if safety_index is None else ("recommended" if safety_index >= 60.0 else "caution_advised"),
             },
         )
         return {"status": "ok", "destination": record}
@@ -71,7 +72,7 @@ class AtlasAgent(DirectorAgent):
         for opt in options:
             name = text(opt["name"], "name", 200)
             nightly = Decimal(str(number(opt["nightly_usd"], "nightly_usd", 5, 25000)))
-            rating = number(opt.get("rating", 8.5), "rating", 0, 10)
+            rating = None if opt.get("rating") is None else number(opt["rating"], "rating", 0, 10)
             total = (nightly * Decimal(str(nights))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
             compared.append(
                 {
@@ -82,7 +83,7 @@ class AtlasAgent(DirectorAgent):
                     "rating": rating,
                 }
             )
-        compared.sort(key=lambda r: (-r["rating"], float(r["total_usd"])))
+        compared.sort(key=lambda r: (r["rating"] is None, -(r["rating"] or 0), float(r["total_usd"])))
         return {"status": "ok", "city": city, "nights": nights, "options": compared}
 
     async def routes(self, payload: dict) -> dict:

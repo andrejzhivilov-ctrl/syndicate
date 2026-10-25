@@ -788,7 +788,8 @@ async def run_10floors_sandbox_suite():
     assert r_sensory.status_code == 200 and r_sensory.json()["status"] == "completed"
 
     # /webhook/error (Dead letter queue)
-    r_err_wh = client.post("/webhook/error", json={"source": "n8n_test", "error_message": "Test webhook error"})
+    assert client.post("/webhook/error", json={"source": "n8n_test", "error_message": "x"}).status_code == 401  # now authenticated
+    r_err_wh = client.post("/webhook/error", json={"source": "n8n_test", "error_message": "Test webhook error"}, headers={"X-API-Key": "sandbox-secret-api-key-2026"})
     assert r_err_wh.status_code == 200 and r_err_wh.json()["ok"] is True
 
     # /proactive/morning

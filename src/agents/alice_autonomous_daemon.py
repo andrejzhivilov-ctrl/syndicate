@@ -44,34 +44,28 @@ class AliceAutonomousDaemon:
     def run_0330_self_reflection(
         self,
         date_str: str,
-        commits_pushed: int = 4,
+        commits_pushed: Optional[int] = None,
         saas_projects_active: Optional[List[str]] = None,
-        scrapes_completed: int = 3,
+        scrapes_completed: Optional[int] = None,
         new_skills_to_request: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
-        """Executes Alice's 03:30 autonomous self-reflection and dispatches skill requests to Kodex."""
-        saas_list = saas_projects_active or ["SYNDICATE NeuroFlow Cockpit", "Replica-Recon SaaS Cloner"]
-        skills = new_skills_to_request or ["autonomous-playwright-self-healing-scraper"]
+        """Builds the 03:30 reflection from facts the caller supplies.
 
-        reflection_payload = {
+        Zero-Faking: unknown counters stay ``None`` ("not measured") instead of
+        defaulting to plausible numbers; there is no invented score, lessons or ideas.
+        """
+        skills = new_skills_to_request or []
+        return {
             "agent_id": self.AGENT_ID,
             "date": date_str,
             "timestamp_utc": datetime.now(timezone.utc).isoformat(),
             "execution_node": "alice_dedicated_machine",
             "commits_pushed": commits_pushed,
-            "saas_projects_active": saas_list,
+            "saas_projects_active": saas_projects_active or [],
             "scrapes_completed": scrapes_completed,
-            "what_learned": [
-                "Оптимізовано неінтерактивний пуш та ізоляцію SSRF у скрейперах.",
-                "Синхронізовано 7-й контур аналітики у локальний Obsidian Vault.",
-            ],
-            "ideas_and_plans": [
-                "Автоматизувати генерацію E2E Playwright-тестів для кожного нового лендінгу Тайлера.",
-                "Підключити автоматичний деплой SaaS-прототипів у preview-контейнери під контролем Архітектора.",
-            ],
-            "missing_resources": [
-                "Очікується бойовий Contabo Cloud VPS 12 та домен syndicateholding.com для підняття LiveKit та mTLS-мосту.",
-            ],
+            "what_learned": [],
+            "ideas_and_plans": [],
+            "missing_resources": [],
             "kodex_skill_requests": [
                 {
                     "command": "CMD:KODEX_CREATE_AND_BIND_SKILL",
@@ -82,36 +76,29 @@ class AliceAutonomousDaemon:
                 }
                 for sk in skills
             ],
-            "score": 97,
+            "score": None,
         }
-        return reflection_payload
 
     def build_bridge_report_for_eva(
         self,
         period: str,
         date_str: str,
         queued_tasks_from_agents: Optional[List[str]] = None,
-        notebooklm_packs_audited: int = 3,
-        obsidian_notes_exported: int = 5,
+        notebooklm_packs_audited: Optional[int] = None,
+        obsidian_notes_exported: Optional[int] = None,
+        bridge_status: str = "UNKNOWN (not probed)",
     ) -> Dict[str, Any]:
-        """Builds Alice's morning (06:45) or evening (20:45) report sent via AntigravityBridge to Eva."""
-        queue = queued_tasks_from_agents or [
-            "Oscar -> Парсинг топ-10 конкурентів у ніші AI SaaS",
-            "Tyler -> Генерація UI-компонентів для нового POD-магазину",
-            "Architect -> Перевірка Docker Compose конфігурації для Contabo VPS 12",
-        ]
+        """Builds the 06:45 / 20:45 report. Everything is caller-supplied; nothing is made up."""
+        queue = queued_tasks_from_agents or []
         return {
             "agent_id": self.AGENT_ID,
             "period": period,
             "date": date_str,
-            "bridge_status": "ONLINE (Dedicated Machine -> AntigravityBridge)",
+            "bridge_status": bridge_status,
             "queued_tasks_count": len(queue),
             "queued_tasks_from_agents": queue,
             "notebooklm_packs_audited": notebooklm_packs_audited,
             "obsidian_notes_exported": obsidian_notes_exported,
-            "own_rd_ideas_and_proposals": [
-                "Ідея R&D #1: Створити локальний кеш ембедінгів для миттєвого пошуку по 18,789 MCP-серверах.",
-                "Ідея R&D #2: Автоматичний генератор PDF-презентацій для нових SaaS-проєктів холдингу.",
-            ],
-            "self_critique_summary": "Усі задачі з черги агентів виконано без зависань; аудит знань вивантажено в Obsidian.",
+            "own_rd_ideas_and_proposals": [],
+            "self_critique_summary": None,
         }

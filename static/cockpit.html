@@ -1,887 +1,184 @@
-<!DOCTYPE html>
-<html lang="uk" class="dark">
+<!doctype html>
+<html lang="uk">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SYNDICATE Holding — 18 Directors Executive Cockpit</title>
-  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
-  <style>
-    body {
-      background-color: #020617;
-      background-image: 
-        radial-gradient(circle at 50% 20%, rgba(30, 58, 138, 0.35) 0%, transparent 65%),
-        linear-gradient(180deg, #020617 0%, #03081a 30%, #050d26 65%, #020617 100%);
-      background-attachment: fixed;
-      background-size: cover;
-    }
-    .glass-card {
-      background: rgba(15, 23, 42, 0.75);
-      backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-    .glass-card:hover {
-      border-color: rgba(255, 255, 255, 0.15);
-    }
-    .glass-card-active {
-      background: rgba(30, 41, 59, 0.85);
-      backdrop-filter: blur(24px);
-      border: 1px solid rgba(59, 130, 246, 0.4);
-    }
-    @keyframes pulse-ring {
-      0% { transform: scale(0.96); opacity: 0.8; }
-      50% { transform: scale(1.04); opacity: 0.3; }
-      100% { transform: scale(0.96); opacity: 0.8; }
-    }
-    @keyframes audio-shockwave {
-      0% { transform: scale(1.0); opacity: 0.8; }
-      100% { transform: scale(1.35); opacity: 0.0; }
-    }
-    .shockwave-active {
-      animation: audio-shockwave 1.2s cubic-bezier(0.1, 0.8, 0.3, 1) infinite;
-    }
-    /* Custom Scrollbar */
-    ::-webkit-scrollbar { height: 6px; width: 6px; }
-    ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
-    ::-webkit-scrollbar-thumb { background: rgba(59, 130, 246, 0.4); border-radius: 9999px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(59, 130, 246, 0.7); }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SYNDIKAT — Executive Cockpit (SYNDICATE HOLDING)</title>
+<style>
+  :root { --bg:#0b0e14; --panel:#131824; --line:#232b3d; --fg:#e6e9f0; --mut:#8a93a8; --ok:#3ecf8e; --warn:#f5a524; --bad:#ef4444; --acc:#6ea8fe; }
+  @media (prefers-color-scheme: light) { :root { --bg:#f5f6f9; --panel:#fff; --line:#d9deea; --fg:#141824; --mut:#5d667b; --acc:#1d5fd1; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  header { display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--line); background:var(--panel); position:sticky; top:0; }
+  h1 { font-size:16px; margin:0; letter-spacing:.04em; }
+  h2 { font-size:13px; margin:0 0 10px; text-transform:uppercase; letter-spacing:.08em; color:var(--mut); }
+  main { padding:16px; display:grid; gap:16px; max-width:1200px; margin:0 auto; }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px; }
+  .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  input { background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:7px 9px; min-width:220px; }
+  button { background:var(--acc); color:#fff; border:0; border-radius:6px; padding:7px 12px; cursor:pointer; font-weight:600; }
+  button.ghost { background:transparent; color:var(--fg); border:1px solid var(--line); }
+  button.ok { background:var(--ok); color:#06210f; } button.bad { background:var(--bad); }
+  button.panic { background:var(--bad); font-size:14px; padding:9px 16px; }
+  button:disabled { opacity:.5; cursor:default; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:10px; }
+  .card { border:1px solid var(--line); border-radius:8px; padding:10px; }
+  .card b { display:block; } .mut { color:var(--mut); font-size:12px; }
+  .tag { display:inline-block; font-size:11px; padding:1px 7px; border-radius:99px; border:1px solid var(--line); margin:4px 4px 0 0; }
+  .tag.ok { color:var(--ok); border-color:var(--ok); } .tag.bad { color:var(--bad); border-color:var(--bad); } .tag.warn { color:var(--warn); border-color:var(--warn); }
+  .banner { display:none; padding:10px 16px; background:var(--bad); color:#fff; font-weight:700; }
+  .item { border-top:1px solid var(--line); padding:10px 0; } .item:first-child { border-top:0; }
+  pre { margin:6px 0 0; white-space:pre-wrap; word-break:break-word; font-size:12px; color:var(--mut); }
+  #msg { min-height:1.4em; } .err { color:var(--bad); }
+</style>
 </head>
-<body class="text-slate-100 min-h-screen font-sans selection:bg-blue-600 selection:text-white">
-  <div class="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
-
-    <!-- Top Executive Header -->
-    <header class="glass-card rounded-2xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 shadow-2xl border-blue-500/20">
-      <div class="flex items-center gap-3">
-        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 p-[2px] shadow-lg shadow-blue-500/30">
-          <div class="w-full h-full bg-slate-950 rounded-2xl flex items-center justify-center font-black text-xl text-blue-400 tracking-wider">
-            S
-          </div>
-        </div>
-        <div>
-          <div class="flex items-center gap-2">
-            <h1 class="text-xl sm:text-2xl font-black tracking-widest bg-gradient-to-r from-white via-blue-100 to-indigo-300 bg-clip-text text-transparent">
-              SYNDICATE HOLDING
-            </h1>
-            <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/30">
-              Рада 18 Директорів
-            </span>
-          </div>
-          <p class="text-xs text-slate-400">Contabo VPS 12 (16 vCPU / 48 GB RAM) — Автономний Холдинг Андрія</p>
-        </div>
-      </div>
-
-      <!-- Infrastructure Live Status Badges -->
-      <div class="flex items-center flex-wrap gap-2 text-xs">
-        <div class="px-3 py-1 rounded-xl bg-slate-900/80 border border-emerald-500/30 flex items-center gap-1.5 text-emerald-300">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-          <span>Vault: Unsealed</span>
-        </div>
-        <div class="px-3 py-1 rounded-xl bg-slate-900/80 border border-blue-500/30 flex items-center gap-1.5 text-blue-300">
-          <span>⚡ Gemini + OpenRouter</span>
-        </div>
-        <div class="px-3 py-1 rounded-xl bg-slate-900/80 border border-purple-500/30 flex items-center gap-1.5 text-purple-300">
-          <span>🤖 18 Ботів / Threema E2EE</span>
-        </div>
-      </div>
-
-      <!-- System Quick Action Buttons -->
-      <div class="flex items-center flex-wrap gap-2">
-        <button onclick="triggerQuickAction('self_test')" class="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-xs font-semibold border border-slate-700/60 transition flex items-center gap-1.5 text-slate-200">
-          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-          Тест системи
-        </button>
-        <button onclick="triggerQuickAction('executive_briefing')" class="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-xs font-semibold border border-slate-700/60 transition flex items-center gap-1.5 text-slate-200">
-          📊 Звіт Ради
-        </button>
-        <button onclick="switchView('boardroom')" class="px-3.5 py-1.5 rounded-xl bg-blue-600/90 hover:bg-blue-500 text-xs font-bold text-white transition flex items-center gap-1.5 shadow-lg shadow-blue-500/30">
-          🏛️ Круглий Стіл
-        </button>
-        <button onclick="triggerQuickAction('emergency_lockdown')" class="px-3.5 py-1.5 rounded-xl bg-rose-600/90 hover:bg-rose-500 text-xs font-black tracking-wider text-white transition flex items-center gap-1.5 shadow-lg shadow-rose-600/30">
-          🛑 ВЕТО
-        </button>
-      </div>
-    </header>
-
-    <!-- Strategic Wings Navigator (Replaces old floors) -->
-    <div class="glass-card rounded-2xl p-2.5 flex flex-wrap items-center justify-between gap-2 border-white/5">
-      <div class="flex items-center flex-wrap gap-2">
-        <button onclick="switchWing('core')" id="wing-btn-core" class="wing-btn px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 border bg-blue-500/20 text-blue-300 border-blue-500/40 shadow-lg shadow-blue-500/20">
-          <span class="w-2 h-2 rounded-full bg-blue-400"></span>
-          🏛️ ЯДРО (5)
-        </button>
-        <button onclick="switchWing('intelligence')" id="wing-btn-intelligence" class="wing-btn px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 border bg-slate-900/60 text-slate-400 border-white/5 hover:text-white">
-          <span class="w-2 h-2 rounded-full bg-teal-400"></span>
-          📡 РОЗВІДКА & ФІНАНСИ (5)
-        </button>
-        <button onclick="switchWing('commerce')" id="wing-btn-commerce" class="wing-btn px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 border bg-slate-900/60 text-slate-400 border-white/5 hover:text-white">
-          <span class="w-2 h-2 rounded-full bg-rose-400"></span>
-          🚀 КОМЕРЦІЯ & МЕДІА (4)
-        </button>
-        <button onclick="switchWing('lifeops')" id="wing-btn-lifeops" class="wing-btn px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 border bg-slate-900/60 text-slate-400 border-white/5 hover:text-white">
-          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-          🌿 LIFEOPS & АКАДЕМІЯ (4)
-        </button>
-      </div>
-      <div class="flex items-center gap-2">
-        <button onclick="switchView('boardroom')" id="wing-btn-boardroom" class="wing-btn px-4 py-2 rounded-xl text-xs font-black transition flex items-center gap-2 border bg-indigo-500/20 text-indigo-300 border-indigo-500/40 hover:bg-indigo-500/30">
-          🌐 ВСІ 18 ДИРЕКТОРІВ
-        </button>
-      </div>
-    </div>
-
-    <!-- 18 Directors Navigation Tabs (Fast Horizontal Carousel) -->
-    <div id="directorsTabBar" class="flex items-center overflow-x-auto pb-2 gap-2 scrollbar-thin">
-      <!-- Tabs will be rendered here dynamically and remain interactive -->
-    </div>
-
-    <!-- Central Stage: Holographic Plasma Energy Orb & Live Audio/Intercom -->
-    <div id="centralOrbContainer" class="glass-card rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center text-center relative overflow-hidden border-blue-500/20">
-      <!-- SVG Turbulence Filter for Living Plasma Lines -->
-      <svg class="absolute w-0 h-0 pointer-events-none" aria-hidden="true">
-        <defs>
-          <filter id="plasmaTurbulence" x="-20%" y="-20%" width="140%" height="140%">
-            <feTurbulence type="fractalNoise" baseFrequency="0.015 0.02" numOctaves="3" result="noise" seed="42" />
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="18" xChannelSelector="R" yChannelSelector="G" />
-          </filter>
-        </defs>
-      </svg>
-
-      <!-- Plasma Sphere Core -->
-      <div class="relative flex justify-center items-center py-2">
-        <div id="orbCoronaShockwave" class="absolute w-56 h-56 rounded-full pointer-events-none transition-all duration-700" style="background: radial-gradient(circle, rgba(59, 130, 246, 0.4) 0%, transparent 70%);"></div>
-        <div id="orbGlowBackdrop" class="absolute w-48 h-48 rounded-full pointer-events-none blur-2xl opacity-60 transition-all duration-500" style="background: radial-gradient(circle, rgba(59, 130, 246, 0.8) 0%, transparent 80%);"></div>
-        
-        <div id="orbSphereShell" class="relative w-36 h-36 sm:w-44 sm:h-44 rounded-full flex items-center justify-center cursor-pointer transition-transform duration-300 select-none" onclick="toggleVoiceLive()">
-          <div id="orbRimBorder" class="absolute inset-0 rounded-full border-2 border-blue-400/80 shadow-[0_0_35px_rgba(59,130,246,0.6)]"></div>
-          <!-- Procedural Plasma Center -->
-          <div id="orbPlasmaCore" class="w-full h-full rounded-full overflow-hidden flex items-center justify-center" style="filter: url(#plasmaTurbulence);">
-            <div id="orbGradientMesh" class="w-full h-full rounded-full bg-gradient-to-tr from-blue-900 via-indigo-600 to-cyan-400 opacity-90 transition-all duration-700"></div>
-          </div>
-          <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <span id="orbAgentSymbol" class="text-3xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]">EVA</span>
-            <span class="text-[9px] font-bold text-blue-200 tracking-widest uppercase mt-1">VOICE INTERCOM</span>
-          </div>
-          <!-- Status Pill Badge -->
-          <div id="orbStatusBadge" class="absolute -bottom-2 z-20 bg-slate-950/90 border border-blue-500/50 text-[10px] font-bold px-3 py-0.5 rounded-full shadow-lg flex items-center gap-1.5 backdrop-blur-md">
-            <span id="orbStatusDot" class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span id="orbStatusText" class="text-blue-300">LIVE READY</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Agent Header Greeting -->
-      <div class="mt-4 space-y-1">
-        <h2 id="agentGreetingTitle" class="text-xl sm:text-2xl font-black tracking-wide text-white">
-          «Вітаю, Андрію. Єва на зв'язку.»
-        </h2>
-        <p id="agentGreetingSubtitle" class="text-xs sm:text-sm text-slate-300 max-w-2xl mx-auto">
-          Холдинг активний. Рада 18 Директорів, центральний роутер LLM (Gemini + OpenRouter) та E2EE шлюзи готові.
-        </p>
-      </div>
-
-      <!-- Voice Control Buttons -->
-      <div class="mt-4 flex items-center justify-center gap-3">
-        <button onclick="toggleVoiceLive()" id="voiceToggleBtn" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-blue-500/30">
-          🎙️ <span id="voiceBtnText">Увімкнути Голос (Kokoro-82M)</span>
-        </button>
-        <button onclick="testAgentSpeech()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-white/10 transition">
-          🔊 Тестовий брифінг
-        </button>
-      </div>
-    </div>
-
-    <!-- Active Director View Container -->
-    <main id="directorViewContainer" class="space-y-6">
-      <!-- 18 Views and Boardroom Grid will be rendered and switched here -->
-    </main>
-
-    <!-- Global Execution Console / Live Output Log -->
-    <div class="glass-card rounded-2xl p-5 border-white/10 space-y-3">
-      <div class="flex items-center justify-between border-b border-white/10 pb-3">
-        <div class="flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <h3 class="text-sm font-bold tracking-wider text-slate-200 uppercase">Операційна Консоль Викликів Холдингу</h3>
-        </div>
-        <div class="flex items-center gap-2">
-          <button onclick="clearConsoleLog()" class="text-[11px] text-slate-400 hover:text-white transition">Очистити</button>
-        </div>
-      </div>
-      <div id="consoleLogOutput" class="h-36 overflow-y-auto font-mono text-xs text-slate-300 space-y-1 bg-slate-950/80 p-3 rounded-xl border border-white/5">
-        <div class="text-emerald-400">[SYSTEM] SYNDICATE Holding Cockpit v4.2 підключено до ядра.</div>
-        <div class="text-blue-400">[VAULT] Зв'язок з HashiCorp Vault (KV v2) стабільний. Токен дійсний.</div>
-        <div class="text-slate-400">[ROUTER] Multi-Tier LLM Pool: Google Gemini 2.5 Pro/Flash + OpenRouter Master активні.</div>
-        <div class="text-purple-400">[GATEWAY] 18 Telegram Bot Sliders & Swiss Threema E2EE шлюз підготовлені.</div>
-      </div>
-    </div>
-
+<body>
+<div id="lockbanner" class="banner">⛔ LOCKDOWN УВІМКНЕНО — всі записуючі запити заблоковані. Зняти можна лише на сервері (tools/unlock_lockdown.py).</div>
+<header>
+  <h1>SYNDIKAT · SYNDICATE HOLDING — Executive Cockpit</h1>
+  <div class="row">
+    <input id="key" type="password" autocomplete="off" placeholder="Ключ оператора (лише в цій вкладці)">
+    <button class="ghost" id="saveKey">Зберегти</button>
+    <button class="ghost" id="reload">Оновити</button>
+    <button class="panic" id="panic">PANIC STOP</button>
   </div>
+</header>
+<main>
+  <div id="msg" class="mut" role="status"></div>
+  <section><h2>Система</h2><div id="health" class="row mut">завантаження…</div></section>
+  <section><h2>Директори (<span id="dcount">0</span>)</h2><div id="directors" class="grid"></div></section>
+  <section><h2>Черга HITL — утримані дії</h2><div id="hitl" class="mut">завантаження…</div></section>
+  <section><h2>Запити на зміни (CR)</h2><div id="crs" class="mut">завантаження…</div></section>
+</main>
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var KEY = "";
+  try { KEY = sessionStorage.getItem("op_key") || ""; } catch (e) {}
+  $("key").value = KEY;
 
-  <!-- Javascript Core Logic -->
-  <script>
-    // -------------------------------------------------------------
-    // Full 18 Directors Registry & Styling Configuration
-    // -------------------------------------------------------------
-    const DIRECTORS = {
-      eva: {
-        id: "eva",
-        name: "ЄВА",
-        title: "Генеральний директор (CEO / Chief of Staff)",
-        wing: "core",
-        symbol: "EVA",
-        color: "#3b82f6",
-        gradient: "from-blue-900 via-indigo-600 to-cyan-400",
-        llm: "Claude 3.5 Sonnet / Gemini Pro (Рада)",
-        bot: "@SyndicateEvaBot",
-        greeting: "«Вітаю, Андрію. Єва на зв'язку.»",
-        sub: "Координація Ради 18 директорів, щоденні брифінги 07:00/21:00, голосовий зв'язок та стратегічний контроль.",
-        actions: [
-          { id: "morning_briefing", label: "🌅 Ранковий брифінг", cmd: "briefing_report" },
-          { id: "evening_reflection", label: "🌙 Вечірній аналіз", cmd: "evening_reflection" },
-          { id: "council_vote", label: "⚖️ Голосування Ради", cmd: "council_vote" },
-          { id: "compile_pdf", label: "📑 Зібрати PDF-звіт", cmd: "compile_pdf" }
-        ]
-      },
-      alice: {
-        id: "alice",
-        name: "АЛІСА",
-        title: "Керівник відділу реалізації (Head of Delivery / R&D)",
-        wing: "core",
-        symbol: "ALC",
-        color: "#06b6d4",
-        gradient: "from-cyan-950 via-cyan-600 to-blue-400",
-        llm: "Claude 3.5 Sonnet / Gemini 2.5 Pro (Code)",
-        bot: "@SyndicateAliceBot",
-        greeting: "«Аліса готова до інженерного спринту.»",
-        sub: "Синтез коду, автономний демон, аудит систем, Antigravity SDK та перевірка Git CI/CD пайплайнів.",
-        actions: [
-          { id: "code_audit", label: "🔍 Інженерний аудит", cmd: "alice_audit" },
-          { id: "deploy_status", label: "🚀 Статус деплою", cmd: "alice_deploy_status" },
-          { id: "daemon_cycle", label: "⚙️ Цикл демона", cmd: "alice_daemon_cycle" }
-        ]
-      },
-      sonar: {
-        id: "sonar",
-        name: "СОНАР",
-        title: "Директор глобальної розвідки & Deep Research",
-        wing: "intelligence",
-        symbol: "SNR",
-        color: "#14b8a6",
-        gradient: "from-teal-950 via-teal-600 to-emerald-400",
-        llm: "Perplexity Sonar-Deep-Research / Gemini Flash",
-        bot: "@SyndicateSonarBot",
-        greeting: "«Сонар: Глобальна розвідка на зв'язку.»",
-        sub: "Глибинний пошук в реальному часі без галюцинацій, верифікація джерел за Tier A/B, фактчекінг оферів.",
-        actions: [
-          { id: "deep_research", label: "🌐 Deep Research", cmd: "sonar_deep_research" },
-          { id: "verify_sources", label: "🛡️ Верифікація фактів", cmd: "sonar_verify_sources" },
-          { id: "compare_matrix", label: "📊 Матриця порівняння", cmd: "sonar_compare_matrix" }
-        ]
-      },
-      architect: {
-        id: "architect",
-        name: "АРХІТЕКТОР",
-        title: "Головний системний архітектор (CTO / n8n)",
-        wing: "core",
-        symbol: "ARC",
-        color: "#a855f7",
-        gradient: "from-purple-950 via-purple-600 to-indigo-400",
-        llm: "Claude 3.5 Sonnet / OpenAI o3-mini",
-        bot: "@SyndicateArchitectBot",
-        greeting: "«Архітектор: системні контури замкнені.»",
-        sub: "Воркфлоу n8n, валідація FlowLint, нульова токенна вартість RPC-команд та проектування інтерфейсів.",
-        actions: [
-          { id: "n8n_health", label: "🔄 Перевірка n8n (5678)", cmd: "n8n_health" },
-          { id: "flowlint_scan", label: "⚡ FlowLint валідація", cmd: "architect_lint" },
-          { id: "rpc_catalog", label: "📋 RPC Hub Каталог", cmd: "architect_rpc_catalog" }
-        ]
-      },
-      kodex: {
-        id: "kodex",
-        name: "КОДЕКС",
-        title: "Директор бази знань, Obsidian & Legal (CKO)",
-        wing: "core",
-        symbol: "KDX",
-        color: "#6366f1",
-        gradient: "from-indigo-950 via-indigo-600 to-sky-400",
-        llm: "Gemini 2.5 Pro (2M Context) / Claude 3.5 Sonnet",
-        bot: "@SyndicateKodexBot",
-        greeting: "«Кодекс: Другий Мозок (Obsidian) синхронізовано.»",
-        sub: "Obsidian Second Brain, синтез навичок SKILL.md, юридичний комплаєнс, стиснення знань у NotebookLM.",
-        actions: [
-          { id: "obsidian_sync", label: "📂 Синхронізація Obsidian", cmd: "kodex_sync" },
-          { id: "create_skill", label: "🧠 Синтезувати SKILL.md", cmd: "kodex_create_skill" },
-          { id: "compress_sources", label: "🧪 Alchemy Compression", cmd: "kodex_alchemy" }
-        ]
-      },
-      marshal: {
-        id: "marshal",
-        name: "МАРШАЛ",
-        title: "Директор внутрішньої безпеки & Sentinel Guard (CSO)",
-        wing: "core",
-        symbol: "MSH",
-        color: "#ef4444",
-        gradient: "from-rose-950 via-red-600 to-amber-500",
-        llm: "Claude 3.5 Sonnet / GPT-4o (Strict Policy)",
-        bot: "@SyndicateMarshalBot",
-        greeting: "«Маршал: Периметр під контролем Sentinel Guard.»",
-        sub: "Zero-Trust ізоляція, перевірка RBAC грантів, моніторинг шифрування Threema E2EE та Telegram Wartime Shield.",
-        actions: [
-          { id: "security_audit", label: "🛡️ Аудит безпеки", cmd: "marshal_security_audit" },
-          { id: "rbac_matrix", label: "🔑 RBAC матриця прав", cmd: "marshal_rbac_check" },
-          { id: "hitl_queue", label: "🛑 HITL черга підтверджень", cmd: "marshal_hitl_queue" }
-        ]
-      },
-      fin: {
-        id: "fin",
-        name: "ФІН",
-        title: "Фінансовий директор (CFO / Ledger / Net Margins)",
-        wing: "intelligence",
-        symbol: "FIN",
-        color: "#10b981",
-        gradient: "from-emerald-950 via-emerald-600 to-lime-400",
-        llm: "OpenAI o3-mini / Claude 3.5 Sonnet",
-        bot: "@SyndicateFinBot",
-        greeting: "«Фін: Юніт-економіка та чисті маржі під контролем.»",
-        sub: "Леджер транзакцій, банківський шлюз, аналіз витрат на рекламу, перевірка рентабельності кожного оферу.",
-        actions: [
-          { id: "runway_check", label: "💰 Фінансовий Runway", cmd: "fin_runway" },
-          { id: "margins_report", label: "📈 Звіт чистих маржинальностей", cmd: "fin_margins" },
-          { id: "sync_bank", label: "🏦 Синхронізація виписок", cmd: "fin_sync_bank" }
-        ]
-      },
-      sam: {
-        id: "sam",
-        name: "СЕМ",
-        title: "Директор трейдингу & Quant (Trading / B2B)",
-        wing: "intelligence",
-        symbol: "SAM",
-        color: "#f59e0b",
-        gradient: "from-amber-950 via-amber-600 to-yellow-400",
-        llm: "OpenAI o3-mini / Claude 3.5 Sonnet",
-        bot: "@SyndicateSamBot",
-        greeting: "«Сем: Кількісний аналіз та волатильність оцінені.»",
-        sub: "Алгоритмічні сигнали, математичний ризик-менеджмент, B2B аутріч-вороfront та аналітика біржових даних.",
-        actions: [
-          { id: "quant_signal", label: "📊 Quant-сигнали ринку", cmd: "sam_quant_signals" },
-          { id: "portfolio_risk", label: "⚠️ Оцінка ризику портфеля", cmd: "sam_risk_eval" },
-          { id: "b2b_leads", label: "🤝 B2B лідогенерація", cmd: "sam_b2b_leads" }
-        ]
-      },
-      jack: {
-        id: "jack",
-        name: "ДЖЕК",
-        title: "Керівник OSINT & ігрових моделей (Anti-Tilt / Kelly)",
-        wing: "intelligence",
-        symbol: "JCK",
-        color: "#f97316",
-        gradient: "from-orange-950 via-orange-600 to-yellow-500",
-        llm: "Groq Llama-3.3-70B / GPT-4o-mini",
-        bot: "@SyndicateJackBot",
-        greeting: "«Джек: Математичні коефіцієнти розраховані.»",
-        sub: "Anti-Tilt дисципліна, критерій Келлі (дробовий 0.25x), скаутинг The Odds API, OSINT верифікація подій.",
-        actions: [
-          { id: "anti_tilt", label: "🧠 Anti-Tilt перевірка", cmd: "jack_anti_tilt" },
-          { id: "odds_scan", label: "🎲 The Odds API скан", cmd: "jack_odds_scan" },
-          { id: "kelly_calc", label: "📐 Розрахунок Kelly", cmd: "jack_kelly_calc" }
-        ]
-      },
-      scout: {
-        id: "scout",
-        name: "СКАУТ",
-        title: "Головний маркетинговий скаут (Trend Hunter / Comments)",
-        wing: "intelligence",
-        symbol: "SCT",
-        color: "#eab308",
-        gradient: "from-yellow-950 via-yellow-600 to-amber-300",
-        llm: "Gemini 2.5 Flash / xAI Grok-2",
-        bot: "@SyndicateScoutBot",
-        greeting: "«Скаут: Свіжі ринкові тренди виявлено.»",
-        sub: "Майнінг коментарів YouTube/X, виявлення болю аудиторії, моніторинг вірусних тем для контент-цеху.",
-        actions: [
-          { id: "comment_mining", label: "💬 Майнінг коментарів", cmd: "scout_mine_comments" },
-          { id: "trend_radar", label: "🔥 Радар вірусних тем", cmd: "scout_trend_radar" },
-          { id: "pain_points", label: "🎯 Карта болів ЦА", cmd: "scout_pain_map" }
-        ]
-      },
-      oscar: {
-        id: "oscar",
-        name: "ОСКАР",
-        title: "Публіцист холдингу (Tri-LLM Publicist)",
-        wing: "commerce",
-        symbol: "OSC",
-        color: "#f43f5e",
-        gradient: "from-rose-950 via-rose-600 to-pink-400",
-        llm: "xAI Grok-2 (Copy) + Gemini (Research) + Haiku (Tags)",
-        bot: "@SyndicateOscarBot",
-        greeting: "«Оскар готовий до генерації потужного контенту.»",
-        sub: "3 кластери контенту, лонгріди для блогів, вірусні треди X/Threads, сценарії YouTube та email-розсилки.",
-        actions: [
-          { id: "draft_article", label: "📝 Написати статтю блогу", cmd: "oscar_draft_article" },
-          { id: "viral_thread", label: "⚡ Вірусний тред X", cmd: "oscar_viral_thread" },
-          { id: "newsletter", label: "📬 Дайджест розсилки", cmd: "oscar_newsletter" }
-        ]
-      },
-      tyler: {
-        id: "tyler",
-        name: "ТАЙЛЕР",
-        title: "Директор Print-on-Demand (POD) & кастомного мерчу",
-        wing: "commerce",
-        symbol: "TYL",
-        color: "#fb7185",
-        gradient: "from-pink-950 via-pink-600 to-rose-400",
-        llm: "xAI Grok-2 / GPT-4o / Claude Haiku",
-        bot: "@SyndicateTylerBot",
-        greeting: "«Тайлер: Дизайни та мокапи POD сформовані.»",
-        sub: "Промпти для генерації мерчу, картки товарів, мокапи худі/футболок, маржинальність понад 35%.",
-        actions: [
-          { id: "merch_collection", label: "👕 Створити колекцію POD", cmd: "tyler_merch_collection" },
-          { id: "mockup_prompts", label: "🎨 Промпти мокапів", cmd: "tyler_mockup_prompts" },
-          { id: "listing_card", label: "🛒 Картка лістингу", cmd: "tyler_listing_card" }
-        ]
-      },
-      ray: {
-        id: "ray",
-        name: "РЕЙ",
-        title: "Директор фізичного дропшипінгу (AliExpress/CJ)",
-        wing: "commerce",
-        symbol: "RAY",
-        color: "#d97706",
-        gradient: "from-amber-950 via-amber-700 to-orange-400",
-        llm: "Gemini 2.5 Flash / GPT-4o-mini",
-        bot: "@SyndicateRayBot",
-        greeting: "«Рей: Постачальники перевірені, логістика порахована.»",
-        sub: "Пошук trending physical products, перевірка рейтингів фабрик, розрахунок термінів доставки та націнки.",
-        actions: [
-          { id: "supplier_search", label: "📦 Пошук постачальника", cmd: "ray_find_supplier" },
-          { id: "shipping_calc", label: "⏱️ Розрахунок доставки", cmd: "ray_calc_shipping" },
-          { id: "product_audit", label: "🔎 Аудит товару", cmd: "ray_product_audit" }
-        ]
-      },
-      dex: {
-        id: "dex",
-        name: "ДЕКС",
-        title: "Директор партнерського маркетингу (Affiliate / CPA)",
-        wing: "commerce",
-        symbol: "DEX",
-        color: "#059669",
-        gradient: "from-emerald-950 via-teal-700 to-green-400",
-        llm: "Gemini 2.5 Flash / Groq Llama-3.3-70B",
-        bot: "@SyndicateDexBot",
-        greeting: "«Декс: Партнерські офери та трекінги готові.»",
-        sub: "CPA-мережі, UTM-генератор з sub_id, оптимізація EPC (Earnings Per Click) та інтеграція в контент Оскара.",
-        actions: [
-          { id: "cpa_offers", label: "🔗 Топ CPA офери", cmd: "dex_top_offers" },
-          { id: "utm_builder", label: "🎯 Згенерувати UTM лінк", cmd: "dex_build_utm" },
-          { id: "epc_report", label: "📊 Аналіз конверсії EPC", cmd: "dex_epc_report" }
-        ]
-      },
-      doc: {
-        id: "doc",
-        name: "ДОК",
-        title: "Головний лікар холдингу (CMO / Health / HRV)",
-        wing: "lifeops",
-        symbol: "DOC",
-        color: "#84cc16",
-        gradient: "from-lime-950 via-lime-600 to-emerald-400",
-        llm: "Claude 3.5 Sonnet / GPT-4o",
-        bot: "@SyndicateDocBot",
-        greeting: "«Док: Біомаркери та готовність організму в нормі.»",
-        sub: "Превентивна медицина, аналіз варіабельності пульсу (HRV), графік скринінгів, нутріцевтичний захист.",
-        actions: [
-          { id: "morning_readiness", label: "🩺 Ранковий HRV аналіз", cmd: "doc_morning_readiness" },
-          { id: "lab_tests", label: "🧪 Календар чекапів", cmd: "doc_lab_tests" },
-          { id: "emergency_card", label: "🚨 Екстрена медична карта", cmd: "doc_emergency_card" }
-        ]
-      },
-      trainer: {
-        id: "trainer",
-        name: "ТРЕНЕР",
-        title: "Директор тренувального та нутріціологічного блоку",
-        wing: "lifeops",
-        symbol: "TRN",
-        color: "#16a34a",
-        gradient: "from-green-950 via-green-600 to-lime-300",
-        llm: "Gemini 2.5 Flash / GPT-4o-mini",
-        bot: "@SyndicateTrainerBot",
-        greeting: "«Тренер: Програма навантажень на сьогодні готова.»",
-        sub: "Планування силових та кардіо тренувань, розрахунок КБЖВ, щотижневі кошики покупок (шопінг-листи).",
-        actions: [
-          { id: "workout_plan", label: "🏋️ План тренування", cmd: "trainer_workout_plan" },
-          { id: "nutrition_plan", label: "🥗 Раціон КБЖВ", cmd: "trainer_nutrition_plan" },
-          { id: "shopping_list", label: "🛒 Шопінг-лист супермаркет", cmd: "trainer_shopping_list" }
-        ]
-      },
-      kira: {
-        id: "kira",
-        name: "КІРА",
-        title: "Директор Академії, ментор & психотерапевт",
-        wing: "lifeops",
-        symbol: "KRA",
-        color: "#8b5cf6",
-        gradient: "from-violet-950 via-violet-600 to-purple-400",
-        llm: "Claude 3.5 Sonnet / Kokoro-82M TTS",
-        bot: "@SyndicateKiraBot",
-        greeting: "«Кіра: Освітній простір та спаринг відкриті.»",
-        sub: "Сократівський діалог, вивчення Executive English, менторство, вайбкодинг та сесії емоційного розвантаження.",
-        actions: [
-          { id: "socratic_sparring", label: "🥊 Сократівський спаринг", cmd: "kira_socratic" },
-          { id: "english_pitch", label: "🇬🇧 Executive English Pitch", cmd: "kira_english_pitch" },
-          { id: "therapy_session", label: "🧘 Психотерапія LiveKit", cmd: "kira_therapy" }
-        ]
-      },
-      atlas: {
-        id: "atlas",
-        name: "АТЛАС",
-        title: "Директор географії, віз та логістики подорожей",
-        wing: "lifeops",
-        symbol: "ATL",
-        color: "#0ea5e9",
-        gradient: "from-sky-950 via-sky-600 to-cyan-400",
-        llm: "Gemini 2.5 Flash / Perplexity Sonar",
-        bot: "@SyndicateAtlasBot",
-        greeting: "«Атлас: Маршрути та візові коридори оновлено.»",
-        sub: "Оптимізація авіаперельотів, перевірка візових вимог для українського паспорта, локальні SIM та роумінг.",
-        actions: [
-          { id: "route_optimizer", label: "✈️ Оптимізатор перельоту", cmd: "atlas_route" },
-          { id: "visa_check", label: "🛂 Візовий режим", cmd: "atlas_visa_check" },
-          { id: "travel_dossier", label: "🌍 Досьє локації", cmd: "atlas_dossier" }
-        ]
-      }
-    };
+  function say(text, isErr) { var m = $("msg"); m.textContent = text || ""; m.className = isErr ? "err" : "mut"; }
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  function tag(text, kind) { return el("span", "tag" + (kind ? " " + kind : ""), text); }
 
-    let currentAgent = "eva";
-    let currentWing = "core";
-    let voiceActive = false;
-
-    // -------------------------------------------------------------
-    // Initialization & Rendering
-    // -------------------------------------------------------------
-    function initCockpit() {
-      renderTabs();
-      switchAgent("eva");
-      logToConsole("Кокпіт ініціалізовано. Усі 18 директорів зареєстровано.");
-    }
-
-    function renderTabs() {
-      const container = document.getElementById("directorsTabBar");
-      if (!container) return;
-      container.innerHTML = "";
-
-      Object.values(DIRECTORS).forEach(agent => {
-        const btn = document.createElement("button");
-        btn.id = `tab-${agent.id}`;
-        btn.onclick = () => switchAgent(agent.id);
-        btn.className = `tab-btn flex-shrink-0 px-3.5 py-2 rounded-2xl text-xs font-bold transition flex items-center gap-2 border bg-slate-900/70 text-slate-300 border-white/5 hover:text-white hover:border-white/20`;
-        
-        btn.innerHTML = `
-          <div class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white" style="background: ${agent.color};">
-            ${agent.symbol[0]}
-          </div>
-          <span>${agent.name}</span>
-          <span class="text-[9px] px-1.5 py-0.2 rounded bg-white/5 text-slate-400 border border-white/5">${agent.symbol}</span>
-        `;
-        container.appendChild(btn);
-      });
-    }
-
-    // -------------------------------------------------------------
-    // Wing Switching
-    // -------------------------------------------------------------
-    function switchWing(wingKey) {
-      currentWing = wingKey;
-      document.querySelectorAll(".wing-btn").forEach(b => {
-        b.className = "wing-btn px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 border bg-slate-900/60 text-slate-400 border-white/5 hover:text-white";
-      });
-      const activeBtn = document.getElementById(`wing-btn-${wingKey}`);
-      if (activeBtn) {
-        activeBtn.className = "wing-btn px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 border bg-blue-500/20 text-blue-300 border-blue-500/40 shadow-lg shadow-blue-500/20";
-      }
-
-      // Filter tabs by wing
-      const tabs = document.querySelectorAll(".tab-btn");
-      Object.values(DIRECTORS).forEach(agent => {
-        const tabEl = document.getElementById(`tab-${agent.id}`);
-        if (tabEl) {
-          if (wingKey === "all" || agent.wing === wingKey) {
-            tabEl.style.display = "flex";
-          } else {
-            tabEl.style.display = "none";
-          }
-        }
-      });
-
-      // Switch to first agent of that wing
-      const firstInWing = Object.values(DIRECTORS).find(a => a.wing === wingKey);
-      if (firstInWing) {
-        switchAgent(firstInWing.id);
-      }
-    }
-
-    // -------------------------------------------------------------
-    // Agent Switching
-    // -------------------------------------------------------------
-    function switchAgent(agentId) {
-      const agent = DIRECTORS[agentId];
-      if (!agent) return;
-      currentAgent = agentId;
-
-      // Update Tabs Highlight
-      document.querySelectorAll(".tab-btn").forEach(b => {
-        b.classList.remove("border-blue-500/60", "bg-blue-600/20", "text-white", "shadow-lg");
-      });
-      const currentTab = document.getElementById(`tab-${agentId}`);
-      if (currentTab) {
-        currentTab.classList.add("border-blue-500/60", "bg-blue-600/20", "text-white", "shadow-lg");
-      }
-
-      // Update Living Plasma Sphere
-      const mesh = document.getElementById("orbGradientMesh");
-      if (mesh) {
-        mesh.className = `w-full h-full rounded-full bg-gradient-to-tr ${agent.gradient} opacity-90 transition-all duration-700`;
-      }
-      const rim = document.getElementById("orbRimBorder");
-      if (rim) {
-        rim.style.borderColor = `${agent.color}dd`;
-        rim.style.boxShadow = `0 0 35px ${agent.color}88`;
-      }
-      const shock = document.getElementById("orbCoronaShockwave");
-      if (shock) {
-        shock.style.background = `radial-gradient(circle, ${agent.color}50 0%, transparent 70%)`;
-      }
-      const symbol = document.getElementById("orbAgentSymbol");
-      if (symbol) symbol.innerText = agent.symbol;
-
-      const title = document.getElementById("agentGreetingTitle");
-      if (title) title.innerText = agent.greeting;
-      const sub = document.getElementById("agentGreetingSubtitle");
-      if (sub) sub.innerText = agent.sub;
-
-      renderDirectorWorkspace(agent);
-      logToConsole(`Активовано термінал директора: [${agent.name}] — ${agent.title}`);
-    }
-
-    // -------------------------------------------------------------
-    // Workspace Renderer
-    // -------------------------------------------------------------
-    function renderDirectorWorkspace(agent) {
-      const container = document.getElementById("directorViewContainer");
-      if (!container) return;
-
-      container.innerHTML = `
-        <div class="glass-card rounded-3xl p-6 sm:p-7 border-white/10 space-y-6">
-          
-          <!-- Workspace Header -->
-          <div class="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-5">
-            <div class="flex items-center gap-3">
-              <div class="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-white text-lg shadow-lg" style="background: ${agent.color};">
-                ${agent.symbol}
-              </div>
-              <div>
-                <div class="flex items-center gap-2">
-                  <h3 class="text-xl font-black text-white tracking-wide">${agent.name}</h3>
-                  <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border" style="border-color: ${agent.color}88; color: ${agent.color};">
-                    ${agent.wing.toUpperCase()} WING
-                  </span>
-                </div>
-                <p class="text-xs text-slate-300">${agent.title}</p>
-              </div>
-            </div>
-
-            <!-- Provider & Bot Status Info -->
-            <div class="flex items-center flex-wrap gap-2 text-xs">
-              <div class="px-3 py-1.5 rounded-xl bg-slate-900 border border-white/10 flex items-center gap-2">
-                <span class="text-slate-400">Роутер LLM:</span>
-                <span class="font-bold text-blue-300">${agent.llm}</span>
-              </div>
-              <div class="px-3 py-1.5 rounded-xl bg-slate-900 border border-white/10 flex items-center gap-2">
-                <span class="text-slate-400">Telegram Bot:</span>
-                <span class="font-bold text-emerald-400">${agent.bot}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Quick Actions Grid -->
-          <div>
-            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Швидкі операційні протоколи</h4>
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-              ${agent.actions.map(act => `
-                <button onclick="executeAgentAction('${agent.id}', '${act.cmd}', '${act.label}')" class="p-3.5 rounded-2xl bg-slate-900/90 hover:bg-slate-800 border border-white/5 hover:border-blue-500/40 text-left transition space-y-1 group">
-                  <div class="text-sm font-bold text-slate-100 group-hover:text-blue-300 transition">${act.label}</div>
-                  <div class="text-[10px] text-slate-400">Виклик через LangGraph / RPC</div>
-                </button>
-              `).join('')}
-            </div>
-          </div>
-
-          <!-- Interactive Direct Prompt Console -->
-          <div class="p-4 rounded-2xl bg-slate-950/80 border border-white/5 space-y-3">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">Прямий запит до ${agent.name}</span>
-              <span class="text-[10px] text-blue-400 font-mono">Шлюз: /execute • AppRole Vault</span>
-            </div>
-            <div class="flex gap-2">
-              <input id="agentPromptInput" type="text" placeholder="Введіть доручення для директора ${agent.name}..." class="flex-1 bg-slate-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-blue-500 transition" onkeydown="if(event.key==='Enter') sendCustomPrompt('${agent.id}')">
-              <button onclick="sendCustomPrompt('${agent.id}')" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition shadow-lg shadow-blue-500/20">
-                Виконати ➔
-              </button>
-            </div>
-            <div id="agentCommandOutput" class="hidden p-3.5 rounded-xl bg-slate-900 border border-white/10 text-xs font-mono text-slate-200 whitespace-pre-wrap"></div>
-          </div>
-
-        </div>
-      `;
-    }
-
-    // -------------------------------------------------------------
-    // Boardroom 18 Matrix View
-    // -------------------------------------------------------------
-    function switchView(viewName) {
-      if (viewName === "boardroom") {
-        renderBoardroomMatrix();
-      }
-    }
-
-    function renderBoardroomMatrix() {
-      const container = document.getElementById("directorViewContainer");
-      if (!container) return;
-
-      container.innerHTML = `
-        <div class="glass-card rounded-3xl p-6 sm:p-8 border-white/10 space-y-6">
-          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
-            <div>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-bold uppercase tracking-wider">Radical Boardroom</span>
-              <h3 class="text-xl sm:text-2xl font-black text-white mt-1">Круглий Стіл 18 Директорів SYNDICATE</h3>
-              <p class="text-xs text-slate-400">Повний огляд Ради, активні моделі, боти та швидке перемикання.</p>
-            </div>
-            <div class="flex items-center gap-2">
-              <button onclick="triggerQuickAction('boardroom_sync')" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition shadow-lg shadow-blue-500/20">
-                🔄 Опитати всіх 18 агентів
-              </button>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            ${Object.values(DIRECTORS).map(a => `
-              <div onclick="switchAgent('${a.id}')" class="p-4 rounded-2xl bg-slate-900/80 hover:bg-slate-800 border border-white/5 hover:border-blue-500/40 cursor-pointer transition space-y-3 group">
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-white text-xs" style="background: ${a.color};">
-                      ${a.symbol}
-                    </div>
-                    <div>
-                      <div class="text-sm font-bold text-white group-hover:text-blue-300 transition">${a.name}</div>
-                      <div class="text-[10px] text-slate-400">${a.wing.toUpperCase()}</div>
-                    </div>
-                  </div>
-                  <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                </div>
-                <p class="text-[11px] text-slate-300 line-clamp-2">${a.sub}</p>
-                <div class="pt-2 border-t border-white/5 flex items-center justify-between text-[10px]">
-                  <span class="text-blue-400">${a.llm.split('/')[0]}</span>
-                  <span class="text-emerald-400 font-mono">${a.bot}</span>
-                </div>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      `;
-      logToConsole("Відображено Круглий Стіл Ради 18 Директорів.");
-    }
-
-    // -------------------------------------------------------------
-    // Execution & Backend API Calls
-    // -------------------------------------------------------------
-    async function executeAgentAction(agentId, cmd, label) {
-      logToConsole(`[${agentId.toUpperCase()}] Відправлено команду: "${label}" (${cmd})...`);
-      const output = document.getElementById("agentCommandOutput");
-      if (output) {
-        output.classList.remove("hidden");
-        output.innerText = `⏳ Відправка запиту до ${agentId.toUpperCase()} через роутер...`;
-      }
-
-      try {
-        const resp = await fetch("/execute", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            task_type: cmd,
-            payload: { agent: agentId, action: cmd }
-          })
+  // Same-origin only. Browser Basic credentials cover reads; writes use the operator key.
+  function call(method, path, body) {
+    var headers = { "Accept": "application/json" };
+    if (KEY) headers["X-API-Key"] = KEY;
+    if (body) headers["Content-Type"] = "application/json";
+    return fetch(path, { method: method, headers: headers, body: body ? JSON.stringify(body) : undefined, credentials: "same-origin" })
+      .then(function (r) {
+        return r.text().then(function (t) {
+          var data = null; try { data = t ? JSON.parse(t) : null; } catch (e) {}
+          if (!r.ok) { var err = new Error((data && (data.detail || data.error || data.status)) || ("HTTP " + r.status)); err.status = r.status; throw err; }
+          return data;
         });
-        const data = await resp.json();
-        if (output) {
-          output.innerText = `✓ Результат (${agentId}):\n` + JSON.stringify(data.result || data, null, 2);
-        }
-        logToConsole(`[${agentId.toUpperCase()}] Отримано відповідь: статус ${resp.status}`);
-      } catch (err) {
-        if (output) {
-          output.innerText = `✓ Команда передана до черги ${agentId} (${cmd}).`;
-        }
-        logToConsole(`[${agentId.toUpperCase()}] Запит надіслано до черги.`);
-      }
-    }
+      });
+  }
 
-    async function sendCustomPrompt(agentId) {
-      const input = document.getElementById("agentPromptInput");
-      const text = input ? input.value.trim() : "";
-      if (!text) return;
-      input.value = "";
-      executeAgentAction(agentId, "chat", text);
-    }
+  function renderHealth(h) {
+    var box = $("health"); box.textContent = "";
+    if (!h) { box.textContent = "недоступно"; return; }
+    Object.keys(h).forEach(function (k) {
+      var v = h[k]; if (v !== null && typeof v === "object") v = JSON.stringify(v);
+      box.appendChild(tag(k + ": " + v, (v === true || v === "ok" || v === "healthy") ? "ok" : ""));
+    });
+  }
 
-    function triggerQuickAction(actionName) {
-      logToConsole(`[SYSTEM ACTION] Виконано: ${actionName}`);
-      if (actionName === "emergency_lockdown") {
-        alert("🛑 ВЕТО АКТИВОВАНО: Будь-які зовнішні транзакції тимчасово призупинено.");
-      }
-    }
+  function renderDirectors(d) {
+    var box = $("directors"); box.textContent = "";
+    var list = (d && d.directors) || [];
+    $("dcount").textContent = String(list.length);
+    list.forEach(function (x) {
+      var c = el("div", "card");
+      c.appendChild(el("b", null, x.name + " · " + x.id));
+      c.appendChild(el("div", "mut", x.role));
+      c.appendChild(el("div", "mut", (x.wing || "") + (x.bot_handle ? " · " + x.bot_handle : "")));
+      c.appendChild(tag(x.bot_configured ? "Telegram-бот: токен є" : "Telegram-бот: токена немає", x.bot_configured ? "ok" : "warn"));
+      c.appendChild(tag(x.enabled === true ? "увімкнено" : x.enabled === false ? "вимкнено" : "стан невідомо", x.enabled === true ? "ok" : ""));
+      c.appendChild(tag(x.runtime || "", ""));
+      box.appendChild(c);
+    });
+  }
 
-    function toggleVoiceLive() {
-      voiceActive = !voiceActive;
-      const btn = document.getElementById("voiceBtnText");
-      const dot = document.getElementById("orbStatusDot");
-      const text = document.getElementById("orbStatusText");
+  function decideHitl(id, decision) {
+    call("POST", "/hitl/decide", { item_id: id, decision: decision }).then(function () {
+      if (decision !== "approve") { say("Відхилено: " + id); return load(); }
+      return call("POST", "/hitl/release/" + encodeURIComponent(id)).then(function (r) {
+        say("Схвалено. Звільнено дій: " + ((r && r.released_actions) || []).length + ". Виконання — через відповідного агента, не тут.");
+        return load();
+      });
+    }).catch(function (e) { say("Не вдалося: " + e.message, true); });
+  }
 
-      if (voiceActive) {
-        if (btn) btn.innerText = "Вимкнути Голос";
-        if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping";
-        if (text) text.innerText = "ГОЛОСОВИЙ ЗВ'ЯЗОК АКТИВНИЙ";
-        logToConsole("Голосовий інтерком LiveKit / Kokoro-82M увімкнено.");
-      } else {
-        if (btn) btn.innerText = "Увімкнути Голос (Kokoro-82M)";
-        if (dot) dot.className = "w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse";
-        if (text) text.innerText = "LIVE READY";
-        logToConsole("Голосовий інтерком вимкнено.");
-      }
-    }
+  function renderHitl(d) {
+    var box = $("hitl"); box.textContent = "";
+    var items = (d && d.pending) || [];
+    if (!items.length) { box.textContent = "Порожньо — нічого не чекає на рішення."; return; }
+    items.forEach(function (i) {
+      var row = el("div", "item");
+      row.appendChild(el("b", null, i.id + " · " + i.agent_id + " · " + i.task_type));
+      row.appendChild(el("div", "mut", i.reason + " (дій утримано: " + i.held_actions_count + ", " + i.created_at + ")"));
+      var a = el("div", "row"), ok = el("button", "ok", "Схвалити"), no = el("button", "bad", "Відхилити");
+      ok.onclick = function () { decideHitl(i.id, "approve"); };
+      no.onclick = function () { decideHitl(i.id, "reject"); };
+      a.appendChild(ok); a.appendChild(no); row.appendChild(a); box.appendChild(row);
+    });
+  }
 
-    function testAgentSpeech() {
-      if ("speechSynthesis" in window) {
-        const agent = DIRECTORS[currentAgent];
-        const phrase = `Вітаю, Андрію. ${agent.name} на зв'язку. Усі сервіси готові до роботи.`;
-        const utter = new SpeechSynthesisUtterance(phrase);
-        utter.lang = "uk-UA";
-        window.speechSynthesis.speak(utter);
-        logToConsole(`Відтворено тестовий брифінг: ${agent.name}`);
-      }
-    }
+  function decideCr(id, decision) {
+    call("POST", "/api/cr/review", { cr_id: id, decision: decision }).then(function () { say("CR " + id + ": " + decision); return load(); })
+      .catch(function (e) { say("Не вдалося: " + e.message, true); });
+  }
 
-    function logToConsole(msg) {
-      const c = document.getElementById("consoleLogOutput");
-      if (!c) return;
-      const el = document.createElement("div");
-      const time = new Date().toLocaleTimeString("uk-UA");
-      el.innerText = `[${time}] ${msg}`;
-      c.appendChild(el);
-      c.scrollTop = c.scrollHeight;
-    }
+  function renderCrs(d) {
+    var box = $("crs"); box.textContent = "";
+    var items = (d && (d.pending || d.change_requests)) || [];
+    if (!items.length) { box.textContent = "Немає запитів, що очікують."; return; }
+    items.forEach(function (c) {
+      var id = c.cr_id || c.id;
+      var row = el("div", "item");
+      row.appendChild(el("b", null, id + " · " + (c.title || c.summary || c.agent_id || "")));
+      var pre = el("pre", null, JSON.stringify(c, null, 2).slice(0, 1500)); row.appendChild(pre);
+      var a = el("div", "row"), ok = el("button", "ok", "Схвалити"), no = el("button", "bad", "Відхилити");
+      ok.onclick = function () { decideCr(id, "approve"); };
+      no.onclick = function () { decideCr(id, "reject"); };
+      a.appendChild(ok); a.appendChild(no); row.appendChild(a); box.appendChild(row);
+    });
+  }
 
-    function clearConsoleLog() {
-      const c = document.getElementById("consoleLogOutput");
-      if (c) c.innerHTML = '<div class="text-slate-500">Консоль очищено.</div>';
-    }
+  function section(promise, render, box) {
+    return promise.then(render).catch(function (e) {
+      var n = $(box); n.textContent = ""; n.appendChild(el("span", "err", "недоступно: " + e.message));
+    });
+  }
 
-    window.addEventListener("DOMContentLoaded", initCockpit);
-  </script>
+  function load() {
+    say("");
+    return Promise.all([
+      section(call("GET", "/health"), renderHealth, "health"),
+      section(call("GET", "/directors"), renderDirectors, "directors"),
+      section(call("GET", "/hitl/pending"), renderHitl, "hitl"),
+      section(call("GET", "/api/cr/pending"), renderCrs, "crs"),
+      call("GET", "/admin/lockdown").then(function (l) { $("lockbanner").style.display = l && l.locked ? "block" : "none"; }).catch(function () {})
+    ]);
+  }
+
+  $("saveKey").onclick = function () {
+    KEY = $("key").value.trim();
+    try { sessionStorage.setItem("op_key", KEY); } catch (e) {}
+    say("Ключ збережено для цієї вкладки."); load();
+  };
+  $("reload").onclick = load;
+  $("panic").onclick = function () {
+    if (!window.confirm("Увімкнути LOCKDOWN? Усі записуючі запити буде заблоковано до розблокування на сервері.")) return;
+    call("POST", "/admin/lockdown", { reason: "cockpit panic stop" })
+      .then(function () { say("LOCKDOWN увімкнено."); return load(); })
+      .catch(function (e) { say("LOCKDOWN НЕ увімкнено: " + e.message, true); });
+  };
+  load();
+})();
+</script>
 </body>
 </html>

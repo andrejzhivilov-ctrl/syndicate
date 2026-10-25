@@ -49,7 +49,17 @@ from src.integrations import build_default_registry  # noqa: E402
 from src.lessons import LessonsStore  # noqa: E402
 from src.embeddings import build_embedding_provider  # noqa: E402
 from src.memory import MemoryManager  # noqa: E402
-from src.orchestrator import EvaOrchestrator  # noqa: E402
+from src.orchestrator import OPERATOR_ONLY_TASK_TYPES, EvaOrchestrator  # noqa: E402
+from src.hitl_queue import HitlError  # noqa: E402
+from src.directors_registry import roster as directors_roster  # noqa: E402
+from src.lockdown import Lockdown  # noqa: E402
+from src.telegram_gateway import (  # noqa: E402
+    TelegramGateway,
+    extract_message,
+    is_director,
+    reply_text,
+    verify_webhook_secret,
+)
 from src.agent_platform.director_client import build_director_clients  # noqa: E402
 from src.pii import PIIRedactor  # noqa: E402
 from src.runtime_config import build_runtime_config  # noqa: E402
@@ -98,6 +108,7 @@ class AppState:
     # HITL surface: pending change-requests + an in-process push channel.
     change_request_store: Optional[Any] = None
     change_request_notifier: Optional[Any] = None
+    telegram_gateway: Optional[TelegramGateway] = None
     start_time: float = time.time()
     ready: bool = False
     vault_renewal_task: Optional[Any] = None
@@ -334,6 +345,7 @@ async def lifespan(app: FastAPI):
             store._notifier = notifier
         app_state.change_request_store = store
         app_state.change_request_notifier = notifier
+        app_state.telegram_gateway = TelegramGateway(app_state.vault_client)
         logger.info("HITL surface initialized", change_requests=store is not None)
 
         app_state.ready = True
@@ -402,6 +414,31 @@ app.add_middleware(
     allow_methods=["POST", "GET", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-API-Key"],
 )
+
+
+# ─── Emergency lockdown (manifest §11.2) ─────────────────────────────────────
+
+#: While locked, only these state-changing routes stay reachable: the operator's
+#: own HITL decisions, device-token admin and the lockdown endpoint itself.
+_LOCKDOWN_ALLOWED_PREFIXES = ("/cr/review", "/cr/apply", "/hitl/", "/auth/", "/admin/lockdown")
+
+
+@app.middleware("http")
+async def lockdown_guard(request: Request, call_next):
+    if request.method not in {"GET", "HEAD", "OPTIONS"} and Lockdown().is_locked():
+        if not request.url.path.startswith(_LOCKDOWN_ALLOWED_PREFIXES):
+            return Response(
+                content=json.dumps({"detail": "lockdown_engaged", "status": "locked_down"}),
+                status_code=503,
+                media_type="application/json",
+            )
+    response = await call_next(request)
+    # Credentials never belong in URLs, and the cockpit must not leak its own
+    # address through Referer or be framed by another site.
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    return response
 
 
 # ─── JSON sanitization ───────────────────────────────────────────────────────
@@ -548,7 +585,10 @@ def _presented_credential(
     except (binascii.Error, UnicodeDecodeError, ValueError):
         return ""
     username, colon, password = decoded.partition(":")
-    if colon and (username.lower() in ("device", "admin", "eva", "andrii", "leader", "root") or not username):
+    # Only the documented username is accepted. A server-side edit once widened
+    # this to admin/eva/root/empty, which turned the realm into a guessable
+    # login form for the master key.
+    if colon and hmac.compare_digest(username, "device"):
         return password
     return ""
 
@@ -638,8 +678,10 @@ async def require_read(
     make an unauthenticated public request look trusted.
     """
     expected = state.api_key
-    query_token = request.query_params.get("token") or request.query_params.get("key")
-    provided = (query_token.strip() if query_token else "") or _presented_credential(x_api_key, authorization, allow_basic=True)
+    # Credentials are accepted only in headers (X-API-Key / Bearer / Basic). A
+    # ``?token=`` query parameter was removed: URLs end up in nginx access logs,
+    # browser history, screenshots and Referer headers.
+    provided = _presented_credential(x_api_key, authorization, allow_basic=True)
 
     if expected and _master_key_ok(provided, expected):
         return state
@@ -718,9 +760,11 @@ async def require_hitl(
     provided = _presented_credential(x_api_key, authorization)
 
     if not expected and _private_dev_access_allowed(request):
+        request.state.actor = "operator:dev"
         return state
 
     if expected and _master_key_ok(provided, expected):
+        request.state.actor = "operator"
         return state
 
     if provided and state.device_tokens is not None:
@@ -728,6 +772,7 @@ async def require_hitl(
         if record is not None:
             request.state.device_id = record.device_id
             request.state.token_id = record.token_id
+            request.state.actor = f"operator:device:{record.device_id}"
             return state
 
     logger.warning("Unauthorized HITL access attempt", client=_client_host(request))
@@ -766,6 +811,34 @@ async def cockpit_interface(state: AppState = Depends(require_read)):  # noqa: A
                 text = text.replace("<title>SYNDICATE", "<title>SYNDIKAT / SYNDICATE")
             return HTMLResponse(content=text)
     return HTMLResponse("<h2>SYNDIKAT Cockpit File Not Found</h2>", status_code=404)
+
+
+@app.get("/directors")
+async def list_directors(state: AppState = Depends(require_read)) -> Dict[str, Any]:
+    """The 18-director roster with *honest* live facts only.
+
+    ``enabled`` is the orchestrator config flag (not a heartbeat) and
+    ``bot_configured`` only says that a bot token exists in Vault. There is no
+    fabricated "Working / Idle" state: if a fact is unknown it is ``null``.
+    """
+    gateway = state.telegram_gateway
+    config = getattr(state.orchestrator, "_config", {}) or {}
+    directors = directors_roster()
+
+    async def _bot(agent_id: str) -> Optional[bool]:
+        if gateway is None:
+            return None
+        try:
+            return bool(await gateway.bot_token(agent_id))
+        except Exception:  # noqa: BLE001
+            return None
+
+    flags = await asyncio.gather(*(_bot(d["id"]) for d in directors))
+    for director, bot_ok in zip(directors, flags, strict=False):
+        entry = config.get(director["id"]) if isinstance(config, dict) else None
+        director["enabled"] = entry.get("enabled") is True if isinstance(entry, dict) and "enabled" in entry else None
+        director["bot_configured"] = bot_ok
+    return {"directors": directors, "count": len(directors), "lockdown": Lockdown().is_locked()}
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -920,6 +993,19 @@ async def status(state: AppState = Depends(require_auth)):
     }
 
 
+def _refuse_operator_only(task_type: str) -> None:
+    """Approving/applying changes is a human act: never reachable via /execute.
+
+    This used to be possible with any ``execute``-scoped credential, which let an
+    agent submit a change request and approve it itself in three calls.
+    """
+    if task_type in OPERATOR_ONLY_TASK_TYPES:
+        raise HTTPException(
+            status_code=403,
+            detail="Operator-only task: use /cr/review or /cr/apply with a HITL-scoped credential",
+        )
+
+
 @app.post("/execute", response_model=ExecuteResponse)
 async def execute_task(
     request: ExecuteRequest,
@@ -927,6 +1013,7 @@ async def execute_task(
 ):
     """Execute an agent task via the orchestrator (authenticated)."""
     logger.info("Task received", task_type=request.task_type, priority=request.priority)
+    _refuse_operator_only(request.task_type)
 
     try:
         validation = await state.sentinel.validate_task(request.model_dump())
@@ -984,6 +1071,7 @@ async def execute_task_stream(
     so JS callers use ``fetch`` + a stream reader. Native clients (Flutter,
     Swift, Kotlin) read the chunked body directly.
     """
+    _refuse_operator_only(request.task_type)
     # Sentinel runs *before* the stream opens so that a blocked or unauthorised
     # task still returns a normal JSON error, not a 200 SSE stream.
     try:
@@ -1067,53 +1155,104 @@ async def execute_task_stream(
 
 
 @app.post("/webhook/error")
-async def error_webhook(request: Request, state: AppState = Depends(require_ready)):
-    """Dead-letter error recording from n8n / subagents (Floor 1)."""
+async def error_webhook(request: Request, state: AppState = Depends(require_auth)):
+    """Dead-letter error recording from n8n / subagents (Floor 1).
+
+    Authenticated: the n8n templates already send ``X-API-Key``. It used to be
+    open to anyone who could reach the port.
+    """
     body = await request.json()
     result = await state.orchestrator.execute("record_error", body)
     return {"ok": True, "result": result}
 
 
+async def _verify_generic_webhook(
+    state: AppState, raw_bytes: bytes, source: str,
+    x_hub_signature_256: Optional[str], x_webhook_signature: Optional[str],
+) -> None:
+    """HMAC-SHA256 check for non-Telegram webhooks. Fails closed."""
+    if not state.webhook_secret:
+        logger.error("Webhook rejected: no webhook secret configured", source=source)
+        raise HTTPException(status_code=503, detail="Webhook secret not configured")
+    sig = x_hub_signature_256 or x_webhook_signature or ""
+    if sig.startswith("sha256="):
+        sig = sig[7:]
+    if not sig:
+        logger.warning("Webhook missing signature header", source=source)
+        raise HTTPException(status_code=401, detail="Missing webhook signature")
+    if not await state.sentinel.verify_webhook_signature(raw_bytes, sig, state.webhook_secret):
+        logger.warning("Webhook HMAC verification failed", source=source)
+        raise HTTPException(status_code=401, detail="Invalid webhook signature")
+
+
 @app.post("/webhook/telegram/{agent_id}")
-@app.post("/webhook/{source}")
-async def webhook_handler(
+async def telegram_webhook(
+    agent_id: str,
     request: Request,
-    source: str = "telegram",
-    agent_id: Optional[str] = None,
-    x_hub_signature_256: Optional[str] = Header(default=None, alias="X-Hub-Signature-256"),
-    x_webhook_signature: Optional[str] = Header(default=None, alias="X-Webhook-Signature"),
     x_telegram_secret: Optional[str] = Header(default=None, alias="X-Telegram-Bot-Api-Secret-Token"),
     state: AppState = Depends(require_ready),
 ):
-    """Unified webhook endpoint with HMAC signature / secret token verification."""
-    raw_bytes = await request.body()
-
-    if state.webhook_secret:
-        sig = x_hub_signature_256 or x_webhook_signature or ""
-        if sig.startswith("sha256="):
-            sig = sig[7:]
-        if sig:
-            valid = await state.sentinel.verify_webhook_signature(raw_bytes, sig, state.webhook_secret)
-            if not valid:
-                logger.warning("Webhook HMAC verification failed", source=source)
-                raise HTTPException(status_code=401, detail="Invalid webhook signature")
-        elif x_telegram_secret:
-            if not hmac.compare_digest(x_telegram_secret.encode("utf-8"), state.webhook_secret.encode("utf-8")):
-                logger.warning("Telegram webhook secret mismatch", source=source)
-                raise HTTPException(status_code=401, detail="Invalid Telegram secret token")
-        else:
-            logger.warning("Webhook missing signature header", source=source)
-            raise HTTPException(status_code=401, detail="Missing webhook signature")
-
-    body = await request.json()
-    logger.info("Webhook received", source=source)
+    """One of the 18 director bots. Per-bot secret, owner-only, honest replies."""
+    if not is_director(agent_id):
+        raise HTTPException(status_code=404, detail="Unknown director")
+    if not state.webhook_secret:
+        logger.error("Telegram webhook rejected: no webhook secret configured", agent_id=agent_id)
+        raise HTTPException(status_code=503, detail="Webhook secret not configured")
+    if not verify_webhook_secret(state.webhook_secret, agent_id, x_telegram_secret):
+        logger.warning("Telegram webhook secret mismatch", agent_id=agent_id)
+        raise HTTPException(status_code=401, detail="Invalid Telegram secret token")
 
     try:
-        actual_source = f"telegram_{agent_id}" if agent_id else source
-        result = await state.orchestrator.handle_webhook(source=actual_source, payload=body)
+        update = await request.json()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid JSON") from None
+    message = extract_message(update)
+    gateway = state.telegram_gateway
+    if message is None or gateway is None:
+        return {"ok": True}  # nothing actionable (e.g. a sticker); Telegram must get 200
+    if message["chat_type"] != "private" or not await gateway.is_owner(message["user_id"]):
+        # Not the owner: no reply, nothing logged about the content.
+        logger.warning("telegram_non_owner_dropped", agent_id=agent_id)
+        return {"ok": True}
+
+    payload = {
+        "agent_id": agent_id,
+        "text": message["text"],
+        "chat_id": message["chat_id"],
+        "user_id": message["user_id"],
+        "message": {"chat": {"id": message["chat_id"]}, "text": message["text"]},
+    }
+    try:
+        outcome = await state.orchestrator.handle_webhook(source=f"telegram_{agent_id}", payload=payload)
+        text = reply_text(agent_id, outcome)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Telegram handling failed", agent_id=agent_id, error_type=type(exc).__name__)
+        text = f"⛔ [{agent_id}] внутрішня помилка обробки."
+    await gateway.send(agent_id, message["chat_id"], text)
+    return {"ok": True}
+
+
+@app.post("/webhook/{source}")
+async def webhook_handler(
+    source: str,
+    request: Request,
+    x_hub_signature_256: Optional[str] = Header(default=None, alias="X-Hub-Signature-256"),
+    x_webhook_signature: Optional[str] = Header(default=None, alias="X-Webhook-Signature"),
+    state: AppState = Depends(require_ready),
+):
+    """Generic signed webhook (n8n, CI, partners). HMAC-SHA256 over the raw body."""
+    raw_bytes = await request.body()
+    await _verify_generic_webhook(state, raw_bytes, source, x_hub_signature_256, x_webhook_signature)
+    try:
+        body = json.loads(raw_bytes or b"{}")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid JSON") from None
+    logger.info("Webhook received", source=source)
+    try:
+        result = await state.orchestrator.handle_webhook(source=source, payload=body)
         return {"ok": True, "result": result}
-    except Exception as exc:
-        logger.error("Webhook handling failed", source=source, error=str(exc))
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Webhook handling failed", source=source, error_type=type(exc).__name__)
         return Response(content='{"ok": false}', status_code=200, media_type="application/json")
 
 
@@ -1316,9 +1455,16 @@ async def cr_detail(cr_id: str, state: AppState = Depends(require_hitl)) -> Dict
 
 @app.post("/cr/review")
 async def review_cr(request: Request, state: AppState = Depends(require_hitl)):
-    """Review Change Request (approve/reject) (Floor 10). HITL-scoped."""
+    """Review Change Request (approve/reject) (Floor 10). HITL-scoped.
+
+    The reviewer identity is fixed by the orchestrator; a ``reviewer`` field in
+    the body is ignored, so the caller cannot pick who "approved".
+    """
     body = await request.json()
-    result = await state.orchestrator.execute("review_change_request", body)
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=422, detail="JSON object required")
+    body.pop("reviewer", None)
+    result = await state.orchestrator.execute("review_change_request", body, operator_verified=True)
     return result
 
 
@@ -1326,8 +1472,103 @@ async def review_cr(request: Request, state: AppState = Depends(require_hitl)):
 async def apply_cr(request: Request, state: AppState = Depends(require_hitl)):
     """Apply approved Change Request to vault (Floor 10). HITL-scoped."""
     body = await request.json()
-    result = await state.orchestrator.execute("apply_change_request", body)
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=422, detail="JSON object required")
+    result = await state.orchestrator.execute("apply_change_request", body, operator_verified=True)
     return result
+
+
+# ─── HITL queue (held outbound actions) ──────────────────────────────────────
+
+class HitlDecision(BaseModel):
+    item_id: str = Field(max_length=40)
+    decision: str = Field(pattern="^(approve|reject)$")
+    comment: str = Field(default="", max_length=500)
+
+
+def _hitl_queue(state: AppState):
+    queue = getattr(state.orchestrator, "_hitl_queue", None)
+    if queue is None:
+        raise HTTPException(status_code=503, detail="HITL queue not initialized")
+    return queue
+
+
+@app.get("/hitl/pending")
+async def hitl_pending(state: AppState = Depends(require_hitl)) -> Dict[str, Any]:
+    items = _hitl_queue(state).pending()
+    return {"pending": items, "count": len(items)}
+
+
+@app.get("/hitl/{item_id}")
+async def hitl_item(item_id: str, state: AppState = Depends(require_hitl)) -> Dict[str, Any]:
+    try:
+        return _hitl_queue(state).get(item_id)
+    except HitlError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/hitl/decide")
+async def hitl_decide(
+    decision: HitlDecision, request: Request, state: AppState = Depends(require_hitl)
+) -> Dict[str, Any]:
+    """Approve or reject a held action. The actor comes from the credential."""
+    actor = getattr(request.state, "actor", "operator")
+    try:
+        return _hitl_queue(state).decide(decision.item_id, decision.decision, actor, decision.comment)
+    except HitlError as exc:
+        code = 404 if "not_found" in str(exc) else 409
+        raise HTTPException(status_code=code, detail=str(exc)) from exc
+
+
+@app.post("/hitl/release/{item_id}")
+async def hitl_release(item_id: str, state: AppState = Depends(require_hitl)) -> Dict[str, Any]:
+    """Hand the held actions of an *approved* item to the caller — exactly once."""
+    try:
+        actions = _hitl_queue(state).release(item_id)
+    except HitlError as exc:
+        code = 404 if "not_found" in str(exc) else 409
+        raise HTTPException(status_code=code, detail=str(exc)) from exc
+    return {"item_id": item_id, "released_actions": actions, "count": len(actions)}
+
+
+# ─── Admin: lockdown, Telegram webhook registration ──────────────────────────
+
+class LockdownRequest(BaseModel):
+    reason: str = Field(default="", max_length=300)
+
+
+@app.post("/admin/lockdown")
+async def engage_lockdown(
+    body: LockdownRequest, request: Request, state: AppState = Depends(require_hitl)
+) -> Dict[str, Any]:
+    """PANIC STOP: block every state-changing route until released on the server.
+
+    There is intentionally no unlock endpoint — see ``tools/unlock_lockdown.py``.
+    """
+    record = Lockdown().engage(getattr(request.state, "actor", "operator"), body.reason)
+    logger.warning("LOCKDOWN ENGAGED", actor=record["actor"], reason=record["reason"])
+    return {"status": "locked_down", **record}
+
+
+@app.get("/admin/lockdown")
+async def lockdown_status(state: AppState = Depends(require_read)) -> Dict[str, Any]:
+    info = Lockdown().info()
+    return {"locked": info is not None, "info": info}
+
+
+class TelegramRegisterRequest(BaseModel):
+    base_url: str = Field(max_length=200, pattern=r"^https://[A-Za-z0-9.-]+(:\d+)?$")
+
+
+@app.post("/admin/telegram/register")
+async def register_telegram_webhooks(
+    body: TelegramRegisterRequest, state: AppState = Depends(require_master_key)
+) -> Dict[str, Any]:
+    """Point all 18 bots at this gateway (master key only). Reports per-bot status."""
+    if state.telegram_gateway is None or not state.webhook_secret:
+        raise HTTPException(status_code=503, detail="Telegram gateway or webhook secret not configured")
+    report = await state.telegram_gateway.register_webhooks(body.base_url, state.webhook_secret)
+    return {"registered": sum(1 for r in report if r["status"] == "ok"), "report": report}
 
 
 

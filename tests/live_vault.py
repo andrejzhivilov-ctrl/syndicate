@@ -58,6 +58,7 @@ class FakeVault:
         self.secrets: Dict[str, Dict[str, Any]] = {}
         self.policies: Dict[str, str] = {}
         self.roles: Dict[str, Dict[str, Any]] = {}
+        self.created_tokens: List[Dict[str, Any]] = []
         self.requests: List[Tuple[str, str, Optional[str]]] = []  # (method, path, token)
         self._httpd: Optional[ThreadingHTTPServer] = None
         self._thread: Optional[threading.Thread] = None
@@ -216,6 +217,7 @@ class _FakeVaultHandler(BaseHTTPRequestHandler):
         exact: Dict[str, Callable[[str], None]] = {
             "/v1/sys/init": self._handle_init,
             "/v1/sys/unseal": self._handle_unseal,
+            "/v1/auth/token/create": self._handle_token_create,
         }
         if path in exact:
             exact[path](path)
@@ -228,6 +230,14 @@ class _FakeVaultHandler(BaseHTTPRequestHandler):
                 getattr(self, handler_name)(path)
                 return
         self._send(404, {"errors": ["unsupported path"]})
+
+    def _handle_token_create(self, _path: str) -> None:
+        """Operator token creation (root only), as vault_init.sh does it."""
+        if not self._require_root():
+            return
+        body = self._json_body()
+        self.state.created_tokens.append(body)
+        self._send(200, {"auth": {"client_token": "s.fake-operator-token", "policies": body.get("policies", [])}})
 
     def _handle_init(self, _path: str) -> None:
         body = self._json_body()
