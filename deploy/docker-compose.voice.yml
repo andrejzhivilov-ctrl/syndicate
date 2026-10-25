@@ -15,6 +15,11 @@ services:
       # WebRTC media must be reachable by clients: TCP fallback + UDP.
       - "7881:7881/tcp"
       - "7882:7882/udp"
+    # nginx proxies voice.<domain> to syndicate-livekit:7880 over this network.
+    # Without it a recreate silently drops LiveKit out of nginx's reach.
+    networks:
+      - default
+      - syndicate_frontend
     environment:
       # No default key pair: a stack that boots with devkey/secret lets anyone
       # mint a valid room token. Compose refuses to start without real values
@@ -109,3 +114,8 @@ services:
         limits:
           cpus: "0.5"
           memory: 512M
+
+networks:
+  # Created by the main stack (docker-compose.yml, project "syndicate").
+  syndicate_frontend:
+    external: true

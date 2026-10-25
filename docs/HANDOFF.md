@@ -26,6 +26,60 @@
 
 ---
 
+## 2026-10-25 — Claude Code: розгортання v5 на сервері 169.58.178.154
+
+**Гілка:** `fix/voice-livekit-frontend-network`. **Сервер:** `/opt/syndicate` на `20d4234` (main).
+**Ворота** (на сервері, у копії дерева з патчем): pytest, 10 поверхів, sandbox, контракт API, Vault-політики,
+жива PostgreSQL (pgserver), секрети, compose-синхронізація — PASS. Ruff 41/11/7 — FAIL, ті самі числа й
+файли, що були до цієї сесії (див. `docs/PREDEPLOY_V5.md`); нових зауважень немає.
+
+### Зроблено (на сервері)
+- Перезібрано й перестворено `eva-agent` (образ `e396166c…`): healthy, Vault authenticated, `/health` 200.
+- Перезібрано 9 директорів (oscar, jack, tyler, trainer, sonar, scout, dex, ray, atlas) і перестворено по одному
+  з перевіркою health + `Vault authenticated` у логах після кожного. Решта 9 із 18 (eva, marshal, architect, fin,
+  doc, kira, sam, alice, kodex) працюють in-process в `eva-agent`. `antigravity-agent` свідомо лишився в профілі
+  `antigravity-legacy-disabled`.
+- Порти 7880 і 22000: контейнери livekit/syncthing були створені до коміту `8aedb27`, тому публікувалися на
+  `0.0.0.0`. Перестворено → тепер `127.0.0.1`. Правила UFW 7880/tcp, 22000/tcp, 22000/udp (v4+v6) видалено;
+  22, 80, 443, 7881/tcp, 7882/udp не чіпали. Ззовні 7880/22000 закриті (перевірено TCP-з'єднанням).
+- **Nginx працював зі старим конфігом v4.2**: bind-mount одного файлу тримає старий inode після `git checkout`.
+  Новий `config/nginx/nginx.conf` (v5) перевірено в одноразовому контейнері (`nginx -t` ok) і застосовано
+  `docker restart syndicate-nginx-1`. Після цього: `/health` 200, `/directors` 401 без ключа, n8n 200, voice 200,
+  sync 403, голий IP на 443 — з'єднання скидається (444).
+- LiveKit після перестворення випав із мережі `syndicate_frontend` (раніше його підключали вручну) → `nginx -t`
+  падав на `host not found in upstream`. На сервері повернуто `docker network connect`; syncthing із frontend
+  відключено (v5 його не проксує).
+- У гілці: `deploy/docker-compose.voice.yml` оголошує `syndicate_frontend` (external) для `livekit-server` +
+  регресійний тест `tests/test_deploy_config.py::test_livekit_joins_the_network_nginx_proxies_it_on`.
+- Підготовлено `/root/v5_vault_admin.sh` (поза репозиторієм): прихований ввід root-токена, upload усіх
+  `config/vault/policies/*.hcl`, нові SecretID для sonar/scout/dex/ray/atlas із перевіркою реальним login,
+  файли `.approle.env` у форматі `vault_init.sh`, оновлення `.env` і `deploy/.env` (бекап у
+  `/opt/eva/vault-secrets/pre-v5-<stamp>/`), знищення старих SecretID.
+
+### Не дороблено / свідомо залишено
+- **Vault-політики та AppRole (кроки 2–3) не застосовано**: потрібен root-токен, а `vault-init.json` агентові
+  читати заборонено. Скрипт чекає, поки оператор запустить його сам. Після запуску треба перестворити 5 директорів.
+- Telegram-вебхуки не реєструвалися: немає токенів ботів (оператор внесе через `scripts/syndicate_vault.py`).
+- `embeddings` (BGE-M3) не запущено: eva-agent пише `embeddings service unreachable`, а `/health` при цьому
+  каже `semantic_search_enabled: true` — це суперечить Zero-Faking, треба виправити в коді.
+- LLM-ключі відсутні: `llm_ready: false`. `python -m tools.check_models` не запускався.
+- Інтерфейсу `tailscale0` на сервері немає → Syncthing із зовнішніми пристроями не синхронізується.
+- На сервері лишилися `/root/ci-wt`, `/root/ci-venv`, `/root/ci-check.log`, `/root/voice.patch`,
+  `/root/nginx.running.conf` (копія старого конфігу) — службові, можна видалити.
+
+### Наступне
+1. Оператор: `bash /root/v5_vault_admin.sh` → перестворити sonar/scout/dex/ray/atlas.
+2. Злити `fix/voice-livekit-frontend-network` у main і `git pull` на сервері.
+3. Ключі LLM і токени ботів → `tools.check_models` → `POST /admin/telegram/register`.
+4. Запустити `embeddings` і виправити `/health`, щоб він не звітував `semantic_search_enabled`, коли сервіс недоступний.
+
+### Ризики й спостереження
+- Будь-який `git pull` на сервері знову «відв'яже» nginx від файлу → після кожного оновлення `nginx.conf`
+  потрібен `docker restart syndicate-nginx-1` (або монтувати каталог, а не файл).
+- Мережу `syndicate_frontend` створює основний стек; voice-overlay без нього тепер не підніметься (external).
+
+---
+
 ## 2026-10-19 — Arena Agent: третій MCP discovery/candidate pool
 
 **Гілка:** `arena/30c07366-syndicate`. **Коміт:** не створювався. **Ворота:** `EVA_SKIP_PGSERVER=1 bash tools/check.sh` — exit 0; жива PostgreSQL пропущена, бо DB/pgserver немає.

@@ -49,3 +49,13 @@ def test_secret_dumps_are_not_tracked():
     for needle in ("EVA_SYNDICATE_FULL_DIALOGUE", "vault-init.json", "directors.env"):
         assert needle in ignore
     assert not (ROOT / "EVA_SYNDICATE_FULL_DIALOGUE.txt").exists()
+
+
+def test_livekit_joins_the_network_nginx_proxies_it_on():
+    # nginx reaches syndicate-livekit:7880 via syndicate_frontend; a recreate
+    # without this declaration left voice.<domain> unreachable and nginx -t red.
+    voice = yaml.safe_load((ROOT / "deploy" / "docker-compose.voice.yml").read_text())
+    assert "syndicate_frontend" in voice["services"]["livekit-server"]["networks"]
+    assert voice["networks"]["syndicate_frontend"]["external"] is True
+    nginx = (ROOT / "config" / "nginx" / "nginx.conf").read_text()
+    assert "syndicate-livekit:7880" in nginx
