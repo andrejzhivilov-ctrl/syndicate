@@ -26,6 +26,75 @@
 
 ---
 
+## 2026-10-25 — Claude Code: розгортання v5 на сервері 169.58.178.154
+
+**Гілка:** `fix/v5-server-rollout`. **Сервер:** `/opt/syndicate` на `20d4234` (main).
+**Ворота** (на сервері, у копії дерева з патчем): pytest, 10 поверхів, sandbox, контракт API, Vault-політики,
+жива PostgreSQL (pgserver), секрети, compose-синхронізація — PASS. Ruff 41/11/7 — FAIL, ті самі числа й
+файли, що були до цієї сесії (див. `docs/PREDEPLOY_V5.md`); нових зауважень немає.
+
+### Зроблено (на сервері)
+- Перезібрано й перестворено `eva-agent` (образ `e396166c…`): healthy, Vault authenticated, `/health` 200.
+- Перезібрано 9 директорів (oscar, jack, tyler, trainer, sonar, scout, dex, ray, atlas) і перестворено по одному
+  з перевіркою health + `Vault authenticated` у логах після кожного. Решта 9 із 18 (eva, marshal, architect, fin,
+  doc, kira, sam, alice, kodex) працюють in-process в `eva-agent`. `antigravity-agent` свідомо лишився в профілі
+  `antigravity-legacy-disabled`.
+- Порти 7880 і 22000: контейнери livekit/syncthing були створені до коміту `8aedb27`, тому публікувалися на
+  `0.0.0.0`. Перестворено → тепер `127.0.0.1`. Правила UFW 7880/tcp, 22000/tcp, 22000/udp (v4+v6) видалено;
+  22, 80, 443, 7881/tcp, 7882/udp не чіпали. Ззовні 7880/22000 закриті (перевірено TCP-з'єднанням).
+- **Nginx працював зі старим конфігом v4.2**: bind-mount одного файлу тримає старий inode після `git checkout`.
+  Новий `config/nginx/nginx.conf` (v5) перевірено в одноразовому контейнері (`nginx -t` ok) і застосовано
+  `docker restart syndicate-nginx-1`. Після цього: `/health` 200, `/directors` 401 без ключа, n8n 200, voice 200,
+  sync 403, голий IP на 443 — з'єднання скидається (444).
+- LiveKit після перестворення випав із мережі `syndicate_frontend` (раніше його підключали вручну) → `nginx -t`
+  падав на `host not found in upstream`. На сервері повернуто `docker network connect`; syncthing із frontend
+  відключено (v5 його не проксує).
+- У гілці: `deploy/docker-compose.voice.yml` оголошує `syndicate_frontend` (external) для `livekit-server` +
+  регресійний тест `tests/test_deploy_config.py::test_livekit_joins_the_network_nginx_proxies_it_on`.
+- Підготовлено `/root/v5_vault_admin.sh` (поза репозиторієм): прихований ввід root-токена, upload усіх
+  `config/vault/policies/*.hcl`, нові SecretID для sonar/scout/dex/ray/atlas із перевіркою реальним login,
+  файли `.approle.env` у форматі `vault_init.sh`, оновлення `.env` і `deploy/.env` (бекап у
+  `/opt/eva/vault-secrets/pre-v5-<stamp>/`), знищення старих SecretID.
+
+- Оператор запустив `/root/v5_vault_admin.sh` (root-токен передано з файлу через pipe, агент його не бачив):
+  20 політик завантажено, 5 AppRole (sonar/scout/dex/ray/atlas) отримали нові SecretID (login перевірено,
+  по 1 старому SecretID знищено), бекап `.env` у `/opt/eva/vault-secrets/pre-v5-20261025T040700Z/`.
+  Усі 5 директорів перестворено по одному: healthy + `Vault authenticated`.
+- `embeddings` і `whisper` раніше не були запущені. Створено `/data/embeddings` (1001) і `/data/whisper` (1000).
+  Два дефекти образів через незакріплені залежності, виправлено в гілці:
+  - `whisper.Dockerfile`: `huggingface_hub` 2.x більше не тягне `requests`, а `faster-whisper==1.0.3` його
+    імпортує → контейнер падав при старті. Закріплено `huggingface_hub==0.26.2`, `requests`, `tokenizers`,
+    `ctranslate2==4.8.3` (4.4.0 не вантажиться на ядрі сервера: executable stack).
+  - `embeddings.Dockerfile`: `transformers` 4.57 відмовляється вантажити `pytorch_model.bin` BGE-M3 з torch < 2.6
+    (CVE-2025-32434). torch → 2.6.0 CPU, закріплено `transformers==4.46.3`, `huggingface_hub==0.26.2`.
+  На сервері запущено образи, зібрані з цих Dockerfile: embeddings healthy, `/embed` з eva-agent → 1024 виміри,
+  `embedding_failures: 0`; whisper healthy (модель large-v3 вантажиться при першому запиті).
+
+### Не дороблено / свідомо залишено
+- Root-токен з ініціалізації **досі дійсний** (скрипт працював саме з ним). Його варто відкликати, а
+  `vault-init.json` — після офлайн-збереження unseal-ключів — знищити через `deploy/scripts/vault_finalize.sh`.
+- Telegram-вебхуки не реєструвалися: немає токенів ботів (оператор внесе через `scripts/syndicate_vault.py`).
+- `embeddings` (BGE-M3) не був запущений: eva-agent писав `embeddings service unreachable`. `/health` при цьому
+  каже `semantic_search_enabled: true` — це задокументована ознака конфігурації, а не живий пробник
+  (`deploy/runtime/agent_runner.py`, поле `HealthResponse`); реальні збої видно в `embedding_failures`.
+- LLM-ключі відсутні: `llm_ready: false`. `python -m tools.check_models` не запускався.
+- Інтерфейсу `tailscale0` на сервері немає → Syncthing із зовнішніми пристроями не синхронізується.
+- На сервері лишилися `/root/ci-wt`, `/root/ci-venv`, `/root/ci-check.log`, `/root/voice.patch`,
+  `/root/nginx.running.conf` (копія старого конфігу) — службові, можна видалити.
+
+### Наступне
+1. Оператор: відкликати root-токен ініціалізації і запустити `vault_finalize.sh` (рішення людини).
+2. Злити `fix/v5-server-rollout` у main і `git pull` на сервері.
+3. Ключі LLM і токени ботів → `tools.check_models` → `POST /admin/telegram/register`.
+4. Тримати `embeddings` і `whisper` запущеними (вони в основному compose без профілю).
+
+### Ризики й спостереження
+- Будь-який `git pull` на сервері знову «відв'яже» nginx від файлу → після кожного оновлення `nginx.conf`
+  потрібен `docker restart syndicate-nginx-1` (або монтувати каталог, а не файл).
+- Мережу `syndicate_frontend` створює основний стек; voice-overlay без нього тепер не підніметься (external).
+
+---
+
 ## 2026-10-19 — Arena Agent: третій MCP discovery/candidate pool
 
 **Гілка:** `arena/30c07366-syndicate`. **Коміт:** не створювався. **Ворота:** `EVA_SKIP_PGSERVER=1 bash tools/check.sh` — exit 0; жива PostgreSQL пропущена, бо DB/pgserver немає.

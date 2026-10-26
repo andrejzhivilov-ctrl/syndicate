@@ -20,9 +20,14 @@ WORKDIR /app
 
 # CPU-only torch from the dedicated index: the default PyPI wheel pulls ~2.5 GB of
 # CUDA runtime this server will never use.
-RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch==2.4.1 \
+# torch >= 2.6 is required: newer transformers refuse torch.load on BGE-M3's
+# pytorch_model.bin below 2.6 (CVE-2025-32434). transformers/huggingface_hub are
+# pinned because an unpinned resolve broke model loading at runtime.
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch==2.6.0 \
  && pip install --no-cache-dir \
         sentence-transformers==3.0.1 \
+        transformers==4.46.3 \
+        huggingface_hub==0.26.2 \
         fastapi==0.115.0 \
         "uvicorn[standard]==0.30.6" \
         structlog==24.4.0
