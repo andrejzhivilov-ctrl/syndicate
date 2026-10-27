@@ -59,6 +59,11 @@ except ImportError:
 
 logger = structlog.get_logger(__name__)
 
+#: Per-call wait for a routed model before failing over (seconds).
+ROUTED_TIMEOUT_S = 60
+#: Deep-research models run many searches per call.
+DEEP_RESEARCH_TIMEOUT_S = 600
+
 # Task types that only a verified human operator may trigger. They are refused
 # on the generic /execute surface and re-checked inside the CR handler.
 OPERATOR_ONLY_TASK_TYPES = frozenset({"review_change_request", "apply_change_request"})
@@ -370,10 +375,13 @@ class EvaOrchestrator:
         if anthropic_key and anthropic_key != "PLACEHOLDER_UPDATE_ME":
             try:
                 from langchain_anthropic import ChatAnthropic
+                # No temperature: current Claude models reject it with HTTP 400
+                # ("`temperature` is deprecated for this model").
                 self._llm = ChatAnthropic(
                     api_key=anthropic_key,
                     model=model_for("ANTHROPIC_PRIMARY"),
-                    temperature=0,
+                    timeout=ROUTED_TIMEOUT_S,
+                    max_retries=1,
                 )
                 logger.info("Initialized primary LLM via Direct Anthropic", model=model_for("ANTHROPIC_PRIMARY"))
             except Exception as exc:  # noqa: BLE001
@@ -491,14 +499,19 @@ class EvaOrchestrator:
         key = getattr(self, "_provider_keys", {}).get(transport)
         if not key:
             return None
+        # Bounded waits: without a timeout a hung provider (seen live with direct
+        # Gemini) blocked the agent instead of failing over to the next candidate.
+        timeout = DEEP_RESEARCH_TIMEOUT_S if "deep-research" in model_id else ROUTED_TIMEOUT_S
         if transport == "anthropic":
             from langchain_anthropic import ChatAnthropic
-            return ChatAnthropic(api_key=key, model=model_id, temperature=0)
+            # Current Claude models reject `temperature` (HTTP 400).
+            return ChatAnthropic(api_key=key, model=model_id, timeout=timeout, max_retries=1)
         if transport == "gemini":
             return ChatOpenAI(base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-                              api_key=key, model=model_id, temperature=0)
+                              api_key=key, model=model_id, temperature=0, timeout=timeout, max_retries=1)
         if transport == "openrouter":
             return ChatOpenAI(base_url="https://openrouter.ai/api/v1", api_key=key, model=model_id, temperature=0,
+                              timeout=timeout, max_retries=1,
                               default_headers={"HTTP-Referer": "https://syndicateholding.com",
                                                "X-Title": "SYNDICATE Holding"})
         raise ValueError(f"unknown_llm_transport: {transport}")

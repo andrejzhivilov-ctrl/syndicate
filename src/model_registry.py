@@ -11,14 +11,16 @@ import os
 
 DEFAULTS = {
     "GEMINI_PRO": "gemini-2.5-pro",
-    "GEMINI_FAST": "gemini-2.5-flash",
-    "OPENROUTER_FAST": "google/gemini-2.5-flash",
+    # Direct Gemini key (27.10): 2.5-pro/2.5-flash answer 404 "no longer available
+    # to new users"; 3.5-flash and 2.5-flash-lite answer. Prefer OpenRouter for Google.
+    "GEMINI_FAST": "gemini-3.5-flash",
+    "OPENROUTER_FAST": "google/gemini-3.8-flash",
     "OPENROUTER_DIRECTOR": "anthropic/claude-sonnet-5.5",
     "OPENAI_PRIMARY": "gpt-4o",
     "ANTHROPIC_PRIMARY": "claude-sonnet-5-5",
     "ANTHROPIC_DIRECTOR": "claude-haiku-5-5",
     "GROK_DIRECTOR": "grok-2",
-    "COUNCIL_GOOGLE": "gemini-2.5-flash",
+    "COUNCIL_GOOGLE": "gemini-3.5-flash",
     "LLM_CHEAP": "gemini-2.5-flash-lite",
     "LLM_EXPENSIVE": "claude-sonnet-5-5",
     "OPENROUTER_REASONING": "deepseek/deepseek-v4-pro",
@@ -36,7 +38,7 @@ DEFAULTS = {
     "OR_GROK": "x-ai/grok-4.7",
     "OR_SONAR_PRO": "perplexity/sonar-pro",
     "OR_SONAR_DEEP_RESEARCH": "perplexity/sonar-deep-research",
-    "GEMINI_FLASH_LATEST": "gemini-3.8-flash",
+    "GEMINI_FLASH_LATEST": "gemini-3.5-flash",
 }
 
 

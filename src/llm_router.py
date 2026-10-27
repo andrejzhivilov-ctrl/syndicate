@@ -39,7 +39,9 @@ Candidate = Tuple[str, str]
 _CLAUDE_HAIKU: Sequence[Candidate] = (("openrouter", "OR_CLAUDE_HAIKU"), ("anthropic", "ANTHROPIC_DIRECTOR"))
 _CLAUDE_SONNET: Sequence[Candidate] = (("openrouter", "OR_CLAUDE_SONNET"), ("anthropic", "ANTHROPIC_PRIMARY"))
 _DEEPSEEK_FLASH: Sequence[Candidate] = (("openrouter", "OR_DEEPSEEK_FLASH"),)
-_GEMINI_FLASH: Sequence[Candidate] = (("gemini", "GEMINI_FLASH_LATEST"), ("openrouter", "OR_GEMINI_FLASH"))
+# OpenRouter first: on 27.10 the direct Gemini key answered 503/timeout for
+# gemini-3.8-flash, while OpenRouter served it; direct 3.5-flash is the backup.
+_GEMINI_FLASH: Sequence[Candidate] = (("openrouter", "OR_GEMINI_FLASH"), ("gemini", "GEMINI_FLASH_LATEST"))
 _GEMINI_ARGON: Sequence[Candidate] = (("openrouter", "OR_GEMINI_ARGON"),)
 
 #: agent_id -> {tier: candidates in order}. Covers all 18 directors plus the
