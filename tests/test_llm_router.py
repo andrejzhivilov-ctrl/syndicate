@@ -111,3 +111,36 @@ def test_orchestrator_hands_each_agent_its_own_router():
     eva, fin = orch._llm_for("eva"), orch._llm_for("fin")
     assert isinstance(eva, TieredLLM) and eva.agent_id == "eva" and fin.agent_id == "fin"
     assert orch._llm_for("eva") is eva
+
+
+def test_a_client_that_cannot_be_built_fails_over_instead_of_crashing():
+    def factory(transport, model_id):
+        if transport == "openrouter":
+            raise ImportError("langchain provider missing")
+        return FakeChat("direct")
+
+    llm = TieredLLM("agent", factory, profiles=PROFILE)
+    assert asyncio.run(llm.ainvoke("x", complexity=HEAVY)).content == "direct"
+
+
+def test_architect_keeps_the_reasoning_model_as_its_last_resort():
+    from src.orchestrator import EvaOrchestrator
+
+    orch = EvaOrchestrator.__new__(EvaOrchestrator)
+    orch._llm, reasoning = FakeChat("primary"), FakeChat("reasoning")
+    orch._provider_keys = {}
+    assert orch._llm_for("architect", default=reasoning) is reasoning
+    orch._provider_keys = {"openrouter": "k"}
+    assert orch._llm_for("architect", default=reasoning)._fallback is reasoning
+
+
+def test_curator_reports_unavailable_when_the_model_did_not_answer():
+    # Fallback text used to be returned with status "completed" (Zero-Faking).
+    from src.agents.eva_curator import EvaCurator
+
+    curator = EvaCurator(memory=None, llm=FakeChat("down", fail=True), config={})
+    result = asyncio.run(curator.execute({"action": "weekly_review", "review_materials": ["note"]}))
+    assert result["status"] == "unavailable"
+    curator = EvaCurator(memory=None, llm=FakeChat("real review"), config={})
+    result = asyncio.run(curator.execute({"action": "weekly_review", "review_materials": ["note"]}))
+    assert result["status"] == "completed" and result["reflection"] == "real review"

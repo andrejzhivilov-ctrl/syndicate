@@ -185,7 +185,13 @@ class TieredLLM:
         last_exc: Optional[BaseException] = None
         attempts = 0
         for transport, key in self.candidates(decision.tier):
-            client = self._client(transport, key)
+            try:
+                client = self._client(transport, key)
+            except Exception as exc:  # noqa: BLE001 - a client that cannot be built is a failover trigger
+                last_exc = exc
+                logger.warning("llm_route_candidate_unavailable", agent=self.agent_id, tier=decision.tier,
+                               transport=transport, error=type(exc).__name__)
+                continue
             if client is None:
                 continue
             attempts += 1

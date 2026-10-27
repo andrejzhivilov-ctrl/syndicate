@@ -503,15 +503,20 @@ class EvaOrchestrator:
                                                "X-Title": "SYNDICATE Holding"})
         raise ValueError(f"unknown_llm_transport: {transport}")
 
-    def _llm_for(self, agent_id: str) -> Any:
-        """The agent's tiered model (base/heavy by task complexity), primary LLM as last resort."""
+    def _llm_for(self, agent_id: str, default: Any = None) -> Any:
+        """The agent's tiered model (base/heavy by task complexity).
+
+        ``default`` (primary LLM when omitted) is what the agent used before
+        routing existed; it stays the last resort.
+        """
+        fallback = default if default is not None else self._llm
         if not getattr(self, "_provider_keys", None):
-            return self._llm
+            return fallback
         routed = getattr(self, "_routed_llms", None)
         if routed is None:
             routed = self._routed_llms = {}
         if agent_id not in routed:
-            routed[agent_id] = TieredLLM(agent_id, self._routed_client, fallback=self._llm)
+            routed[agent_id] = TieredLLM(agent_id, self._routed_client, fallback=fallback)
         return routed[agent_id]
 
     def _init_verification_stack(self) -> None:
@@ -1228,7 +1233,7 @@ class EvaOrchestrator:
         from src.agents.architect import ArchitectAgent
         agent = ArchitectAgent(
             memory=self._memory,
-            llm=self._llm_for("architect"),
+            llm=self._llm_for("architect", default=self._llm_reasoning),
             config=self._config.get("architect", self._config),
             registry=self._registry,
             change_request_store=self._change_requests,
