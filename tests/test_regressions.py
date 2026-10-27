@@ -4091,3 +4091,39 @@ def test_vault_init_tunes_the_approle_mount_before_creating_roles(tmp_path):
     tune = paths.index("/v1/sys/auth/approle/tune")
     first_role = next(i for i, p in enumerate(paths) if p.startswith("/v1/auth/approle/role/"))
     assert tune < first_role
+
+
+def test_eva_chat_reads_text_when_telegram_sends_message_as_object():
+    # The Telegram webhook payload carries message={"chat": …, "text": …} next to
+    # text="…"; Eva took the dict and answered "message_required" to everything.
+    from types import SimpleNamespace
+
+    from src.agents.eva import EvaAgent
+
+    class EchoLLM:
+        async def ainvoke(self, messages, *args, **kwargs):
+            return SimpleNamespace(content="привіт у відповідь")
+
+    agent = EvaAgent(memory=None, llm=EchoLLM(), config={}, vault=None)
+    result = _run(agent.execute({"action": "chat", "text": "Привіт",
+                                 "message": {"chat": {"id": 1}, "text": "Привіт"}}))
+    assert result.get("error") != "message_required"
+    assert result.get("status") != "error", result
+
+
+def test_agent_image_ships_the_profiles_read_at_runtime():
+    # eva_access fails closed without config/agents/eva.profile.json; the image
+    # did not copy it and every Telegram message ended in "internal error".
+    dockerfile = (REPO_ROOT / "deploy" / "docker" / "Dockerfile.agent").read_text(encoding="utf-8")
+    assert "COPY config/agents /app/config/agents" in dockerfile
+    assert "config/syndicate_command_hub.json" in dockerfile
+
+
+def test_embeddings_service_bounds_cpu_work():
+    # One 8k-token text on CPU kept 12 cores busy for minutes and the async
+    # handler blocked every other request, including /health.
+    source = (REPO_ROOT / "deploy" / "runtime" / "embeddings_server.py").read_text(encoding="utf-8")
+    assert "model.max_seq_length = MAX_SEQ_LENGTH" in source
+    assert "torch.set_num_threads" in source
+    assert "\ndef embed(" in source and "async def embed(" not in source
+    assert "with _encode_lock:" in source

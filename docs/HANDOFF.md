@@ -26,6 +26,34 @@
 
 ---
 
+## 2026-10-27 (вечір) — Claude Code: перше повідомлення Єві в Telegram
+
+**Гілка:** `fix/eva-telegram-path`.
+
+### Що знайшли (Єва відповідала «⛔ внутрішня помилка обробки» двічі)
+1. Образ eva-agent не містив `config/agents/*.profile.json` → `eva_access.load_eva_manifest()` →
+   `ValueError("eva_manifest_unavailable")` на кожному повідомленні. `Dockerfile.agent` тепер копіює
+   `config/agents` і JSON-реєстри, які читає `src/agent_platform`.
+2. `eva.profile.json`: Telegram був вимкнений з порожнім allowlist. **Рішення оператора 27.10:** увімкнути,
+   дозволений лише власник з Vault (`chat_allowlist_source: "vault_owner"` → `secret/syndicate/telegram:
+   owner_user_id`); у git жодного особистого ID. Немає власника у Vault → відмова.
+3. `EvaAgent._chat` брав `payload["message"]` (у вебхуку це об'єкт) замість `text` → «message_required».
+4. **База `syndicate` була порожня** (лише `public`, 0 таблиць; і в бекапі до v5 теж): init-скрипти Postgres
+   виконуються лише на порожньому каталозі даних, а він уже існував. З дозволу оператора застосовано
+   `init.sql` (без `CREATE DATABASE n8n` — вона є) + `migration_v4.sql` + `migration_v5_embeddings_1024.sql`
+   з `ON_ERROR_STOP`; 19 таблиць. Бекап перед цим: `/root/backup-syndicate-db-20261027T194022Z.sql`.
+5. embeddings: `async def embed` з блокуючим `model.encode` + без ліміту довжини (BGE-M3 до 8192 токенів) →
+   12 ядер зайняті хвилинами, кожен виклик з eva-agent — тайм-аут 30 с, Telegram ретраїв вебхук. Тепер
+   `max_seq_length=1024` (`EMBEDDINGS_MAX_SEQ_LENGTH`), `torch.set_num_threads(4)` (`EMBEDDINGS_THREADS`),
+   синхронний обробник у пулі потоків, один encode за раз.
+
+### Не дороблено
+- Інші профілі директорів (`marshal`, `sam`, …) теж мають вимкнений Telegram; як поводяться їхні боти — не
+  перевірено (перевірено лише шлях Єви).
+- Подібний патерн «fallback-текст зі статусом completed» є в `doc.py`/`trainer.py` (`_llm_ask` → str).
+
+---
+
 ## 2026-10-27 — Claude Code: SecretID на 24 години, застарілі ID моделей
 
 **Гілка:** `fix/stale-model-ids`. **Ворота** (на сервері, копія `origin/main` + патч): pytest 1152 passed / 2 skipped,

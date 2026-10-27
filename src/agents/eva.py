@@ -102,7 +102,11 @@ class EvaAgent:
 
     async def _chat(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Answer a text turn without persisting the raw conversation."""
-        user_message = payload.get("message") or payload.get("text")
+        # Telegram webhooks send ``message`` as an object ({"chat": …, "text": …})
+        # next to a plain ``text``; only a string is the user's turn.
+        user_message = payload.get("message")
+        if not isinstance(user_message, str):
+            user_message = payload.get("text")
         if not isinstance(user_message, str) or not user_message.strip():
             return {"agent": self.AGENT_ID, "status": "error", "error": "message_required"}
         if self._memory_policy.contains_secret_like_value(user_message):

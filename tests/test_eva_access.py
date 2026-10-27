@@ -43,9 +43,11 @@ def test_eva_manifest_grants_remain_empty_and_telegram_is_disabled() -> None:
     assert profile.capabilities == frozenset()
     assert profile.resource_scopes == frozenset()
     assert manifest["services_enabled"] == []
-    assert telegram["enabled"] is False
+    # Operator decision 27.10: Telegram on, only the Vault owner (no id in git).
+    assert telegram["enabled"] is True
     assert telegram["bot_id"] is None
     assert telegram["chat_allowlist"] == []
+    assert telegram["chat_allowlist_source"] == "vault_owner"
     assert manifest["knowledge_bases"]["psychology"]["status"] == "not_loaded"
     sources = (ROOT / "eva_core/knowledge/psychology/SOURCES.yaml").read_text(encoding="utf-8")
     assert "sources: []" in sources
@@ -158,6 +160,8 @@ def test_webhook_telegram_is_denied_when_allowlist_is_empty() -> None:
         _llm = None
         _config = {}
         _vault = None
+        # Real lookup; without a Vault client there is no owner, so: deny.
+        _telegram_owner_id = EvaOrchestrator._telegram_owner_id
 
     state = {
         "task_type": "webhook_telegram",
@@ -167,3 +171,13 @@ def test_webhook_telegram_is_denied_when_allowlist_is_empty() -> None:
     assert state["result"]["status"] == "denied"
     assert state["result"]["error"] == "telegram_inbound_denied"
     assert state["status"] == "completed"
+
+
+def test_vault_owner_allowlist_admits_only_the_owner() -> None:
+    manifest = load_eva_manifest()
+    assert eva_telegram_inbound_allowed("523", manifest, owner_user_id="523") is True
+    assert eva_telegram_inbound_allowed("999", manifest, owner_user_id="523") is False
+    # No owner configured in Vault: deny, never "anyone".
+    assert eva_telegram_inbound_allowed("523", manifest, owner_user_id=None) is False
+    disabled = {"inbound_channels": {"telegram": {"enabled": False, "chat_allowlist_source": "vault_owner"}}}
+    assert eva_telegram_inbound_allowed("523", disabled, owner_user_id="523") is False
