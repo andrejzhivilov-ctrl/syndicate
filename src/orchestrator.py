@@ -1794,9 +1794,33 @@ class EvaOrchestrator:
 
     async def handle_webhook(self, source: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Handle incoming webhooks from external systems."""
+        chat = await self._telegram_chat(source, payload)
+        if chat is not None:
+            return chat
         task_type = f"webhook_{source}"
         result = await self.execute(task_type=task_type, payload=payload)
         return result
+
+    async def _telegram_chat(self, source: str, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Free text to a director's bot is a conversation (Eva keeps her own path).
+
+        Returns None when the message is not chat (commands, Eva) so the regular
+        task routing handles it.
+        """
+        from src.agent_chat import PERSONAS, chat_reply, chat_text
+
+        agent_id = source[len("telegram_"):] if source.startswith("telegram_") else None
+        text = chat_text(payload or {})
+        if agent_id in (None, "eva") or agent_id not in PERSONAS or text is None:
+            return None
+        from src.agents.eva_access import extract_telegram_chat_id
+
+        owner = await self._telegram_owner_id()
+        if not owner or extract_telegram_chat_id(payload) != owner:
+            result: Dict[str, Any] = {"agent": agent_id, "status": "denied", "error": "telegram_inbound_denied"}
+        else:
+            result = await chat_reply(agent_id, text, self._llm_for(agent_id))
+        return {"task_id": str(uuid.uuid4()), "status": "completed", "result": result}
 
     # ─── Proactive Lifecycles ────────────────────────────────────────────────
 
