@@ -2311,6 +2311,8 @@ class TestN8NWorkflowApprovalGate:
             _llm_reasoning = None
             _config = {}
             _registry = None
+            # Real per-agent routing lookup; with no provider keys it returns _llm.
+            _llm_for = EvaOrchestrator._llm_for
 
         store = ChangeRequestStore(vault=MarkdownVault(vault_root=tmp_path / "vault"))
         orchestrator = OrchestratorStub()
@@ -4059,3 +4061,33 @@ async def test_tyler_shipping_countries_are_normalized_list(tmp_path, monkeypatc
         with pytest.raises(ValueError, match='invalid_ships_to'):
             await agent.route_order({"country": "SC", "offers": [{**offer, 'ships_to': invalid}]})
     assert (await agent.route_order({"country": "US", "offers": [{**offer, 'premium_verified': False}]}))['status'] == 'unavailable'
+
+
+def test_llm_wiring_takes_model_ids_from_the_registry():
+    # The primary Anthropic model was hard-coded as claude-3-5-sonnet-20241022.
+    # After the provider retired it, startup still logged "Initialized primary
+    # LLM" while every real call failed. IDs must come from src/model_registry.py
+    # so tools/check_models.py can verify them.
+    import re
+    from pathlib import Path
+
+    from src.model_registry import DEFAULTS
+
+    root = Path(__file__).resolve().parent.parent
+    pattern = re.compile(r"[\"'](?:anthropic/)?claude-[0-9a-z.-]+[\"']")
+    for rel in ("src/orchestrator.py", "src/council.py"):
+        assert not pattern.search((root / rel).read_text(encoding="utf-8")), f"hard-coded Claude model ID in {rel}"
+    assert "ANTHROPIC_PRIMARY" in DEFAULTS
+    assert "ANTHROPIC_PRIMARY" in (root / "tools" / "check_models.py").read_text(encoding="utf-8")
+
+
+def test_vault_init_tunes_the_approle_mount_before_creating_roles(tmp_path):
+    from tests.live_vault import FakeVault, run_vault_init
+
+    with FakeVault() as vault:
+        result = run_vault_init(vault, tmp_path / "vault-secrets", None)
+        assert result.returncode == 0, result.stderr
+        paths = [path for _, path, _ in vault.requests]
+    tune = paths.index("/v1/sys/auth/approle/tune")
+    first_role = next(i for i, p in enumerate(paths) if p.startswith("/v1/auth/approle/role/"))
+    assert tune < first_role

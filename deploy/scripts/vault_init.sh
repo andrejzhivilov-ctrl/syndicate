@@ -178,6 +178,11 @@ upload_policies() {
 create_approles() {
     log "Creating AppRole per policy..."
     api POST "sys/auth/approle" '{"type": "approle"}' > /dev/null 2>&1 || true
+    # Vault silently caps every SecretID TTL at the mount's max_lease_ttl (768h
+    # by default; a hand-tuned 24h on the server killed all SecretIDs after one
+    # day). Raise the cap to SECRET_ID_TTL; token lifetimes stay bounded by each
+    # role's token_ttl/token_max_ttl.
+    api POST "sys/auth/approle/tune" "{\"max_lease_ttl\": \"${SECRET_ID_TTL}\"}" > /dev/null
 
     shopt -s nullglob
     local policy_files=("$POLICY_DIR"/*.hcl)

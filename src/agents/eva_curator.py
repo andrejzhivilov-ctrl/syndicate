@@ -41,17 +41,18 @@ class EvaCurator:
         self._vault = vault
         self._memory_policy = EvaMemoryPolicy()
 
-    async def _llm_ask(self, prompt: str, fallback: str) -> str:
+    async def _llm_ask(self, prompt: str, fallback: str) -> tuple[str, bool]:
+        """(text, generated). ``generated`` is False whenever the fallback text is returned."""
         if not self._llm:
-            return fallback
+            return fallback, False
         try:
             resp = await self._llm.ainvoke(
                 [SystemMessage(content=_CURATOR_SYSTEM_PROMPT), HumanMessage(content=prompt)]
             )
-            return str(getattr(resp, "content", resp))
+            return str(getattr(resp, "content", resp)), True
         except Exception as exc:  # noqa: BLE001
             logger.warning("curator_llm_ainvoke_failed", error_type=type(exc).__name__)
-            return fallback
+            return fallback, False
 
     async def _save(
         self,
@@ -133,13 +134,13 @@ class EvaCurator:
             "do not create tasks or assign work to agents. Material:\n"
             + json.dumps(materials, ensure_ascii=False)
         )
-        reflection = await self._llm_ask(
+        reflection, generated = await self._llm_ask(
             prompt,
             fallback="A review could not be generated; the supplied material has not been evaluated.",
         )
         return {
             "agent": self.AGENT_ID,
-            "status": "completed" if self._llm else "unavailable",
+            "status": "completed" if generated else "unavailable",
             "week_summary": reflection,
             "episodes_analyzed": len(materials),
             "top_3_focuses_next_week": [],
@@ -195,7 +196,7 @@ class EvaCurator:
                 "stored": False,
             }
 
-        insights = await self._llm_ask(
+        insights, generated = await self._llm_ask(
             "Review only these user-supplied past decisions. Separate observations from assumptions; "
             "do not state that assumptions were sound without evidence. Do not create tasks.\n"
             + json.dumps(past_decisions, ensure_ascii=False),
@@ -203,7 +204,7 @@ class EvaCurator:
         )
         return {
             "agent": self.AGENT_ID,
-            "status": "completed" if self._llm else "unavailable",
+            "status": "completed" if generated else "unavailable",
             "lookback_days": lookback_days,
             "decisions_reviewed": len(past_decisions),
             "insights": insights,

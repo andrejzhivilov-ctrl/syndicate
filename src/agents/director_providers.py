@@ -32,7 +32,7 @@ class VaultLLM:
         self.provider = provider
         self.key = text(secret["api_key"], "api_key", 1000)
         default_model = model_for({
-            "openrouter": "OPENROUTER_DIRECTOR", "gemini": "GEMINI_FAST", "grok": "GROK_DIRECTOR",
+            "openrouter": "OPENROUTER_DIRECTOR", "gemini": "GEMINI_FLASH_LATEST", "grok": "GROK_DIRECTOR",
         }.get(provider, "ANTHROPIC_DIRECTOR"))
         self.model = text(secret.get("model") or default_model, "model", 200)
         self.transport = transport
