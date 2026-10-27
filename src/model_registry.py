@@ -13,13 +13,14 @@ DEFAULTS = {
     "GEMINI_PRO": "gemini-2.5-pro",
     "GEMINI_FAST": "gemini-2.5-flash",
     "OPENROUTER_FAST": "google/gemini-2.5-flash",
-    "OPENROUTER_DIRECTOR": "anthropic/claude-3.5-sonnet",
+    "OPENROUTER_DIRECTOR": "anthropic/claude-sonnet-5.5",
     "OPENAI_PRIMARY": "gpt-4o",
-    "ANTHROPIC_DIRECTOR": "claude-3-5-haiku-20241022",
+    "ANTHROPIC_PRIMARY": "claude-sonnet-5-5",
+    "ANTHROPIC_DIRECTOR": "claude-haiku-5-5",
     "GROK_DIRECTOR": "grok-2",
-    "COUNCIL_GOOGLE": "gemini-2.0-flash",
-    "LLM_CHEAP": "gemini-2.0-flash",
-    "LLM_EXPENSIVE": "claude-sonnet-4-20250514",
+    "COUNCIL_GOOGLE": "gemini-2.5-flash",
+    "LLM_CHEAP": "gemini-2.5-flash-lite",
+    "LLM_EXPENSIVE": "claude-sonnet-5-5",
 }
 
 

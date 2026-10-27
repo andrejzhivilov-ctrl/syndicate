@@ -6,7 +6,7 @@ a fresh server, because it is what turns an uninitialised Vault into the tokens
 the agent needs to boot.
 
 The fake mirrors the real envelopes (``sys/init``, ``sys/unseal``, ``sys/mounts``,
-``sys/audit``, ``sys/policies/acl/<name>``, ``auth/approle/role/<name>`` and its
+``sys/audit``, ``sys/auth/approle/tune``, ``sys/policies/acl/<name>``, ``auth/approle/role/<name>`` and its
 ``/role-id`` + ``/secret-id`` children, ``secret/data/<path>``,
 ``auth/token/revoke-self``) and the HTTP methods the script uses. It is not a
 security tool and not a Vault emulator: it exists to prove the script's
@@ -35,6 +35,7 @@ _NO_CONTENT_PATHS = (
     "/v1/sys/audit/file",
     "/v1/sys/mounts/secret",
     "/v1/auth/approle",
+    "/v1/sys/auth/approle/tune",
     "/v1/auth/token/revoke-self",
 )
 

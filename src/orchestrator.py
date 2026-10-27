@@ -358,32 +358,35 @@ class EvaOrchestrator:
         )
         reasoning_model = self._llm_config.get("reasoning_model", "o3-mini")
 
-        # 1. Primary LLM: Anthropic -> OpenRouter (claude-3-5-sonnet) -> Gemini Pro -> OpenAI (gpt-4o)
+        # 1. Primary LLM: Anthropic -> OpenRouter (Claude) -> Gemini Pro -> OpenAI (gpt-4o).
+        # Model IDs come from the registry: hard-coded IDs here went stale and
+        # every primary call failed while startup still logged success.
         if anthropic_key and anthropic_key != "PLACEHOLDER_UPDATE_ME":
             try:
                 from langchain_anthropic import ChatAnthropic
                 self._llm = ChatAnthropic(
                     api_key=anthropic_key,
-                    model="claude-3-5-sonnet-20241022",
+                    model=model_for("ANTHROPIC_PRIMARY"),
                     temperature=0,
                 )
-                logger.info("Initialized primary LLM via Direct Anthropic")
+                logger.info("Initialized primary LLM via Direct Anthropic", model=model_for("ANTHROPIC_PRIMARY"))
             except Exception as exc:  # noqa: BLE001
                 logger.warning("Failed to initialize ChatAnthropic", error=str(exc))
 
         if self._llm is None and openrouter_key and openrouter_key != "PLACEHOLDER_UPDATE_ME":
             try:
+                openrouter_model = self._llm_config.get("openrouter_model") or model_for("OPENROUTER_DIRECTOR")
                 self._llm = ChatOpenAI(
                     base_url="https://openrouter.ai/api/v1",
                     api_key=openrouter_key,
-                    model=self._llm_config.get("openrouter_model", "anthropic/claude-3.5-sonnet"),
+                    model=openrouter_model,
                     temperature=0,
                     default_headers={
                         "HTTP-Referer": "https://syndicateholding.com",
                         "X-Title": "SYNDICATE Holding",
                     },
                 )
-                logger.info("Initialized primary LLM via OpenRouter", model="anthropic/claude-3.5-sonnet")
+                logger.info("Initialized primary LLM via OpenRouter", model=openrouter_model)
             except Exception as exc:  # noqa: BLE001
                 logger.warning("Failed to initialize OpenRouter primary LLM", error=str(exc))
 

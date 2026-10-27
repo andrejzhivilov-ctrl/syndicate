@@ -26,6 +26,38 @@
 
 ---
 
+## 2026-10-27 — Claude Code: SecretID на 24 години, застарілі ID моделей
+
+**Гілка:** `fix/stale-model-ids`. **Ворота** (на сервері, копія `origin/main` + патч): pytest 1152 passed / 2 skipped,
+10 поверхів, sandbox, API-контракт, Vault-політики, жива PostgreSQL — PASS; ruff 41/11/7 — ті самі, що в `main`.
+
+### Зроблено
+- **SecretID п'яти директорів (sonar/scout/dex/ray/atlas) вмерли через 24 год.** Причина: на сервері вручну
+  виставлено `sys/auth/approle/tune max_lease_ttl=24h`, а Vault мовчки обрізає `secret_id_ttl` до цього ліміту.
+  Ролі зі `secret_id_ttl=0s` (eva-agent, jack, …) не обрізаються, тому працювали. Оператор підняв ліміт до 2160h
+  оновленим `/root/v5_vault_admin.sh` (тепер він перевіряє фактичну `expiration_time` ≥ 80 днів), видав нові
+  SecretID (~89 днів), директори запущені по одному — healthy, `Vault authenticated`.
+- `vault_init.sh` тепер сам виставляє `max_lease_ttl=${SECRET_ID_TTL}` (на чистому Vault дефолт 768h обрізав би
+  90 днів до 32). Фейковий Vault у `tests/live_vault.py` знає `sys/auth/approle/tune`; 2 нових тести.
+- Оператор вніс у Vault: 6 ключів провайдерів, owner id, 18 бот-токенів, новий майстер-ключ; новий
+  `operator.token` (старий файл був перезаписаний недійсним значенням 26.10 о 15:55).
+- Ключі перевірено зсередини eva-agent (лише статуси): OpenRouter, Gemini (`AQ.`-формат), Anthropic, OpenAI,
+  Perplexity — робочі; **Grok — недійсний** (xAI: `Incorrect API key`).
+- **Застарілі ID моделей.** Основна модель Єви була захардкожена як `claude-3-5-sonnet-20241022`
+  (`src/orchestrator.py`, `src/council.py`) — провайдер її вже не віддає: старт писав «Initialized», а кожен
+  виклик падав би. Тепер усе через `src/model_registry.py` (новий ключ `ANTHROPIC_PRIMARY`), застарілі дефолти
+  замінено на ті, що є у списках провайдерів 27.10: `claude-sonnet-5-5`, `claude-haiku-5-5`,
+  `anthropic/claude-sonnet-5.5`, `gemini-2.5-flash`, `gemini-2.5-flash-lite`. Регресійний тест забороняє
+  захардкожені ID Claude в orchestrator/council.
+
+### Не дороблено
+- Гілку не злито; на сервері працюють старі ID — після злиття перезібрати eva-agent і 9 директорів.
+- `distribute-keys`, `verify-bots`, реєстрація вебхуків — запис у Vault робить оператор.
+- `grok-2` не перевірено (немає робочого ключа xAI).
+- SecretID решти ролей безстрокові (`0s`) — суперечить задуму ротації 90 днів.
+
+---
+
 ## 2026-10-25 — Claude Code: розгортання v5 на сервері 169.58.178.154
 
 **Гілка:** `fix/v5-server-rollout`. **Сервер:** `/opt/syndicate` на `20d4234` (main).

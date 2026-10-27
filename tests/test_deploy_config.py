@@ -59,3 +59,11 @@ def test_livekit_joins_the_network_nginx_proxies_it_on():
     assert voice["networks"]["syndicate_frontend"]["external"] is True
     nginx = (ROOT / "config" / "nginx" / "nginx.conf").read_text()
     assert "syndicate-livekit:7880" in nginx
+
+
+def test_vault_init_raises_the_approle_mount_ttl_cap():
+    # SecretID TTL is capped by the approle mount's max_lease_ttl; without the
+    # tune the "90-day" SecretIDs died after 24h (hand-tuned) or 32 days (default).
+    init = (ROOT / "deploy" / "scripts" / "vault_init.sh").read_text()
+    assert 'sys/auth/approle/tune' in init
+    assert '\\"max_lease_ttl\\": \\"${SECRET_ID_TTL}\\"' in init

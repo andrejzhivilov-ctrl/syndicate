@@ -17,7 +17,7 @@ PROVIDERS = {
     "gemini": ("GEMINI_API_KEY", lambda k: ("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", {"x-goog-api-key": k}),
                lambda j: {m["name"].split("/", 1)[-1] for m in j.get("models", [])}, ("GEMINI_PRO", "GEMINI_FAST", "COUNCIL_GOOGLE", "LLM_CHEAP")),
     "anthropic": ("ANTHROPIC_API_KEY", lambda k: ("https://api.anthropic.com/v1/models?limit=1000", {"x-api-key": k, "anthropic-version": "2023-06-01"}),
-                  lambda j: {m["id"] for m in j.get("data", [])}, ("ANTHROPIC_DIRECTOR", "LLM_EXPENSIVE")),
+                  lambda j: {m["id"] for m in j.get("data", [])}, ("ANTHROPIC_PRIMARY", "ANTHROPIC_DIRECTOR", "LLM_EXPENSIVE")),
     "openai": ("OPENAI_API_KEY", lambda k: ("https://api.openai.com/v1/models", {"Authorization": f"Bearer {k}"}),
                lambda j: {m["id"] for m in j.get("data", [])}, ("OPENAI_PRIMARY",)),
 }
