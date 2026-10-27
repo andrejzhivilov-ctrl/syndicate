@@ -21,6 +21,22 @@ DEFAULTS = {
     "COUNCIL_GOOGLE": "gemini-2.5-flash",
     "LLM_CHEAP": "gemini-2.5-flash-lite",
     "LLM_EXPENSIVE": "claude-sonnet-5-5",
+    "OPENROUTER_REASONING": "deepseek/deepseek-v4-pro",
+    # Per-agent tier routing (src/llm_router.py). OR_* are OpenRouter IDs and are
+    # verified against OpenRouter's public model list by tools/check_models.py.
+    "OR_CLAUDE_HAIKU": "anthropic/claude-haiku-5.5",
+    "OR_CLAUDE_SONNET": "anthropic/claude-sonnet-5.5",
+    "OR_DEEPSEEK_FLASH": "deepseek/deepseek-v4.1-flash",
+    "OR_DEEPSEEK_PRO": "deepseek/deepseek-v4-pro",
+    "OR_QWEN_MAX": "qwen/qwen3.8-max-0902",
+    "OR_GEMINI_ARGON": "google/gemini-4-argon",
+    "OR_GEMINI_FLASH": "google/gemini-3.8-flash",
+    "OR_GPT_LUNA": "openai/gpt-6-luna",
+    "OR_GPT_SOL": "openai/gpt-6.1-sol",
+    "OR_GROK": "x-ai/grok-4.7",
+    "OR_SONAR_PRO": "perplexity/sonar-pro",
+    "OR_SONAR_DEEP_RESEARCH": "perplexity/sonar-deep-research",
+    "GEMINI_FLASH_LATEST": "gemini-3.8-flash",
 }
 
 

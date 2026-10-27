@@ -25,6 +25,7 @@ from typing import Any, Dict, List, Optional, TypedDict
 
 import structlog
 
+from src.llm_router import TieredLLM
 from src.model_registry import model_for
 from langchain_openai import ChatOpenAI
 
@@ -357,6 +358,11 @@ class EvaOrchestrator:
             or self._llm_config.get("google", "")
         )
         reasoning_model = self._llm_config.get("reasoning_model", "o3-mini")
+        self._provider_keys = {
+            name: key for name, key in (
+                ("anthropic", anthropic_key), ("openrouter", openrouter_key), ("gemini", gemini_key),
+            ) if key and key != "PLACEHOLDER_UPDATE_ME"
+        }
 
         # 1. Primary LLM: Anthropic -> OpenRouter (Claude) -> Gemini Pro -> OpenAI (gpt-4o).
         # Model IDs come from the registry: hard-coded IDs here went stale and
@@ -456,16 +462,17 @@ class EvaOrchestrator:
         # 3. Reasoning LLM: OpenRouter (deepseek-r1 or o3-mini) -> OpenAI o3-mini -> Fallback to primary LLM
         if openrouter_key and openrouter_key != "PLACEHOLDER_UPDATE_ME":
             try:
+                openrouter_reasoning = self._llm_config.get("reasoning_model") or model_for("OPENROUTER_REASONING")
                 self._llm_reasoning = ChatOpenAI(
                     base_url="https://openrouter.ai/api/v1",
                     api_key=openrouter_key,
-                    model=self._llm_config.get("reasoning_model", "deepseek/deepseek-r1"),
+                    model=openrouter_reasoning,
                     default_headers={
                         "HTTP-Referer": "https://syndicateholding.com",
                         "X-Title": "SYNDICATE Holding",
                     },
                 )
-                logger.info("Initialized reasoning LLM via OpenRouter", model="deepseek/deepseek-r1")
+                logger.info("Initialized reasoning LLM via OpenRouter", model=openrouter_reasoning)
             except Exception as exc:  # noqa: BLE001
                 logger.warning("Failed to initialize OpenRouter reasoning LLM", error=str(exc))
 
@@ -478,6 +485,34 @@ class EvaOrchestrator:
                 logger.info("Initialized reasoning LLM via OpenAI")
             except Exception as exc:  # noqa: BLE001
                 logger.warning("Failed to initialize OpenAI reasoning LLM", error=str(exc))
+
+    def _routed_client(self, transport: str, model_id: str) -> Any:
+        """Chat model for one router candidate; None when its transport has no key."""
+        key = getattr(self, "_provider_keys", {}).get(transport)
+        if not key:
+            return None
+        if transport == "anthropic":
+            from langchain_anthropic import ChatAnthropic
+            return ChatAnthropic(api_key=key, model=model_id, temperature=0)
+        if transport == "gemini":
+            return ChatOpenAI(base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+                              api_key=key, model=model_id, temperature=0)
+        if transport == "openrouter":
+            return ChatOpenAI(base_url="https://openrouter.ai/api/v1", api_key=key, model=model_id, temperature=0,
+                              default_headers={"HTTP-Referer": "https://syndicateholding.com",
+                                               "X-Title": "SYNDICATE Holding"})
+        raise ValueError(f"unknown_llm_transport: {transport}")
+
+    def _llm_for(self, agent_id: str) -> Any:
+        """The agent's tiered model (base/heavy by task complexity), primary LLM as last resort."""
+        if not getattr(self, "_provider_keys", None):
+            return self._llm
+        routed = getattr(self, "_routed_llms", None)
+        if routed is None:
+            routed = self._routed_llms = {}
+        if agent_id not in routed:
+            routed[agent_id] = TieredLLM(agent_id, self._routed_client, fallback=self._llm)
+        return routed[agent_id]
 
     def _init_verification_stack(self) -> None:
         """Council / Orc / release-pack are created once and reused."""
@@ -961,7 +996,7 @@ class EvaOrchestrator:
         from src.agents.sam import SamAgent
         agent = SamAgent(
             memory=self._memory,
-            llm=self._llm,
+            llm=self._llm_for("sam"),
             config=self._config.get("sam", self._config),
             registry=self._registry,
         )
@@ -988,7 +1023,7 @@ class EvaOrchestrator:
 
     async def _kira_agent_handler(self, state: AgentState) -> AgentState:
         from src.agents.kira import KiraAgent
-        agent = KiraAgent(memory=self._memory, llm=self._llm, config=self._config.get("kira", self._config))
+        agent = KiraAgent(memory=self._memory, llm=self._llm_for("kira"), config=self._config.get("kira", self._config))
         payload = dict(state["payload"])
         # ``mentor_code_review`` used to fall through to Kira's default handler
         # (socratic_dialogue), silently answering a code-review request with a
@@ -1038,7 +1073,7 @@ class EvaOrchestrator:
 
     async def _doc_agent_handler(self, state: AgentState) -> AgentState:
         from src.agents.doc import DocAgent
-        agent = DocAgent(memory=self._memory, llm=self._llm, config=self._config.get("doc", self._config))
+        agent = DocAgent(memory=self._memory, llm=self._llm_for("doc"), config=self._config.get("doc", self._config))
         payload = dict(state["payload"])
         # Task types routed here do not always match DocAgent's action names
         # (e.g. ``morning_data_doc``), so translate them explicitly.
@@ -1069,7 +1104,7 @@ class EvaOrchestrator:
 
         agent = TrainerAgent(
             memory=self._memory,
-            llm=self._llm,
+            llm=self._llm_for("trainer"),
             config=self._config.get("trainer", self._config),
             registry=self._registry,
         )
@@ -1102,7 +1137,7 @@ class EvaOrchestrator:
             }
             state["status"] = "completed"
             return state
-        agent = EvaAgent(memory=self._memory, llm=self._llm, config=self._config, vault=self._vault)
+        agent = EvaAgent(memory=self._memory, llm=self._llm_for("eva"), config=self._config, vault=self._vault)
         if "action" not in payload:
             payload["action"] = state["task_type"] if state["task_type"] in ("chat", "compose_briefing", "compose_reflection", "delegate", "system_status") else "chat"
         result = await agent.execute(payload)
@@ -1112,7 +1147,7 @@ class EvaOrchestrator:
 
     async def _eva_curator_handler(self, state: AgentState) -> AgentState:
         from src.agents.eva_curator import EvaCurator
-        agent = EvaCurator(memory=self._memory, llm=self._llm, config=self._config, vault=self._vault)
+        agent = EvaCurator(memory=self._memory, llm=self._llm_for("eva"), config=self._config, vault=self._vault)
         payload = dict(state["payload"])
         if "action" not in payload:
             payload["action"] = state["task_type"]
@@ -1123,7 +1158,7 @@ class EvaOrchestrator:
 
     async def _eva_office_handler(self, state: AgentState) -> AgentState:
         from src.agents.office_copilot import OfficeCopilotAgent
-        agent = OfficeCopilotAgent(memory=self._memory, llm=self._llm, config=self._config)
+        agent = OfficeCopilotAgent(memory=self._memory, llm=self._llm_for("office_copilot"), config=self._config)
         payload = dict(state["payload"])
         if "action" not in payload:
             payload["action"] = state["task_type"]
@@ -1134,7 +1169,7 @@ class EvaOrchestrator:
 
     async def _fin_agent_handler(self, state: AgentState) -> AgentState:
         from src.agents.fin import FinAgent
-        agent = FinAgent(memory=self._memory, llm=self._llm, config=self._config.get("fin", self._config), registry=self._registry)
+        agent = FinAgent(memory=self._memory, llm=self._llm_for("fin"), config=self._config.get("fin", self._config), registry=self._registry)
         payload = dict(state["payload"])
         action_map = {
             "financial_analysis": "analyze",
@@ -1180,7 +1215,7 @@ class EvaOrchestrator:
             return state
         agent = MarshalAgent(
             memory=self._memory,
-            llm=self._llm,
+            llm=self._llm_for("marshal"),
             config=self._config.get("marshal", self._config),
             sentinel=self._sentinel,
         )
@@ -1193,7 +1228,7 @@ class EvaOrchestrator:
         from src.agents.architect import ArchitectAgent
         agent = ArchitectAgent(
             memory=self._memory,
-            llm=self._llm_reasoning or self._llm,
+            llm=self._llm_for("architect"),
             config=self._config.get("architect", self._config),
             registry=self._registry,
             change_request_store=self._change_requests,

@@ -2311,6 +2311,8 @@ class TestN8NWorkflowApprovalGate:
             _llm_reasoning = None
             _config = {}
             _registry = None
+            # Real per-agent routing lookup; with no provider keys it returns _llm.
+            _llm_for = EvaOrchestrator._llm_for
 
         store = ChangeRequestStore(vault=MarkdownVault(vault_root=tmp_path / "vault"))
         orchestrator = OrchestratorStub()
