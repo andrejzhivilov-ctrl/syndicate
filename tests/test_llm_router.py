@@ -144,3 +144,24 @@ def test_curator_reports_unavailable_when_the_model_did_not_answer():
     curator = EvaCurator(memory=None, llm=FakeChat("real review"), config={})
     result = asyncio.run(curator.execute({"action": "weekly_review", "review_materials": ["note"]}))
     assert result["status"] == "completed" and result["reflection"] == "real review"
+
+
+def test_routed_clients_are_bounded_and_send_no_temperature_to_claude():
+    # Live 27.10: Claude answered HTTP 400 "`temperature` is deprecated for this
+    # model" to every call, and a direct Gemini call hung with no timeout.
+    from src.orchestrator import DEEP_RESEARCH_TIMEOUT_S, ROUTED_TIMEOUT_S, EvaOrchestrator
+
+    orch = EvaOrchestrator.__new__(EvaOrchestrator)
+    orch._provider_keys = {"anthropic": "sk-ant-test", "openrouter": "sk-or-test", "gemini": "test"}
+    claude = orch._routed_client("anthropic", "claude-sonnet-5-5")
+    assert claude.temperature is None
+    assert claude.default_request_timeout == ROUTED_TIMEOUT_S
+    assert orch._routed_client("openrouter", "anthropic/claude-haiku-5.5").request_timeout == ROUTED_TIMEOUT_S
+    assert orch._routed_client("openrouter", "perplexity/sonar-deep-research").request_timeout == DEEP_RESEARCH_TIMEOUT_S
+    assert orch._routed_client("gemini", "gemini-3.5-flash").request_timeout == ROUTED_TIMEOUT_S
+
+
+def test_google_flash_goes_through_openrouter_first():
+    from src.llm_router import AGENT_PROFILES
+
+    assert AGENT_PROFILES["sonar"][BASE][0] == ("openrouter", "OR_GEMINI_FLASH")

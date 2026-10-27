@@ -227,7 +227,7 @@ def build_council_members(llm_config: Dict[str, Any]) -> Dict[str, Any]:
     try:
         if anthropic_key and anthropic_key != placeholder:
             from langchain_anthropic import ChatAnthropic
-            members["anthropic"] = ChatAnthropic(api_key=anthropic_key, model=llm_config.get("anthropic_model") or model_for("ANTHROPIC_PRIMARY"), temperature=0)
+            members["anthropic"] = ChatAnthropic(api_key=anthropic_key, model=llm_config.get("anthropic_model") or model_for("ANTHROPIC_PRIMARY"), timeout=60, max_retries=1)  # Claude rejects temperature
         if openai_key and openai_key != placeholder:
             from langchain_openai import ChatOpenAI
             members["openai"] = ChatOpenAI(api_key=openai_key, model=llm_config.get("openai_model", "gpt-4o"), temperature=0)
