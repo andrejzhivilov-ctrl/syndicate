@@ -26,6 +26,7 @@ from typing import Any, Dict, List, Optional, TypedDict
 import structlog
 
 from src.llm_router import TieredLLM
+from src.vault_paths import secret_path
 from src.model_registry import model_for
 from langchain_openai import ChatOpenAI
 
@@ -1140,13 +1141,26 @@ class EvaOrchestrator:
 
     # ─── Floor 10 Handlers (Command Floor) ──────────────────────────────────
 
+    async def _telegram_owner_id(self) -> Optional[str]:
+        """Owner's Telegram user id from Vault; None (deny) when unavailable."""
+        client = getattr(self, "_vault_client", None)
+        if client is None:
+            return None
+        try:
+            secret = await client.get_secret(secret_path("telegram"))
+        except Exception as exc:  # noqa: BLE001 - no owner means deny, not a crash
+            logger.warning("telegram_owner_lookup_failed", error_type=type(exc).__name__)
+            return None
+        value = (secret or {}).get("owner_user_id")
+        return str(value) if value else None
+
     async def _eva_direct_handler(self, state: AgentState) -> AgentState:
         from src.agents.eva import EvaAgent
         from src.agents.eva_access import eva_telegram_inbound_allowed, extract_telegram_chat_id
 
         payload = dict(state["payload"])
         if state.get("task_type") in {"webhook_telegram", "webhook_telegram_eva"} and not eva_telegram_inbound_allowed(
-            extract_telegram_chat_id(payload)
+            extract_telegram_chat_id(payload), owner_user_id=await self._telegram_owner_id()
         ):
             state["result"] = {
                 "agent": "eva",

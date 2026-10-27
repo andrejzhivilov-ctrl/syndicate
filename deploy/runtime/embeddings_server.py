@@ -32,6 +32,7 @@ minutes on CPU. Pre-fetch them with:
 from __future__ import annotations
 
 import os
+import threading
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional
 
@@ -47,16 +48,27 @@ MAX_BATCH = int(os.getenv("EMBEDDINGS_MAX_BATCH", "64"))
 # Optional shared secret. The service sits on the internal network, but n8n shares
 # that network, so a defence-in-depth token is cheap.
 REQUIRED_TOKEN = (os.getenv("EMBEDDINGS_TOKEN") or "").strip()
+# CPU cost grows with sequence length; BGE-M3 accepts 8192 tokens and one long
+# memory text kept 12 cores busy for minutes while every other call timed out.
+# Longer input is truncated by sentence-transformers, not rejected.
+MAX_SEQ_LENGTH = int(os.getenv("EMBEDDINGS_MAX_SEQ_LENGTH", "1024"))
+# Leave cores for the agents on the same host.
+TORCH_THREADS = int(os.getenv("EMBEDDINGS_THREADS", "4"))
 
 _state: Dict[str, Any] = {"model": None, "dimensions": None, "error": None}
+#: One encode at a time: parallel encodes each grab TORCH_THREADS and thrash.
+_encode_lock = threading.Lock()
 
 
 def _load_model() -> None:
     """Load the model; a failure is recorded, never raised into a fake success."""
     try:
+        import torch
         from sentence_transformers import SentenceTransformer
 
+        torch.set_num_threads(max(1, TORCH_THREADS))
         model = SentenceTransformer(MODEL_NAME, device="cpu")
+        model.max_seq_length = MAX_SEQ_LENGTH
         dimensions = int(model.get_sentence_embedding_dimension() or 0)
         if dimensions != EXPECTED_DIM:
             # Not fatal for the service, but the client validates dimensions too;
@@ -116,7 +128,9 @@ async def health() -> Dict[str, Any]:
 
 
 @app.post("/embed")
-async def embed(request: EmbedRequest, x_embeddings_token: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+def embed(request: EmbedRequest, x_embeddings_token: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    # Sync on purpose: FastAPI runs it in a worker thread, so a long encode no
+    # longer blocks the event loop (and /health) the way the async version did.
     _check_token(x_embeddings_token)
 
     if _state["model"] is None:
@@ -140,12 +154,13 @@ async def embed(request: EmbedRequest, x_embeddings_token: Optional[str] = Heade
         )
 
     model = _state["model"]
-    vectors = model.encode(
-        texts,
-        normalize_embeddings=True,  # cosine distance via the HNSW index
-        batch_size=len(texts),
-        show_progress_bar=False,
-    )
+    with _encode_lock:
+        vectors = model.encode(
+            texts,
+            normalize_embeddings=True,  # cosine distance via the HNSW index
+            batch_size=len(texts),
+            show_progress_bar=False,
+        )
     return {
         "vectors": [[float(value) for value in vector] for vector in vectors],
         "dimensions": _state["dimensions"],

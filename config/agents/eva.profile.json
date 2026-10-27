@@ -13,9 +13,10 @@
   "services_enabled": [],
   "inbound_channels": {
     "telegram": {
-      "enabled": false,
+      "enabled": true,
       "bot_id": null,
-      "chat_allowlist": []
+      "chat_allowlist": [],
+      "chat_allowlist_source": "vault_owner"
     }
   },
   "skills": [

@@ -60,14 +60,33 @@ def telegram_inbound_allowed(
     return chat_id in allowed
 
 
-def eva_telegram_inbound_allowed(chat_id: str | None, manifest: Mapping[str, Any] | None = None) -> bool:
+#: ``chat_allowlist_source`` value: allow exactly the owner's private chat, whose
+#: Telegram user id lives in Vault (``secret/syndicate/telegram:owner_user_id``),
+#: so no personal id is committed to the repository.
+VAULT_OWNER_SOURCE = "vault_owner"
+
+
+def eva_telegram_inbound_allowed(
+    chat_id: str | None,
+    manifest: Mapping[str, Any] | None = None,
+    *,
+    owner_user_id: str | None = None,
+) -> bool:
+    """Static allowlist from the profile, or the Vault owner when the profile says so.
+
+    In a private Telegram chat the chat id equals the user id. A missing owner
+    id is deny, never "anyone".
+    """
     data = dict(manifest or load_eva_manifest())
     channel = data.get("inbound_channels", {}).get("telegram", {}) if isinstance(data.get("inbound_channels"), dict) else {}
     if not isinstance(channel, dict):
         return False
+    allowlist = channel.get("chat_allowlist")
+    if channel.get("chat_allowlist_source") == VAULT_OWNER_SOURCE:
+        allowlist = [str(owner_user_id)] if owner_user_id else []
     return telegram_inbound_allowed(
         enabled=channel.get("enabled") is True,
-        allowlist=channel.get("chat_allowlist"),
+        allowlist=allowlist,
         chat_id=chat_id,
     )
 

@@ -37,6 +37,13 @@ COPY doc_core/vendor/free-exercise-db/LICENSE.md /app/doc_core/vendor/free-exerc
 COPY doc_core/vendor/free-exercise-db/SOURCES.lock.yaml /app/doc_core/vendor/free-exercise-db/SOURCES.lock.yaml
 COPY deploy/runtime /app/runtime
 COPY static/cockpit.html /app/cockpit.html
+# Agent profiles and registries are read at runtime (src/agents/*_access.py,
+# src/agent_platform/*). Without them Eva failed closed on every Telegram
+# message with "eva_manifest_unavailable".
+COPY config/agents /app/config/agents
+COPY config/syndicate_command_hub.json config/skill_library.json config/knowledge_pool_catalog.json \
+     config/knowledge_source_registry.json config/knowledge_reference_registry.json \
+     config/prompt_pool_registry.json config/skill_pool_registry.json /app/config/
 
 # Writable mount point for EVA_DATA_DIR (vault, media, browser profiles).
 RUN mkdir -p /data/eva \

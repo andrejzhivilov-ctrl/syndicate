@@ -32,9 +32,11 @@ def test_eva_manifest_is_prepared_but_not_enabled_and_has_no_grants() -> None:
     assert manifest["services_enabled"] == []
     assert manifest["knowledge_bases"]["psychology"]["status"] == "not_loaded"
     telegram = manifest["inbound_channels"]["telegram"]
-    assert telegram["enabled"] is False
+    # Operator decision 27.10: Telegram on, only the Vault owner (no id in git).
+    assert telegram["enabled"] is True
     assert telegram["bot_id"] is None
     assert telegram["chat_allowlist"] == []
+    assert telegram["chat_allowlist_source"] == "vault_owner"
 
 
 def test_nightly_schedule_is_three_am_kyiv_and_not_live_yet() -> None:
