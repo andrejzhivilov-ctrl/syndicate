@@ -16,7 +16,9 @@ as ``unavailable``, never as a made-up reply.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Tuple
+import json
+import time
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import structlog
 
@@ -86,7 +88,73 @@ def chat_text(payload: Dict[str, Any]) -> Optional[str]:
     return stripped
 
 
-async def chat_reply(agent_id: str, text: str, llm: Any) -> Dict[str, Any]:
+#: Short-term conversation memory. Bounded so a long chat never grows the prompt:
+#: at most HISTORY_TURNS exchanges, each message clipped to HISTORY_CHARS
+#: (≈ 5 000 chars ≈ 1 500 tokens worst case). It is a working buffer, not
+#: long-term memory: Eva's memory policy keeps everyday replies out of the archive.
+HISTORY_TURNS = 5
+HISTORY_CHARS = 500
+HISTORY_TTL_S = 12 * 3600
+_LOCAL_MAX_CHATS = 64
+
+
+def _clip(text: str) -> str:
+    return text if len(text) <= HISTORY_CHARS else text[: HISTORY_CHARS - 1] + "…"
+
+
+class ChatHistory:
+    """Last few exchanges per (agent, chat) in Redis, else in this process.
+
+    Stored text is the PII-masked user message and the agent's reply; secrets and
+    crisis disclosures are never stored (``chat_reply`` skips them). A Redis error
+    degrades to the in-process buffer instead of failing the conversation.
+    """
+
+    def __init__(self, redis_getter: Optional[Callable[[], Any]] = None) -> None:
+        self._redis_getter = redis_getter or (lambda: None)
+        self._local: Dict[str, Tuple[float, List[Tuple[str, str]]]] = {}
+
+    @staticmethod
+    def _key(agent_id: str, chat_id: str) -> str:
+        return f"agent_chat:{agent_id}:{chat_id}"
+
+    async def load(self, agent_id: str, chat_id: str) -> List[Tuple[str, str]]:
+        key = self._key(agent_id, chat_id)
+        redis = self._redis_getter()
+        if redis is not None:
+            try:
+                raw = await redis.lrange(key, 0, -1)
+                return [tuple(json.loads(item)) for item in raw]  # type: ignore[misc]
+            except Exception as exc:  # noqa: BLE001 - cache outage costs memory, not the reply
+                logger.warning("agent_chat_history_unavailable", agent=agent_id, error_type=type(exc).__name__)
+        stamp, turns = self._local.get(key, (0.0, []))
+        return list(turns) if time.monotonic() - stamp < HISTORY_TTL_S else []
+
+    async def append(self, agent_id: str, chat_id: str, user_text: str, reply: str) -> None:
+        key = self._key(agent_id, chat_id)
+        pair = [("human", _clip(user_text)), ("ai", _clip(reply))]
+        redis = self._redis_getter()
+        if redis is not None:
+            try:
+                await redis.rpush(key, *(json.dumps(item, ensure_ascii=False) for item in pair))
+                await redis.ltrim(key, -2 * HISTORY_TURNS, -1)
+                await redis.expire(key, HISTORY_TTL_S)
+                return
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("agent_chat_history_write_failed", agent=agent_id, error_type=type(exc).__name__)
+        turns = (await self.load(agent_id, chat_id) + pair)[-2 * HISTORY_TURNS:]
+        self._local[key] = (time.monotonic(), turns)
+        if len(self._local) > _LOCAL_MAX_CHATS:
+            self._local.pop(min(self._local, key=lambda k: self._local[k][0]))
+
+
+async def chat_reply(
+    agent_id: str,
+    text: str,
+    llm: Any,
+    history: Optional[ChatHistory] = None,
+    chat_id: Optional[str] = None,
+) -> Dict[str, Any]:
     """One conversational turn. Raises nothing; failures are honest statuses."""
     if agent_id not in PERSONAS:
         return {"agent": agent_id, "status": "error", "error": "unknown_agent"}
@@ -102,8 +170,10 @@ async def chat_reply(agent_id: str, text: str, llm: Any) -> Dict[str, Any]:
     if llm is None:
         return {"agent": agent_id, "status": "unavailable", "mode": "chat", "reason": "llm_not_configured"}
     safe_text, _ = PIIRedactor().redact(text)
+    remember = history is not None and bool(chat_id)
+    prior = await history.load(agent_id, chat_id) if remember else []  # type: ignore[union-attr,arg-type]
     try:
-        result = await llm.ainvoke([("system", system_prompt(agent_id)), ("human", safe_text)])
+        result = await llm.ainvoke([("system", system_prompt(agent_id)), *prior, ("human", safe_text)])
     except Exception as exc:  # noqa: BLE001 - provider failure must not become a fake answer
         logger.warning("agent_chat_llm_failed", agent=agent_id, error_type=type(exc).__name__)
         return {"agent": agent_id, "status": "unavailable", "mode": "chat", "reason": "llm_unavailable"}
@@ -113,4 +183,6 @@ async def chat_reply(agent_id: str, text: str, llm: Any) -> Dict[str, Any]:
     reply = str(content).strip()
     if not reply:
         return {"agent": agent_id, "status": "unavailable", "mode": "chat", "reason": "empty_model_reply"}
+    if remember:
+        await history.append(agent_id, chat_id, safe_text, reply)  # type: ignore[union-attr,arg-type]
     return {"agent": agent_id, "status": "completed", "mode": "chat", "response": reply}

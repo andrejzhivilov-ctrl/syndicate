@@ -26,6 +26,36 @@
 
 ---
 
+## 2026-10-28 — Claude Code: пам'ять розмови директорів + аудит пулів, пам'яті, n8n, Obsidian
+
+**Зроблено (гілка `feat/chat-memory`):**
+- `src/agent_chat.py`: `ChatHistory` — короткочасна пам'ять розмови на пару (агент, чат) у Redis
+  (`agent_chat:<agent>:<chat>`), останні 5 обмінів, кожне повідомлення ≤ 500 символів, TTL 12 год.
+  Це робочий буфер, не довготривала пам'ять (політика Єви: повсякденні репліки не архівуються).
+  Зберігається PII-маскований текст; секрети, кризові звернення до Кіри й збої моделі не зберігаються.
+  Збій Redis → буфер у процесі, а не провал відповіді. Чат Фіна не бачить чат Сема.
+- `orchestrator._telegram_chat` передає `ChatHistory` і id власника. Тести: 5 нових у `tests/test_agent_chat.py`.
+
+**Аудит (нічого не змінено на сервері):**
+- Пули: у репозиторії 129 `SKILL.md`, ~4 000 промтів (`Arena_Knowledge_Pool`), каталог 18 789 MCP. Робочий
+  каталог — 5 скілів/3 промти/2 довідники, `prepared_not_enabled`; `mcp_pool_grants`/`knowledge_pool_grants`
+  — `proposed_not_applied`. В образах агентів немає жодної з тек пулів (у Єви лише `config/`).
+- Пам'ять: `memory.episodes` 8 рядків (тести), `semantic`/`lessons`/`response_cache` порожні. `response_cache`
+  налаштований, але ніде не викликається.
+- n8n 1.68.0: 0 воркфлоу, 0 API-ключів, **власника не створено** — перший відвідувач `n8n.syndicateholding.com`
+  стане власником. Андрій має створити власника сам.
+- Obsidian: `/data/obsidian_vault` порожній, Syncthing на localhost (чекає Tailscale), жоден агент не монтує сховище.
+- Безпека в рантаймі: lockdown-middleware, HMAC вебхуків + власник із Vault, PII, Sentinel → confidence →
+  outbound veto → HITL у графі задач. Модулі Antigravity `src/voice/eva_telephony_and_live_bots.py`,
+  `meetup_sip_obsidian_alarm.py`, `src/security/threema_and_telegram_hardening.py` повертають «дзвінок
+  з'єднано»/«надіслано» без жодного виклику — не підключати, доки не стануть справжніми.
+
+**Не зроблено / далі:** голос (чекає вибору рушія; зразки Piper, tts_uk, Edge-TTS, OmniVoice в `.tmp/voices`),
+підключення пулів і прав до агентів, окремі бази знань курсів/шаблонів в Obsidian, медіа → Markdown,
+`response_cache` і довготривала пам'ять за політикою, API n8n.
+
+---
+
 ## 2026-10-27 (ніч) — Claude Code: режим розмови в Telegram для всіх директорів
 
 **Гілка:** `feat/telegram-chat-all-agents`. **Рішення оператора:** усі агенти спілкуються в Telegram як Єва.

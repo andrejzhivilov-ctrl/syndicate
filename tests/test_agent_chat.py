@@ -111,6 +111,85 @@ def test_eva_and_commands_still_use_task_routing():
     assert routed == ["webhook_telegram_eva", "webhook_telegram_doc"]
 
 
+class FakeRedis:
+    def __init__(self, fail=False):
+        self.lists, self.ttl, self.fail = {}, {}, fail
+
+    async def lrange(self, key, start, end):
+        if self.fail:
+            raise ConnectionError("redis down")
+        return list(self.lists.get(key, []))
+
+    async def rpush(self, key, *items):
+        if self.fail:
+            raise ConnectionError("redis down")
+        self.lists.setdefault(key, []).extend(items)
+
+    async def ltrim(self, key, start, end):
+        self.lists[key] = self.lists[key][start:] if end == -1 else self.lists[key][start:end + 1]
+
+    async def expire(self, key, seconds):
+        self.ttl[key] = seconds
+
+
+def test_director_remembers_the_previous_exchange_in_the_same_chat():
+    from src.agent_chat import HISTORY_TTL_S, ChatHistory
+
+    redis, llm = FakeRedis(), FakeLLM("Записав.")
+    history = ChatHistory(lambda: redis)
+    asyncio.run(chat_reply("fin", "Мій бюджет на рекламу — 300 доларів", llm, history, OWNER))
+    asyncio.run(chat_reply("fin", "Скільки я казав?", llm, history, OWNER))
+    second = llm.calls[1]
+    assert second[1] == ("human", "Мій бюджет на рекламу — 300 доларів")
+    assert second[2] == ("ai", "Записав.") and second[-1] == ("human", "Скільки я казав?")
+    assert redis.ttl == {"agent_chat:fin:" + OWNER: HISTORY_TTL_S}
+    # Another agent's chat with the same owner does not see Fin's history.
+    asyncio.run(chat_reply("sam", "Привіт", llm, history, OWNER))
+    assert len(llm.calls[2]) == 2
+
+
+def test_history_is_bounded_so_the_prompt_cannot_grow():
+    from src.agent_chat import HISTORY_CHARS, HISTORY_TURNS, ChatHistory
+
+    redis, llm = FakeRedis(), FakeLLM("x" * 5000)
+    history = ChatHistory(lambda: redis)
+    for i in range(HISTORY_TURNS + 4):
+        asyncio.run(chat_reply("dex", f"питання {i} " + "я" * 3000, llm, history, OWNER))
+    prior = llm.calls[-1][1:-1]
+    assert len(prior) == 2 * HISTORY_TURNS
+    assert all(len(text) <= HISTORY_CHARS for _, text in prior)
+
+
+def test_secrets_and_crisis_disclosures_are_never_stored():
+    from src.agent_chat import ChatHistory
+
+    redis = FakeRedis()
+    history = ChatHistory(lambda: redis)
+    asyncio.run(chat_reply("fin", "ключ sk-ant-api03-" + "x" * 40, FakeLLM(), history, OWNER))
+    asyncio.run(chat_reply("kira", "я не хочу жити", FakeLLM(), history, OWNER))
+    asyncio.run(chat_reply("dex", "Привіт", FakeLLM(fail=True), history, OWNER))
+    assert redis.lists == {}
+
+
+def test_redis_outage_degrades_to_process_memory_not_a_failed_reply():
+    from src.agent_chat import ChatHistory
+
+    llm = FakeLLM("Так.")
+    history = ChatHistory(lambda: FakeRedis(fail=True))
+    first = asyncio.run(chat_reply("ray", "Перше", llm, history, OWNER))
+    asyncio.run(chat_reply("ray", "Друге", llm, history, OWNER))
+    assert first["status"] == "completed"
+    assert llm.calls[1][1] == ("human", "Перше")
+
+
+def test_webhook_chat_keeps_history_per_owner_chat():
+    llm = FakeLLM("Ок.")
+    orch = _orch(llm)
+    asyncio.run(orch.handle_webhook(source="telegram_tyler", payload=_payload("Ідея для футболки")))
+    asyncio.run(orch.handle_webhook(source="telegram_tyler", payload=_payload("Що я пропонував?")))
+    assert llm.calls[1][1] == ("human", "Ідея для футболки")
+
+
 def test_feminine_personas_are_told_their_grammatical_gender():
     assert "жіночому роді" in system_prompt("kira")
     assert "жіночому роді" in system_prompt("alice")
