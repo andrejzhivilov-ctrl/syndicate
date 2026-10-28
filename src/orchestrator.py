@@ -1807,23 +1807,37 @@ class EvaOrchestrator:
         Returns None when the message is not chat (commands, Eva) so the regular
         task routing handles it.
         """
-        from src.agent_chat import PERSONAS, ChatHistory, chat_reply, chat_text
+        from src.agent_chat import PERSONAS, ChatHistory, chat_reply, chat_text, pool_command
 
         agent_id = source[len("telegram_"):] if source.startswith("telegram_") else None
+        command = pool_command(payload or {})
         text = chat_text(payload or {})
-        if agent_id in (None, "eva") or agent_id not in PERSONAS or text is None:
+        if agent_id not in PERSONAS or (command is None and (agent_id == "eva" or text is None)):
             return None
         from src.agents.eva_access import extract_telegram_chat_id
 
         owner = await self._telegram_owner_id()
         if not owner or extract_telegram_chat_id(payload) != owner:
             result: Dict[str, Any] = {"agent": agent_id, "status": "denied", "error": "telegram_inbound_denied"}
+        elif command is not None:
+            from src.agent_chat import pool_reply
+
+            result = pool_reply(agent_id, command[0], command[1], self._pools())
         else:
             if getattr(self, "_chat_history", None) is None:
                 # Read the Redis handle on every call: MemoryManager drops it on failure.
                 self._chat_history = ChatHistory(lambda: getattr(getattr(self, "_memory", None), "_redis", None))
-            result = await chat_reply(agent_id, text, self._llm_for(agent_id), self._chat_history, owner)
+            from src.agent_chat import pool_reference
+
+            reference = pool_reference(agent_id, text, self._pools())
+            result = await chat_reply(agent_id, text, self._llm_for(agent_id), self._chat_history, owner, reference)
         return {"task_id": str(uuid.uuid4()), "status": "completed", "result": result}
+
+    def _pools(self) -> Any:
+        """Shared skill/prompt/MCP pools (lazy; index is built on first use)."""
+        from src.pool_library import pool_library
+
+        return pool_library()
 
     # ─── Proactive Lifecycles ────────────────────────────────────────────────
 
