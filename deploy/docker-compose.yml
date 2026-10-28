@@ -2,7 +2,7 @@
 # Fixes applied:
 # - Separated db_net (internal: true for Postgres & Redis isolation) from backend (egress-enabled for API/Vault/Whisper)
 # - Mounted 01-init.sql, 02-migration_v4.sql and 03-migration_v5 (embedding dimension) into Postgres initialization
-# - Pinned n8n image (1.68.0), set N8N_PATH=/n8n/, disabled executeCommand/ssh nodes
+# - Pinned n8n image (1.68.0) on its own subdomain (N8N_PATH=/), disabled executeCommand/ssh nodes
 # - Unified Nginx certificate mount (/data/nginx-certs:/etc/nginx/certs) with automatic self-signed bootstrap
 
 networks:
@@ -281,9 +281,11 @@ services:
       N8N_PROTOCOL: "https"
       N8N_HOST: ${N8N_HOST:-localhost}
       N8N_PORT: "5678"
-      N8N_PATH: "/n8n/"
-      N8N_EDITOR_BASE_URL: https://${DOMAIN:-localhost}/n8n/
-      WEBHOOK_URL: https://${DOMAIN:-localhost}/n8n/
+      # n8n has its own subdomain (nginx proxies it at "/"). With N8N_PATH=/n8n/ the
+      # editor asked for /n8n/assets/* while n8n serves /assets/*: a blank page.
+      N8N_PATH: "/"
+      N8N_EDITOR_BASE_URL: https://${N8N_HOST:-localhost}/
+      WEBHOOK_URL: https://${N8N_HOST:-localhost}/
       N8N_COMMUNITY_PACKAGES_ENABLED: "false"
       NODES_EXCLUDE: "[\"n8n-nodes-base.executeCommand\",\"n8n-nodes-base.ssh\"]"
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?N8N_ENCRYPTION_KEY required}
