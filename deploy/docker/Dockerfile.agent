@@ -43,7 +43,26 @@ COPY static/cockpit.html /app/cockpit.html
 COPY config/agents /app/config/agents
 COPY config/syndicate_command_hub.json config/skill_library.json config/knowledge_pool_catalog.json \
      config/knowledge_source_registry.json config/knowledge_reference_registry.json \
-     config/prompt_pool_registry.json config/skill_pool_registry.json /app/config/
+     config/prompt_pool_registry.json config/skill_pool_registry.json config/pool_access.json /app/config/
+# Shared skill / prompt / MCP pools, read-only reference for every director
+# (src/pool_library.py). Courses and site templates are knowledge bases, not pools.
+COPY [".agents/skills", "/app/.agents/skills"]
+COPY skills /app/skills
+COPY antigravity_identity/skills /app/antigravity_identity/skills
+COPY antigravity_identity/prompts /app/antigravity_identity/prompts
+COPY knowledge_pools /app/knowledge_pools
+COPY ["Arena_Knowledge_Pool/01_Промпты_по_категориям", "/app/Arena_Knowledge_Pool/01_Промпты_по_категориям"]
+COPY ["Arena_Knowledge_Pool/08_PRO_Промпты_XML_1703", "/app/Arena_Knowledge_Pool/08_PRO_Промпты_XML_1703"]
+COPY mcp_servers/mcp_servers_registry.json /app/mcp_servers/mcp_servers_registry.json
+COPY antigravity_core /app/antigravity_core
+COPY architect_core /app/architect_core
+COPY eva_core /app/eva_core
+COPY jack_core /app/jack_core
+COPY kodex_core /app/kodex_core
+COPY marshal_core /app/marshal_core
+COPY oscar_core /app/oscar_core
+COPY sam_core /app/sam_core
+COPY tyler_core /app/tyler_core
 
 # Writable mount point for EVA_DATA_DIR (vault, media, browser profiles).
 RUN mkdir -p /data/eva \
