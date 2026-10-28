@@ -17,6 +17,8 @@ DEFAULTS = {
     "OPENROUTER_FAST": "google/gemini-3.8-flash",
     "OPENROUTER_DIRECTOR": "anthropic/claude-sonnet-5.5",
     "OPENAI_PRIMARY": "gpt-4o",
+    # Owner's Telegram voice notes (src/voice_reply.py); listed by our key on 28.10.
+    "OPENAI_TRANSCRIBE": "gpt-4o-mini-transcribe",
     "ANTHROPIC_PRIMARY": "claude-sonnet-5-5",
     "ANTHROPIC_DIRECTOR": "claude-haiku-5-5",
     "GROK_DIRECTOR": "grok-2",

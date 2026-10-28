@@ -81,6 +81,21 @@ def extract_message(update: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
     sender = message.get("from") or {}
     chat = message.get("chat") or {}
     text = message.get("text")
+    voice = message.get("voice") or message.get("audio")
+    if sender.get("id") is not None and chat.get("id") is not None and isinstance(voice, Mapping) \
+            and isinstance(voice.get("file_id"), str):
+        # Only the file reference: the audio is fetched later with the bot token.
+        return {
+            "kind": "voice",
+            "user_id": str(sender["id"]),
+            "chat_id": str(chat["id"]),
+            "chat_type": chat.get("type", ""),
+            "text": "",
+            "file_id": voice["file_id"],
+            "duration": int(voice.get("duration") or 0),
+            "file_size": int(voice.get("file_size") or 0),
+            "message_id": message.get("message_id"),
+        }
     if sender.get("id") is None or chat.get("id") is None or not isinstance(text, str):
         return None
     return {
@@ -166,6 +181,48 @@ class TelegramGateway:
             return True
         except Exception as exc:  # noqa: BLE001 - never log the URL: it contains the token
             logger.warning("telegram_send_error", agent_id=agent_id, error_type=type(exc).__name__)
+            return False
+
+    async def download_file(self, agent_id: str, file_id: str, max_bytes: int) -> Optional[bytes]:
+        """Fetch a file the owner sent to this bot (getFile + download), or None."""
+        token = await self.bot_token(agent_id)
+        if not token:
+            return None
+        try:
+            async with httpx.AsyncClient(timeout=30, transport=self._transport, follow_redirects=False) as client:
+                meta = await client.get(f"{TELEGRAM_API}/bot{token}/getFile", params={"file_id": file_id})
+                info = (meta.json().get("result") or {}) if meta.status_code == 200 else {}
+                path = info.get("file_path")
+                if not isinstance(path, str) or int(info.get("file_size") or 0) > max_bytes:
+                    logger.warning("telegram_file_rejected", agent_id=agent_id, status=meta.status_code)
+                    return None
+                response = await client.get(f"{TELEGRAM_API}/file/bot{token}/{path}")
+            if response.status_code != 200 or len(response.content) > max_bytes:
+                logger.warning("telegram_file_download_failed", agent_id=agent_id, status=response.status_code)
+                return None
+            return response.content
+        except Exception as exc:  # noqa: BLE001 - never log the URL: it contains the token
+            logger.warning("telegram_file_download_error", agent_id=agent_id, error_type=type(exc).__name__)
+            return None
+
+    async def send_voice(self, agent_id: str, chat_id: str, ogg_opus: bytes) -> bool:
+        """Send an OGG/Opus voice note from this bot."""
+        token = await self.bot_token(agent_id)
+        if not token:
+            return False
+        try:
+            async with httpx.AsyncClient(timeout=30, transport=self._transport, follow_redirects=False) as client:
+                response = await client.post(
+                    f"{TELEGRAM_API}/bot{token}/sendVoice",
+                    data={"chat_id": chat_id},
+                    files={"voice": ("reply.ogg", ogg_opus, "audio/ogg")},
+                )
+            if response.status_code != 200:
+                logger.warning("telegram_send_voice_failed", agent_id=agent_id, status=response.status_code)
+                return False
+            return True
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("telegram_send_voice_error", agent_id=agent_id, error_type=type(exc).__name__)
             return False
 
     async def register_webhooks(
