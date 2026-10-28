@@ -128,14 +128,22 @@ class PoolLibrary:
             return {"read": {"agents": []}}
 
     def readers(self) -> frozenset:
+        if self.access.get("status") != "active":
+            return frozenset()
         agents = self.access.get("read", {}).get("agents", [])
         if agents == "all_directors":
             return frozenset(DIRECTOR_IDS)
         return frozenset(a for a in agents if a in DIRECTOR_IDS) if isinstance(agents, list) else frozenset()
 
-    def _check_reader(self, agent_id: str) -> None:
+    def readable_kinds(self) -> frozenset:
+        kinds = self.access.get("read", {}).get("kinds", [])
+        return frozenset(k for k in kinds if k in KINDS) if isinstance(kinds, list) else frozenset()
+
+    def _check_reader(self, agent_id: str, kind: Optional[str] = None) -> None:
         if agent_id not in self.readers():
             raise PoolError("pool_read_not_granted")
+        if kind is not None and kind not in self.readable_kinds():
+            raise PoolError("pool_kind_not_granted")
 
     # ── index ──────────────────────────────────────────────────────────────
     @property
@@ -222,16 +230,17 @@ class PoolLibrary:
     # ── public API ─────────────────────────────────────────────────────────
     def search(self, agent_id: str, query: str, kind: Optional[str] = None,
                limit: int = 3) -> List[Dict[str, str]]:
-        self._check_reader(agent_id)
         if kind is not None and kind not in KINDS:
             raise PoolError("unknown_pool_kind")
+        self._check_reader(agent_id, kind)
+        allowed = self.readable_kinds() if kind is None else frozenset({kind})
         terms = {_stem(t) for t in _tokens(query[:512])}
         if not terms:
             return []
         limit = max(1, min(int(limit), SEARCH_LIMIT_MAX))
         scored = []
         for item in self.items.values():
-            if kind is not None and item.kind != kind:
+            if item.kind not in allowed:
                 continue
             title, summary = self._item_terms(item)
             score = 3 * len(terms & title) + len(terms & summary)
@@ -245,6 +254,7 @@ class PoolLibrary:
         item = self.items.get(item_id)
         if item is None:
             raise PoolError("unknown_pool_item")
+        self._check_reader(agent_id, item.kind)
         out: Dict[str, Any] = {**item.card(), "untrusted_reference": True}
         if item.kind == "mcp":
             # Catalog metadata only: nothing is installed, launched or called.

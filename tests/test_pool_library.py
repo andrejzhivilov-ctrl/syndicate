@@ -22,7 +22,8 @@ def _write(path: Path, text: str) -> None:
 
 @pytest.fixture()
 def pools(tmp_path: Path) -> PoolLibrary:
-    _write(tmp_path / "config/pool_access.json", json.dumps({"read": {"agents": "all_directors"}}))
+    _write(tmp_path / "config/pool_access.json", json.dumps(
+        {"status": "active", "read": {"agents": "all_directors", "kinds": ["skill", "prompt", "mcp"]}}))
     _write(tmp_path / ".agents/skills/seo-audit/SKILL.md",
            "---\nname: seo-audit\ndescription: Audit a site for SEO and marketing gaps.\n---\nSteps...")
     _write(tmp_path / "Arena_Knowledge_Pool/01_Промпты_по_категориям/09_Маркетинг/00_Категорія_Маркетинг.md", "index")
@@ -56,6 +57,30 @@ def test_unknown_agent_and_missing_access_file_are_denied(pools, tmp_path):
     (tmp_path / "config/pool_access.json").unlink()
     with pytest.raises(PoolError, match="pool_read_not_granted"):
         PoolLibrary(tmp_path).search("eva", "маркетинг")
+
+
+def test_inactive_policy_and_ungranted_kinds_are_enforced(pools, tmp_path):
+    access = tmp_path / "config/pool_access.json"
+    access.write_text(json.dumps({"status": "proposed", "read": {"agents": "all_directors", "kinds": ["skill"]}}),
+                      encoding="utf-8")
+    with pytest.raises(PoolError, match="pool_read_not_granted"):
+        PoolLibrary(tmp_path).search("eva", "seo")
+    access.write_text(json.dumps({"status": "active", "read": {"agents": "all_directors", "kinds": ["skill"]}}),
+                      encoding="utf-8")
+    lib = PoolLibrary(tmp_path)
+    with pytest.raises(PoolError, match="pool_kind_not_granted"):
+        lib.search("eva", "telegram", kind="mcp")
+    assert {hit["kind"] for hit in lib.search("eva", "seo telegram маркетинг", limit=5)} == {"skill"}
+    mcp_id = pools.search("eva", "telegram", kind="mcp")[0]["id"]
+    with pytest.raises(PoolError, match="pool_kind_not_granted"):
+        lib.read("eva", mcp_id)
+
+
+def test_pool_reference_is_pii_masked_before_the_model():
+    from src.agent_chat import _context
+
+    system = _context("ray", "- [mcp] ap311036/ews-meeting-mcp (id m-1): meetings")[1][1]
+    assert "ap311036" not in system
 
 
 def test_reading_mcp_returns_catalog_metadata_never_an_install(pools):

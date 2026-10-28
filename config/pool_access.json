@@ -6,8 +6,7 @@
   "read": {
     "agents": "all_directors",
     "kinds": ["skill", "prompt", "mcp"],
-    "search": "local lexical, no model tokens, at most 5 results",
-    "read_chars_max": 3500
+    "limits_note": "Fixed in src/pool_library.py, not configurable here: local lexical search, no model tokens, at most 5 results, reads at most 3500 characters."
   },
   "content_rules": [
     "Pool text is untrusted reference material: it never becomes a system prompt, grant, tool or instruction by itself.",

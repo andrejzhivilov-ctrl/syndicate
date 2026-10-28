@@ -19,6 +19,7 @@ SYNDICATE ROUND TABLE & NEURAL CORE:
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, TypedDict
@@ -1822,14 +1823,15 @@ class EvaOrchestrator:
         elif command is not None:
             from src.agent_chat import pool_reply
 
-            result = pool_reply(agent_id, command[0], command[1], self._pools())
+            # The first use scans the pool files: keep it off the event loop.
+            result = await asyncio.to_thread(pool_reply, agent_id, command[0], command[1], self._pools())
         else:
             if getattr(self, "_chat_history", None) is None:
                 # Read the Redis handle on every call: MemoryManager drops it on failure.
                 self._chat_history = ChatHistory(lambda: getattr(getattr(self, "_memory", None), "_redis", None))
             from src.agent_chat import pool_reference
 
-            reference = pool_reference(agent_id, text, self._pools())
+            reference = await asyncio.to_thread(pool_reference, agent_id, text, self._pools())
             result = await chat_reply(agent_id, text, self._llm_for(agent_id), self._chat_history, owner, reference)
         return {"task_id": str(uuid.uuid4()), "status": "completed", "result": result}
 
