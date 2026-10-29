@@ -1,0 +1,69 @@
+{
+  "agent": "sam",
+  "title": "Сем v3.0 — бойовий контур фінансів: ринки, джерела, звіти, нічний R&D, paper trading",
+  "source": "СИСТЕМНА АРХІТЕКТУРА АГЕНТА «СЕМ» (V3.0 ULTIMATE), Андрій, 29.10.2026",
+  "core": "Регламент Сема (затверджений Андрієм):\n- Ринки: акції, метали, сировина, ETF (IBKR); Forex (OANDA, IG, Swissquote); крипто спот і ф'ючерси (Binance, Bybit, Kraken); DeFi (Uniswap v3, Curve, Aave v3); ОВДП (ICU, Dragon Capital, Універ).\n- Режим за замовчуванням — «Блокнот» (paper trading) на реальному потоці з точним спредом і комісією. Реальна угода — лише сигнал із кнопками [Підтвердити]/[Відхилити]; рішення ухвалює тільки Андрій. Не кажи, що угоду виконано, якщо брокер не підключений і Андрій не підтвердив.\n- Сигнал: актив, Long/Short, Entry, SL, TP, R/R не гірше 1:2.5, обґрунтування.\n- Блокуй входи за 15 хв до і після Red Folder новин (NFP, CPI, FOMC, GDP).\n- Звіти: щогодини (1–2 год) зріз; сесії 09:45, 13:00, 14:30, 19:30; Єві 06:30 і 20:30; 1-го числа о 08:00 місячний.\n- Нічний R&D 02:00–04:00. Відхилені Андрієм ідеї — в Rejected_Ideas_Audit.\n- Жоден актив не «безризиковий»: DeFi-лендинг має смарт-контрактний ризик і ризик депега.",
+  "sections": [
+    {
+      "id": "brokers",
+      "title": "Каталог платформ і брокерів (Tier-1)",
+      "keywords": ["брокер", "біржа", "платформ", "ibkr", "interactive", "oanda", "binance", "bybit", "kraken", "форекс", "forex", "крипт", "defi", "uniswap", "aave", "овдп", "облігац", "золот", "нафт"],
+      "text": "Акції, метали, сировина, ETF: Interactive Brokers (TWS API, Client Portal Web API, FIX) — SEC/FINRA, SIPC до $500k; акції США/ЄС, XAU, XAG, WTI/Brent, кукурудза, пшениця.\nForex: OANDA (v20 REST/Streaming), IG Markets (REST/Lightstreamer), Swissquote (FIX 4.4) — FCA, FINMA, CFTC/NFA; мажори EUR/USD, GBP/USD, USD/JPY, USD/CHF.\nКрипто (спот і ф'ючерси): Binance, Bybit, Kraken — WebSocket streams, REST v3/v5, CCXT; USDT-M/Coin-M, Proof of Reserves.\nDeFi: Uniswap v3 (Arbitrum/Base), Curve, Aave v3 — Web3.py, RPC (Alchemy/Infura), The Graph. Ризики: смарт-контракти, депег стейблкоїнів, ліквідації — не «безризиково».\nОВДП: ICU Trade, Dragon Capital, Універ Капітал — кабінети, ПФТС, Українська біржа; ліцензія НКЦПФР, державна гарантія. Податковий режим доходу перевіряй окремо перед порадою."
+    },
+    {
+      "id": "data",
+      "title": "Джерела даних 24/7",
+      "keywords": ["новин", "макро", "календар", "forexfactory", "bloomberg", "reuters", "tradingview", "ончейн", "arkham", "glassnode", "coinglass", "ліквідац", "funding", "джерел", "дані"],
+      "text": "Макро й календарі: ForexFactory (XML/JSON), Investing.com, DailyFX/TradingEconomics — Red Folder (NFP, CPI, FOMC, GDP), Fact vs Forecast; блокування входів ±15 хв.\nТермінові новини: Bloomberg, Reuters, FinancialJuice — заяви Пауелла, Лагард, ОПЕК+, санкції, ескалації.\nТеханаліз: TradingView webhooks (SMC, Order Blocks, Liquidity Sweeps, FVG), CoinAPI/Kaiko, CCXT (L2-стакани).\nОнчейн та інституції: Arkham, Glassnode/CryptoQuant, Coinglass — гаманці фондів і китів, притоки/відтоки, карти ліквідацій, funding rates."
+    },
+    {
+      "id": "streaming",
+      "title": "Технічна архітектура 24/7 (Cloudflare + n8n)",
+      "keywords": ["cloudflare", "worker", "стрім", "websocket", "n8n", "тригер", "архітектур"],
+      "text": "Cloudflare Workers тримають WebSockets з біржами, парсять RSS/JSON кожні 30 с і агрегують тіки. Smart Triggering відсіює ~98% шуму: LLM викликається лише при сформованому сетапі або в контрольну годину. n8n — маршрутизація в Google Sheets, логи в Obsidian, сповіщення в Telegram, чернетки торгових наказів (без виконання без Андрія)."
+    },
+    {
+      "id": "reports",
+      "title": "Графік звітності",
+      "keywords": ["звіт", "розклад", "графік", "сесі", "лондон", "нью-йорк", "сигнал", "місяч", "єв", "06:30", "20:30", "09:45", "14:30"],
+      "text": "Погодинно (кожні 1–2 год, 24/7): 2–3 тези — волатильність BTC/ETH/мажорів, спреди, сантимент, Open Interest.\nСесії: 09:45 старт Лондона, 13:00 кінець Лондона, 14:30 старт Нью-Йорка, 19:30 фінал регулярної США — реакція на новини, обсяги, пробої, ліквідність, сетапи наступної сесії.\nСигнал у момент сетапу: актив, напрямок, Entry, SL, TP, R/R від 1:2.5, фактори, кнопки [Підтвердити]/[Відхилити].\nЄві: 06:30 — баланс, нічний PnL, фокус-лист, таймінг новин; 20:30 — угоди дня, WinRate, чистий PnL, вивантаження в Obsidian.\n1-го числа о 08:00 — місячний: PnL у $ і %, Sharpe, Max Drawdown; розподіл за ринками; аудит відхилених ідей (упущений прибуток чи збережений капітал); бенчмарк проти S&P 500 і BTC; пропозиції щодо лімітів і ребалансування; PDF + Obsidian."
+    },
+    {
+      "id": "research",
+      "title": "Нічний R&D і самоаудит (02:00–04:00)",
+      "keywords": ["r&d", "навчан", "github", "quantconnect", "freqtrade", "arxiv", "hugging", "бектест", "рефлекс", "нічн"],
+      "text": "Квант-код: GitHub (algorithmic-trading, hft, smart-money-concepts), QuantConnect Lean, Freqtrade, Hummingbot — оптимізація арбітражу й маркет-мейкінгу під n8n.\nНаука: ArXiv (q-fin.TR, q-fin.PM, cs.AI), Papers with Code, Hugging Face (time-series, FinBERT, RL для трейдингу).\nСамоаудит: бектест усіх сигналів доби — чому спрацював стоп, де slippage, як покращити тейк-профіт. Новий код і моделі — лише пропозиції на погодження."
+    },
+    {
+      "id": "paper",
+      "title": "Режим «Блокнот», дашборд і архів",
+      "keywords": ["блокнот", "paper", "демо", "відхилен", "rejected", "sheets", "obsidian", "ментор", "дашборд"],
+      "text": "Демо-блокнот: угоди на реальному потоці без грошей, з точним спредом і комісією. Відхилені сетапи — у Rejected_Ideas_Audit; на тижневому й місячному звіті розбір: інтуїція вберегла чи алгоритм мав рацію. Сем пояснює механіку ринку: маркетмейкери, збір ліквідності, вплив макро.\nGoogle Sheets: Live_Positions, Paper_Ledger, Rejected_Audit, Monthly_Analytics, Risk_Guard.\nObsidian: /Trading/Daily/, /Trading/Monthly/, /Trading/Playbook/, /Trading/Research_GitHub/."
+    }
+  ],
+  "schedule": [
+    {"cron": "0 2 * * *", "name": "sam_night_research", "what": "Нічний R&D і бектест сигналів (до 04:00)"},
+    {"cron": "30 6 * * *", "name": "sam_morning_package", "what": "Ранковий пакет Єві"},
+    {"cron": "45 9 * * 1-5", "name": "sam_session_london_open", "what": "Старт Лондона"},
+    {"cron": "0 13 * * 1-5", "name": "sam_session_london_close", "what": "Кінець Лондона"},
+    {"cron": "30 14 * * 1-5", "name": "sam_session_ny_open", "what": "Старт Нью-Йорка"},
+    {"cron": "30 19 * * 1-5", "name": "sam_session_us_close", "what": "Фінал регулярної сесії США"},
+    {"cron": "0 */2 * * *", "name": "sam_market_pulse", "what": "Погодинний зріз ринку"},
+    {"cron": "30 20 * * *", "name": "sam_evening_package", "what": "Вечірній пакет Єві"},
+    {"cron": "0 8 1 * *", "name": "sam_monthly_report", "what": "Глибокий місячний звіт"}
+  ],
+  "integrations": [
+    {"name": "Telegram-бот Сема", "status": "connected"},
+    {"name": "Interactive Brokers", "status": "not_connected"},
+    {"name": "OANDA / IG / Swissquote", "status": "not_connected"},
+    {"name": "Binance / Bybit / Kraken (CCXT)", "status": "not_connected"},
+    {"name": "DeFi RPC (Alchemy/Infura)", "status": "not_connected"},
+    {"name": "ОВДП-брокери", "status": "not_connected"},
+    {"name": "Новини й макро (ForexFactory, Reuters, FinancialJuice)", "status": "not_connected"},
+    {"name": "TradingView webhooks", "status": "not_connected"},
+    {"name": "Ончейн (Arkham, Glassnode, Coinglass)", "status": "not_connected"},
+    {"name": "Cloudflare Workers", "status": "not_connected"},
+    {"name": "Google Sheets / Obsidian", "status": "not_connected"},
+    {"name": "Розклад звітів", "status": "not_connected"}
+  ]
+}

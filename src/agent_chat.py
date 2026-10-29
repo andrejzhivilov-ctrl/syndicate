@@ -24,6 +24,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import structlog
 
 from src.agents.eva_memory_policy import EvaMemoryPolicy
+from src.agent_specs import spec_core, spec_reference, spec_reply
 from src.pii import PIIRedactor
 from src.sensitive import is_military
 
@@ -153,7 +154,8 @@ class ChatHistory:
 
 
 #: Telegram pool commands, answered without any model call.
-POOL_COMMANDS: Dict[str, Optional[str]] = {"/skills": "skill", "/prompts": "prompt", "/mcp": "mcp", "/pool": None}
+POOL_COMMANDS: Dict[str, Optional[str]] = {"/skills": "skill", "/prompts": "prompt", "/mcp": "mcp", "/pool": None,
+                                           "/spec": None}
 _POOL_LABELS = {"skill": "Скіли", "prompt": "Промти", "mcp": "MCP-сервери"}
 _POOL_HINT_RE = re.compile(r"скіл|skill|промпт|промт|prompt|\bmcp\b", re.IGNORECASE)
 POOL_REFERENCE_CHARS = 1200
@@ -173,6 +175,8 @@ def pool_reply(agent_id: str, command: str, arg: str, library: Any) -> Dict[str,
     """Answer a pool command from the local index (no tokens). Raises nothing."""
     from src.pool_library import PoolError
 
+    if command == "/spec":  # the agent's own regulation, also without a model
+        return spec_reply(agent_id, arg)
     base = {"agent": agent_id, "mode": "pool"}
     try:
         if command == "/pool":
@@ -246,8 +250,13 @@ MILITARY_NOTE = (
 )
 
 
-def _context(agent_id: str, reference: Optional[str], military: bool = False) -> List[Tuple[str, str]]:
-    context = [("system", system_prompt(agent_id))]
+def _context(agent_id: str, reference: Optional[str], military: bool = False, text: str = "") -> List[Tuple[str, str]]:
+    prompt = system_prompt(agent_id)
+    core = spec_core(agent_id)  # operator-approved regulation, one system message stays one
+    if core:
+        section = spec_reference(agent_id, text)
+        prompt += f"\n\n{core}" + (f"\n\nДовідка з твого регламенту:\n{section}" if section else "")
+    context = [("system", prompt)]
     if military:
         context.append(("system", MILITARY_NOTE))
     if reference:
@@ -280,7 +289,7 @@ async def chat_reply(
     remember = history is not None and bool(chat_id)
     prior = await history.load(agent_id, chat_id) if remember else []  # type: ignore[union-attr,arg-type]
     try:
-        result = await llm.ainvoke([*_context(agent_id, reference, military), *prior, ("human", safe_text)])
+        result = await llm.ainvoke([*_context(agent_id, reference, military, text), *prior, ("human", safe_text)])
     except Exception as exc:  # noqa: BLE001 - provider failure must not become a fake answer
         logger.warning("agent_chat_llm_failed", agent=agent_id, error_type=type(exc).__name__)
         return {"agent": agent_id, "status": "unavailable", "mode": "chat", "reason": "llm_unavailable"}
