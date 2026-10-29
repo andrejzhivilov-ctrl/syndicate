@@ -25,7 +25,7 @@ def test_each_phrase_once_before_repeats_and_never_twice_in_a_row():
     drawn = [bag.draw("red") for _ in range(len(RED) * 5)]
     for start in range(0, len(drawn), len(RED)):
         assert sorted(drawn[start:start + len(RED)]) == sorted(RED)
-    assert all(a != b for a, b in zip(drawn, drawn[1:]))
+    assert all(a != b for a, b in zip(drawn[:-1], drawn[1:], strict=True))
 
 
 def test_yellow_then_all_clear_is_calm():
