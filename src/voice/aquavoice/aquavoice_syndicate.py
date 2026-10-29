@@ -11,11 +11,9 @@ Features:
 """
 
 import os
-import sys
 import time
 import wave
 import tempfile
-import threading
 import sounddevice as sd
 import numpy as np
 import pyperclip
@@ -53,11 +51,11 @@ def stop_and_transcribe():
 
         # Combine audio
         audio_data = np.concatenate(audio_buffer, axis=0)
-        
+
         # Save to temporary WAV
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_wav:
             tmp_path = tmp_wav.name
-            
+
         with wave.open(tmp_path, 'wb') as wf:
             wf.setnchannels(CHANNELS)
             wf.setsampwidth(2)  # 16-bit
@@ -121,7 +119,7 @@ def main():
     print("Гаряча клавіша: [ F8 ] (натисніть раз щоб говорити, ще раз — щоб вставити)")
     print("Текст автоматично вставляється у фокус курсора Antigravity.")
     print("=" * 60)
-    
+
     # Start audio input stream
     with sd.InputStream(samplerate=SAMPLE_RATE, channels=CHANNELS, callback=record_callback):
         with keyboard.Listener(on_press=on_press) as listener:

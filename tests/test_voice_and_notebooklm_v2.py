@@ -19,9 +19,6 @@ from src.integrations.notebooklm_obsidian_bridge import (
 )
 from src.voice import (
     SYNDICATE_VOICE_PROFILES,
-    KokoroTTSProvider,
-    LiveKitRealtimeBridge,
-    PronunciationCoach,
     SileroVADProcessor,
     ZeroShotVoiceCloner,
     build_voice_manager,

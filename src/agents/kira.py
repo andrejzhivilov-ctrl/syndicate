@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import os
+import re as _re
 from contextvars import ContextVar
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -50,7 +51,6 @@ SAVEABLE_STATUSES = ("ok", "partial", "completed")
 DISCIPLINES: Dict[str, Any] = load_seed()["disciplines"]
 
 
-import re as _re
 
 # Deterministic, zero-token crisis screen. Kira is a tutor, not a clinician: on a
 # match she stops tutoring, gives a fixed safe message and flags the operator.

@@ -53,7 +53,7 @@ class SonarAgent(DirectorAgent):
 
         # If live client provided, invoke it; otherwise generate structured analytical dossier
         engine = "sonar-deep-research" if depth == "comprehensive" else "sonar-reasoning-pro"
-        
+
         # Zero-Faking: without a live research client or caller-supplied sources there is
         # nothing real to cite, so say so instead of inventing "internal" references.
         citations = payload.get("citations", [])
@@ -113,7 +113,7 @@ class SonarAgent(DirectorAgent):
     async def quick_search(self, payload: dict) -> dict:
         query = text(payload["query"], "query", 500)
         clean_query, _ = self.redactor.redact(query)
-        
+
         if self.perplexity_client is None:
             return {"status": "unavailable", "reason": "no_search_client_configured", "query": clean_query}
         return {"status": "unavailable", "reason": "live_search_not_wired", "query": clean_query}

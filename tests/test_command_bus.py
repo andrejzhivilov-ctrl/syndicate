@@ -2,8 +2,6 @@
 Unit tests for SYNDICATE Command Bus (Deterministic Zero-Token RPC).
 """
 
-import pytest
-from pathlib import Path
 from src.agent_platform.command_bus import CommandBus, CommandRequest
 
 

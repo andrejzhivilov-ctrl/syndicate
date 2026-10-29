@@ -5,15 +5,11 @@ Validates isolated channels, interactive dialogue, rolling memory compaction, an
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
-import pytest
 
 from src.integrations.antigravity_contractor_gateway import (
-    AgentChannel,
     AntigravityContractorGateway,
-    ChannelMessage,
 )
 
 

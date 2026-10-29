@@ -28,9 +28,8 @@ import os
 import re
 import shutil
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 
 if sys.platform == "win32" and __name__ == "__main__":
     if hasattr(sys.stdout, "reconfigure"):
@@ -268,6 +267,24 @@ def _build_mcp_practical_arsenal(repo_root: Path) -> Dict[str, Any]:
     }
 
 
+def _sync_skills(skills_src: Path, skills_dst: Path, write_tracked: Callable[[Path, str], None]) -> List[str]:
+    skills_list: List[str] = []
+    if not skills_src.exists():
+        return skills_list
+    for skill_dir in sorted(skills_src.iterdir()):
+        if not skill_dir.is_dir() or not (skill_dir / "SKILL.md").exists():
+            continue
+        skills_list.append(skill_dir.name)
+        for item in sorted(skill_dir.rglob("*")):
+            # Sync SKILL.md, markdown references, YAML/JSON/CSV/TS templates, and LICENSE files
+            if item.is_file() and item.suffix.lower() in {".md", ".txt", ".json", ".yaml", ".yml", ".csv", ".ts"}:
+                write_tracked(
+                    skills_dst / skill_dir.name / item.relative_to(skill_dir),
+                    item.read_text(encoding="utf-8", errors="replace"),
+                )
+    return skills_list
+
+
 def sync_identity_to_repo(
     gemini_config_dir: Path = DEFAULT_GEMINI_CONFIG,
     repo_identity_dir: Path = REPO_IDENTITY_DIR,
@@ -310,26 +327,7 @@ def sync_identity_to_repo(
             rules_count += 1
 
     # 2. Sync Skills from ~/.gemini/config/skills (SKILL.md + markdown/yaml/txt references)
-    skills_src = gemini_config_dir / "skills"
-    skills_list: List[str] = []
-    if skills_src.exists():
-        for skill_dir in sorted(skills_src.iterdir()):
-            if not skill_dir.is_dir():
-                continue
-            skill_md = skill_dir / "SKILL.md"
-            if not skill_md.exists():
-                continue
-            skills_list.append(skill_dir.name)
-            for item in sorted(skill_dir.rglob("*")):
-                if not item.is_file():
-                    continue
-                # Sync SKILL.md, markdown references, YAML/JSON/CSV/TS templates, and LICENSE files
-                if item.suffix.lower() in {".md", ".txt", ".json", ".yaml", ".yml", ".csv", ".ts"}:
-                    rel_in_skill = item.relative_to(skill_dir)
-                    _write_tracked(
-                        skills_dst / skill_dir.name / rel_in_skill,
-                        item.read_text(encoding="utf-8", errors="replace"),
-                    )
+    skills_list = _sync_skills(gemini_config_dir / "skills", skills_dst, _write_tracked)
 
     # 3. Sync Prompts & Knowledge Pool Templates from repo `knowledge_pools/`
     kp_dir = repo_root / "knowledge_pools"

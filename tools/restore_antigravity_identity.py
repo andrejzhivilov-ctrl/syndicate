@@ -38,34 +38,42 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
+def _verify_manifest(archive_path: Path) -> None:
+    manifest_candidate = archive_path.with_suffix("").with_suffix(".manifest.json")
+    if not manifest_candidate.exists():
+        return
+    manifest = json.loads(manifest_candidate.read_text(encoding="utf-8"))
+    expected_hash = manifest.get("sha256")
+    if expected_hash:
+        actual_hash = _sha256(archive_path)
+        if actual_hash != expected_hash:
+            raise ValueError(f"Integrity check failed! Expected {expected_hash}, got {actual_hash}")
+        print(f"🔒 Checksum verified: {actual_hash[:16]}...")
+
+
+def _restore_target(name: str) -> Path | None:
+    if name.startswith("gemini_config"):
+        return GLOBAL_CONFIG_DIR / name.replace("gemini_config", "").lstrip("/\\")
+    if name.startswith("builtin_skills"):
+        return ANTIGRAVITY_APP_DIR / "builtin" / "skills" / name.replace("builtin_skills", "").lstrip("/\\")
+    if name.startswith("brain"):
+        return ANTIGRAVITY_APP_DIR / name
+    return None
+
+
 def restore_antigravity_backup(archive_path: Path, force: bool = False):
     if not archive_path.exists():
         raise FileNotFoundError(f"Archive not found: {archive_path}")
 
     # Verify manifest if present
-    manifest_candidate = archive_path.with_suffix("").with_suffix(".manifest.json")
-    if manifest_candidate.exists():
-        manifest = json.loads(manifest_candidate.read_text(encoding="utf-8"))
-        expected_hash = manifest.get("sha256")
-        if expected_hash:
-            actual_hash = _sha256(archive_path)
-            if actual_hash != expected_hash:
-                raise ValueError(f"Integrity check failed! Expected {expected_hash}, got {actual_hash}")
-            print(f"🔒 Checksum verified: {actual_hash[:16]}...")
+    _verify_manifest(archive_path)
 
     print(f"🚀 Restoring Antigravity Identity from: {archive_path}")
 
     with tarfile.open(archive_path, "r:gz") as tar:
         for member in tar.getmembers():
-            if member.name.startswith("gemini_config"):
-                sub_rel = member.name.replace("gemini_config", "").lstrip("/\\")
-                target = GLOBAL_CONFIG_DIR / sub_rel
-            elif member.name.startswith("builtin_skills"):
-                sub_rel = member.name.replace("builtin_skills", "").lstrip("/\\")
-                target = ANTIGRAVITY_APP_DIR / "builtin" / "skills" / sub_rel
-            elif member.name.startswith("brain"):
-                target = ANTIGRAVITY_APP_DIR / member.name
-            else:
+            target = _restore_target(member.name)
+            if target is None:
                 continue
 
             if member.isdir():

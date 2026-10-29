@@ -4,13 +4,12 @@ Tests for SYNDICATE Antigravity Super-Agent Secure Bridge.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
 
 from src.agents.architect.agent import ArchitectAgent
-from src.agents.architect.antigravity_bridge import AntigravityBridge, AntigravityTaskEnvelope
+from src.agents.architect.antigravity_bridge import AntigravityBridge
 from src.agents.marshal import MarshalAgent
 
 

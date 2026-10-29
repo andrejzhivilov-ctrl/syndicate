@@ -24,12 +24,11 @@ import argparse
 import hashlib
 import json
 import os
-import shutil
 import sys
 import tarfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -51,6 +50,44 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
+def _add_conversation(tar: tarfile.TarFile, conv_path: Path, conversation_id: str) -> None:
+    print(f"  -> Adding Active Conversation Memory & Artifacts: {conv_path.name}")
+    # Add transcripts
+    logs_dir = conv_path / ".system_generated" / "logs"
+    if logs_dir.exists():
+        tar.add(logs_dir, arcname=f"brain/{conversation_id}/logs")
+    # Add root documentation and markdown artifacts
+    for item in conv_path.iterdir():
+        if item.is_file() and item.suffix.lower() in (".md", ".json", ".html", ".pdf", ".txt"):
+            tar.add(item, arcname=f"brain/{conversation_id}/artifacts/{item.name}")
+    # Add docs directory if present
+    docs_dir = conv_path / "docs"
+    if docs_dir.exists():
+        tar.add(docs_dir, arcname=f"brain/{conversation_id}/docs")
+
+
+def _add_all_conversation_logs(tar: tarfile.TarFile, brain_dir: Path) -> None:
+    # Add transcripts of active conversations
+    for c_dir in brain_dir.iterdir():
+        if c_dir.is_dir() and not c_dir.name.startswith("."):
+            logs_dir = c_dir / ".system_generated" / "logs"
+            if logs_dir.exists():
+                tar.add(logs_dir, arcname=f"brain/{c_dir.name}/logs")
+
+
+def _git_manifest_info(timestamp: str, conversation_id: str | None) -> Dict[str, Any]:
+    git_dir = REPO_ROOT / ".git"
+    if not git_dir.exists():
+        return {"created_at": timestamp}
+    print("  -> Adding Git Commit Reference & HEAD")
+    return {
+        "git_head": (git_dir / "HEAD").read_text(encoding="utf-8").strip(),
+        "created_at": timestamp,
+        "source_host": os.environ.get("COMPUTERNAME", "unknown"),
+        "conversation_id": conversation_id,
+    }
+
+
 def create_antigravity_backup(dest_dir: Path, conversation_id: str | None = None) -> Path:
     dest_dir.mkdir(parents=True, exist_ok=True)
     timestamp = _now_iso()
@@ -59,8 +96,6 @@ def create_antigravity_backup(dest_dir: Path, conversation_id: str | None = None
     manifest_path = dest_dir / f"antigravity_identity_snapshot_{timestamp}.manifest.json"
 
     print(f"📦 Packaging Antigravity Identity Snapshot: {archive_path}")
-
-    files_collected: List[Dict[str, Any]] = []
 
     with tarfile.open(archive_path, "w:gz") as tar:
         # 1. Global config (~/.gemini/config: rules, skills)
@@ -78,41 +113,12 @@ def create_antigravity_backup(dest_dir: Path, conversation_id: str | None = None
         brain_dir = ANTIGRAVITY_APP_DIR / "brain"
         if brain_dir.exists():
             if conversation_id and (brain_dir / conversation_id).exists():
-                conv_path = brain_dir / conversation_id
-                print(f"  -> Adding Active Conversation Memory & Artifacts: {conv_path.name}")
-                # Add transcripts
-                logs_dir = conv_path / ".system_generated" / "logs"
-                if logs_dir.exists():
-                    tar.add(logs_dir, arcname=f"brain/{conversation_id}/logs")
-                # Add root documentation and markdown artifacts
-                for item in conv_path.iterdir():
-                    if item.is_file() and item.suffix.lower() in (".md", ".json", ".html", ".pdf", ".txt"):
-                        tar.add(item, arcname=f"brain/{conversation_id}/artifacts/{item.name}")
-                # Add docs directory if present
-                docs_dir = conv_path / "docs"
-                if docs_dir.exists():
-                    tar.add(docs_dir, arcname=f"brain/{conversation_id}/docs")
+                _add_conversation(tar, brain_dir / conversation_id, conversation_id)
             else:
-                # Add transcripts of active conversations
-                for c_dir in brain_dir.iterdir():
-                    if c_dir.is_dir() and not c_dir.name.startswith("."):
-                        logs_dir = c_dir / ".system_generated" / "logs"
-                        if logs_dir.exists():
-                            tar.add(logs_dir, arcname=f"brain/{c_dir.name}/logs")
+                _add_all_conversation_logs(tar, brain_dir)
 
-        # 4. Syndicate Repository Git State metadata
-        git_dir = REPO_ROOT / ".git"
-        if git_dir.exists():
-            print("  -> Adding Git Commit Reference & HEAD")
-            head_ref = (git_dir / "HEAD").read_text(encoding="utf-8").strip()
-            manifest_info = {
-                "git_head": head_ref,
-                "created_at": timestamp,
-                "source_host": os.environ.get("COMPUTERNAME", "unknown"),
-                "conversation_id": conversation_id,
-            }
-        else:
-            manifest_info = {"created_at": timestamp}
+    # 4. Syndicate Repository Git State metadata
+    manifest_info = _git_manifest_info(timestamp, conversation_id)
 
     # Generate Manifest & Integrity Checksum
     archive_hash = _sha256(archive_path)
