@@ -1,4 +1,4 @@
-"""Sam execution path: HITL vs future auto. Empty grants stay fail-closed."""
+"""Sam execution path: every tradeable signal goes to Andrii (no automatic path, 29.10)."""
 
 from __future__ import annotations
 
@@ -7,12 +7,11 @@ from typing import Any, Mapping
 from src.agents.sam_access import (
     load_sam_manifest,
     sam_auto_invest_allowed,
-    sam_can_place_auto,
 )
 
 PROPOSE_THRESHOLD = 95.0
 AUTO_THRESHOLD = 99.0
-AUTO_VENUES = frozenset({"forex", "crypto"})
+AUTO_VENUES = frozenset({"forex", "crypto"})  # venue classes only; nothing executes automatically
 INVEST_VENUES = frozenset({"investment", "equities", "ibkr"})
 ALL_TIMEFRAMES = ("M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1", "MN")
 _INVEST_SYMBOLS = frozenset({"VOO", "QQQM", "QQQ", "AAPL", "NVDA", "MSFT", "SPY", "IVV"})
@@ -99,36 +98,12 @@ def decide_execution(
         return {**base, "path": "blocked", "requires_hitl": True, "notification": "RISK", "reason": "risk_block"}
     if not complete or score < PROPOSE_THRESHOLD:
         return {**base, "path": "no_trade", "requires_hitl": True, "reason": "below_propose_or_incomplete"}
-    if score < AUTO_THRESHOLD:
-        return {
-            **base,
-            "path": "hitl_signal",
-            "requires_hitl": True,
-            "notification": "SIGNAL",
-            "reason": "propose_gate",
-        }
-
-    if classified not in AUTO_VENUES:
-        return {
-            **base,
-            "path": "hitl_signal",
-            "requires_hitl": True,
-            "notification": "SIGNAL",
-            "reason": "venue_not_auto",
-        }
-    if not sam_can_place_auto(data):
-        return {
-            **base,
-            "path": "auto_eligible_no_grant",
-            "requires_hitl": True,
-            "notification": "SIGNAL",
-            "reason": "switch_or_trade_execute_missing",
-        }
+    # Operator decision 29.10: every tradeable signal, at any score, on any venue,
+    # goes to Andrii. There is no automatic path left to arm.
     return {
         **base,
-        "path": "auto_fx_crypto",
-        "requires_hitl": False,
-        "notification": "AUTO",
-        "reason": "armed_and_granted",
-        "auto_execute": True,
+        "path": "hitl_signal",
+        "requires_hitl": True,
+        "notification": "SIGNAL",
+        "reason": "propose_gate" if score < AUTO_THRESHOLD else "trading_always_andrii_hitl",
     }

@@ -3774,6 +3774,14 @@ class TestDirectorSafetyRegressions:
         assert result["eligible"] is True
         assert result["ev"] == 0.045
 
+    def test_sam_never_trades_automatically_and_never_lets_a_model_size_orders(self):
+        from src.agents.sam.risk import model_signal
+        from src.agents.sam_access import sam_can_place_auto
+
+        assert sam_can_place_auto({"capabilities": ["trade.execute"], "live_modes": {"auto_fx_crypto": True}}) is False
+        with pytest.raises(ValueError, match="model_cannot_size_orders"):
+            model_signal({"strength": 1.0, "rationale": "x", "lots": 50})
+
     def test_public_sources_degrade_honestly_instead_of_crashing(self):
         import httpx
         from src.integrations.public_data import nbu_rates

@@ -51,15 +51,18 @@ def sam_auto_invest_allowed(manifest: Mapping[str, Any] | None = None) -> bool:
 
 
 def sam_auto_fx_crypto_armed(manifest: Mapping[str, Any] | None = None) -> bool:
-    data = dict(manifest or load_sam_manifest())
-    live = _live(data)
-    return live.get("auto_fx_crypto") is True and live.get("auto_invest") is not True
+    """Removed (operator decision 29.10): no trade is ever placed without Andrii.
+
+    The JSON flag and a ``trade.execute`` capability are ignored on purpose, so a
+    mistaken edit of the profile cannot arm automatic trading.
+    """
+    del manifest
+    return False
 
 
 def sam_can_place_auto(manifest: Mapping[str, Any] | None = None) -> bool:
-    data = dict(manifest or load_sam_manifest())
-    caps = data.get("capabilities") or []
-    return sam_auto_fx_crypto_armed(data) and "trade.execute" in caps
+    del manifest
+    return False
 
 
 def sam_telegram_bot_allowed(manifest: Mapping[str, Any] | None = None) -> bool:

@@ -91,6 +91,11 @@ PROVIDER_KEYS = {
     "elevenlabs": ("elevenlabs_api_key",),
     # Air-raid alerts for Eva's briefings (src/integrations/public_data.py).
     "alerts": ("alerts_in_ua_token",),
+    # Sam's macro sources (src/integrations/macro_data.py). EDGAR takes no key but
+    # a "Name email" User-Agent, stored the same way so it never lands in code.
+    "fred": ("fred_api_key",),
+    "eia": ("eia_api_key",),
+    "edgar": ("sec_user_agent",),
 }
 
 
@@ -173,7 +178,12 @@ def cmd_set_key(provider: str) -> None:
     names = PROVIDER_KEYS.get(provider, (f"{provider}_api_key",))
     if not re.fullmatch(r"[a-z0-9_]{2,40}", provider):
         raise SystemExit("invalid provider name")
-    value = read_secret_value(f"{provider} API key (hidden): ")
+    if provider == "edgar":  # SEC wants a contact, not a key: "Company Name email@domain"
+        value = read_secret_value("SEC EDGAR User-Agent, 'Name email@domain' (hidden): ")
+        if "@" not in value or " " not in value.strip():
+            raise SystemExit("EDGAR needs 'Name email@domain', e.g. 'Syndicate Research you@example.com'")
+    else:
+        value = read_secret_value(f"{provider} API key (hidden): ")
     current = get_secret("api-keys")
     for name in names:
         current[name] = value

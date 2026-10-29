@@ -26,6 +26,45 @@
 
 ---
 
+## 2026-10-29 (ніч) — Claude Code: Сем — комітет, ризик-модуль, ф'ючерси, макро-джерела, хеш-журнал
+
+**Гілка:** `feat/sam-committee`  **Коміт:** див. `git log feat/sam-committee`  **Ворота:** ✅ (крім базових ruff 41/11/7)
+
+### Зроблено
+- Джерело: досьє Андрія про фінансових ШІ-агентів (TradingAgents, ai-hedge-fund, Lean, alpaca-mcp-server).
+  Перевірено GitHub: перші чотири існують; `the-quantclub-iitbhu/Algorithmic_Trading_Strategies` не знайдено.
+- **Автоматичної торгівлі більше немає** (рішення Андрія): `sam_can_place_auto`/`sam_auto_fx_crypto_armed` завжди
+  `False`, `decide_execution` для будь-якого бала й ринку → `hitl_signal`. Шлях `auto_fx_crypto` прибрано, тест
+  `test_fx_99_without_grant_stays_hitl` тепер очікує `hitl_signal` (суворіше, ніж було).
+- `src/agents/sam/committee.py` — бик/ведмідь, арбітр — код: доказ без джерела не рахується, сигнал −1…+1,
+  впевненість 0–100 (дія від 60). Промпти ролей `BULL_PROMPT`/`BEAR_PROMPT`.
+- `src/agents/sam/risk.py` — модель дає лише силу −1…+1 (поля `quantity`/`lots`/`size`/`leverage`… → помилка);
+  розмір = 1% депозиту × |сила| / (2×ATR), ≤ 5% депозиту на акцію / ≤ 10% на інший актив, стоп на день при
+  просадці 2%.
+- `src/agents/sam/futures.py` — контанго/беквадрація з річною дохідністю ролла, вікно ролловера (5 днів),
+  ряд із коригуванням на ролл без штучних розривів.
+- `src/integrations/macro_data.py` — CFTC COT (без ключа, перевірено наживо), FRED і EIA (ключі `set-key fred|eia`),
+  SEC EDGAR (`set-key edgar` — рядок «Назва email»). Пропуски → `None`, збої → `unavailable`.
+- `src/agents/sam/ledger.py` + `agents.sam_journal_ledger` (`init.sql`): кожен сигнал/рішення/результат — у
+  хеш-ланцюжок; тригер забороняє UPDATE/DELETE/TRUNCATE усім ролям; `eva_agent` — лише SELECT/INSERT.
+  Живий SQL-тест у `tests/test_postgres_paths.py`.
+
+### Не дороблено / свідомо залишено
+- Комітет, ризик-модуль і джерела ще не викликаються з робочого циклу Сема — це бібліотека + регламент.
+- **Таблицю журналу на продакшн-БД треба створити окремо** міграцією `config/postgres/migration_v6_sam_ledger.sql
+  (ідемпотентна; весь `init.sql` повторно не запускати — у ньому безумовний `CREATE DATABASE n8n`), з підтвердження Андрія.
+- EIA-ендпоінт перевірено лише за документацією (без ключа живий виклик неможливий).
+
+### Наступне
+1. Застосувати `migration_v6_sam_ledger.sql` до продакшн-БД, розгорнути, перевірити `ledger().verify()`.
+2. Андрій: ключі FRED і EIA, рядок для EDGAR.
+3. Вбудувати комітет і ризик-модуль у цикл сигналу Сема (`src/agents/sam/agent.py`).
+
+### Ризики й спостереження
+- Без таблиці журналу на продакшні записи в хеш-ланцюжок повертають `ledger_write_failed` (журнал працює далі).
+
+---
+
 ## 2026-10-29 (ніч) — Claude Code: деплой PR #26–#28 і Garage
 
 **Гілка:** `fix/garage-setup-layout`  **Коміт:** див. `git log fix/garage-setup-layout`  **Ворота:** ✅ (крім базових ruff 41/11/7)

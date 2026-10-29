@@ -461,6 +461,63 @@ class TestTradeJournalLiveSql:
             "AND signal_id = %s", (signal_id,)
         ) == 1
 
+    def test_ledger_chains_every_event_and_refuses_rewrites(self, live_pg):
+        """Operator decision 29.10: Sam's audit trail is hash-chained and append-only."""
+        from src.agents.sam.journal import TradeJournal
+
+        signal_id = _tag("SIG")
+
+        async def scenario():
+            memory = await _memory(live_pg)
+            try:
+                journal = TradeJournal(memory=memory)
+                await journal.record_signal(self._entry(signal_id, "XAUUSD"))
+                await journal.record_decision(signal_id, "approve", by="andrii")
+                await journal.record_outcome(signal_id, "win", realized_r=1.5)
+                return await journal.ledger().verify()
+            finally:
+                await memory.close()
+
+        check = _run(scenario())
+        assert check["status"] == "ok" and check["intact"] is True and check["length"] >= 3
+        events = live_pg.fetch(
+            "SELECT event FROM agents.sam_journal_ledger WHERE signal_id = %s ORDER BY seq", (signal_id,))
+        assert [e[0] for e in events] == ["signal", "decision", "outcome"]
+        for statement in ("UPDATE agents.sam_journal_ledger SET event = 'x' WHERE signal_id = %s",
+                          "DELETE FROM agents.sam_journal_ledger WHERE signal_id = %s"):
+            with pytest.raises(Exception, match="append-only"):
+                live_pg.execute(statement, (signal_id,))
+        with pytest.raises(Exception, match="append-only"):
+            live_pg.execute("TRUNCATE agents.sam_journal_ledger")
+        assert not live_pg.scalar(
+            "SELECT has_table_privilege('eva_agent', 'agents.sam_journal_ledger', 'UPDATE')")
+
+    def test_ledger_survives_values_postgres_normalises(self, live_pg):
+        """-0.0 and big numbers change form in JSONB; the hash covers the stored text body."""
+        from src.agents.sam.ledger import HashLedger
+
+        signal_id = _tag("SIG")
+
+        async def scenario():
+            memory = await _memory(live_pg)
+            try:
+                ledger = HashLedger(memory.pool)
+                await ledger.append("outcome", signal_id, {"realized_r": -0.0, "big": 1e21, "tiny": 1e-7})
+                return await ledger.verify()
+            finally:
+                await memory.close()
+
+        check = _run(scenario())
+        assert check["intact"] is True, check
+
+    def test_ledger_migration_replays_and_matches_init(self, live_pg):
+        migration = INIT_SQL.parent / "migration_v6_sam_ledger.sql"
+        live_pg.apply_sql_file(migration)
+        live_pg.apply_sql_file(migration)  # idempotent
+        table = re.search(r"CREATE TABLE IF NOT EXISTS agents\.sam_journal_ledger \(.*?\);",
+                          migration.read_text(encoding="utf-8"), re.S).group(0)
+        assert table in INIT_SQL.read_text(encoding="utf-8"), "init.sql and migration v6 must define the same table"
+
     def test_approval_outcome_and_realised_stats(self, live_pg):
         from src.agents.sam.journal import TradeJournal
 
