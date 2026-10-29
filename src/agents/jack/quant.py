@@ -32,6 +32,7 @@ FORBIDDEN_STAKE_FIELDS = frozenset({"stake", "stake_override", "progression", "m
 
 
 def _adjust(probability: float, adjustments: object) -> tuple[float, list[dict]]:
+    """Apply sourced deltas in Decimal, so 0.55 + 0.02 + 0.03 is exactly 0.60 (no EV boundary drift)."""
     if adjustments in (None, []):
         return probability, []
     if not isinstance(adjustments, list) or len(adjustments) > MAX_ADJUSTMENTS:
@@ -43,10 +44,11 @@ def _adjust(probability: float, adjustments: object) -> tuple[float, list[dict]]
         delta = number(item.get("delta"), "adjustment_delta", -MAX_ADJUSTMENT, MAX_ADJUSTMENT)
         applied.append({"factor": text(item.get("factor"), "adjustment_factor", 200), "delta": delta,
                         "source": text(item.get("source"), "adjustment_source", 500)})
-    total = sum(a["delta"] for a in applied)
-    if abs(total) > MAX_TOTAL_ADJUSTMENT + 1e-12:
+    total = sum((Decimal(str(a["delta"])) for a in applied), Decimal("0"))
+    if abs(total) > Decimal(str(MAX_TOTAL_ADJUSTMENT)):
         raise ValueError("adjustments_exceed_total_bound")
-    return min(0.999, max(0.001, probability + total)), applied
+    adjusted = Decimal(str(probability)) + total
+    return float(min(Decimal("0.999"), max(Decimal("0.001"), adjusted))), applied
 
 
 def evaluate(payload: dict, *, risk_cap: float = 0.01) -> dict:

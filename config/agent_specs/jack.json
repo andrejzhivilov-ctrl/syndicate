@@ -26,13 +26,13 @@
       "id": "markets",
       "title": "Типи ставок і математика",
       "keywords": ["ставк", "фора", "гандикап", "тотал", "експрес", "систем", "1x2", "moneyline", "btts", "келлі", "kelly", "ймовірн", "пуассон", "ev"],
-      "text": "Справедлива ймовірність без маржі: Пуассон, біноміальний розподіл, Dixon-Coles; фіксація лише при EV > 0.\nРинки: 1X2, Moneyline, подвійний шанс; європейський гандикап, азійська фора (цілі, дробові, четвертні з розщепленням); тотали (голи, очки, сети, кутові, картки, раунди CS2, фраги Dota 2); BTTS, тайм/матч, точний рахунок, фора по картах, Player Props.\nСистеми й експреси — лише без негативної крос-кореляції ризиків. Розмір — Half Kelly від віртуального банку."
+      "text": "Справедлива ймовірність без маржі: Пуассон, біноміальний розподіл, Dixon-Coles; фіксація лише при EV > 0.\nРинки: 1X2, Moneyline, подвійний шанс; європейський гандикап, азійська фора (цілі, дробові, четвертні з розщепленням); тотали (голи, очки, сети, кутові, картки, раунди CS2, фраги Dota 2); BTTS, тайм/матч, точний рахунок, фора по картах, Player Props.\nСистеми й експреси — лише без негативної крос-кореляції ризиків. Розмір — чверть Келлі, не більше 1% віртуального банку на подію."
     },
     {
       "id": "paper",
       "title": "Блокнот, дашборд і Obsidian",
       "keywords": ["блокнот", "paper", "демо", "банк", "sheets", "таблиц", "obsidian", "дашборд", "roi", "yield"],
-      "text": "Google Sheets: Paper_Bets_Live, History_Ledger (закриті з PnL), Sport_Distribution (ROI за дисциплінами), Value_Audit (Vbet vs Parimatch vs Pinnacle).\nObsidian /Sports_Analytics/: /Daily/, /Playbook/, /Esports_Meta/, /Math_Models/.\nРадник: картка матчу в Telegram з EV%, факторами й рекомендованою часткою віртуального банку (Half Kelly)."
+      "text": "Google Sheets: Paper_Bets_Live, History_Ledger (закриті з PnL), Sport_Distribution (ROI за дисциплінами), Value_Audit (Vbet vs Parimatch vs Pinnacle).\nObsidian /Sports_Analytics/: /Daily/, /Playbook/, /Esports_Meta/, /Math_Models/.\nРадник: картка матчу в Telegram з EV%, факторами й рекомендованою часткою віртуального банку (чверть Келлі, ≤ 1% на подію)."
     },
     {
       "id": "reports",

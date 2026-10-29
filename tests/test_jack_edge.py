@@ -68,7 +68,13 @@ def test_qualitative_adjustments_are_bounded_sourced_and_returned():
         evaluate(signal(adjustments=[{"factor": "no source", "delta": 0.01}]))
 
 
-@pytest.mark.parametrize("field", ["stake", "stake_override", "progression", "martingale", "multiplier"])
+def test_adjustments_keep_the_exact_ev_boundary():
+    adj = [{"factor": "a", "delta": 0.02, "source": "s"}, {"factor": "b", "delta": 0.03, "source": "s"}]
+    result = evaluate(signal(probability=0.55, adjustments=adj))  # 0.55 + 0.05 = 0.60 exactly → EV 20%
+    assert result["eligible"] is True and result["ev"] == pytest.approx(0.2)
+
+
+@pytest.mark.parametrize("field",["stake", "stake_override", "progression", "martingale", "multiplier"])
 def test_caller_can_never_size_or_escalate_a_stake(field):
     with pytest.raises(ValueError, match="manual_stake_or_progression_forbidden"):
         evaluate(signal(**{field: 1}))

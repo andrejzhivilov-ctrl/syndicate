@@ -60,6 +60,15 @@ def test_an_alert_without_a_region_is_never_reported_as_calm():
     assert "немає" not in reply["response"] and "регіон не вказано (1)" in reply["response"]
 
 
+def test_alerts_command_reports_air_raids_and_counts_other_types_separately():
+    payload = {"alerts": [{"alert_type": "artillery_shelling", "location_oblast": "Херсонська область"}]}
+    vault = _Vault({"secret/data/syndicate/api-keys": {"alerts_in_ua_token": "tok"}})
+    reply = asyncio.run(source_reply("/alerts", vault, transport=_transport(
+        {"api.alerts.in.ua": httpx.Response(200, json=payload)})))
+    assert "Активних повітряних тривог немає." in reply["response"]
+    assert "Інші сповіщення (обстріли, хімічна небезпека тощо): 1" in reply["response"]
+
+
 def test_weather_keeps_missing_fields_as_none():
     data = asyncio.run(weather(50.45, 30.52, transport=_transport({"api.open-meteo.com": METEO})))
     assert data["status"] == "ok" and data["current"]["temperature_2m"] == 7.3

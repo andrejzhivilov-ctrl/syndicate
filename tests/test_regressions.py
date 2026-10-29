@@ -3774,6 +3774,14 @@ class TestDirectorSafetyRegressions:
         assert result["eligible"] is True
         assert result["ev"] == 0.045
 
+    def test_public_sources_degrade_honestly_instead_of_crashing(self):
+        import httpx
+        from src.integrations.public_data import nbu_rates
+
+        junk = httpx.MockTransport(lambda request: httpx.Response(200, json=[{"cc": "USD", "rate": "n/a"}]))
+        result = asyncio.run(nbu_rates(transport=junk))
+        assert result["status"] == "unavailable" and result["reason"] == "no_rates_in_response"
+
     def test_jack_treats_implausible_ev_as_a_palpable_error_not_value(self):
         from src.agents.jack.quant import evaluate
         from datetime import datetime, timezone
