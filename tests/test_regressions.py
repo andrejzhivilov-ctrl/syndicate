@@ -4152,3 +4152,21 @@ def test_embeddings_service_bounds_cpu_work():
     assert "torch.set_num_threads" in source
     assert "\ndef embed(" in source and "async def embed(" not in source
     assert "with _encode_lock:" in source
+
+
+def test_llm_tier_skips_placeholder_keys_and_falls_over_on_build_errors():
+    # _init_llms was split for C901: each tier must still skip placeholder keys
+    # and move on to the next provider when one client fails to build.
+    from src.orchestrator import _first_ready_llm
+
+    def broken(key):
+        raise RuntimeError("bad client")
+
+    picked = _first_ready_llm([
+        ("PLACEHOLDER_UPDATE_ME", lambda key: "placeholder", "ok", "fail", {}),
+        ("", lambda key: "empty", "ok", "fail", {}),
+        ("k1", broken, "ok", "fail", {}),
+        ("k2", lambda key: f"client:{key}", "ok", "fail", {}),
+    ])
+    assert picked == "client:k2"
+    assert _first_ready_llm([("PLACEHOLDER_UPDATE_ME", lambda key: "x", "ok", "fail", {})]) is None
