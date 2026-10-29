@@ -221,6 +221,40 @@ CREATE TABLE IF NOT EXISTS agents.sam_reflections (
 CREATE INDEX IF NOT EXISTS idx_sam_reflections_kind ON agents.sam_reflections (kind, created_at DESC);
 
 -- ============================================================
+-- TABLE: Sam's hash-chained ledger (operator decision 29.10).
+-- The journal above is a mutable "current state" table; this ledger is the
+-- audit trail: every signal, decision and outcome is appended with the hash of
+-- the previous entry, so a rewritten or deleted record breaks the chain.
+-- UPDATE, DELETE and TRUNCATE are refused by trigger, for every role.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS agents.sam_journal_ledger (
+    seq         BIGSERIAL PRIMARY KEY,
+    created_at  TIMESTAMPTZ NOT NULL,
+    signal_id   VARCHAR(64),
+    event       VARCHAR(32) NOT NULL,
+    payload     JSONB NOT NULL,
+    prev_hash   CHAR(64) NOT NULL,
+    entry_hash  CHAR(64) NOT NULL UNIQUE
+);
+
+CREATE OR REPLACE FUNCTION agents.sam_ledger_append_only()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'agents.sam_journal_ledger is append-only';
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_sam_ledger_no_update ON agents.sam_journal_ledger;
+CREATE TRIGGER trg_sam_ledger_no_update
+    BEFORE UPDATE OR DELETE ON agents.sam_journal_ledger
+    FOR EACH ROW EXECUTE FUNCTION agents.sam_ledger_append_only();
+DROP TRIGGER IF EXISTS trg_sam_ledger_no_truncate ON agents.sam_journal_ledger;
+CREATE TRIGGER trg_sam_ledger_no_truncate
+    BEFORE TRUNCATE ON agents.sam_journal_ledger
+    FOR EACH STATEMENT EXECUTE FUNCTION agents.sam_ledger_append_only();
+
+-- ============================================================
 -- Per-device client tokens (mobile / desktop apps).
 -- A shared master API key must never be compiled into a client
 -- binary — these are issued per device, stored only as a SHA-256
@@ -491,3 +525,6 @@ GRANT SELECT, INSERT ON agents.doc_compliance TO eva_agent;
 -- Device tokens: the runtime issues, verifies, rotates and revokes them.
 GRANT SELECT, INSERT, UPDATE, DELETE ON auth.device_tokens TO eva_agent;
 
+-- Sam's ledger: read and append only (the trigger also refuses changes).
+REVOKE UPDATE, DELETE, TRUNCATE ON agents.sam_journal_ledger FROM eva_agent;
+GRANT SELECT, INSERT ON agents.sam_journal_ledger TO eva_agent;

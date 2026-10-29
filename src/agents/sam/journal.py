@@ -20,6 +20,8 @@ from typing import Any, Dict, List, Optional
 
 import structlog
 
+from src.agents.sam.ledger import HashLedger
+
 logger = structlog.get_logger(__name__)
 
 
@@ -59,6 +61,12 @@ class TradeJournal:
         self._memory = memory
         self._mem_entries: Dict[str, Dict[str, Any]] = {}
         self._mem_reflections: List[Dict[str, Any]] = []
+        self._mem_ledger = HashLedger(None)
+
+    def ledger(self) -> HashLedger:
+        """Hash-chained audit trail: Postgres when the pool exists, else this process."""
+        pool = self._pool()
+        return HashLedger(pool) if pool is not None else self._mem_ledger
 
     def _pool(self) -> Optional[Any]:
         for attr in ("pool", "_pool", "db_pool"):
@@ -71,6 +79,7 @@ class TradeJournal:
     # Recording signals & decisions.
     # ------------------------------------------------------------------ #
     async def record_signal(self, entry: JournalEntry) -> None:
+        await self.ledger().append("signal", entry.signal_id, entry.to_dict())
         pool = self._pool()
         if pool is None:
             self._mem_entries[entry.signal_id] = entry.to_dict()
@@ -115,6 +124,8 @@ class TradeJournal:
         which made the whole negative-constraint gate a no-op.
         """
         status = "approved" if decision == "approve" else "rejected"
+        await self.ledger().append("decision", signal_id, {"decision": decision, "by": by, "reason": reason,
+                                                           "symbol": symbol, "direction": direction})
         pool = self._pool()
         if pool is None:
             e = self._mem_entries.get(signal_id)
@@ -169,6 +180,7 @@ class TradeJournal:
     async def record_outcome(
         self, signal_id: str, outcome: str, realized_r: Optional[float] = None
     ) -> None:
+        await self.ledger().append("outcome", signal_id, {"outcome": outcome, "realized_r": realized_r})
         pool = self._pool()
         if pool is None:
             e = self._mem_entries.get(signal_id)

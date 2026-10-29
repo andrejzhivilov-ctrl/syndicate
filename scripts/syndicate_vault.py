@@ -91,6 +91,11 @@ PROVIDER_KEYS = {
     "elevenlabs": ("elevenlabs_api_key",),
     # Air-raid alerts for Eva's briefings (src/integrations/public_data.py).
     "alerts": ("alerts_in_ua_token",),
+    # Sam's macro sources (src/integrations/macro_data.py). EDGAR takes no key but
+    # a "Name email" User-Agent, stored the same way so it never lands in code.
+    "fred": ("fred_api_key",),
+    "eia": ("eia_api_key",),
+    "edgar": ("sec_user_agent",),
 }
 
 

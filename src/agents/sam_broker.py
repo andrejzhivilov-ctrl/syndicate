@@ -50,7 +50,7 @@ def submit_lot(
         return {**base, "status": "invest_discuss_required", "reason": "investments_need_andrii"}
     if path["path"] in {"blocked", "no_trade"}:
         return {**base, "status": path["path"], "reason": path.get("reason")}
-    if path["path"] in {"hitl_signal", "auto_eligible_no_grant", "invest_discuss"} and not approved:
+    if path["path"] in {"hitl_signal", "invest_discuss"} and not approved:
         return {**base, "status": "hitl_required", "reason": path.get("reason")}
 
     if account_mode == "live" and live.get("broker_live") is not True:

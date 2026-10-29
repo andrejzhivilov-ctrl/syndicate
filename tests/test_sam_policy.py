@@ -47,9 +47,19 @@ def test_fx_99_without_grant_stays_hitl() -> None:
     }
     assert sam_can_place_auto(armed) is False
     plan = decide_execution(symbol="EURUSD", confluence=_full_layers(99.2), manifest=armed)
-    assert plan["path"] == "auto_eligible_no_grant"
+    assert plan["path"] == "hitl_signal"
     assert plan["requires_hitl"] is True
     assert plan["auto_execute"] is False
+
+
+def test_no_automatic_trading_even_when_armed_and_granted() -> None:
+    """Operator decision 29.10: the auto path is gone, not just switched off."""
+    granted = {"capabilities": ["trade.execute"], "live_modes": {"auto_fx_crypto": True, "auto_invest": False}}
+    assert sam_can_place_auto(granted) is False
+    for symbol in ("EURUSD", "BTC/USDT"):
+        plan = decide_execution(symbol=symbol, confluence=_full_layers(99.9), manifest=granted)
+        assert plan["path"] == "hitl_signal" and plan["auto_execute"] is False
+        assert plan["requires_hitl"] is True and plan["reason"] == "trading_always_andrii_hitl"
 
 
 def test_submit_lot_is_unavailable_without_broker() -> None:
