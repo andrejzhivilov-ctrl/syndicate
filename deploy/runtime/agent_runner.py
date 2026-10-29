@@ -60,6 +60,7 @@ from src.telegram_gateway import (  # noqa: E402
     reply_text,
     verify_webhook_secret,
 )
+from src.sensitive import voice_text  # noqa: E402
 from src.voice_reply import (  # noqa: E402
     VOICE_MAX_BYTES,
     VOICE_MAX_SECONDS,
@@ -1275,7 +1276,7 @@ async def _telegram_voice(state: AppState, agent_id: str, message: Dict[str, Any
         logger.info("telegram_voice_transcribed", agent_id=agent_id, provider=provider)
         reply = await _telegram_reply(state, agent_id, message, heard)
         await gateway.send(agent_id, chat_id, f"🎙 «{heard[:300]}»\n\n{reply}")
-        await _voice_answer(state, agent_id, chat_id, reply, keys)
+        await _voice_answer(state, agent_id, chat_id, heard, reply, keys)
     except Exception as exc:  # noqa: BLE001 - a background task must not die silently
         logger.error("telegram_voice_failed", agent_id=agent_id, error_type=type(exc).__name__)
         await gateway.send(agent_id, chat_id, f"⛔ [{agent_id}] не вдалося обробити голосове.")
@@ -1289,14 +1290,23 @@ async def _voice_keys(state: AppState) -> Dict[str, Any]:
         return {}
 
 
-async def _voice_answer(state: AppState, agent_id: str, chat_id: str, reply: str, keys: Dict[str, Any]) -> None:
-    """Voice the reply when Respeecher is configured; otherwise the text stands alone."""
+async def _voice_answer(
+    state: AppState, agent_id: str, chat_id: str, heard: str, reply: str, keys: Dict[str, Any]
+) -> None:
+    """Voice the reply when Respeecher is configured; otherwise the text stands alone.
+
+    Military talk, account numbers and access codes never reach Respeecher: they
+    are replaced by a spoken pointer to the text message already sent.
+    """
     key = keys.get("respeecher_api_key")
     if not key or reply.startswith(("⛔", "⚠️", "⏸")):
         return
     if state.respeecher is None:
         state.respeecher = RespeecherTTS(key)
-    wav = await state.respeecher.synthesize(agent_id, spoken_text(reply))
+    spoken, why = voice_text(heard, reply)
+    if why != "plain":
+        logger.info("telegram_voice_sensitive", agent_id=agent_id, reason=why)
+    wav = await state.respeecher.synthesize(agent_id, spoken_text(spoken))
     ogg = await wav_to_ogg_opus(wav) if wav else None
     if ogg:
         await state.telegram_gateway.send_voice(agent_id, chat_id, ogg)
