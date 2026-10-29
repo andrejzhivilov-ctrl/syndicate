@@ -79,3 +79,6 @@ directors.env
 operator.token
 .env
 .env.production
+
+# scratch output of agents and tests (AGENTS.md §8: never committed)
+.tmp/
