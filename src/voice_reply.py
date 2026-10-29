@@ -68,10 +68,26 @@ async def transcribe(audio: bytes, keys: Dict[str, Any], *, transport: Any = Non
     return None, "none"
 
 
+#: Respeecher voice ids chosen by the operator (29.10). Ids, not display names:
+#: "Олеся: медіа" is ``olesia-media`` in GET /voices.
+AGENT_VOICES: Dict[str, str] = {
+    "eva": "olesia-media",
+    "kira": "mariia-audiobook",
+    "sam": "yevhen-audiobook",
+    "trainer": "ihoreo-conversation",
+    "jack": "oleksandr-commercial",
+}
+DEFAULT_VOICE = "yevhen-commercial"
+
+
 def voice_for(agent_id: str, voices: List[Dict[str, Any]]) -> Optional[str]:
-    """Stable voice per agent, matching the persona's grammatical gender when possible."""
+    """The operator's voice for the agent; if Respeecher lacks it, a stable gender-matched one."""
     if not voices:
         return None
+    chosen = AGENT_VOICES.get(agent_id, DEFAULT_VOICE)
+    if any(str(v.get("id")) == chosen for v in voices):
+        return chosen
+    logger.warning("voice_tts_assigned_voice_missing", agent_id=agent_id, voice=chosen)
     wanted = "female" if agent_id in FEMININE else "male"
     pool = [v for v in voices if str(v.get("gender", "")).lower() == wanted] or voices
     pool = sorted(pool, key=lambda v: str(v.get("id")))
