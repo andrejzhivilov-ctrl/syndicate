@@ -60,6 +60,15 @@ from src.telegram_gateway import (  # noqa: E402
     reply_text,
     verify_webhook_secret,
 )
+from src.sensitive import voice_text  # noqa: E402
+from src.voice_reply import (  # noqa: E402
+    VOICE_MAX_BYTES,
+    VOICE_MAX_SECONDS,
+    RespeecherTTS,
+    spoken_text,
+    transcribe,
+    wav_to_ogg_opus,
+)
 from src.agent_platform.director_client import build_director_clients  # noqa: E402
 from src.pii import PIIRedactor  # noqa: E402
 from src.runtime_config import build_runtime_config  # noqa: E402
@@ -109,6 +118,7 @@ class AppState:
     change_request_store: Optional[Any] = None
     change_request_notifier: Optional[Any] = None
     telegram_gateway: Optional[TelegramGateway] = None
+    respeecher: Optional[RespeecherTTS] = None
     start_time: float = time.time()
     ready: bool = False
     vault_renewal_task: Optional[Any] = None
@@ -1215,21 +1225,91 @@ async def telegram_webhook(
         logger.warning("telegram_non_owner_dropped", agent_id=agent_id)
         return {"ok": True}
 
+    if message["kind"] == "voice":
+        # Download + speech-to-text + reply can outlast Telegram's webhook wait;
+        # answer 200 now so Telegram does not redeliver the note.
+        task = asyncio.create_task(_telegram_voice(state, agent_id, message))
+        _VOICE_TASKS.add(task)
+        task.add_done_callback(_VOICE_TASKS.discard)
+        return {"ok": True}
+    text = await _telegram_reply(state, agent_id, message, message["text"])
+    await gateway.send(agent_id, message["chat_id"], text)
+    return {"ok": True}
+
+
+#: Running voice-note tasks (a bare create_task result can be garbage-collected).
+_VOICE_TASKS: set = set()
+
+
+async def _telegram_reply(state: AppState, agent_id: str, message: Dict[str, Any], text: str) -> str:
     payload = {
         "agent_id": agent_id,
-        "text": message["text"],
+        "text": text,
         "chat_id": message["chat_id"],
         "user_id": message["user_id"],
-        "message": {"chat": {"id": message["chat_id"]}, "text": message["text"]},
+        "message": {"chat": {"id": message["chat_id"]}, "text": text},
     }
     try:
         outcome = await state.orchestrator.handle_webhook(source=f"telegram_{agent_id}", payload=payload)
-        text = reply_text(agent_id, outcome)
+        return reply_text(agent_id, outcome)
     except Exception as exc:  # noqa: BLE001
         logger.error("Telegram handling failed", agent_id=agent_id, error_type=type(exc).__name__)
-        text = f"⛔ [{agent_id}] внутрішня помилка обробки."
-    await gateway.send(agent_id, message["chat_id"], text)
-    return {"ok": True}
+        return f"⛔ [{agent_id}] внутрішня помилка обробки."
+
+
+async def _telegram_voice(state: AppState, agent_id: str, message: Dict[str, Any]) -> None:
+    """Owner's voice note: transcribe, answer as usual, then voice the answer."""
+    gateway, chat_id = state.telegram_gateway, message["chat_id"]
+    try:
+        if message["duration"] > VOICE_MAX_SECONDS or message["file_size"] > VOICE_MAX_BYTES:
+            await gateway.send(agent_id, chat_id, f"⚠️ Голосове задовге: до {VOICE_MAX_SECONDS // 60} хв.")
+            return
+        keys = await _voice_keys(state)
+        audio = await gateway.download_file(agent_id, message["file_id"], VOICE_MAX_BYTES)
+        if audio is None:
+            await gateway.send(agent_id, chat_id, "⚠️ Не вдалося отримати голосове з Telegram.")
+            return
+        heard, provider = await transcribe(audio, keys)
+        if not heard:
+            await gateway.send(agent_id, chat_id, "⚠️ Не вдалося розпізнати голосове. Спробуй ще раз або напиши текстом.")
+            return
+        logger.info("telegram_voice_transcribed", agent_id=agent_id, provider=provider)
+        reply = await _telegram_reply(state, agent_id, message, heard)
+        await gateway.send(agent_id, chat_id, f"🎙 «{heard[:300]}»\n\n{reply}")
+        await _voice_answer(state, agent_id, chat_id, heard, reply, keys)
+    except Exception as exc:  # noqa: BLE001 - a background task must not die silently
+        logger.error("telegram_voice_failed", agent_id=agent_id, error_type=type(exc).__name__)
+        await gateway.send(agent_id, chat_id, f"⛔ [{agent_id}] не вдалося обробити голосове.")
+
+
+async def _voice_keys(state: AppState) -> Dict[str, Any]:
+    try:
+        return await state.vault_client.get_secret(secret_path("api-keys")) or {}
+    except Exception as exc:  # noqa: BLE001 - STT then uses local Whisper, TTS is skipped
+        logger.warning("voice_keys_unavailable", error_type=type(exc).__name__)
+        return {}
+
+
+async def _voice_answer(
+    state: AppState, agent_id: str, chat_id: str, heard: str, reply: str, keys: Dict[str, Any]
+) -> None:
+    """Voice the reply when Respeecher is configured; otherwise the text stands alone.
+
+    Military talk, account numbers and access codes never reach Respeecher: they
+    are replaced by a spoken pointer to the text message already sent.
+    """
+    key = keys.get("respeecher_api_key")
+    if not key or reply.startswith(("⛔", "⚠️", "⏸")):
+        return
+    if state.respeecher is None:
+        state.respeecher = RespeecherTTS(key)
+    spoken, why = voice_text(heard, reply)
+    if why != "plain":
+        logger.info("telegram_voice_sensitive", agent_id=agent_id, reason=why)
+    wav = await state.respeecher.synthesize(agent_id, spoken_text(spoken))
+    ogg = await wav_to_ogg_opus(wav) if wav else None
+    if ogg:
+        await state.telegram_gateway.send_voice(agent_id, chat_id, ogg)
 
 
 @app.post("/webhook/{source}")

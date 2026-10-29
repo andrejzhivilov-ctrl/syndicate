@@ -85,6 +85,9 @@ PROVIDER_KEYS = {
     "xai": ("grok_api_key", "xai_api_key"),
     "deepseek": ("deepseek_api_key",),
     "groq": ("groq_api_key",),
+    # Voice replies in the director bots (src/voice_reply.py).
+    "respeecher": ("respeecher_api_key",),
+    "elevenlabs": ("elevenlabs_api_key",),
 }
 
 

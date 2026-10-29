@@ -25,6 +25,7 @@ import structlog
 
 from src.agents.eva_memory_policy import EvaMemoryPolicy
 from src.pii import PIIRedactor
+from src.sensitive import is_military
 
 logger = structlog.get_logger(__name__)
 
@@ -237,8 +238,18 @@ def _screen(agent_id: str, text: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def _context(agent_id: str, reference: Optional[str]) -> List[Tuple[str, str]]:
+MILITARY_NOTE = (
+    "Повідомлення Андрія містить ознаки оперативної військової інформації (позиції, підрозділи, "
+    "переміщення, координати чи техніка). Не повторюй і не уточнюй цих деталей, не роби з них "
+    "висновків про розташування чи плани. Коротко попередь, що такі дані не варто передавати через "
+    "систему, і допоможи лише в загальному, безпечному вигляді."
+)
+
+
+def _context(agent_id: str, reference: Optional[str], military: bool = False) -> List[Tuple[str, str]]:
     context = [("system", system_prompt(agent_id))]
+    if military:
+        context.append(("system", MILITARY_NOTE))
     if reference:
         # Catalog titles can look like PII (e.g. a GitHub handle shaped like a passport number).
         safe_reference, _ = PIIRedactor().redact(reference)
@@ -263,10 +274,13 @@ async def chat_reply(
     if llm is None:
         return {"agent": agent_id, "status": "unavailable", "mode": "chat", "reason": "llm_not_configured"}
     safe_text, _ = PIIRedactor().redact(text)
+    military = is_military(text)
+    if military:
+        logger.warning("agent_chat_military_trigger", agent=agent_id)
     remember = history is not None and bool(chat_id)
     prior = await history.load(agent_id, chat_id) if remember else []  # type: ignore[union-attr,arg-type]
     try:
-        result = await llm.ainvoke([*_context(agent_id, reference), *prior, ("human", safe_text)])
+        result = await llm.ainvoke([*_context(agent_id, reference, military), *prior, ("human", safe_text)])
     except Exception as exc:  # noqa: BLE001 - provider failure must not become a fake answer
         logger.warning("agent_chat_llm_failed", agent=agent_id, error_type=type(exc).__name__)
         return {"agent": agent_id, "status": "unavailable", "mode": "chat", "reason": "llm_unavailable"}
@@ -276,6 +290,7 @@ async def chat_reply(
     reply = str(content).strip()
     if not reply:
         return {"agent": agent_id, "status": "unavailable", "mode": "chat", "reason": "empty_model_reply"}
-    if remember:
+    if remember and not military:  # operational military detail is never kept in chat memory
         await history.append(agent_id, chat_id, safe_text, reply)  # type: ignore[union-attr,arg-type]
-    return {"agent": agent_id, "status": "completed", "mode": "chat", "response": reply}
+    return {"agent": agent_id, "status": "completed", "mode": "chat", "response": reply,
+            **({"military_trigger": True} if military else {})}

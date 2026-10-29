@@ -19,7 +19,7 @@ PROVIDERS = {
     "anthropic": ("ANTHROPIC_API_KEY", lambda k: ("https://api.anthropic.com/v1/models?limit=1000", {"x-api-key": k, "anthropic-version": "2023-06-01"}),
                   lambda j: {m["id"] for m in j.get("data", [])}, ("ANTHROPIC_PRIMARY", "ANTHROPIC_DIRECTOR", "LLM_EXPENSIVE")),
     "openai": ("OPENAI_API_KEY", lambda k: ("https://api.openai.com/v1/models", {"Authorization": f"Bearer {k}"}),
-               lambda j: {m["id"] for m in j.get("data", [])}, ("OPENAI_PRIMARY",)),
+               lambda j: {m["id"] for m in j.get("data", [])}, ("OPENAI_PRIMARY", "OPENAI_TRANSCRIBE")),
     # OpenRouter publishes its model list without auth, so every OR_* / OPENROUTER_*
     # ID is verified on every run, key or not.
     "openrouter": (None, lambda k: ("https://openrouter.ai/api/v1/models", {}),
