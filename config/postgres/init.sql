@@ -226,6 +226,7 @@ CREATE INDEX IF NOT EXISTS idx_sam_reflections_kind ON agents.sam_reflections (k
 -- audit trail: every signal, decision and outcome is appended with the hash of
 -- the previous entry, so a rewritten or deleted record breaks the chain.
 -- UPDATE, DELETE and TRUNCATE are refused by trigger, for every role.
+-- The same block is migration_v6_sam_ledger.sql for databases that already exist.
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS agents.sam_journal_ledger (
@@ -234,6 +235,7 @@ CREATE TABLE IF NOT EXISTS agents.sam_journal_ledger (
     signal_id   VARCHAR(64),
     event       VARCHAR(32) NOT NULL,
     payload     JSONB NOT NULL,
+    body        TEXT NOT NULL,
     prev_hash   CHAR(64) NOT NULL,
     entry_hash  CHAR(64) NOT NULL UNIQUE
 );

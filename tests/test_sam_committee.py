@@ -26,6 +26,12 @@ def test_committee_needs_both_sides_and_sourced_evidence():
     assert loud["status"] == "incomplete" and loud["unsourced_dropped"]["bull"] == 5
 
 
+def test_an_unopposed_case_is_incomplete_not_100_percent():
+    result = arbitrate({"thesis": "up", "evidence": [ev(f"fact {i}") for i in range(8)]}, {"thesis": "down", "evidence": []})
+    assert result["status"] == "incomplete" and result["confidence"] == 0
+    assert arbitrate({"evidence": [ev("a")]}, {"evidence": "not a list"})["status"] == "incomplete"
+
+
 def test_committee_scores_the_better_sourced_case():
     result = arbitrate({"thesis": "gold up", "evidence": [ev("real yields falling"), ev("CB buying", "WGC Q3")] * 3},
                        {"thesis": "gold down", "evidence": [ev("DXY up", "FRED DTWEXBGS")]})
@@ -57,11 +63,15 @@ def test_size_comes_from_atr_risk_and_asset_cap():
 
 def test_daily_drawdown_stops_new_risk_and_flat_signal_does_nothing():
     assert daily_guard(10_000, 9_800)["blocked"] is True and daily_guard(10_000, 9_900)["blocked"] is False
+    assert daily_guard(1001, 980.98)["blocked"] is True  # exactly 2%: float alone would let it through
     blocked = position_size({"strength": 0.9, "rationale": "x"}, equity=9_790, equity_start_of_day=10_000,
                             price=100, atr=1)
     assert blocked["status"] == "blocked" and blocked["reason"] == "daily_drawdown_limit" and blocked["units"] == 0
     flat = position_size({"strength": 0, "rationale": "x"}, equity=10_000, equity_start_of_day=10_000, price=1, atr=1)
     assert flat["reason"] == "no_direction"
+    negative_stop = position_size({"strength": 1, "rationale": "x"}, equity=10_000, equity_start_of_day=10_000,
+                                  price=1, atr=1, asset_class="equity")
+    assert negative_stop["status"] == "blocked" and negative_stop["reason"] == "stop_not_positive"
 
 
 # ── futures ─────────────────────────────────────────────────────────────────
@@ -77,6 +87,8 @@ def test_roll_window_and_back_adjusted_series_have_no_fake_gap():
     series = back_adjust([{"prices": [100, 102], "roll_from": 102, "roll_to": 104}, {"prices": [104, 105]}])
     assert series[1] == pytest.approx(104) and series[2] == 104  # no jump at the roll
     assert series[0] == pytest.approx(100 * 104 / 102)
+    with pytest.raises(ValueError, match="missing_roll_prices"):
+        back_adjust([{"prices": [100]}, {"prices": [104]}])
 
 
 # ── macro sources ───────────────────────────────────────────────────────────
@@ -92,6 +104,17 @@ def test_cot_net_positions_and_missing_fields():
     assert data["noncommercial_net"] == 199865 and data["commercial_net"] is None
     assert data["report_date"] == "2026-10-20"
     assert asyncio.run(cot_positioning("08;DROP"))["reason"] == "invalid_market_code"
+
+
+def test_malformed_response_shapes_are_unavailable_not_crashes():
+    scalar = httpx.Response(200, json=1)
+    assert asyncio.run(cot_positioning("088691", transport=_transport(scalar)))["status"] == "unavailable"
+    assert asyncio.run(fred_latest("X", "k", transport=_transport(
+        httpx.Response(200, json={"observations": 5}))))["status"] == "unavailable"
+    assert asyncio.run(eia_latest("petroleum/stoc/wstk", "W", "k", transport=_transport(
+        httpx.Response(200, json={"response": []}))))["status"] == "unavailable"
+    assert asyncio.run(edgar_filings(1, "x ops@example.org", transport=_transport(
+        httpx.Response(200, json={"filings": {"recent": {"form": 3}}}))))["status"] == "unavailable"
 
 
 def test_keyed_sources_are_unavailable_without_keys_and_keep_gaps_as_none():
@@ -125,7 +148,7 @@ def test_journal_writes_a_chain_that_detects_tampering():
     rows = asyncio.run(ledger.rows())
     assert [r["event"] for r in rows] == ["signal", "decision", "outcome"] and rows[0]["prev_hash"] == GENESIS
     assert asyncio.run(ledger.verify())["intact"] is True
-    rows[1]["payload"]["decision"] = "reject"  # rewrite history
+    rows[1]["body"] = rows[1]["body"].replace("approve", "reject")  # rewrite history
     broken = verify(rows)
     assert broken["intact"] is False and broken["broken_at"] == 2
 

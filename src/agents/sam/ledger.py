@@ -3,7 +3,12 @@
 Pattern from virattt/ai-hedge-fund: each entry stores the hash of the previous
 one, so editing or deleting any past record breaks every later hash and
 ``verify`` shows exactly where. In Postgres the table also refuses UPDATE,
-DELETE and TRUNCATE by trigger (``config/postgres/init.sql``).
+DELETE and TRUNCATE by trigger (``config/postgres/migration_v6_sam_ledger.sql``).
+
+The hash covers ``body``: the exact canonical JSON text stored as-is in a TEXT
+column. ``payload`` (JSONB) is only a queryable copy. Hashing the JSONB would
+break on values Postgres normalises (``-0.0`` becomes ``0``, big numbers change
+notation), and an intact chain would look tampered.
 """
 from __future__ import annotations
 
@@ -20,22 +25,20 @@ GENESIS = "0" * 64
 _LOCK_KEY = 0x5A3_1ED6  # one advisory lock serialises appends across processes
 
 
-def entry_hash(prev_hash: str, created_at: str, signal_id: Optional[str], event: str,
-               payload: Mapping[str, Any]) -> str:
-    body = json.dumps({"prev": prev_hash, "at": created_at, "signal": signal_id, "event": event,
-                       "payload": payload}, sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str)
-    return hashlib.sha256(body.encode("utf-8")).hexdigest()
+def canonical_body(created_at: str, signal_id: Optional[str], event: str, payload: Mapping[str, Any]) -> str:
+    return json.dumps({"at": created_at, "signal": signal_id, "event": event, "payload": payload},
+                      sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str)
+
+
+def entry_hash(prev_hash: str, body: str) -> str:
+    return hashlib.sha256(f"{prev_hash}\n{body}".encode("utf-8")).hexdigest()
 
 
 def verify(rows: Iterable[Mapping[str, Any]]) -> Dict[str, Any]:
     """Recompute the chain oldest first; report the first broken sequence number."""
     prev, count = GENESIS, 0
     for row in rows:
-        payload = row["payload"] if isinstance(row["payload"], Mapping) else json.loads(row["payload"])
-        created = row["created_at"]
-        created = created.isoformat() if isinstance(created, datetime) else str(created)
-        expected = entry_hash(prev, created, row.get("signal_id"), row["event"], payload)
-        if row["prev_hash"] != prev or row["entry_hash"] != expected:
+        if row["prev_hash"] != prev or row["entry_hash"] != entry_hash(prev, row["body"]):
             return {"status": "ok", "intact": False, "length": count, "broken_at": row.get("seq", count + 1)}
         prev, count = row["entry_hash"], count + 1
     return {"status": "ok", "intact": True, "length": count, "broken_at": None, "head": prev}
@@ -50,11 +53,11 @@ class HashLedger:
 
     async def append(self, event: str, signal_id: Optional[str], payload: Mapping[str, Any]) -> Dict[str, Any]:
         created = datetime.now(timezone.utc).isoformat()
-        safe = json.loads(json.dumps(dict(payload), default=str))
+        body = canonical_body(created, signal_id, event, json.loads(json.dumps(dict(payload), default=str)))
         if self._pool is None:
             prev = self._rows[-1]["entry_hash"] if self._rows else GENESIS
-            row = {"seq": len(self._rows) + 1, "created_at": created, "signal_id": signal_id, "event": event,
-                   "payload": safe, "prev_hash": prev, "entry_hash": entry_hash(prev, created, signal_id, event, safe)}
+            row = {"seq": len(self._rows) + 1, "signal_id": signal_id, "event": event, "body": body,
+                   "prev_hash": prev, "entry_hash": entry_hash(prev, body)}
             self._rows.append(row)
             return {"status": "ok", "backend": "memory", "entry_hash": row["entry_hash"]}
         try:
@@ -63,12 +66,14 @@ class HashLedger:
                     await conn.execute("SELECT pg_advisory_xact_lock($1)", _LOCK_KEY)
                     prev = await conn.fetchval(
                         "SELECT entry_hash FROM agents.sam_journal_ledger ORDER BY seq DESC LIMIT 1") or GENESIS
-                    digest = entry_hash(prev, created, signal_id, event, safe)
+                    digest = entry_hash(prev, body)
                     await conn.execute(
                         "INSERT INTO agents.sam_journal_ledger "
-                        "(created_at, signal_id, event, payload, prev_hash, entry_hash) "
-                        "VALUES ($1::timestamptz, $2, $3, $4::jsonb, $5, $6)",
-                        datetime.fromisoformat(created), signal_id, event, json.dumps(safe), prev, digest)
+                        "(created_at, signal_id, event, payload, body, prev_hash, entry_hash) "
+                        # body is bound as its own TEXT parameter: reusing one parameter for the
+                        # JSONB copy would make Postgres type it JSONB and store normalised text.
+                        "VALUES ($1::timestamptz, $2, $3, ($4::text::jsonb)->'payload', $5::text, $6, $7)",
+                        datetime.fromisoformat(created), signal_id, event, body, body, prev, digest)
             return {"status": "ok", "backend": "postgres", "entry_hash": digest}
         except Exception as exc:  # noqa: BLE001 - the journal goes on; the gap is logged loudly
             logger.warning("sam_ledger_append_failed", ledger_event=event, error_type=type(exc).__name__)
@@ -79,7 +84,7 @@ class HashLedger:
             return list(self._rows)
         async with self._pool.acquire() as conn:
             records = await conn.fetch(
-                "SELECT seq, created_at, signal_id, event, payload, prev_hash, entry_hash "
+                "SELECT seq, signal_id, event, body, prev_hash, entry_hash "
                 "FROM agents.sam_journal_ledger ORDER BY seq")
         return [dict(r) for r in records]
 

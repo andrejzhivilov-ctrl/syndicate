@@ -52,10 +52,11 @@ def model_signal(payload: Mapping[str, Any]) -> Dict[str, Any]:
 
 
 def daily_guard(equity_start: float, equity_now: float, limit: float = MAX_DAILY_DRAWDOWN) -> Dict[str, Any]:
-    start = _num(equity_start, "equity_start", 0.0, strict_low=True)
-    now = _num(equity_now, "equity_now", 0.0)
-    drawdown = max(0.0, (start - now) / start)
-    return {"drawdown": drawdown, "limit": limit, "blocked": drawdown >= limit}
+    """Decimal arithmetic, so a loss of exactly 2% blocks (binary float would land just below)."""
+    start = Decimal(str(_num(equity_start, "equity_start", 0.0, strict_low=True)))
+    now = Decimal(str(_num(equity_now, "equity_now", 0.0)))
+    drawdown = max(Decimal("0"), (start - now) / start)
+    return {"drawdown": float(drawdown), "limit": limit, "blocked": drawdown >= Decimal(str(limit))}
 
 
 def position_size(signal: Mapping[str, Any], *, equity: float, equity_start_of_day: float, price: float,
@@ -85,6 +86,8 @@ def position_size(signal: Mapping[str, Any], *, equity: float, equity_start_of_d
     if units <= 0:
         return {**base, "status": "blocked", "reason": "below_minimum_lot", "units": 0}
     stop = price - stop_distance if sig["direction"] == "long" else price + stop_distance
+    if stop <= 0:  # a long whose 2xATR stop is at or below zero has no usable stop
+        return {**base, "status": "blocked", "reason": "stop_not_positive", "units": 0}
     return {**base, "status": "ok", "units": units, "entry": price, "stop": stop,
             "risk_amount": units * stop_distance * multiplier, "notional": units * price * multiplier,
             "asset_cap": cap, "limited_by": "asset_cap" if by_cap < by_risk else "risk"}

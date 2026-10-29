@@ -61,9 +61,9 @@ async def cot_positioning(market_code: str, *, transport: Any = None) -> Dict[st
         return _unavailable("cftc.gov", "invalid_market_code")
     data = await _get_json("cftc.gov", COT_URL, transport=transport, params={
         "$limit": 1, "$order": "report_date_as_yyyy_mm_dd DESC", "cftc_contract_market_code": market_code})
-    if isinstance(data, dict):
+    if isinstance(data, dict) and data.get("status") == "unavailable":
         return data
-    if not data or not isinstance(data[0], dict):
+    if not isinstance(data, list) or not data or not isinstance(data[0], dict):
         return _unavailable("cftc.gov", "no_report")
     row = data[0]
     long_nc, short_nc = _int(row.get("noncomm_positions_long_all")), _int(row.get("noncomm_positions_short_all"))
@@ -82,8 +82,8 @@ async def fred_latest(series_id: str, api_key: Optional[str], *, transport: Any 
         "series_id": series_id, "api_key": api_key, "file_type": "json", "sort_order": "desc", "limit": 1})
     if isinstance(data, dict) and data.get("status") == "unavailable":
         return data
-    obs = (data or {}).get("observations") if isinstance(data, dict) else None
-    if not obs or not isinstance(obs[0], dict):
+    obs = data.get("observations") if isinstance(data, dict) else None
+    if not isinstance(obs, list) or not obs or not isinstance(obs[0], dict):
         return _unavailable("fred", "no_observation")
     raw = obs[0].get("value")
     try:
@@ -104,8 +104,9 @@ async def eia_latest(route: str, series: str, api_key: Optional[str], *, transpo
         "sort[0][column]": "period", "sort[0][direction]": "desc", "length": 1})
     if isinstance(data, dict) and data.get("status") == "unavailable":
         return data
-    rows = ((data or {}).get("response") or {}).get("data") if isinstance(data, dict) else None
-    if not rows or not isinstance(rows[0], dict):
+    response = data.get("response") if isinstance(data, dict) else None
+    rows = response.get("data") if isinstance(response, dict) else None
+    if not isinstance(rows, list) or not rows or not isinstance(rows[0], dict):
         return _unavailable("eia", "no_observation")
     try:
         value = float(rows[0].get("value"))
@@ -122,13 +123,14 @@ async def edgar_filings(cik: int, user_agent: Optional[str], *, limit: int = 5,
         return _unavailable("sec.gov", "user_agent_not_configured")
     data = await _get_json("sec.gov", EDGAR_URL.format(cik=int(cik)), transport=transport,
                            headers={"User-Agent": user_agent})
-    recent = ((data or {}).get("filings") or {}).get("recent") if isinstance(data, dict) else None
     if isinstance(data, dict) and data.get("status") == "unavailable":
         return data
+    filings_block = data.get("filings") if isinstance(data, dict) else None
+    recent = filings_block.get("recent") if isinstance(filings_block, dict) else None
     if not isinstance(recent, dict):
         return _unavailable("sec.gov", "no_filings")
-    forms, dates, numbers = (recent.get(k) or [] for k in ("form", "filingDate", "accessionNumber"))
-    if not len(forms) == len(dates) == len(numbers):
+    forms, dates, numbers = (recent.get(k) for k in ("form", "filingDate", "accessionNumber"))
+    if not all(isinstance(x, list) for x in (forms, dates, numbers)) or not len(forms) == len(dates) == len(numbers):
         return _unavailable("sec.gov", "inconsistent_filings")  # never pair a form with another filing's date
     filings: List[Dict[str, Any]] = [
         {"form": f, "date": d, "accession": n}

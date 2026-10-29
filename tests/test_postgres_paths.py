@@ -492,6 +492,32 @@ class TestTradeJournalLiveSql:
         assert not live_pg.scalar(
             "SELECT has_table_privilege('eva_agent', 'agents.sam_journal_ledger', 'UPDATE')")
 
+    def test_ledger_survives_values_postgres_normalises(self, live_pg):
+        """-0.0 and big numbers change form in JSONB; the hash covers the stored text body."""
+        from src.agents.sam.ledger import HashLedger
+
+        signal_id = _tag("SIG")
+
+        async def scenario():
+            memory = await _memory(live_pg)
+            try:
+                ledger = HashLedger(memory.pool)
+                await ledger.append("outcome", signal_id, {"realized_r": -0.0, "big": 1e21, "tiny": 1e-7})
+                return await ledger.verify()
+            finally:
+                await memory.close()
+
+        check = _run(scenario())
+        assert check["intact"] is True, check
+
+    def test_ledger_migration_replays_and_matches_init(self, live_pg):
+        migration = INIT_SQL.parent / "migration_v6_sam_ledger.sql"
+        live_pg.apply_sql_file(migration)
+        live_pg.apply_sql_file(migration)  # idempotent
+        table = re.search(r"CREATE TABLE IF NOT EXISTS agents\.sam_journal_ledger \(.*?\);",
+                          migration.read_text(encoding="utf-8"), re.S).group(0)
+        assert table in INIT_SQL.read_text(encoding="utf-8"), "init.sql and migration v6 must define the same table"
+
     def test_approval_outcome_and_realised_stats(self, live_pg):
         from src.agents.sam.journal import TradeJournal
 

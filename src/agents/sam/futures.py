@@ -40,6 +40,9 @@ def back_adjust(segments: List[Mapping[str, object]]) -> List[float]:
     """
     if not segments:
         return []
+    for seg in segments[:-1]:  # every older contract must say how it rolled, or the gap stays hidden
+        if seg.get("roll_from") is None or seg.get("roll_to") is None:
+            raise ValueError("missing_roll_prices")
     out: List[float] = []
     factor = 1.0
     for seg in reversed(segments):
