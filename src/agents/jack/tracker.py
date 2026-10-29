@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import json
+import math
 import uuid
 from datetime import datetime, timedelta
 
-from src.agents.director_base import DirectorStore, text, utc_now
+from src.agents.director_base import DirectorStore, number, text, utc_now
 
 
 def anti_tilt(records: list[dict]) -> dict:
@@ -67,8 +68,35 @@ def settle(store: DirectorStore, payload: dict) -> dict:
     if record is None:
         raise ValueError("unknown_record")
     pnl = {"win": record["stake"] * (record["odds"] - 1), "loss": -record["stake"], "void": 0}[outcome]
-    return store.transition(record_id, "paper", "open", {"state": "settled", "outcome": outcome,
-                            "pnl": round(pnl, 2), "settled_at": utc_now().isoformat()})
+    updates = {"state": "settled", "outcome": outcome, "pnl": round(pnl, 2), "settled_at": utc_now().isoformat()}
+    if payload.get("closing_odds") is not None:
+        # CLV: the price taken against the margin-free sharp closing price of the same selection.
+        closing = number(payload["closing_odds"], "closing_odds", 1.000001, 10000)
+        updates.update({"closing_odds": closing, "clv": record["odds"] / closing - 1,
+                        "closing_source": text(payload.get("closing_source", "unspecified"), "closing_source", 200)})
+    return store.transition(record_id, "paper", "open", updates)
+
+
+def _clv(settled: list[dict]) -> dict:
+    values = [r["clv"] for r in settled if r.get("clv") is not None]
+    if not values:
+        return {"count": 0, "average": None, "positive_share": None}
+    return {"count": len(values), "average": sum(values) / len(values),
+            "positive_share": sum(v > 0 for v in values) / len(values)}
+
+
+def _calibration(settled: list[dict]) -> dict:
+    """Brier score and log loss of the probabilities Jack bet on (0 is perfect)."""
+    pairs = [(r["signal"]["probability"], 1.0 if r["outcome"] == "win" else 0.0)
+             for r in settled if isinstance(r.get("signal"), dict) and r["signal"].get("probability") is not None]
+    if not pairs:
+        return {"count": 0, "brier": None, "log_loss": None, "mean_predicted": None, "hit_rate": None}
+    eps = 1e-12
+    brier = sum((p - y) ** 2 for p, y in pairs) / len(pairs)
+    log_loss = -sum(y * math.log(max(p, eps)) + (1 - y) * math.log(max(1 - p, eps)) for p, y in pairs) / len(pairs)
+    return {"count": len(pairs), "brier": brier, "log_loss": log_loss,
+            "mean_predicted": sum(p for p, _ in pairs) / len(pairs),
+            "hit_rate": sum(y for _, y in pairs) / len(pairs)}
 
 
 def report(store: DirectorStore) -> dict:
@@ -79,4 +107,6 @@ def report(store: DirectorStore) -> dict:
     return {"status": "ok", "mode": "paper", "recorded": len(records), "settled": len(settled),
             "pnl": round(pnl, 2), "roi": pnl / turnover if turnover else None,
             "win_rate": sum(r["outcome"] == "win" for r in settled) / len(settled) if settled else None,
-            "audit_target": 1000, "sample_complete": len(settled) >= 1000, "anti_tilt": anti_tilt(records)}
+            "audit_target": 1000, "sample_complete": len(settled) >= 1000, "anti_tilt": anti_tilt(records),
+            "clv": _clv(settled), "calibration": _calibration(settled),
+            "stake_rule": "quarter_kelly_capped_per_event_no_progression"}
