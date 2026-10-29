@@ -1,13 +1,19 @@
-"""One-time (idempotent) Garage setup: layout, buckets, keys, grants, quotas, lifecycle.
+"""One-time (idempotent) Garage setup: layout, buckets, keys, grants, quotas, tmp/ expiry.
 
 Run on the server as root after ``docker compose up -d garage``::
 
     python3 tools/garage_setup.py            # dry run: prints the plan
     python3 tools/garage_setup.py --apply    # creates what is missing, stores keys in Vault
 
-Reads GARAGE_ADMIN_TOKEN from /opt/syndicate/.env and the Vault operator token the
-same way ``scripts/syndicate_vault.py`` does. Prints no secret: secret access keys go
-straight to Vault ``agents/<id>/storage`` and are never written to stdout or disk.
+Admin calls go through ``garage json-api`` inside the container, i.e. over
+Garage's own authenticated and encrypted RPC. There is no admin HTTP API and no
+admin token at all, so nothing secret crosses the Docker network in clear text.
+
+Grants are *reconciled*: what an agent must not have (e.g. write on the shared
+bucket) is explicitly denied on every run, not only left out.
+
+Secret access keys go straight to Vault ``agents/<id>/storage`` (operator token,
+as in ``scripts/syndicate_vault.py``) and are never printed or written to disk.
 """
 from __future__ import annotations
 
@@ -15,8 +21,6 @@ import argparse
 import json
 import subprocess
 import sys
-import urllib.error
-import urllib.request
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -34,122 +38,102 @@ from src.agent_storage import (  # noqa: E402
 )
 from src.vault_paths import DIRECTOR_IDS, STORAGE  # noqa: E402
 
-ENV_FILE = Path("/opt/syndicate/.env")
+CONTAINER = "syndicate-garage-1"
 NODE_CAPACITY = 150 * 1024 ** 3  # layout capacity; buckets are capped by quotas
+LIFECYCLE = [
+    {"ID": "tmp-expiry", "Status": "Enabled", "Filter": {"Prefix": TMP_PREFIX}, "Expiration": {"Days": TMP_DAYS}},
+    {"ID": "abort-uploads", "Status": "Enabled", "Filter": {"Prefix": ""},
+     "AbortIncompleteMultipartUpload": {"DaysAfterInitiation": 1}},
+]
 
 
-def _env(name: str) -> str:
-    for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
-        if line.startswith(f"{name}="):
-            return line.split("=", 1)[1].strip().strip('"')
-    raise SystemExit(f"{name} is not set in {ENV_FILE}")
+class GarageError(RuntimeError):
+    pass
 
 
-def _garage_ip() -> str:
-    out = subprocess.run(
-        ["docker", "inspect", "-f", "{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}", "syndicate-garage-1"],
-        check=True, capture_output=True, text=True,
-    ).stdout.split()
-    if not out:
-        raise SystemExit("garage container has no IP: is it running?")
-    return out[0]
+def api(endpoint: str, payload: Optional[Dict[str, Any]] = None) -> Any:
+    """Call the admin API through the CLI's RPC channel; stdout is JSON, logs go to stderr."""
+    proc = subprocess.run(["docker", "exec", "-i", CONTAINER, "/garage", "json-api", endpoint, "-"],
+                          input=json.dumps(payload), capture_output=True, text=True, timeout=60)
+    if proc.returncode != 0:
+        detail = next((line for line in proc.stderr.splitlines() if line.startswith("Error")), "unknown error")
+        raise GarageError(f"{endpoint}: {detail}")
+    return json.loads(proc.stdout) if proc.stdout.strip() else None
 
 
-class Admin:
-    def __init__(self, base: str, token: str) -> None:
-        self.base, self.token = base, token
-
-    def call(self, method: str, path: str, body: Optional[Dict[str, Any]] = None) -> Any:
-        req = urllib.request.Request(f"{self.base}{path}", method=method,
-                                     data=json.dumps(body).encode() if body is not None else None,
-                                     headers={"Authorization": f"Bearer {self.token}",
-                                              "Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            raw = resp.read()
-        return json.loads(raw) if raw else None
-
-
-def ensure_layout(admin: Admin, apply: bool) -> None:
-    layout = admin.call("GET", "/v2/GetClusterLayout")
+def ensure_layout(apply: bool) -> None:
+    layout = api("GetClusterLayout")
     if layout["roles"]:
         print(f"layout: ok (version {layout['version']})")
         return
-    node = admin.call("GET", "/v2/GetClusterStatus")["nodes"][0]["id"]
+    node = api("GetClusterStatus")["nodes"][0]["id"]
     print(f"layout: assign node {node[:12]}… zone dc1, capacity {NODE_CAPACITY // 1024 ** 3} GiB")
     if apply:
-        admin.call("POST", "/v2/UpdateClusterLayout",
-                   {"roles": [{"id": node, "zone": "dc1", "capacity": NODE_CAPACITY, "tags": ["syndicate"]}]})
-        admin.call("POST", "/v2/ApplyClusterLayout", {"version": layout["version"] + 1})
+        api("UpdateClusterLayout", {"roles": [{"id": node, "zone": "dc1", "capacity": NODE_CAPACITY,
+                                               "tags": ["syndicate"]}]})
+        api("ApplyClusterLayout", {"version": layout["version"] + 1})
 
 
-def ensure_bucket(admin: Admin, name: str, quota: int, apply: bool) -> Optional[str]:
+def ensure_bucket(name: str, quota: int, apply: bool) -> Optional[str]:
     try:
-        bucket = admin.call("GET", f"/v2/GetBucketInfo?globalAlias={name}")
+        bucket = api("GetBucketInfo", {"globalAlias": name})
         print(f"bucket {name}: exists")
-    except urllib.error.HTTPError as exc:
-        if exc.code != 404:
+    except GarageError as exc:
+        if "NoSuchBucket" not in str(exc):
             raise
-        print(f"bucket {name}: create, quota {quota // 1024 ** 3} GiB")
+        print(f"bucket {name}: create, quota {quota // 1024 ** 3} GiB, {TMP_PREFIX} expires in {TMP_DAYS} d")
         if not apply:
             return None
-        bucket = admin.call("POST", "/v2/CreateBucket", {"globalAlias": name})
+        bucket = api("CreateBucket", {"globalAlias": name})
     if apply:
-        admin.call("POST", f"/v2/UpdateBucket?id={bucket['id']}", {"quotas": {"maxSize": quota, "maxObjects": None}})
+        api("UpdateBucket", {"id": bucket["id"], "body": {"quotas": {"maxSize": quota, "maxObjects": None},
+                                                          "lifecycleRules": LIFECYCLE}})
     return bucket["id"]
 
 
-def ensure_key(admin: Admin, agent_id: str, apply: bool) -> Optional[Dict[str, Any]]:
+def ensure_key(agent_id: str, apply: bool) -> Optional[Dict[str, Any]]:
     name = bucket_for(agent_id)
-    keys = [k for k in admin.call("GET", "/v2/ListKeys") if k.get("name") == name]
+    keys = [k for k in api("ListKeys") if k.get("name") == name]
     if keys:
         print(f"key {name}: exists")
-        return admin.call("GET", f"/v2/GetKeyInfo?id={keys[0]['id']}&showSecretKey=true")
+        return api("GetKeyInfo", {"id": keys[0]["id"], "showSecretKey": True})
     print(f"key {name}: create")
-    return admin.call("POST", "/v2/CreateKey", {"name": name, "neverExpires": True}) if apply else None
+    return api("CreateKey", {"name": name, "neverExpires": True}) if apply else None
 
 
-def grant(admin: Admin, bucket_id: str, key_id: str, read: bool, write: bool, owner: bool) -> None:
-    admin.call("POST", "/v2/AllowBucketKey", {"bucketId": bucket_id, "accessKeyId": key_id,
-                                              "permissions": {"read": read, "write": write, "owner": owner}})
-
-
-def set_tmp_expiry(key: Dict[str, Any], bucket: str, endpoint: str) -> None:
-    import boto3
-
-    s3 = boto3.client("s3", endpoint_url=endpoint, region_name="garage",
-                      aws_access_key_id=key["accessKeyId"], aws_secret_access_key=key["secretAccessKey"])
-    s3.put_bucket_lifecycle_configuration(Bucket=bucket, LifecycleConfiguration={"Rules": [
-        {"ID": "tmp-expiry", "Status": "Enabled", "Filter": {"Prefix": TMP_PREFIX}, "Expiration": {"Days": TMP_DAYS}},
-        {"ID": "abort-uploads", "Status": "Enabled", "Filter": {"Prefix": ""},
-         "AbortIncompleteMultipartUpload": {"DaysAfterInitiation": 1}},
-    ]})
+def reconcile(bucket_id: str, key_id: str, *, read: bool, write: bool, owner: bool) -> None:
+    """Allow what is wanted and explicitly deny the rest (a rerun also revokes)."""
+    wanted = {"read": read, "write": write, "owner": owner}
+    allow = {k: v for k, v in wanted.items() if v}
+    deny = {k: True for k, v in wanted.items() if not v}
+    if allow:
+        api("AllowBucketKey", {"bucketId": bucket_id, "accessKeyId": key_id, "permissions": allow})
+    if deny:
+        api("DenyBucketKey", {"bucketId": bucket_id, "accessKeyId": key_id, "permissions": deny})
 
 
 def main(argv: List[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--apply", action="store_true", help="create what is missing and store keys in Vault")
     args = parser.parse_args(argv)
-    ip = _garage_ip()
-    admin = Admin(f"http://{ip}:3903", _env("GARAGE_ADMIN_TOKEN"))
-    ensure_layout(admin, args.apply)
-    shared_id = ensure_bucket(admin, SHARED_BUCKET, QUOTA_SHARED_BYTES, args.apply)
+    ensure_layout(args.apply)
+    shared_id = ensure_bucket(SHARED_BUCKET, QUOTA_SHARED_BYTES, args.apply)
     put_secret = None
     if args.apply:
         sys.path.insert(0, str(ROOT / "scripts"))
         from syndicate_vault import put_secret  # type: ignore[no-redef]
     for agent_id in DIRECTOR_IDS:
-        bucket_id = ensure_bucket(admin, bucket_for(agent_id), QUOTA_AGENT_BYTES, args.apply)
-        key = ensure_key(admin, agent_id, args.apply)
+        bucket_id = ensure_bucket(bucket_for(agent_id), QUOTA_AGENT_BYTES, args.apply)
+        key = ensure_key(agent_id, args.apply)
         if not args.apply or key is None or bucket_id is None or shared_id is None:
             continue
         key_id = key["accessKeyId"]
-        grant(admin, bucket_id, key_id, read=True, write=True, owner=True)
-        grant(admin, shared_id, key_id, read=True, write=agent_id in SHARED_WRITERS, owner=False)
-        set_tmp_expiry(key, bucket_for(agent_id), f"http://{ip}:3900")
+        reconcile(bucket_id, key_id, read=True, write=True, owner=False)
+        reconcile(shared_id, key_id, read=True, write=agent_id in SHARED_WRITERS, owner=False)
         put_secret(f"agents/{agent_id}/{STORAGE}",
                    {"access_key_id": key_id, "secret_access_key": key["secretAccessKey"],
                     "bucket": bucket_for(agent_id), "endpoint": "http://garage:3900"})
-        print(f"grants {agent_id}: own rw, shared {'rw' if agent_id in SHARED_WRITERS else 'r'}, tmp/ {TMP_DAYS}d; key in Vault")
+        print(f"grants {agent_id}: own rw, shared {'rw' if agent_id in SHARED_WRITERS else 'r'}; key in Vault")
     print("done" if args.apply else "dry run: nothing changed (use --apply)")
     return 0
 

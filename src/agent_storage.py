@@ -9,8 +9,13 @@ Access model (enforced twice: by the Garage key grants made in
 
 * ``agent-<id>`` — the director's own bucket: read and write with its own key;
 * ``syndicate-shared`` — read for every director, write only for Eva;
-* no delete for agents (deleting needs Andrii's approval); ``tmp/`` expires by
-  itself after ``TMP_DAYS`` days, so scratch files do not pile up.
+* no delete in this client (deleting needs Andrii's approval); ``tmp/`` expires
+  by itself after ``TMP_DAYS`` days, so scratch files do not pile up.
+
+Limit, stated honestly: Garage authorises S3 DeleteObject with plain write
+permission, so whoever holds a director's raw key could delete that director's
+files. Only the runtime reads the keys today. Real protection against deletion
+needs a backup of ``/data/garage`` — not set up yet (docs/HANDOFF.md).
 
 The key lives in Vault at ``agents/<id>/storage``. Without it every call returns
 an honest ``unavailable``; nothing pretends a file was saved.
@@ -91,16 +96,20 @@ class AgentStorage:
             self._client = self._factory(creds)
         return self._client
 
+    def _failed(self, op: str, exc: Exception) -> Dict[str, Any]:
+        response = getattr(exc, "response", None)
+        code = response.get("Error", {}).get("Code") if isinstance(response, dict) else None
+        logger.warning("agent_storage_error", agent=self.agent_id, op=op, code=code, error_type=type(exc).__name__)
+        return _unavailable("storage_error", code=code or type(exc).__name__)
+
     async def _call(self, op: str, **kwargs: Any) -> Dict[str, Any]:
-        client = await self._s3()
-        if client is None:
-            return _unavailable("storage_not_configured", agent=self.agent_id)
-        try:
+        try:  # building the client (endpoint/config from Vault) is inside the boundary too
+            client = await self._s3()
+            if client is None:
+                return _unavailable("storage_not_configured", agent=self.agent_id)
             return {"status": "ok", "response": await asyncio.to_thread(getattr(client, op), **kwargs)}
         except Exception as exc:  # noqa: BLE001 - storage outage must not crash a director
-            code = getattr(exc, "response", {}).get("Error", {}).get("Code") if hasattr(exc, "response") else None
-            logger.warning("agent_storage_error", agent=self.agent_id, op=op, code=code, error_type=type(exc).__name__)
-            return _unavailable("storage_error", code=code or type(exc).__name__)
+            return self._failed(op, exc)
 
     def _bucket(self, shared: bool) -> str:
         return SHARED_BUCKET if shared else bucket_for(self.agent_id)
@@ -126,7 +135,14 @@ class AgentStorage:
         if result["status"] != "ok":
             return result
         body = result["response"]["Body"]
-        data = await asyncio.to_thread(body.read, MAX_OBJECT_BYTES + 1)
+        try:
+            data = await asyncio.to_thread(body.read, MAX_OBJECT_BYTES + 1)
+        except Exception as exc:  # noqa: BLE001 - a broken stream is an outage, not a crash
+            return self._failed("get_object.read", exc)
+        finally:
+            close = getattr(body, "close", None)
+            if callable(close):
+                close()
         if len(data) > MAX_OBJECT_BYTES:
             return {"status": "error", "error": "too_large", "max_bytes": MAX_OBJECT_BYTES}
         return {"status": "ok", "key": key, "data": data,

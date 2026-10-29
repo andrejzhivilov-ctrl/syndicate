@@ -369,7 +369,6 @@ services:
       - ./config/garage/garage.toml:/etc/garage.toml:ro
     environment:
       GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?GARAGE_RPC_SECRET required}
-      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:?GARAGE_ADMIN_TOKEN required}
     healthcheck:
       test: ["CMD", "/garage", "status"]
       interval: 30s

@@ -44,6 +44,22 @@ def test_nbu_rates_are_parsed_and_failures_are_unavailable():
     assert down["status"] == "unavailable" and down["reason"] == "http_503"
 
 
+def test_malformed_sources_degrade_instead_of_crashing():
+    junk = httpx.Response(200, json=[{"cc": "USD", "rate": "n/a"}, {"cc": "EUR", "rate": None}])
+    assert asyncio.run(nbu_rates(transport=_transport({"bank.gov.ua": junk})))["reason"] == "no_rates_in_response"
+    short = httpx.Response(200, json={"current": {}, "hourly": {"time": ["t0", "t1", "t2"], "wind_speed_10m": [1.0]}})
+    data = asyncio.run(weather(50.0, 30.0, transport=_transport({"api.open-meteo.com": short})))
+    assert data["hours"][2]["wind_speed_10m"] is None and data["hours"][0]["wind_speed_10m"] == 1.0
+
+
+def test_an_alert_without_a_region_is_never_reported_as_calm():
+    payload = {"alerts": [{"alert_type": "air_raid", "started_at": "2026-10-29T03:00"}]}
+    vault = _Vault({"secret/data/syndicate/api-keys": {"alerts_in_ua_token": "tok"}})
+    reply = asyncio.run(source_reply("/alerts", vault, transport=_transport(
+        {"api.alerts.in.ua": httpx.Response(200, json=payload)})))
+    assert "немає" not in reply["response"] and "регіон не вказано (1)" in reply["response"]
+
+
 def test_weather_keeps_missing_fields_as_none():
     data = asyncio.run(weather(50.45, 30.52, transport=_transport({"api.open-meteo.com": METEO})))
     assert data["status"] == "ok" and data["current"]["temperature_2m"] == 7.3

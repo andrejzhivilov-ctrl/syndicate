@@ -53,7 +53,13 @@ async def nbu_rates(codes: Iterable[str] = ("USD", "EUR"), *, transport: Any = N
     if not isinstance(rows, list):
         return _unavailable("bank.gov.ua", f"http_{response.status_code}")
     wanted = {c.upper() for c in codes}
-    rates = {r["cc"]: float(r["rate"]) for r in rows if isinstance(r, dict) and r.get("cc") in wanted and r.get("rate")}
+    rates: Dict[str, float] = {}
+    for row in rows:
+        if isinstance(row, dict) and row.get("cc") in wanted:
+            try:
+                rates[row["cc"]] = float(row["rate"])
+            except (KeyError, TypeError, ValueError):
+                continue  # a malformed rate is skipped, never guessed
     if not rates:
         return _unavailable("bank.gov.ua", "no_rates_in_response")
     date = next((r.get("exchangedate") for r in rows if isinstance(r, dict) and r.get("cc") in rates), None)
@@ -73,11 +79,14 @@ async def weather(latitude: float, longitude: float, *, transport: Any = None) -
         return _unavailable("open-meteo.com", "network_error")
     if not isinstance(data, dict) or not isinstance(data.get("current"), dict):
         return _unavailable("open-meteo.com", f"http_{response.status_code}")
-    hourly = data.get("hourly") or {}
-    hours: List[Dict[str, Any]] = [
-        {"time": t, **{k: (hourly.get(k) or [None] * len(hourly.get("time", [])))[i] for k in _HOURLY}}
-        for i, t in enumerate(hourly.get("time", []))
-    ]
+    hourly = data.get("hourly") if isinstance(data.get("hourly"), dict) else {}
+    times = hourly.get("time") if isinstance(hourly.get("time"), list) else []
+
+    def value(key: str, i: int) -> Any:
+        series = hourly.get(key)
+        return series[i] if isinstance(series, list) and i < len(series) else None
+
+    hours: List[Dict[str, Any]] = [{"time": t, **{k: value(k, i) for k in _HOURLY}} for i, t in enumerate(times)]
     return {"status": "ok", "source": "open-meteo.com", "current": {k: data["current"].get(k) for k in _CURRENT},
             "hours": hours}
 
@@ -156,7 +165,11 @@ async def source_reply(command: str, vault: Any, *, transport: Any = None) -> Di
                     else "alerts.in.ua зараз не відповідає.")
             return {**base, **data, "response": text}
         oblasts = sorted({a["oblast"] or a["location"] for a in data["alerts"] if a["oblast"] or a["location"]})
-        text = ("Активних тривог немає." if not oblasts
-                else f"Тривога ({len(oblasts)}): " + ", ".join(oblasts))
+        unnamed = sum(1 for a in data["alerts"] if not (a["oblast"] or a["location"]))
+        if not data["alerts"]:
+            text = "Активних тривог немає."
+        else:  # an alert without a region is still an alert, never "calm"
+            parts = oblasts + ([f"регіон не вказано ({unnamed})"] if unnamed else [])
+            text = f"Тривога ({len(data['alerts'])}): " + ", ".join(parts)
         return {**base, "status": "completed", "response": text + "\nДжерело: alerts.in.ua"}
     return {**base, "status": "error", "error": "unknown_command"}
