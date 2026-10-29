@@ -36,7 +36,23 @@ def load_spec(agent_id: str) -> Optional[Dict[str, Any]]:
     except (OSError, ValueError) as exc:
         logger.warning("agent_spec_unreadable", agent=agent_id, error_type=type(exc).__name__)
         return None
-    return spec if isinstance(spec, dict) and spec.get("agent") == agent_id else None
+    if not (isinstance(spec, dict) and spec.get("agent") == agent_id and _well_formed(spec)):
+        logger.warning("agent_spec_malformed", agent=agent_id)
+        return None
+    return spec
+
+
+def _well_formed(spec: Dict[str, Any]) -> bool:
+    """Every field the readers index is present with the right type (no KeyError at import)."""
+    def records(key: str, fields: Dict[str, type]) -> bool:
+        items = spec.get(key)
+        return isinstance(items, list) and all(
+            isinstance(i, dict) and all(isinstance(i.get(f), t) for f, t in fields.items()) for i in items)
+
+    return (all(isinstance(spec.get(k), str) and spec[k] for k in ("title", "source", "core"))
+            and records("sections", {"id": str, "title": str, "keywords": list, "text": str})
+            and records("schedule", {"cron": str, "name": str, "what": str})
+            and records("integrations", {"name": str, "status": str}))
 
 
 def _missing(spec: Dict[str, Any]) -> List[str]:

@@ -130,46 +130,67 @@ def _fmt(value: Any, unit: str = "") -> str:
     return "немає даних" if value is None else f"{value}{unit}"
 
 
+async def _rates_reply(vault: Any, transport: Any) -> Dict[str, Any]:
+    data = await nbu_rates(transport=transport)
+    if data["status"] != "ok":
+        return {**data, "response": "НБУ зараз не відповідає, курсів немає."}
+    lines = [f"Офіційний курс НБУ на {data['date']}:"] + [f"• {c}: {r:.4f} грн" for c, r in sorted(data["rates"].items())]
+    return {"status": "completed", "response": "\n".join(lines)}
+
+
+async def _weather_reply(vault: Any, transport: Any) -> Dict[str, Any]:
+    loc = await briefing_location(vault)
+    if loc is None:
+        return {"status": "unavailable", "reason": "location_not_set",
+                "response": "Точку для погоди ще не задано (налаштовує Андрій через сховище секретів)."}
+    data = await weather(loc["latitude"], loc["longitude"], transport=transport)
+    if data["status"] != "ok":
+        return {**data, "response": "Сервіс погоди зараз не відповідає."}
+    cur = data["current"]
+    lines = [f"Погода{(' — ' + loc['label']) if loc['label'] else ''} (Open-Meteo):",
+             f"• {_fmt(cur['temperature_2m'], '°C')}, відчувається {_fmt(cur['apparent_temperature'], '°C')}",
+             f"• Тиск {_fmt(cur['pressure_msl'], ' гПа')}, хмарність {_fmt(cur['cloud_cover'], '%')}, "
+             f"видимість {_fmt(cur['visibility'], ' м')}",
+             f"• Вітер {_fmt(cur['wind_speed_10m'], ' м/с')}, пориви {_fmt(cur['wind_gusts_10m'], ' м/с')}"]
+    if data["hours"]:
+        h = data["hours"][min(3, len(data["hours"]) - 1)]
+        lines.append(f"• Через 3 год вітер на ~750/1500/2000 м: {_fmt(h['wind_speed_925hPa'])}/"
+                     f"{_fmt(h['wind_speed_850hPa'])}/{_fmt(h['wind_speed_800hPa'])} м/с")
+    return {"status": "completed", "response": "\n".join(lines)}
+
+
+def _alerts_text(alerts: List[Dict[str, Any]]) -> str:
+    # Air raids only; a record without a type is kept (never turned into "calm").
+    air = [a for a in alerts if a["type"] in ("air_raid", None)]
+    other = len(alerts) - len(air)
+    if not air:
+        text = "Активних повітряних тривог немає."
+    else:  # an alert without a region is still an alert
+        oblasts = sorted({a["oblast"] or a["location"] for a in air if a["oblast"] or a["location"]})
+        unnamed = sum(1 for a in air if not (a["oblast"] or a["location"]))
+        parts = oblasts + ([f"регіон не вказано ({unnamed})"] if unnamed else [])
+        text = f"Повітряна тривога ({len(air)}): " + ", ".join(parts)
+    if other:
+        text += f"\nІнші сповіщення (обстріли, хімічна небезпека тощо): {other}"
+    return text + "\nДжерело: alerts.in.ua"
+
+
+async def _alerts_reply(vault: Any, transport: Any) -> Dict[str, Any]:
+    data = await air_alerts(await alerts_token(vault), transport=transport)
+    if data["status"] != "ok":
+        text = ("Токен alerts.in.ua ще не внесено." if data["reason"] == "token_not_configured"
+                else "alerts.in.ua зараз не відповідає.")
+        return {**data, "response": text}
+    return {"status": "completed", "response": _alerts_text(data["alerts"])}
+
+
+_SOURCE_COMMANDS = {"/rates": _rates_reply, "/weather": _weather_reply, "/alerts": _alerts_reply}
+
+
 async def source_reply(command: str, vault: Any, *, transport: Any = None) -> Dict[str, Any]:
     """/rates, /weather, /alerts — real data or an honest reason, no model call."""
     base = {"mode": "source", "command": command}
-    if command == "/rates":
-        data = await nbu_rates(transport=transport)
-        if data["status"] != "ok":
-            return {**base, **data, "response": "НБУ зараз не відповідає, курсів немає."}
-        lines = [f"Офіційний курс НБУ на {data['date']}:"] + [f"• {c}: {r:.4f} грн" for c, r in sorted(data["rates"].items())]
-        return {**base, "status": "completed", "response": "\n".join(lines)}
-    if command == "/weather":
-        loc = await briefing_location(vault)
-        if loc is None:
-            return {**base, "status": "unavailable", "reason": "location_not_set",
-                    "response": "Точку для погоди ще не задано (налаштовує Андрій через сховище секретів)."}
-        data = await weather(loc["latitude"], loc["longitude"], transport=transport)
-        if data["status"] != "ok":
-            return {**base, **data, "response": "Сервіс погоди зараз не відповідає."}
-        cur = data["current"]
-        lines = [f"Погода{(' — ' + loc['label']) if loc['label'] else ''} (Open-Meteo):",
-                 f"• {_fmt(cur['temperature_2m'], '°C')}, відчувається {_fmt(cur['apparent_temperature'], '°C')}",
-                 f"• Тиск {_fmt(cur['pressure_msl'], ' гПа')}, хмарність {_fmt(cur['cloud_cover'], '%')}, "
-                 f"видимість {_fmt(cur['visibility'], ' м')}",
-                 f"• Вітер {_fmt(cur['wind_speed_10m'], ' м/с')}, пориви {_fmt(cur['wind_gusts_10m'], ' м/с')}"]
-        if data["hours"]:
-            h = data["hours"][min(3, len(data["hours"]) - 1)]
-            lines.append(f"• Через 3 год вітер на ~750/1500/2000 м: {_fmt(h['wind_speed_925hPa'])}/"
-                         f"{_fmt(h['wind_speed_850hPa'])}/{_fmt(h['wind_speed_800hPa'])} м/с")
-        return {**base, "status": "completed", "response": "\n".join(lines)}
-    if command == "/alerts":
-        data = await air_alerts(await alerts_token(vault), transport=transport)
-        if data["status"] != "ok":
-            text = ("Токен alerts.in.ua ще не внесено." if data["reason"] == "token_not_configured"
-                    else "alerts.in.ua зараз не відповідає.")
-            return {**base, **data, "response": text}
-        oblasts = sorted({a["oblast"] or a["location"] for a in data["alerts"] if a["oblast"] or a["location"]})
-        unnamed = sum(1 for a in data["alerts"] if not (a["oblast"] or a["location"]))
-        if not data["alerts"]:
-            text = "Активних тривог немає."
-        else:  # an alert without a region is still an alert, never "calm"
-            parts = oblasts + ([f"регіон не вказано ({unnamed})"] if unnamed else [])
-            text = f"Тривога ({len(data['alerts'])}): " + ", ".join(parts)
-        return {**base, "status": "completed", "response": text + "\nДжерело: alerts.in.ua"}
-    return {**base, "status": "error", "error": "unknown_command"}
+    handler = _SOURCE_COMMANDS.get(command)
+    if handler is None:
+        return {**base, "status": "error", "error": "unknown_command", "available_actions": sorted(_SOURCE_COMMANDS)}
+    return {**base, **await handler(vault, transport)}

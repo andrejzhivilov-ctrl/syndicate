@@ -25,6 +25,19 @@ def test_every_spec_is_complete_and_consistent(agent):
         assert len(job["cron"].split()) == 5 and job["name"].startswith(agent)
 
 
+def test_malformed_spec_is_rejected_not_crashing(monkeypatch, tmp_path):
+    import src.agent_specs as specs
+
+    (tmp_path / "eva.json").write_text('{"agent": "eva"}', encoding="utf-8")
+    monkeypatch.setattr(specs, "SPEC_DIR", tmp_path)
+    specs.load_spec.cache_clear()
+    try:
+        assert specs.load_spec("eva") is None and specs.spec_core("eva") is None
+        assert specs.spec_reply("eva", "")["status"] == "unavailable"
+    finally:
+        specs.load_spec.cache_clear()
+
+
 def test_unknown_or_unsafe_agent_ids_have_no_spec():
     assert load_spec("kira") is None and load_spec("../eva") is None and spec_core("nobody") is None
 

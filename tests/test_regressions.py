@@ -3774,6 +3774,23 @@ class TestDirectorSafetyRegressions:
         assert result["eligible"] is True
         assert result["ev"] == 0.045
 
+    def test_public_sources_degrade_honestly_instead_of_crashing(self):
+        import httpx
+        from src.integrations.public_data import nbu_rates
+
+        junk = httpx.MockTransport(lambda request: httpx.Response(200, json=[{"cc": "USD", "rate": "n/a"}]))
+        result = asyncio.run(nbu_rates(transport=junk))
+        assert result["status"] == "unavailable" and result["reason"] == "no_rates_in_response"
+
+    def test_jack_treats_implausible_ev_as_a_palpable_error_not_value(self):
+        from src.agents.jack.quant import evaluate
+        from datetime import datetime, timezone
+        base = {"decimal_odds": 2, "bankroll": 1000, "observed_at": datetime.now(timezone.utc).isoformat(),
+                "model_source": "regression"}
+        assert evaluate({**base, "probability": 0.7})["reason"] == "suspected_palpable_error_or_stale_line"
+        with pytest.raises(ValueError, match="manual_stake_or_progression_forbidden"):
+            evaluate({**base, "probability": 0.6, "stake": 500})
+
     def test_jack_never_rounds_stake_above_event_cap(self):
         from src.agents.jack.quant import evaluate
         from datetime import datetime, timezone

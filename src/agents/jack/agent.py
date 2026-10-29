@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from src.agents.director_base import DirectorAgent
 from .engines import ENGINES
+from .markets import normalize
 from .quant import evaluate, fair_probabilities
 from .tracker import anti_tilt, record_paper, report, settle
 
@@ -10,7 +11,8 @@ from .tracker import anti_tilt, record_paper, report, settle
 class JackAgent(DirectorAgent):
     AGENT_ID = "jack"
     ACTIONS = {"capabilities": "capabilities", "model": "model", "evaluate": "evaluate",
-               "benchmark": "benchmark", "record_paper": "record_paper", "settle_paper": "settle_paper",
+               "benchmark": "benchmark", "normalize": "normalize",
+               "record_paper": "record_paper", "settle_paper": "settle_paper",
                "report": "report", "scout": "scout", "place_bet": "blocked_external", "alert": "alert"}
 
     def __init__(self, *args, scout=None, **kwargs) -> None:
@@ -31,8 +33,12 @@ class JackAgent(DirectorAgent):
         return evaluate(payload, risk_cap=self.config.get("event_risk_cap", 0.01))
 
     async def benchmark(self, payload: dict) -> dict:
-        return {"status": "ok", "fair_probabilities": fair_probabilities(payload["odds"]),
-                "method": "proportional_vig_removal", "source_mode": "supplied_market"}
+        method = payload.get("method", "shin")
+        return {"status": "ok", "fair_probabilities": fair_probabilities(payload["odds"], method),
+                "method": f"{method}_vig_removal", "source_mode": "supplied_market"}
+
+    async def normalize(self, payload: dict) -> dict:
+        return {"status": "ok", "market": normalize(payload)}
 
     async def record_paper(self, payload: dict) -> dict:
         signal = await self.evaluate(payload)
