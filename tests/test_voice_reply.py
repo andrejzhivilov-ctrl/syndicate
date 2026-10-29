@@ -61,6 +61,23 @@ def test_each_agent_keeps_one_voice_matching_its_gender():
     assert voice_for("eva", []) is None
 
 
+def test_agents_speak_with_the_voices_the_operator_picked():
+    # Respeecher's ua-rt /voices has no gender field: the old gender filter fell
+    # through to a hash over all voices, so agents got arbitrary voices.
+    voices = [{"id": v, "full_name": v} for v in (
+        "olesia-media", "mariia-audiobook", "yevhen-audiobook", "ihoreo-conversation",
+        "oleksandr-commercial", "yevhen-commercial", "dmytro-conversation")]
+    assert voice_for("eva", voices) == "olesia-media"
+    assert voice_for("kira", voices) == "mariia-audiobook"
+    assert voice_for("sam", voices) == "yevhen-audiobook"
+    assert voice_for("trainer", voices) == "ihoreo-conversation"
+    assert voice_for("jack", voices) == "oleksandr-commercial"
+    assert voice_for("fin", voices) == "yevhen-commercial"
+    assert voice_for("oscar", voices) == "yevhen-commercial"
+    # A retired voice still gets a real one, never silence or fake audio.
+    assert voice_for("eva", [{"id": "dmytro-conversation"}]) == "dmytro-conversation"
+
+
 def test_respeecher_uses_the_ukrainian_model_and_never_fakes_audio():
     calls = []
 

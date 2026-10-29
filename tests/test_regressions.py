@@ -4170,3 +4170,12 @@ def test_llm_tier_skips_placeholder_keys_and_falls_over_on_build_errors():
     ])
     assert picked == "client:k2"
     assert _first_ready_llm([("PLACEHOLDER_UPDATE_ME", lambda key: "x", "ok", "fail", {})]) is None
+
+
+def test_voice_assignment_covers_only_known_agents():
+    # Operator-picked Respeecher voices (29.10): a typo in an agent id would
+    # silently fall back to the default voice instead of the chosen one.
+    from src.vault_paths import DIRECTOR_IDS
+    from src.voice_reply import AGENT_VOICES
+
+    assert set(AGENT_VOICES) <= set(DIRECTOR_IDS)
