@@ -185,11 +185,14 @@ def _state(gateway, keys):
     return SimpleNamespace(telegram_gateway=gateway, orchestrator=_Orch(), vault_client=Vault(), respeecher=None)
 
 
-def test_voice_note_gets_transcript_text_reply_and_voice_reply(monkeypatch):
+def test_voice_note_gets_a_text_reply_and_a_voice_reply_only_when_asked(monkeypatch):
+    # Operator 29.10: replies are text by default; a voice answer only on request.
     import agent_runner
 
+    heard = {"text": "Який бюджет?"}
+
     async def fake_transcribe(audio, keys):
-        return "Який бюджет?", "openai"
+        return heard["text"], "openai"
 
     class FakeTTS:
         def __init__(self, key):
@@ -209,6 +212,10 @@ def test_voice_note_gets_transcript_text_reply_and_voice_reply(monkeypatch):
     asyncio.run(agent_runner._telegram_voice(state, "fin", extract_message(_voice_update())))
     assert state.orchestrator.payloads[0]["text"] == "Який бюджет?"
     assert gw.sent == ["🎙 «Який бюджет?»\n\nБюджет — 370 доларів."]
+    assert gw.voices == []
+
+    heard["text"] = "Який бюджет? Відповідай голосом."
+    asyncio.run(agent_runner._telegram_voice(state, "fin", extract_message(_voice_update())))
     assert gw.voices == ["ogg:wav:Бюджет — 370 доларів.".encode()]
 
 
@@ -216,7 +223,7 @@ def test_without_respeecher_key_the_reply_stays_text(monkeypatch):
     import agent_runner
 
     async def fake_transcribe(audio, keys):
-        return "Привіт", "whisper_local"
+        return "Привіт, відповідай голосом", "whisper_local"
 
     monkeypatch.setattr(agent_runner, "transcribe", fake_transcribe)
     gw = _Gateway()
