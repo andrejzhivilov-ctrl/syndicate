@@ -21,6 +21,7 @@ import argparse
 import json
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -61,17 +62,38 @@ def api(endpoint: str, payload: Optional[Dict[str, Any]] = None) -> Any:
     return json.loads(proc.stdout) if proc.stdout.strip() else None
 
 
-def ensure_layout(apply: bool) -> None:
+def wait_healthy(timeout_s: int = 60) -> None:
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        if api("GetClusterHealth").get("status") == "healthy":
+            return
+        time.sleep(2)
+    raise GarageError("cluster did not become healthy after the layout change")
+
+
+def ensure_layout(apply: bool) -> bool:
+    """True when buckets can be queried (a layout exists or was just applied)."""
     layout = api("GetClusterLayout")
     if layout["roles"]:
         print(f"layout: ok (version {layout['version']})")
-        return
+        return True
     node = api("GetClusterStatus")["nodes"][0]["id"]
     print(f"layout: assign node {node[:12]}… zone dc1, capacity {NODE_CAPACITY // 1024 ** 3} GiB")
-    if apply:
-        api("UpdateClusterLayout", {"roles": [{"id": node, "zone": "dc1", "capacity": NODE_CAPACITY,
-                                               "tags": ["syndicate"]}]})
-        api("ApplyClusterLayout", {"version": layout["version"] + 1})
+    if not apply:
+        return False  # a fresh cluster answers nothing about buckets until it has a layout
+    api("UpdateClusterLayout", {"roles": [{"id": node, "zone": "dc1", "capacity": NODE_CAPACITY,
+                                           "tags": ["syndicate"]}]})
+    api("ApplyClusterLayout", {"version": layout["version"] + 1})
+    wait_healthy()
+    return True
+
+
+def plan_fresh_cluster() -> None:
+    for name, quota in [(SHARED_BUCKET, QUOTA_SHARED_BYTES)] + [(bucket_for(a), QUOTA_AGENT_BYTES) for a in DIRECTOR_IDS]:
+        print(f"bucket {name}: create, quota {quota // 1024 ** 3} GiB, {TMP_PREFIX} expires in {TMP_DAYS} d")
+    for agent_id in DIRECTOR_IDS:
+        print(f"key {bucket_for(agent_id)}: create; own rw, shared "
+              f"{'rw' if agent_id in SHARED_WRITERS else 'r'}; key to Vault agents/{agent_id}/{STORAGE}")
 
 
 def ensure_bucket(name: str, quota: int, apply: bool) -> Optional[str]:
@@ -116,7 +138,10 @@ def main(argv: List[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--apply", action="store_true", help="create what is missing and store keys in Vault")
     args = parser.parse_args(argv)
-    ensure_layout(args.apply)
+    if not ensure_layout(args.apply):
+        plan_fresh_cluster()
+        print("dry run: nothing changed (use --apply)")
+        return 0
     shared_id = ensure_bucket(SHARED_BUCKET, QUOTA_SHARED_BYTES, args.apply)
     put_secret = None
     if args.apply:
