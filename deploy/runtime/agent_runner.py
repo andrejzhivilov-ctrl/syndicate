@@ -347,9 +347,7 @@ async def lifespan(app: FastAPI):
         app_state.device_purge_task = asyncio.create_task(_purge_device_tokens())
 
         # 8b'. Obsidian vault ⇄ Garage bucket (the hub for Andrii's PC and phone).
-        sync = obsidian_sync_from_env(app_state.vault_client)
-        if sync is not None:
-            app_state.obsidian_sync_task = asyncio.create_task(sync.loop())
+        _start_obsidian_sync()
 
         # 8c. HITL surface: expose the orchestrator's change-request store and
         #     wire an in-process notifier so the client can be pushed when an
@@ -377,7 +375,19 @@ async def lifespan(app: FastAPI):
     finally:
         logger.info("SYNDICATE agent shutting down...")
         app_state.ready = False
-        await _stop_background_tasks()
+        if app_state.vault_renewal_task is not None:
+            app_state.vault_renewal_task.cancel()
+            with contextlib.suppress(BaseException):
+                await app_state.vault_renewal_task
+        if app_state.device_purge_task is not None:
+            app_state.device_purge_task.cancel()
+            with contextlib.suppress(BaseException):
+                await app_state.device_purge_task
+            # This used to clear ``vault_renewal_task`` instead — a copy-paste
+            # slip that dropped the reference to the wrong task and left the
+            # purge task pointing at an already-cancelled object.
+            app_state.device_purge_task = None
+        await _stop_obsidian_sync()
         if app_state.memory_manager:
             await app_state.memory_manager.close()
         if app_state.embedding_provider:
@@ -388,21 +398,19 @@ async def lifespan(app: FastAPI):
         logger.info("Shutdown complete.")
 
 
-async def _stop_background_tasks() -> None:
-    """Cancel and await the lifespan's background tasks, dropping each one's own reference."""
-    if app_state.vault_renewal_task is not None:
-        app_state.vault_renewal_task.cancel()
+def _start_obsidian_sync() -> None:
+    """Obsidian vault ⇄ Garage bucket, the hub for Andrii's PC and phone (off when not mounted)."""
+    sync = obsidian_sync_from_env(app_state.vault_client)
+    if sync is not None:
+        app_state.obsidian_sync_task = asyncio.create_task(sync.loop())
+
+
+async def _stop_obsidian_sync() -> None:
+    if app_state.obsidian_sync_task is not None:
+        app_state.obsidian_sync_task.cancel()
         with contextlib.suppress(BaseException):
-            await app_state.vault_renewal_task
-    # Each task clears its own field: clearing ``vault_renewal_task`` for the
-    # purge task once left the purge task pointing at a cancelled object.
-    for name in ("device_purge_task", "obsidian_sync_task"):
-        task = getattr(app_state, name)
-        if task is not None:
-            task.cancel()
-            with contextlib.suppress(BaseException):
-                await task
-            setattr(app_state, name, None)
+            await app_state.obsidian_sync_task
+        app_state.obsidian_sync_task = None
 
 
 # ─── FastAPI App ─────────────────────────────────────────────────────────────
