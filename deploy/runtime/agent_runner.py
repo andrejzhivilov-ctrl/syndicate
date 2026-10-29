@@ -60,6 +60,7 @@ from src.telegram_gateway import (  # noqa: E402
     reply_text,
     verify_webhook_secret,
 )
+from src.obsidian_sync import from_env as obsidian_sync_from_env  # noqa: E402
 from src.sensitive import voice_text  # noqa: E402
 from src.voice_reply import (  # noqa: E402
     VOICE_MAX_BYTES,
@@ -123,6 +124,7 @@ class AppState:
     start_time: float = time.time()
     ready: bool = False
     vault_renewal_task: Optional[Any] = None
+    obsidian_sync_task: Optional[Any] = None
 
 
 app_state = AppState()
@@ -344,6 +346,11 @@ async def lifespan(app: FastAPI):
         # 8b. Sweep long-dead device tokens once an hour.
         app_state.device_purge_task = asyncio.create_task(_purge_device_tokens())
 
+        # 8b'. Obsidian vault ⇄ Garage bucket (the hub for Andrii's PC and phone).
+        sync = obsidian_sync_from_env(app_state.vault_client)
+        if sync is not None:
+            app_state.obsidian_sync_task = asyncio.create_task(sync.loop())
+
         # 8c. HITL surface: expose the orchestrator's change-request store and
         #     wire an in-process notifier so the client can be pushed when an
         #     agent proposes a protected change. The store is created inside the
@@ -382,6 +389,11 @@ async def lifespan(app: FastAPI):
             # slip that dropped the reference to the wrong task and left the
             # purge task pointing at an already-cancelled object.
             app_state.device_purge_task = None
+        if app_state.obsidian_sync_task is not None:
+            app_state.obsidian_sync_task.cancel()
+            with contextlib.suppress(BaseException):
+                await app_state.obsidian_sync_task
+            app_state.obsidian_sync_task = None
         if app_state.memory_manager:
             await app_state.memory_manager.close()
         if app_state.embedding_provider:

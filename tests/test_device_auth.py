@@ -453,8 +453,12 @@ class TestProtectedReadSurface:
         config = (REPO_ROOT / "config" / "nginx" / "nginx.conf").read_text(encoding="utf-8")
         assert "syncthing_backend" not in config
         assert "8384" not in config
-        idx = config.index("server_name sync.syndicateholding.com;")
-        assert "return 403;" in config[idx: idx + 120]
+        # Operator 29.10: sync.* now serves only Garage's S3 API (SigV4-signed,
+        # obsidian-devices key) for Remotely Save; nothing else is proxied there.
+        start = config.index("server_name sync.syndicateholding.com;")
+        block = config[start: config.index("\n    }\n", start)]
+        assert re.findall(r"proxy_pass\s+(\S+);", block) == ["http://garage:3900"]
+        assert "proxy_set_header Host $host;" in block
 
 
 # ─────────────────────────────────────────────────────────────────────────────

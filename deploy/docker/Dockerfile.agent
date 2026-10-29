@@ -18,8 +18,19 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # ffmpeg is required by the Content Factory (video compositing, silence
 # generation, duration probing).
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg wget ca-certificates fonts-dejavu-core \
+    && apt-get install -y --no-install-recommends ffmpeg wget ca-certificates fonts-dejavu-core unzip \
     && rm -rf /var/lib/apt/lists/*
+
+# rclone bisync keeps the Obsidian vault and the Garage bucket in step
+# (src/obsidian_sync.py). Pinned release, verified against its SHA256SUMS.
+ARG RCLONE_VERSION=v1.75.2
+ARG RCLONE_SHA256=349ac8fba6ff65d6247043f1750cdcb518ec5d500ef91463a10d37c0ccdf3702
+RUN wget -q -O /tmp/rclone.zip "https://downloads.rclone.org/${RCLONE_VERSION}/rclone-${RCLONE_VERSION}-linux-amd64.zip" \
+    && echo "${RCLONE_SHA256}  /tmp/rclone.zip" | sha256sum -c - \
+    && unzip -q -j /tmp/rclone.zip "rclone-${RCLONE_VERSION}-linux-amd64/rclone" -d /usr/local/bin \
+    && chmod 0755 /usr/local/bin/rclone \
+    && rm /tmp/rclone.zip \
+    && rclone version | head -1
 
 WORKDIR /app
 
