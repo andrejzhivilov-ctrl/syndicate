@@ -151,7 +151,7 @@ async def wav_to_ogg_opus(wav: bytes) -> Optional[bytes]:
 #: Replies are text by default (operator, 29.10); the owner asks for a voice answer
 #: in words: "відповідай голосом", "скажи голосом", "озвуч", "voice on".
 _VOICE_REQUEST = re.compile(
-    r"(голосом|голосове|озвуч|\bvoice\s*on\b|\bвойс\b)",
+    r"(голосом|голосов\w*|озвуч|\bvoice\s*on\b|\bвойс\b)",
     re.IGNORECASE,
 )
 
@@ -195,14 +195,17 @@ PRONUNCIATION: Dict[str, str] = {
     "VPN": "ві-пі-ен",
     "OK": "окей",
 }
+_PRONUNCIATION_BY_KEY = {k.casefold(): v for k, v in PRONUNCIATION.items()}
+# Built only from the fixed dictionary keys above (escaped), never from user input.
 _PRONUNCIATION_RE = re.compile(
-    r"(?<![\w-])(" + "|".join(re.escape(k) for k in sorted(PRONUNCIATION, key=len, reverse=True)) + r")(?![\w-])"
+    r"(?<![\w-])(" + "|".join(re.escape(k) for k in sorted(PRONUNCIATION, key=len, reverse=True)) + r")(?![\w-])",
+    re.IGNORECASE,
 )
 
 
 def pronounceable(text: str) -> str:
-    """Spell English terms the way the Ukrainian voice should say them."""
-    return _PRONUNCIATION_RE.sub(lambda m: PRONUNCIATION[m.group(1)], text)
+    """Spell English terms the way the Ukrainian voice should say them, whatever their case."""
+    return _PRONUNCIATION_RE.sub(lambda m: _PRONUNCIATION_BY_KEY[m.group(1).casefold()], text)
 
 
 def spoken_text(reply: str) -> str:

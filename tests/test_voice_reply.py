@@ -88,7 +88,8 @@ def test_agents_speak_with_the_voices_the_operator_picked():
 
 def test_replies_are_text_unless_the_owner_asks_for_voice():
     for asked in ("Відповідай мені голосом, що по системі?", "скажи голосом погоду", "озвуч звіт",
-                  "Voice on, будь ласка", "Голосове повідомлення чекаю"):
+                  "Voice on, будь ласка", "Голосове повідомлення чекаю",
+                  "Відповідай голосовим повідомленням", "дай голосову відповідь"):
         assert wants_voice(asked), asked
     for plain in ("Що по системі?", "Запиши ідею про голосування", "", "покажи звіт"):
         assert not wants_voice(plain), plain
@@ -98,6 +99,7 @@ def test_english_terms_are_spelled_for_the_ukrainian_voice():
     spoken = spoken_text("Звіт у Obsidian і Google Drive, API працює, CI зелений, OKR не чіпаємо.")
     assert "Обсідіан" in spoken and "Ґуґл Драйв" in spoken and "ей-пі-ай" in spoken and "сі-ай" in spoken
     assert "OKR" in spoken  # not in the dictionary: left as is, never guessed
+    assert pronounceable("obsidian, api і N8N") == "Обсідіан, ей-пі-ай і ен-ейт-ен"  # any case
     assert pronounceable("APIs і n8n-флоу") == "APIs і n8n-флоу"  # only whole words
 
 
