@@ -97,8 +97,10 @@ services:
       - /data/obsidian_vault:/data/Second_Brain
       - /data/syncthing_config:/config
     environment:
-      - PUID=1000
-      - PGID=1000
+      # 1001 = the host user owning /data/obsidian_vault and eva-agent's uid, so
+      # synced notes and the ones Eva writes stay editable on both sides.
+      - PUID=1001
+      - PGID=1001
       - TZ=Europe/Kyiv
     ports:
       # Sync protocol: bind to the server's Tailscale IP (SYNCTHING_BIND_IP=100.x.y.z).
