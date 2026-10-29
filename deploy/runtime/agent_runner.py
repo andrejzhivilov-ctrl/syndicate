@@ -377,23 +377,7 @@ async def lifespan(app: FastAPI):
     finally:
         logger.info("SYNDICATE agent shutting down...")
         app_state.ready = False
-        if app_state.vault_renewal_task is not None:
-            app_state.vault_renewal_task.cancel()
-            with contextlib.suppress(BaseException):
-                await app_state.vault_renewal_task
-        if app_state.device_purge_task is not None:
-            app_state.device_purge_task.cancel()
-            with contextlib.suppress(BaseException):
-                await app_state.device_purge_task
-            # This used to clear ``vault_renewal_task`` instead — a copy-paste
-            # slip that dropped the reference to the wrong task and left the
-            # purge task pointing at an already-cancelled object.
-            app_state.device_purge_task = None
-        if app_state.obsidian_sync_task is not None:
-            app_state.obsidian_sync_task.cancel()
-            with contextlib.suppress(BaseException):
-                await app_state.obsidian_sync_task
-            app_state.obsidian_sync_task = None
+        await _stop_background_tasks()
         if app_state.memory_manager:
             await app_state.memory_manager.close()
         if app_state.embedding_provider:
@@ -402,6 +386,23 @@ async def lifespan(app: FastAPI):
             await app_state.vault_client.revoke_token()
             await app_state.vault_client.aclose()
         logger.info("Shutdown complete.")
+
+
+async def _stop_background_tasks() -> None:
+    """Cancel and await the lifespan's background tasks, dropping each one's own reference."""
+    if app_state.vault_renewal_task is not None:
+        app_state.vault_renewal_task.cancel()
+        with contextlib.suppress(BaseException):
+            await app_state.vault_renewal_task
+    # Each task clears its own field: clearing ``vault_renewal_task`` for the
+    # purge task once left the purge task pointing at a cancelled object.
+    for name in ("device_purge_task", "obsidian_sync_task"):
+        task = getattr(app_state, name)
+        if task is not None:
+            task.cancel()
+            with contextlib.suppress(BaseException):
+                await task
+            setattr(app_state, name, None)
 
 
 # ─── FastAPI App ─────────────────────────────────────────────────────────────

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib
+import re
 import sys
 from pathlib import Path
 
