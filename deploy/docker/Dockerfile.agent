@@ -41,6 +41,8 @@ COPY static/cockpit.html /app/cockpit.html
 # src/agent_platform/*). Without them Eva failed closed on every Telegram
 # message with "eva_manifest_unavailable".
 COPY config/agents /app/config/agents
+# Operator-approved director regulations (src/agent_specs.py).
+COPY config/agent_specs /app/config/agent_specs
 COPY config/syndicate_command_hub.json config/skill_library.json config/knowledge_pool_catalog.json \
      config/knowledge_source_registry.json config/knowledge_reference_registry.json \
      config/prompt_pool_registry.json config/skill_pool_registry.json config/pool_access.json /app/config/

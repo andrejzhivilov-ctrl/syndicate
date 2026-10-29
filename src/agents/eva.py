@@ -12,6 +12,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from src.agents.eva_access import eva_memory_namespace_allowed
 from src.agents.eva_curator import EvaCurator
+from src.agent_specs import spec_core, spec_reference
 from src.agents.eva_memory_policy import EvaMemoryPolicy, MemoryDisposition
 from src.memory_commands import execute_command, parse_command
 from src.floors import active_floors, reserved_floors
@@ -20,6 +21,8 @@ logger = structlog.get_logger(__name__)
 
 _PROMPT_PATH = Path(__file__).with_name("eva_runtime_prompt.md")
 EVA_SYSTEM_PROMPT = _PROMPT_PATH.read_text(encoding="utf-8")
+if spec_core("eva"):  # operator-approved regulation (config/agent_specs/eva.json)
+    EVA_SYSTEM_PROMPT = f"{EVA_SYSTEM_PROMPT}\n\n{spec_core('eva')}"
 
 
 #: Дані, без яких вечірня рефлексія не оцінює день (звітує відсутність, не вердикт).
@@ -171,8 +174,11 @@ class EvaAgent:
 
         memory = await self._recall()
         system_prompt = EVA_SYSTEM_PROMPT
+        regulation = spec_reference(self.AGENT_ID, user_message)
+        if regulation:
+            system_prompt = f"{system_prompt}\n\nДовідка з твого регламенту:\n{regulation}"
         if memory["text"]:
-            system_prompt = f"{EVA_SYSTEM_PROMPT}\n\n{memory['text']}"
+            system_prompt = f"{system_prompt}\n\n{memory['text']}"
 
         messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_message)]
         resp = await self._llm.ainvoke(messages)
