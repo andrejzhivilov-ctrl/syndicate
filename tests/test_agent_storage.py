@@ -183,5 +183,19 @@ def test_setup_dry_run_on_a_fresh_cluster_changes_nothing(monkeypatch, capsys):
     assert "bucket agent-fin: create" in out and "dry run" in out
 
 
+def test_apply_waits_for_health_even_when_the_layout_already_exists(monkeypatch):
+    import tools.garage_setup as setup
+
+    calls = []
+
+    def fake_api(endpoint, payload=None):
+        calls.append(endpoint)
+        return {"GetClusterLayout": {"roles": [{"id": "n"}], "version": 1},
+                "GetClusterHealth": {"status": "healthy"}}[endpoint]
+
+    monkeypatch.setattr(setup, "api", fake_api)
+    assert setup.ensure_layout(apply=True) is True and calls == ["GetClusterLayout", "GetClusterHealth"]
+
+
 def test_bucket_names_are_per_director():
     assert bucket_for("jack") == "agent-jack"

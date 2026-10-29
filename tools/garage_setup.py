@@ -76,6 +76,8 @@ def ensure_layout(apply: bool) -> bool:
     layout = api("GetClusterLayout")
     if layout["roles"]:
         print(f"layout: ok (version {layout['version']})")
+        if apply:  # a previous run may have stopped right after applying it
+            wait_healthy()
         return True
     node = api("GetClusterStatus")["nodes"][0]["id"]
     print(f"layout: assign node {node[:12]}… zone dc1, capacity {NODE_CAPACITY // 1024 ** 3} GiB")
