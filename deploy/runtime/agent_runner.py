@@ -67,6 +67,7 @@ from src.voice_reply import (  # noqa: E402
     RespeecherTTS,
     spoken_text,
     transcribe,
+    wants_voice,
     wav_to_ogg_opus,
 )
 from src.agent_platform.director_client import build_director_clients  # noqa: E402
@@ -1234,6 +1235,11 @@ async def telegram_webhook(
         return {"ok": True}
     text = await _telegram_reply(state, agent_id, message, message["text"])
     await gateway.send(agent_id, message["chat_id"], text)
+    if wants_voice(message["text"]):
+        # Synthesis can outlast Telegram's webhook wait, like a voice note.
+        task = asyncio.create_task(_voice_on_request(state, agent_id, message["chat_id"], message["text"], text))
+        _VOICE_TASKS.add(task)
+        task.add_done_callback(_VOICE_TASKS.discard)
     return {"ok": True}
 
 
@@ -1276,10 +1282,20 @@ async def _telegram_voice(state: AppState, agent_id: str, message: Dict[str, Any
         logger.info("telegram_voice_transcribed", agent_id=agent_id, provider=provider)
         reply = await _telegram_reply(state, agent_id, message, heard)
         await gateway.send(agent_id, chat_id, f"🎙 «{heard[:300]}»\n\n{reply}")
-        await _voice_answer(state, agent_id, chat_id, heard, reply, keys)
+        # Text by default (operator, 29.10): voice only when the note asks for it.
+        if wants_voice(heard):
+            await _voice_answer(state, agent_id, chat_id, heard, reply, keys)
     except Exception as exc:  # noqa: BLE001 - a background task must not die silently
         logger.error("telegram_voice_failed", agent_id=agent_id, error_type=type(exc).__name__)
         await gateway.send(agent_id, chat_id, f"⛔ [{agent_id}] не вдалося обробити голосове.")
+
+
+async def _voice_on_request(state: AppState, agent_id: str, chat_id: str, asked: str, reply: str) -> None:
+    """A typed message asked for a spoken answer: voice the reply already sent as text."""
+    try:
+        await _voice_answer(state, agent_id, chat_id, asked, reply, await _voice_keys(state))
+    except Exception as exc:  # noqa: BLE001 - the text answer is already delivered
+        logger.warning("telegram_voice_on_request_failed", agent_id=agent_id, error_type=type(exc).__name__)
 
 
 async def _voice_keys(state: AppState) -> Dict[str, Any]:

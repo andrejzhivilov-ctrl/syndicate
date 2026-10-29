@@ -8,7 +8,15 @@ from types import SimpleNamespace
 import httpx
 
 from src.telegram_gateway import TelegramGateway, extract_message
-from src.voice_reply import TTS_MAX_CHARS, RespeecherTTS, spoken_text, transcribe, voice_for
+from src.voice_reply import (
+    TTS_MAX_CHARS,
+    RespeecherTTS,
+    pronounceable,
+    spoken_text,
+    transcribe,
+    voice_for,
+    wants_voice,
+)
 
 OWNER = "523"
 
@@ -76,6 +84,21 @@ def test_agents_speak_with_the_voices_the_operator_picked():
     assert voice_for("oscar", voices) == "yevhen-commercial"
     # A retired voice still gets a real one, never silence or fake audio.
     assert voice_for("eva", [{"id": "dmytro-conversation"}]) == "dmytro-conversation"
+
+
+def test_replies_are_text_unless_the_owner_asks_for_voice():
+    for asked in ("Відповідай мені голосом, що по системі?", "скажи голосом погоду", "озвуч звіт",
+                  "Voice on, будь ласка", "Голосове повідомлення чекаю"):
+        assert wants_voice(asked), asked
+    for plain in ("Що по системі?", "Запиши ідею про голосування", "", "покажи звіт"):
+        assert not wants_voice(plain), plain
+
+
+def test_english_terms_are_spelled_for_the_ukrainian_voice():
+    spoken = spoken_text("Звіт у Obsidian і Google Drive, API працює, CI зелений, OKR не чіпаємо.")
+    assert "Обсідіан" in spoken and "Ґуґл Драйв" in spoken and "ей-пі-ай" in spoken and "сі-ай" in spoken
+    assert "OKR" in spoken  # not in the dictionary: left as is, never guessed
+    assert pronounceable("APIs і n8n-флоу") == "APIs і n8n-флоу"  # only whole words
 
 
 def test_respeecher_uses_the_ukrainian_model_and_never_fakes_audio():
