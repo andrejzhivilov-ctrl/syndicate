@@ -96,6 +96,8 @@ PROVIDER_KEYS = {
     "fred": ("fred_api_key",),
     "eia": ("eia_api_key",),
     "edgar": ("sec_user_agent",),
+    # n8n public API key: Eva and the architect build and read workflows through it.
+    "n8n": ("n8n_api_key",),
 }
 
 

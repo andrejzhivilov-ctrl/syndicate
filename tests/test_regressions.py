@@ -4179,3 +4179,19 @@ def test_voice_assignment_covers_only_known_agents():
     from src.voice_reply import AGENT_VOICES
 
     assert set(AGENT_VOICES) <= set(DIRECTOR_IDS)
+
+
+def test_eva_and_syncthing_share_the_obsidian_vault_as_one_user():
+    # Syncthing ran as uid 1000 while /data/obsidian_vault and eva-agent are 1001:
+    # nothing could be written, so the Second Brain stayed empty on every device.
+    import yaml
+
+    main = yaml.safe_load((REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
+    voice = yaml.safe_load((REPO_ROOT / "deploy" / "docker-compose.voice.yml").read_text(encoding="utf-8"))
+    eva = main["services"]["eva-agent"]
+    sync = voice["services"]["obsidian-syncthing"]
+    assert eva["user"] == "1001:1001"
+    assert "/data/obsidian_vault:/data/obsidian" in eva["volumes"]
+    assert eva["environment"]["OBSIDIAN_VAULT_DIR"] == "/data/obsidian"
+    assert {"PUID=1001", "PGID=1001"} <= set(sync["environment"])
+    assert "/data/obsidian_vault:/data/Second_Brain" in sync["volumes"]
