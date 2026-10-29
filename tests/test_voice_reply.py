@@ -8,7 +8,15 @@ from types import SimpleNamespace
 import httpx
 
 from src.telegram_gateway import TelegramGateway, extract_message
-from src.voice_reply import TTS_MAX_CHARS, RespeecherTTS, spoken_text, transcribe, voice_for
+from src.voice_reply import (
+    TTS_MAX_CHARS,
+    RespeecherTTS,
+    pronounceable,
+    spoken_text,
+    transcribe,
+    voice_for,
+    wants_voice,
+)
 
 OWNER = "523"
 
@@ -76,6 +84,23 @@ def test_agents_speak_with_the_voices_the_operator_picked():
     assert voice_for("oscar", voices) == "yevhen-commercial"
     # A retired voice still gets a real one, never silence or fake audio.
     assert voice_for("eva", [{"id": "dmytro-conversation"}]) == "dmytro-conversation"
+
+
+def test_replies_are_text_unless_the_owner_asks_for_voice():
+    for asked in ("Відповідай мені голосом, що по системі?", "скажи голосом погоду", "озвуч звіт",
+                  "Voice on, будь ласка", "Голосове повідомлення чекаю",
+                  "Відповідай голосовим повідомленням", "дай голосову відповідь"):
+        assert wants_voice(asked), asked
+    for plain in ("Що по системі?", "Запиши ідею про голосування", "", "покажи звіт"):
+        assert not wants_voice(plain), plain
+
+
+def test_english_terms_are_spelled_for_the_ukrainian_voice():
+    spoken = spoken_text("Звіт у Obsidian і Google Drive, API працює, CI зелений, OKR не чіпаємо.")
+    assert "Обсідіан" in spoken and "Ґуґл Драйв" in spoken and "ей-пі-ай" in spoken and "сі-ай" in spoken
+    assert "OKR" in spoken  # not in the dictionary: left as is, never guessed
+    assert pronounceable("obsidian, api і N8N") == "Обсідіан, ей-пі-ай і ен-ейт-ен"  # any case
+    assert pronounceable("APIs і n8n-флоу") == "APIs і n8n-флоу"  # only whole words
 
 
 def test_respeecher_uses_the_ukrainian_model_and_never_fakes_audio():
@@ -162,11 +187,14 @@ def _state(gateway, keys):
     return SimpleNamespace(telegram_gateway=gateway, orchestrator=_Orch(), vault_client=Vault(), respeecher=None)
 
 
-def test_voice_note_gets_transcript_text_reply_and_voice_reply(monkeypatch):
+def test_voice_note_gets_a_text_reply_and_a_voice_reply_only_when_asked(monkeypatch):
+    # Operator 29.10: replies are text by default; a voice answer only on request.
     import agent_runner
 
+    heard = {"text": "Який бюджет?"}
+
     async def fake_transcribe(audio, keys):
-        return "Який бюджет?", "openai"
+        return heard["text"], "openai"
 
     class FakeTTS:
         def __init__(self, key):
@@ -186,6 +214,10 @@ def test_voice_note_gets_transcript_text_reply_and_voice_reply(monkeypatch):
     asyncio.run(agent_runner._telegram_voice(state, "fin", extract_message(_voice_update())))
     assert state.orchestrator.payloads[0]["text"] == "Який бюджет?"
     assert gw.sent == ["🎙 «Який бюджет?»\n\nБюджет — 370 доларів."]
+    assert gw.voices == []
+
+    heard["text"] = "Який бюджет? Відповідай голосом."
+    asyncio.run(agent_runner._telegram_voice(state, "fin", extract_message(_voice_update())))
     assert gw.voices == ["ogg:wav:Бюджет — 370 доларів.".encode()]
 
 
@@ -193,7 +225,7 @@ def test_without_respeecher_key_the_reply_stays_text(monkeypatch):
     import agent_runner
 
     async def fake_transcribe(audio, keys):
-        return "Привіт", "whisper_local"
+        return "Привіт, відповідай голосом", "whisper_local"
 
     monkeypatch.setattr(agent_runner, "transcribe", fake_transcribe)
     gw = _Gateway()

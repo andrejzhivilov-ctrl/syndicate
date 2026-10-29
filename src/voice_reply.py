@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import re
 from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
@@ -147,9 +148,69 @@ async def wav_to_ogg_opus(wav: bytes) -> Optional[bytes]:
     return out
 
 
+#: Replies are text by default (operator, 29.10); the owner asks for a voice answer
+#: in words: "відповідай голосом", "скажи голосом", "озвуч", "voice on".
+_VOICE_REQUEST = re.compile(
+    r"(голосом|голосов\w*|озвуч|\bvoice\s*on\b|\bвойс\b)",
+    re.IGNORECASE,
+)
+
+
+def wants_voice(text: str) -> bool:
+    """True when the owner explicitly asked for a spoken answer in this message."""
+    return bool(text) and bool(_VOICE_REQUEST.search(text))
+
+
+#: How Respeecher's Ukrainian model should read English terms it otherwise mangles.
+#: Keys are matched as whole words; longer phrases first so "Google Drive" wins over "Google".
+PRONUNCIATION: Dict[str, str] = {
+    "Google Drive": "Ґуґл Драйв",
+    "Google": "Ґуґл",
+    "Obsidian": "Обсідіан",
+    "Telegram": "Телеграм",
+    "YouTube": "Ютуб",
+    "GitHub": "Ґітхаб",
+    "OpenAI": "Оупен Ей Ай",
+    "OpenRouter": "Оупен Раутер",
+    "Respeecher": "Ріспічер",
+    "Anthropic": "Антропік",
+    "Claude": "Клод",
+    "Gemini": "Джеміні",
+    "Grok": "Ґрок",
+    "Perplexity": "Перплексіті",
+    "Antigravity": "Антіґревіті",
+    "n8n": "ен-ейт-ен",
+    "Bitcoin": "біткоїн",
+    "Ethereum": "етеріум",
+    "USDT": "ю-ес-ді-ті",
+    "P2P": "пі-ту-пі",
+    "Brent": "Брент",
+    "API": "ей-пі-ай",
+    "AI": "ей-ай",
+    "PDF": "пі-ді-еф",
+    "CI": "сі-ай",
+    "PR": "пі-ар",
+    "LLM": "ел-ел-ем",
+    "MCP": "ем-сі-пі",
+    "VPN": "ві-пі-ен",
+    "OK": "окей",
+}
+_PRONUNCIATION_BY_KEY = {k.casefold(): v for k, v in PRONUNCIATION.items()}
+# Built only from the fixed dictionary keys above (escaped), never from user input.
+_PRONUNCIATION_RE = re.compile(
+    r"(?<![\w-])(" + "|".join(re.escape(k) for k in sorted(PRONUNCIATION, key=len, reverse=True)) + r")(?![\w-])",
+    re.IGNORECASE,
+)
+
+
+def pronounceable(text: str) -> str:
+    """Spell English terms the way the Ukrainian voice should say them, whatever their case."""
+    return _PRONUNCIATION_RE.sub(lambda m: _PRONUNCIATION_BY_KEY[m.group(1).casefold()], text)
+
+
 def spoken_text(reply: str) -> str:
     """What gets voiced: the reply without the transcript echo, capped for cost."""
-    text = reply.strip()
+    text = pronounceable(reply.strip())
     if len(text) > TTS_MAX_CHARS:
         tail = "… Повний текст — у повідомленні вище."
         text = text[: TTS_MAX_CHARS - len(tail)].rsplit(" ", 1)[0] + tail
