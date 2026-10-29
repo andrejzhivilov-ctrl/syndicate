@@ -30,6 +30,7 @@ REDIS = "redis"            # Redis: password
 AUTH = "auth"              # Agent API: api_key, webhook_secret
 API_KEYS = "api-keys"      # LLM provider keys
 AGENTS = "agents"          # Per-agent secrets: agents/<agent_id>/<name>
+STORAGE = "storage"        # agents/<agent_id>/storage: that director's Garage key (own subtree)
 
 #: Secrets every process needs just to boot (runtime + any future per-agent
 #: container). ``auth`` is deliberately **not** here: that is the server's own

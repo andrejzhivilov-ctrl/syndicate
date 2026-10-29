@@ -1820,6 +1820,14 @@ class EvaOrchestrator:
         owner = await self._telegram_owner_id()
         if not owner or extract_telegram_chat_id(payload) != owner:
             result: Dict[str, Any] = {"agent": agent_id, "status": "denied", "error": "telegram_inbound_denied"}
+        elif command is not None and command[0] == "/files":
+            from src.agent_storage import AgentStorage, files_reply
+
+            result = await files_reply(agent_id, command[1], AgentStorage(agent_id, self._vault_client))
+        elif command is not None and command[0] in {"/rates", "/weather", "/alerts"}:
+            from src.integrations.public_data import source_reply
+
+            result = {"agent": agent_id, **await source_reply(command[0], self._vault_client)}
         elif command is not None:
             from src.agent_chat import pool_reply
 

@@ -4,6 +4,7 @@
 # - Mounted 01-init.sql, 02-migration_v4.sql and 03-migration_v5 (embedding dimension) into Postgres initialization
 # - Pinned n8n image (1.68.0) on its own subdomain (N8N_PATH=/), disabled executeCommand/ssh nodes
 # - Unified Nginx certificate mount (/data/nginx-certs:/etc/nginx/certs) with automatic self-signed bootstrap
+# - Garage v2.4.1 for the directors' working files: internal S3, bucket and key per director
 
 networks:
   db_net:
@@ -68,6 +69,18 @@ volumes:
       type: none
       o: bind
       device: ${DATA_ROOT:-/data}/eva
+  garage_meta:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_ROOT:-/data}/garage/meta
+  garage_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_ROOT:-/data}/garage/data
 
 services:
   postgres:
@@ -338,6 +351,35 @@ services:
       timeout: 10s
       retries: 3
       start_period: 120s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  garage:
+    # Directors' working files (S3). Internal only: no published port, no nginx
+    # route. Each director has its own bucket and key (Vault agents/<id>/storage).
+    image: dxflrs/garage:v2.4.1
+    restart: unless-stopped
+    networks:
+      - backend
+    volumes:
+      - garage_meta:/var/lib/garage/meta
+      - garage_data:/var/lib/garage/data
+      - ./config/garage/garage.toml:/etc/garage.toml:ro
+    environment:
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?GARAGE_RPC_SECRET required}
+    healthcheck:
+      test: ["CMD", "/garage", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "1.0"
     security_opt:
       - no-new-privileges:true
     cap_drop:
