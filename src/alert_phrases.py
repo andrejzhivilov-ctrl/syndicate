@@ -1,11 +1,12 @@
-"""Eva's air-raid notifications: the operator's own phrase bank (29.10), never the same twice in a row.
+"""Air-raid notifications from the operator's own phrase bank (29.10), never the same twice in a row.
 
 alerts.in.ua ``/v2/iot/active_air_raid_alerts/{uid}.json`` returns one character per
 location: ``R`` red (direct danger), ``Y`` yellow (preliminary threat), ``P`` alert in
-part of the region, ``N`` no alert. ``message_for`` turns a change of that character
-into one phrase; the all-clear depends on the highest level seen during the alert.
-Anything else (an unknown character, a missing reading) gives no message: Eva never
-announces an alert or an all-clear she did not observe.
+part of the region, ``N`` no alert. ``AlertTracker.update`` turns every change of level
+(alert, yellow↔red, all-clear) into one phrase; the all-clear depends on the highest
+level seen during the alert.
+Anything else (an unknown character, a missing reading) gives no message: the bot never
+announces an alert or an all-clear it did not observe.
 """
 from __future__ import annotations
 
@@ -61,6 +62,38 @@ CLEAR_AFTER_YELLOW: Sequence[str] = (
     "Відбій: двіж на болотах стих. Капці можна відсунути, все спокійно.",
 )
 
+#: Yellow escalated to red during the same alert.
+ESCALATE_TO_RED: Sequence[str] = (
+    "Жовтий переріс у червоний! Ваньки перейшли від чухання до запусків — бігом за дві стіни.",
+    "Півні дочухалися й таки пустили залізяччя. Червоний рівень, всі в укриття!",
+    "Підвищуємо ставки: було жовто, стало червоно. Чайок лишаємо, самі — в коридор.",
+    "Болотяна авіація перейшла в атаку. Червоний! Від вікон геть, телефон у кишеню.",
+    "Ванька таки натиснув червону кнопку. Без героїзму: укриття, ванна чи підвал.",
+    "Двіж на болотах переріс у концерт. Червоний рівень — ховаємося, поки ППО працює.",
+    "Мопеди півнів звернули в наш бік. Червоний! Ноги в руки й у безпечне місце.",
+    "Жовта увага закінчилась — почалась червона небезпека. Дві стіни, і без зйомок неба.",
+    "Курник остаточно сказився: летить усе, що не прибито. Червоний, бережемо голови!",
+    "Стендап півнів перейшов у трагедію для них, але нам ризикувати не можна. Червоний — в укриття!",
+    "Кончені розійшлися не на жарт. Рівень червоний, балкон почекає.",
+    "Ванька прицілився абияк, а значить, куди завгодно. Червоний! Швидко в коридор.",
+)
+
+#: Red eased to yellow: the direct danger passed, the alert is not over yet.
+EASE_TO_YELLOW: Sequence[str] = (
+    "Червоний знято, лишається жовтий. Найгучніше позаду, але з укриття не вистрибуємо стрімголов.",
+    "Першу хвилю півнів розібрали. Рівень знизився до жовтого — видихаємо наполовину.",
+    "Металобрухт у повітрі закінчився, але ваньки ще ворушаться. Жовтий, тримаємо вуха гостро.",
+    "Червоне відкукурікали, далі жовте. Можна виглянути з коридору, але чайник поки не ставимо.",
+    "Головну партію збили, тепер жовтий. ППО молодці, ми — ще трохи обережні.",
+    "Півні видихлися, але не всі. Знижуємося до жовтого, зарядки ще тримаємо під рукою.",
+    "Залізяччя більше не летить у наш бік. Жовтий рівень — без паніки, але й без легковажності.",
+    "Ванька перезаряджається, а ми переводимо подих. Жовтий, стежимо далі.",
+    "Червоний минув. Лишається жовтий шум на болотах — пильність не вимикаємо.",
+    "Козаки відпрацювали, загроза знизилась до жовтої. Сидимо ближче до двох стін ще трохи.",
+    "Курник притих, але не заснув. Жовтий рівень — вікна ще обходимо.",
+    "Найгірше позаду, жовтий лишається. Дочекаємося повного відбою — і тоді вже дрихнути.",
+)
+
 PARTIAL_NOTE = "(тривога лише в частині регіону)"
 _LEVEL = {"R": 2, "Y": 1, "P": 1, "N": 0}
 
@@ -86,8 +119,11 @@ class PhraseBag:
         return phrase
 
 
-DEFAULT_BAG = PhraseBag({"yellow": YELLOW, "red": RED,
-                         "clear_after_red": CLEAR_AFTER_RED, "clear_after_yellow": CLEAR_AFTER_YELLOW})
+POOLS: Dict[str, Sequence[str]] = {
+    "yellow": YELLOW, "red": RED, "escalate_to_red": ESCALATE_TO_RED, "ease_to_yellow": EASE_TO_YELLOW,
+    "clear_after_red": CLEAR_AFTER_RED, "clear_after_yellow": CLEAR_AFTER_YELLOW,
+}
+DEFAULT_BAG = PhraseBag(POOLS)
 
 
 class AlertTracker:
@@ -116,9 +152,9 @@ class AlertTracker:
             return "🟢 " + self._bag.draw("clear_after_red" if peak == 2 else "clear_after_yellow")
         if level == 2:
             self._peak = 2
-            return "🔴 " + self._bag.draw("red")
+            # Every level change is announced (operator, 29.10): yellow → red has its own phrases.
+            return "🔴 " + self._bag.draw("escalate_to_red" if _LEVEL[previous] == 1 else "red")
         self._peak = max(self._peak, 1)
-        if previous == "R":
-            return None  # red eased to yellow: the danger is not over, no new alarm
-        text = "🟡 " + self._bag.draw("yellow")
+        pool = "ease_to_yellow" if previous == "R" else "yellow"
+        text = "🟡 " + self._bag.draw(pool)
         return f"{text} {PARTIAL_NOTE}" if status == "P" else text

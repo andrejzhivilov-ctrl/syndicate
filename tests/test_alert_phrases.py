@@ -6,7 +6,10 @@ import random
 from src.alert_phrases import (
     CLEAR_AFTER_RED,
     CLEAR_AFTER_YELLOW,
+    EASE_TO_YELLOW,
+    ESCALATE_TO_RED,
     PARTIAL_NOTE,
+    POOLS,
     RED,
     YELLOW,
     AlertTracker,
@@ -15,9 +18,7 @@ from src.alert_phrases import (
 
 
 def _tracker(seed: int = 7) -> AlertTracker:
-    bag = PhraseBag({"yellow": YELLOW, "red": RED, "clear_after_red": CLEAR_AFTER_RED,
-                     "clear_after_yellow": CLEAR_AFTER_YELLOW}, rng=random.Random(seed))
-    return AlertTracker(bag)
+    return AlertTracker(PhraseBag(POOLS, rng=random.Random(seed)))
 
 
 def test_each_phrase_once_before_repeats_and_never_twice_in_a_row():
@@ -37,15 +38,23 @@ def test_yellow_then_all_clear_is_calm():
     assert clear.startswith("🟢 ") and clear[2:] in CLEAR_AFTER_YELLOW
 
 
-def test_red_alert_ends_with_shot_down_all_clear_even_after_easing_to_yellow():
+def test_every_level_change_is_announced_with_its_own_phrases():
     t = _tracker()
     t.update("N")
-    assert t.update("Y").startswith("🟡 ")
-    red = t.update("R")
-    assert red.startswith("🔴 ") and red[2:] in RED
-    assert t.update("Y") is None  # red eased to yellow: no new alarm
+    straight_red = t.update("R")
+    assert straight_red.startswith("🔴 ") and straight_red[2:] in RED  # no yellow first
+    eased = t.update("Y")
+    assert eased.startswith("🟡 ") and eased[2:] in EASE_TO_YELLOW
+    escalated = t.update("R")
+    assert escalated.startswith("🔴 ") and escalated[2:] in ESCALATE_TO_RED
+    t.update("Y")
     clear = t.update("N")
-    assert clear[2:] in CLEAR_AFTER_RED
+    assert clear[2:] in CLEAR_AFTER_RED  # the alert reached red: "shot down" all-clear
+
+
+def test_transition_pools_have_ten_to_fifteen_phrases():
+    for pool in (ESCALATE_TO_RED, EASE_TO_YELLOW):
+        assert 10 <= len(pool) <= 15 and len(set(pool)) == len(pool)
 
 
 def test_partial_alert_is_marked_and_same_level_is_not_repeated():
