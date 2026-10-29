@@ -57,7 +57,7 @@
     {"name": "Розпізнавання голосу (OpenAI)", "status": "connected"},
     {"name": "Електронний кабінет ДПС", "status": "not_connected"},
     {"name": "ЗІР ДПС, Дебет-Кредит, Бухгалтер 911, Юрліга (RSS)", "status": "not_connected"},
-    {"name": "НБУ API (курси)", "status": "not_connected"},
+    {"name": "НБУ API (курси, команда /rates)", "status": "connected"},
     {"name": "Банки (monobank, ПриватБанк)", "status": "not_connected"},
     {"name": "Google Sheets", "status": "not_connected"},
     {"name": "Obsidian", "status": "not_connected"},

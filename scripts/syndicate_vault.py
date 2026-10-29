@@ -20,6 +20,7 @@ Usage:
     scripts/syndicate_vault.py distribute-keys                # pool -> each worker's own subtree
     scripts/syndicate_vault.py verify-bots                   # Telegram getMe per bot
     scripts/syndicate_vault.py set-owner <telegram_user_id>  # who may talk to the bots
+    scripts/syndicate_vault.py set-location                  # prompts: fixed point for Eva's weather
     scripts/syndicate_vault.py rotate-master [--reveal]
     scripts/syndicate_vault.py show-master --reveal
 """
@@ -88,6 +89,8 @@ PROVIDER_KEYS = {
     # Voice replies in the director bots (src/voice_reply.py).
     "respeecher": ("respeecher_api_key",),
     "elevenlabs": ("elevenlabs_api_key",),
+    # Air-raid alerts for Eva's briefings (src/integrations/public_data.py).
+    "alerts": ("alerts_in_ua_token",),
 }
 
 
@@ -259,6 +262,18 @@ def cmd_set_owner(user_id: str) -> None:
     print("[OK] owner id stored; the gateway now accepts messages only from this user")
 
 
+def cmd_set_location() -> None:
+    """Fixed point for Eva's weather (not GPS): prompted, so it stays out of shell history."""
+    latitude = float(input("Latitude (e.g. 50.45): ").strip().replace(",", "."))
+    longitude = float(input("Longitude (e.g. 30.52): ").strip().replace(",", "."))
+    label = input("Label shown in the bot (optional, e.g. a city): ").strip()
+    if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+        raise SystemExit("latitude must be -90..90 and longitude -180..180")
+    put_secret("agents/eva/briefing", {"latitude": round(latitude, 2), "longitude": round(longitude, 2),
+                                       "label": label[:60]})
+    print("[OK] weather point stored (rounded to ~1 km)")
+
+
 def cmd_rotate_master(reveal: bool) -> None:
     auth = get_secret("auth")
     new_key = secrets.token_urlsafe(48)
@@ -306,6 +321,8 @@ def main(argv: list[str]) -> int:  # noqa: C901
         cmd_verify_bots()
     elif cmd == "set-owner" and args:
         cmd_set_owner(args[0])
+    elif cmd == "set-location":
+        cmd_set_location()
     elif cmd == "rotate-master":
         cmd_rotate_master("--reveal" in flags)
     elif cmd == "show-master":

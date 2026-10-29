@@ -70,7 +70,9 @@
     {"name": "Google Drive", "status": "not_connected"},
     {"name": "Obsidian", "status": "not_connected"},
     {"name": "Новинні джерела (RSS, Telegram-канали, YouTube)", "status": "not_connected"},
-    {"name": "Тривоги й метео (alerts.in.ua, Open-Meteo)", "status": "not_connected"},
+    {"name": "Курси НБУ (команда /rates)", "status": "connected"},
+    {"name": "Погода Open-Meteo (/weather; потрібна точка від Андрія)", "status": "not_connected"},
+    {"name": "Тривоги alerts.in.ua (/alerts; потрібен токен)", "status": "not_connected"},
     {"name": "PDF-рендер звітів", "status": "not_connected"},
     {"name": "Розклад звітів і брифінгів", "status": "not_connected"}
   ]
