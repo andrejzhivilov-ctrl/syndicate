@@ -156,9 +156,17 @@ class OddsScout:
         }
 
 
+#: Extra names a provider's key may have in the holding-wide api-keys pool.
+_POOL_KEY_ALIASES = {
+    "gemini": ("google_api_key", "google"),
+    "haiku": ("anthropic_api_key", "anthropic"),
+    "grok": ("xai_api_key", "xai"),
+}
+
+
 async def build_provider(vault, agent_id: str, provider: str):
     """Resolve director's credentials or holding-wide provider pool.
-    
+
     Supports openrouter, gemini, grok, haiku for all directors.
     """
     secret = None
@@ -172,14 +180,7 @@ async def build_provider(vault, agent_id: str, provider: str):
     if not secret or not secret.get("api_key"):
         try:
             pool = await vault.get_secret(secret_path("api-keys"))
-            lookup_keys = [f"{provider}_api_key", provider]
-            if provider == "gemini":
-                lookup_keys.extend(["google_api_key", "google"])
-            elif provider == "haiku":
-                lookup_keys.extend(["anthropic_api_key", "anthropic"])
-            elif provider == "grok":
-                lookup_keys.extend(["xai_api_key", "xai"])
-            
+            lookup_keys = [f"{provider}_api_key", provider, *_POOL_KEY_ALIASES.get(provider, ())]
             for lk in lookup_keys:
                 if pool.get(lk):
                     secret = {"api_key": pool[lk], "provider": provider}

@@ -23,12 +23,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 import shutil
 import tarfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -64,14 +62,14 @@ def main():
     print("=" * 60)
     bundle_dir = Path(__file__).resolve().parent
     print(f"📦 Source Bundle: {bundle_dir}")
-    
+
     # Verify manifest
     manifests = list(bundle_dir.glob("*.manifest.json"))
     if manifests:
         manifest = json.loads(manifests[0].read_text(encoding="utf-8"))
         print(f"🔒 Verifying manifest: {manifest.get('bundle_id')}")
         print(f"📅 Timestamp: {manifest.get('timestamp')}")
-    
+
     print("\\n[1/5] Unpacking database & pgvector dump...")
     print("[2/5] Restoring HashiCorp Vault secrets & tokens...")
     print("[3/5] Restoring n8n workflows...")
@@ -99,6 +97,24 @@ echo ============================================================
 python restore_syndicate.py
 pause
 """
+
+
+def _stage_antigravity(ag_stage: Path, backups_dir: Path) -> None:
+    ag_backups = list((backups_dir / "antigravity").glob("*.tar.gz")) if backups_dir.exists() else []
+    if ag_backups:
+        latest_ag = max(ag_backups, key=lambda p: p.stat().st_mtime)
+        shutil.copy2(latest_ag, ag_stage / latest_ag.name)
+        print(f"  -> Added Antigravity Identity Snapshot: {latest_ag.name}")
+        return
+    # Trigger lightweight identity export if tool is available
+    try:
+        from tools.backup_antigravity_identity import create_antigravity_backup
+        ag_archive = create_antigravity_backup(ag_stage)
+        print(f"  -> Created on-the-fly Antigravity Identity Snapshot: {ag_archive.name}")
+    except Exception as exc:
+        (ag_stage / "antigravity_identity_marker.json").write_text(
+            json.dumps({"status": "skipped", "error": str(exc)}, indent=2), encoding="utf-8"
+        )
 
 
 def create_cold_recovery_bundle(
@@ -170,21 +186,7 @@ def create_cold_recovery_bundle(
         ag_stage = temp_staging / "antigravity"
         ag_stage.mkdir(parents=True, exist_ok=True)
         if include_antigravity:
-            ag_backups = list((backups_dir / "antigravity").glob("*.tar.gz")) if backups_dir.exists() else []
-            if ag_backups:
-                latest_ag = max(ag_backups, key=lambda p: p.stat().st_mtime)
-                shutil.copy2(latest_ag, ag_stage / latest_ag.name)
-                print(f"  -> Added Antigravity Identity Snapshot: {latest_ag.name}")
-            else:
-                # Trigger lightweight identity export if tool is available
-                try:
-                    from tools.backup_antigravity_identity import create_antigravity_backup
-                    ag_archive = create_antigravity_backup(ag_stage)
-                    print(f"  -> Created on-the-fly Antigravity Identity Snapshot: {ag_archive.name}")
-                except Exception as exc:
-                    (ag_stage / "antigravity_identity_marker.json").write_text(
-                        json.dumps({"status": "skipped", "error": str(exc)}, indent=2), encoding="utf-8"
-                    )
+            _stage_antigravity(ag_stage, backups_dir)
 
         # 6. Obsidian Second Brain Vault
         obsidian_stage = temp_staging / "obsidian_vault"

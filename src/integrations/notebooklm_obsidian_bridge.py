@@ -19,14 +19,13 @@ Google NotebookLM (Gemini Notebook 2026) and the shared Obsidian "Second Brain":
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 import re
 import shutil
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import structlog
 

@@ -9,11 +9,10 @@ import asyncio
 import json
 from pathlib import Path
 
-import pytest
 
 from src.agents.eva import EvaAgent
 from src.agents.kodex import KodexAgent
-from src.integrations.notebooklm_obsidian_bridge import KnowledgeCard, NotebookLMObsidianBridge
+from src.integrations.notebooklm_obsidian_bridge import NotebookLMObsidianBridge
 from tools.export_cold_recovery_bundle import create_cold_recovery_bundle
 
 

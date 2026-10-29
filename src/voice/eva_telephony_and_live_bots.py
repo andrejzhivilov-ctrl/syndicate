@@ -36,7 +36,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from src.voice.kokoro_tts import SYNDICATE_VOICE_PROFILES, get_agent_voice_profile
 from src.voice.livekit_realtime import LiveKitRealtimeBridge

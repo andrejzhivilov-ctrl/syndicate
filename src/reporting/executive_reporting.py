@@ -471,7 +471,7 @@ class SelfReflectionRecord:
 
     def to_markdown(self) -> str:
         mistakes_md = "\n".join(f"- ❌ {m}" for m in self.mistakes_or_weaknesses_found) or "- *Критичних помилок не виявлено*"
-        learned_md = "\n".join(f"- 🧠 {l}" for l in self.what_agent_learned)
+        learned_md = "\n".join(f"- 🧠 {item}" for item in self.what_agent_learned)
         ideas_md = "\n".join(f"- 💡 {i}" for i in self.ideas_and_plans_developed)
         missing_md = "\n".join(f"- 🧩 {r}" for r in self.missing_resources_or_capabilities)
         skills_md = (
@@ -594,7 +594,7 @@ class ExecutiveReportEngine:
                 f"Оптимізовано патерни прийняття рішень у домені {agent_key.upper()}."
             ],
             ideas_and_plans_developed=ideas_developed or [
-                f"Автоматизувати повторюваний крок аналізу через новий скіл у пулі Кодекса."
+                "Автоматизувати повторюваний крок аналізу через новий скіл у пулі Кодекса."
             ],
             missing_resources_or_capabilities=missing_resources or [
                 "Додаткових платних API не потрібно; достатньо локального пулу."
@@ -788,7 +788,7 @@ tags: ["syndicate", "knowledge-harvest", "alice-audit", "marshal-verified", "not
             kpi = rep.get("kpi", "OK")
             reflection_summary = rep.get(
                 "self_reflection_0330",
-                f"Саморефлексія 03:30 пройдена: напрацьовано нові ідеї, запити на скіли передано Кодексу.",
+                "Саморефлексія 03:30 пройдена: напрацьовано нові ідеї, запити на скіли передано Кодексу.",
             )
             learned = rep.get("learned", "Оптимізовано робочий цикл")
             ideas = rep.get("ideas", "Підвищити точність прогнозів")

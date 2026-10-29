@@ -6,11 +6,7 @@ Physical Performance, Workouts, Nutrition, Recipes, Shopping Lists, and Self-Imp
 from __future__ import annotations
 
 import asyncio
-import json
-from decimal import Decimal
-from typing import Any, Dict, List, Optional
-
-import pytest
+from typing import Any, Dict, List
 
 from src.agents.doc import DocAgent
 from src.agents.trainer import TrainerAgent

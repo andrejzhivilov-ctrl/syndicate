@@ -6,7 +6,6 @@ Covers both success and failure/security scenarios per SOP.
 from __future__ import annotations
 
 import json
-import shutil
 from pathlib import Path
 
 from tools.sync_antigravity_identity_repo import (

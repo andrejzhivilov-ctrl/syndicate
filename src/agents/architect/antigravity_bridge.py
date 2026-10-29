@@ -23,7 +23,7 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import structlog
 
@@ -153,47 +153,14 @@ class AntigravityBridge:
         result_data = result_envelope.get("result", {})
         code_snippets: Dict[str, str] = result_data.get("files", {})
 
-        # 2. Sentinel Checks if available
-        if self.sentinel:
-            # Check prompt injection in narrative / summary
-            narrative = str(result_data.get("summary", "")) + " " + str(result_data.get("notes", ""))
-            if narrative.strip() and hasattr(self.sentinel, "scan_prompt_injection"):
-                injection_result = self.sentinel.scan_prompt_injection(narrative)
-                if not getattr(injection_result, "allowed", True):
-                    self._archive_rejected(task_id, result_envelope, f"Sentinel prompt injection alert: {injection_result.reason}")
-                    return {
-                        "status": "rejected",
-                        "task_id": task_id,
-                        "reason": f"Sentinel prompt injection alert: {injection_result.reason}",
-                    }
-
-            # Check secrets in code snippets
-            if hasattr(self.sentinel, "scan_output_for_secrets"):
-                for fname, code in code_snippets.items():
-                    sec_check = self.sentinel.scan_output_for_secrets(code)
-                    if not getattr(sec_check, "allowed", True):
-                        self._archive_rejected(task_id, result_envelope, f"Secret leakage detected in file {fname}")
-                        return {
-                            "status": "rejected",
-                            "task_id": task_id,
-                            "reason": f"Secret leakage detected in contractor output: {fname}",
-                        }
-
-        # 3. Python AST check for code files
-        if strict_syntax:
-            for fname, content in code_snippets.items():
-                if fname.endswith(".py") and isinstance(content, str):
-                    try:
-                        ast.parse(content, filename=fname)
-                    except SyntaxError as e:
-                        reason = f"SyntaxError in contractor code {fname}: {e}"
-                        logger.error("antigravity_bridge_syntax_error", task_id=task_id, error=str(e))
-                        self._archive_rejected(task_id, result_envelope, reason)
-                        return {
-                            "status": "rejected",
-                            "task_id": task_id,
-                            "reason": reason,
-                        }
+        # 2. Sentinel checks if available, 3. Python AST check for code files
+        rejection = self._sentinel_rejection(result_data, code_snippets)
+        if rejection is None and strict_syntax:
+            rejection = self._syntax_rejection(task_id, code_snippets)
+        if rejection is not None:
+            archived_reason, reason = rejection
+            self._archive_rejected(task_id, result_envelope, archived_reason)
+            return {"status": "rejected", "task_id": task_id, "reason": reason}
 
         # All checks passed -> accept
         self._archive_completed(task_id, result_envelope)
@@ -205,6 +172,40 @@ class AntigravityBridge:
             "file_count": len(code_snippets),
             "result": result_data,
         }
+
+    def _sentinel_rejection(
+        self, result_data: Dict[str, Any], code_snippets: Dict[str, str]
+    ) -> Optional[Tuple[str, str]]:
+        """(archived reason, returned reason) when Sentinel blocks the result, else None."""
+        if not self.sentinel:
+            return None
+        # Check prompt injection in narrative / summary
+        narrative = str(result_data.get("summary", "")) + " " + str(result_data.get("notes", ""))
+        if narrative.strip() and hasattr(self.sentinel, "scan_prompt_injection"):
+            injection_result = self.sentinel.scan_prompt_injection(narrative)
+            if not getattr(injection_result, "allowed", True):
+                reason = f"Sentinel prompt injection alert: {injection_result.reason}"
+                return reason, reason
+        # Check secrets in code snippets
+        if hasattr(self.sentinel, "scan_output_for_secrets"):
+            for fname, code in code_snippets.items():
+                sec_check = self.sentinel.scan_output_for_secrets(code)
+                if not getattr(sec_check, "allowed", True):
+                    return (f"Secret leakage detected in file {fname}",
+                            f"Secret leakage detected in contractor output: {fname}")
+        return None
+
+    @staticmethod
+    def _syntax_rejection(task_id: str, code_snippets: Dict[str, str]) -> Optional[Tuple[str, str]]:
+        for fname, content in code_snippets.items():
+            if fname.endswith(".py") and isinstance(content, str):
+                try:
+                    ast.parse(content, filename=fname)
+                except SyntaxError as e:
+                    reason = f"SyntaxError in contractor code {fname}: {e}"
+                    logger.error("antigravity_bridge_syntax_error", task_id=task_id, error=str(e))
+                    return reason, reason
+        return None
 
     def _archive_completed(self, task_id: str, envelope: Dict[str, Any]) -> None:
         path = self.completed_dir / f"{task_id}.json"
