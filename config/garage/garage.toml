@@ -1,8 +1,9 @@
 # Garage — lightweight S3 storage for the directors' working files (one node).
 #
-# Secrets are NOT here: GARAGE_RPC_SECRET and GARAGE_ADMIN_TOKEN come from .env.
-# Only the internal `backend` network reaches it; nginx does not proxy it and no
-# port is published. Buckets, keys and quotas: tools/garage_setup.py.
+# The only secret, GARAGE_RPC_SECRET, comes from .env. Only the internal `backend`
+# network reaches it; nginx does not proxy it and no port is published.
+# No [admin] HTTP API on purpose: tools/garage_setup.py administers it with
+# `garage json-api` over the encrypted RPC, so no admin token exists to leak.
 
 replication_factor = 1
 db_engine = "lmdb"
@@ -18,6 +19,3 @@ rpc_public_addr = "127.0.0.1:3901"
 api_bind_addr = "[::]:3900"
 s3_region = "garage"
 root_domain = ".s3.garage.internal"
-
-[admin]
-api_bind_addr = "[::]:3903"

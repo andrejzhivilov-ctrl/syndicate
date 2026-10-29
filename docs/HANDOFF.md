@@ -28,28 +28,39 @@
 
 ## 2026-10-29 (день) — Claude Code: сховище Garage для агентів + безкоштовні джерела
 
-**Гілка `feat/agent-storage`** (поверх `feat/agent-specs`).
+**Гілка:** `feat/agent-storage` (PR #27)  **Коміт:** див. `git log feat/agent-storage`  **Ворота:** ✅ (крім базових ruff 41/11/7, що вже є на `main`)
 
+### Зроблено
 - **Garage v2.4.1** (`docker-compose.yml` = `deploy/docker-compose.yml`, `config/garage/garage.toml`): лише мережа
-  `backend`, без опублікованих портів і без маршруту nginx. Секрети `GARAGE_RPC_SECRET`, `GARAGE_ADMIN_TOKEN` — лише
-  в `.env` сервера. Дані: `/data/garage/{meta,data}`.
-- **Доступи:** бакет `agent-<id>` на кожного з 18 директорів (rw власним ключем), `syndicate-shared` (читають усі,
-  пише лише Єва), квота 5 ГіБ на агента / 20 ГіБ спільна, `tmp/` автоматично зникає через 7 днів, агенти не видаляють.
-  Ключ — у Vault `agents/<id>/storage` (runtime уже читає `agents/*`, ізольований воркер — лише своє; політики не мінялись).
-- `src/agent_storage.py` — `put/get/list` (без `delete`), перевірка ключів об'єктів, ліміт 100 МБ, чесне `unavailable`.
-  `/files [prefix]`, `/files shared` — список без LLM. `boto3==1.43.113` у `requirements.txt`.
-- `tools/garage_setup.py` — ідемпотентно: layout, бакети, ключі, гранти, квоти, lifecycle; ключі пише у Vault
-  операторським токеном; секретів не друкує. Спершу без `--apply` (план).
+  `backend`, без опублікованих портів і без маршруту nginx. Єдиний секрет `GARAGE_RPC_SECRET` — лише в `.env` сервера.
+  **Адмін-HTTP-API немає взагалі:** `tools/garage_setup.py` адмініструє через `garage json-api` по зашифрованому RPC,
+  тож адмін-токена, який міг би витекти, не існує. Дані: `/data/garage/{meta,data}`.
+- **Доступи:** бакет `agent-<id>` на кожного з 18 директорів (read/write власним ключем, без owner), `syndicate-shared`
+  (читають усі, пише лише Єва), квота 5 ГіБ на агента / 20 ГіБ спільна, `tmp/` очищається через 7 днів на всіх бакетах
+  (і на спільному). Гранти *звіряються*: заборонене (напр. запис у спільну теку) явно відкликається `DenyBucketKey` при
+  кожному запуску. Ключ — у Vault `agents/<id>/storage` (runtime уже читає `agents/*`; політики не мінялись).
+- `src/agent_storage.py` — `put/get/list`, перевірка ключів об'єктів, ліміт 100 МБ; помилки створення клієнта й
+  читання потоку → чесне `unavailable`, потік закривається. `/files [prefix]`, `/files shared` — без LLM.
+  `boto3==1.43.113` у `requirements.txt`.
 - **Джерела** (`src/integrations/public_data.py`): `/rates` (НБУ, без ключа), `/weather` (Open-Meteo; точку задає
-  Андрій `syndicate_vault.py set-location`, округлено до ~1 км, GPS вимкнено), `/alerts` (alerts.in.ua; потрібен
-  безкоштовний токен `set-key alerts`).
-- **Демо-журнали Сема й Джека вже існують** (`src/agents/sam/journal.py` у Postgres, `src/agents/jack/tracker.py` з
-  анти-тілтом) — не дублювались. Бракує: вкладки відхилених ідей і звітів, що з них читають.
-- **Локальний TTS для довгих брифінгів** (заміри 29.10, 4 ядра): Piper `uk_UA-ukrainian_tts-medium` — ~1,3–1,6 с
-  синтезу на 1 с аудіо (40 хв аудіо ≈ 55–65 хв уночі). Зразки — `.tmp/tts-brief/` (не в git).
+  Андрій `syndicate_vault.py set-location`, округлено до ~1 км, GPS вимкнено), `/alerts` (alerts.in.ua; токен
+  `set-key alerts`). Пошкоджені курси й короткі погодинні ряди → `None`/`unavailable`; тривога без регіону ніколи не
+  перетворюється на «тривог немає».
+- Виправлено 10 зауважень CodeRabbit до PR #27.
 
-**Деплой (потребує підтвердження Андрія):** згенерувати секрети Garage у `.env`, `mkdir /data/garage/{meta,data}`,
-`docker compose up -d garage`, `tools/garage_setup.py` → `--apply`, перебудувати eva-agent (boto3).
+### Не дороблено / свідомо залишено
+- **Захист від видалення — лише на рівні клієнта.** Garage дозволяє S3 DeleteObject правом write; хто має сирий ключ
+  агента, може видалити його файли. Ключі зараз читає лише runtime. Справжній захист — бекап `/data/garage`, його ще немає.
+- Демо-журнали Сема й Джека вже існують (`src/agents/sam/journal.py`, `src/agents/jack/tracker.py`) — не дублювались.
+
+### Наступне
+1. Деплой (з підтвердження Андрія): `GARAGE_RPC_SECRET` у `.env`, `mkdir /data/garage/{meta,data}`,
+   `docker compose up -d garage`, `tools/garage_setup.py` (план) → `--apply`, перебудувати eva-agent.
+2. Бекап `/data/garage` (наприклад, нічний у Cloudflare R2).
+
+### Ризики й спостереження
+- Локальний TTS для довгих брифінгів (заміри 29.10, 4 ядра): Piper ~1,5 с синтезу на 1 с аудіо — придатний;
+  ukrainian-tts ~11–14 с/с і StyleTTS2 ~18 с/с — Андрій відхилив, видалено. Зразки Piper — `.tmp/tts-brief/` (не в git).
 
 ---
 

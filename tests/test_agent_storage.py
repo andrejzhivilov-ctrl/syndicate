@@ -122,7 +122,48 @@ def test_compose_runs_garage_internal_only_and_identical_in_both_files():
     assert "GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?" in block and "cap_drop" in block
     toml = (ROOT / "config/garage/garage.toml").read_text(encoding="utf-8")
     assert "rpc_secret" not in toml.replace("GARAGE_RPC_SECRET", "") and "admin_token" not in toml
+    # No admin HTTP API at all: administration goes over the encrypted RPC (garage json-api).
+    sections = [line.strip() for line in toml.splitlines() if line.strip().startswith("[")]
+    assert "[admin]" not in sections and "3903" not in toml and "ADMIN_TOKEN" not in block
     assert "garage" not in (ROOT / "config/nginx/nginx.conf").read_text(encoding="utf-8").lower()
+
+
+def test_client_construction_and_stream_failures_stay_honest():
+    def bad_factory(creds):
+        raise ValueError("invalid endpoint from Vault")
+
+    vault = _Vault({"secret/data/syndicate/agents/fin/storage": CREDS})
+    storage = AgentStorage("fin", vault, client_factory=bad_factory)
+    assert asyncio.run(storage.list())["reason"] == "storage_error"
+
+    closed = []
+
+    class Body:
+        def read(self, n):
+            raise ConnectionResetError("stream cut")
+
+        def close(self):
+            closed.append(True)
+
+    class S3(_S3):
+        def get_object(self, Bucket, Key):
+            return {"Body": Body(), "ContentType": "text/plain"}
+
+    reader, _, _ = _storage("fin", S3())
+    result = asyncio.run(reader.get("a.txt"))
+    assert result["status"] == "unavailable" and result["code"] == "ConnectionResetError" and closed == [True]
+
+
+def test_setup_revokes_what_an_agent_must_not_have(monkeypatch):
+    import tools.garage_setup as setup
+
+    calls = []
+    monkeypatch.setattr(setup, "api", lambda endpoint, payload=None: calls.append((endpoint, payload)))
+    setup.reconcile("shared", "GKfin", read=True, write=False, owner=False)
+    assert calls == [("AllowBucketKey", {"bucketId": "shared", "accessKeyId": "GKfin", "permissions": {"read": True}}),
+                     ("DenyBucketKey", {"bucketId": "shared", "accessKeyId": "GKfin",
+                                        "permissions": {"write": True, "owner": True}})]
+    assert any(rule["ID"] == "tmp-expiry" for rule in setup.LIFECYCLE)
 
 
 def test_bucket_names_are_per_director():
