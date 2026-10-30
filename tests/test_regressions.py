@@ -4229,3 +4229,50 @@ def test_garage_setup_stores_the_obsidian_key_under_a_relative_vault_path():
          garage_setup.reconcile) = original
     assert list(stored) == ["agents/eva/obsidian"]
     assert stored["agents/eva/obsidian"]["bucket"] == "obsidian-vault"
+
+
+def test_operator_token_renewal_sends_the_token_in_a_header_and_reports_only_the_ttl(monkeypatch, capsys):
+    # Vault's max_lease_ttl (24h) kills the operator token a day after creation unless it is renewed.
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    import renew_operator_token as mod
+
+    seen = {}
+
+    class _Resp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def read(self):
+            return b'{"auth": {"lease_duration": 86400}}'
+
+    def fake_urlopen(request, timeout):
+        seen["url"] = request.full_url
+        seen["token"] = request.get_header("X-vault-token")
+        return _Resp()
+
+    monkeypatch.setattr(mod.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(mod, "read_token", lambda: "hvs.secret-value")
+    assert mod.main() == 0
+    out = capsys.readouterr()
+    assert "ttl 24h" in out.out
+    assert "hvs.secret-value" not in out.out + out.err
+    assert seen["url"].endswith("/v1/auth/token/renew-self")
+    assert seen["token"] == "hvs.secret-value"
+
+
+def test_operator_token_renewal_fails_loudly_when_vault_refuses(monkeypatch, capsys):
+    import urllib.error
+
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    import renew_operator_token as mod
+
+    def refuse(request, timeout):
+        raise urllib.error.HTTPError(request.full_url, 403, "denied", {}, None)
+
+    monkeypatch.setattr(mod, "read_token", lambda: "hvs.x")
+    monkeypatch.setattr(mod.urllib.request, "urlopen", refuse)
+    assert mod.main() == 1
+    assert "HTTP 403" in capsys.readouterr().err
