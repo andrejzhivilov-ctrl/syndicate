@@ -4204,3 +4204,28 @@ def test_obsidian_vault_syncs_through_garage_not_syncthing():
     assert "SECRET" not in " ".join(args) and f"garage:{OBSIDIAN_BUCKET}" in args
     assert "SECRET" in rclone_env(key, Path("/w")).values()
     assert "--resync" in bisync_args(Path("/v"), Path("/w"), resync=True)
+
+
+def test_garage_setup_stores_the_obsidian_key_under_a_relative_vault_path():
+    # put_secret() prefixes secret/data/syndicate/ itself: handing it the full
+    # agent_secret_path() gave ".../syndicate/secret/data/syndicate/agents/..." and a 403.
+    from tools import garage_setup
+
+    stored = {}
+    garage_setup.OBSIDIAN_LIFECYCLE  # noqa: B018 - import-time sanity
+    calls = {"bucket": lambda *a, **k: "bucket-id",
+             "named": lambda name, apply: {"accessKeyId": "GK-dev", "secretAccessKey": "dev-secret"},
+             "eva": lambda agent_id, apply: {"accessKeyId": "GK-eva", "secretAccessKey": "eva-secret"}}
+    original = (garage_setup.ensure_bucket, garage_setup.ensure_named_key, garage_setup.ensure_key,
+                garage_setup.reconcile)
+    try:
+        garage_setup.ensure_bucket = calls["bucket"]
+        garage_setup.ensure_named_key = calls["named"]
+        garage_setup.ensure_key = calls["eva"]
+        garage_setup.reconcile = lambda *a, **k: None
+        garage_setup.setup_obsidian(True, lambda path, data: stored.update({path: data}))
+    finally:
+        (garage_setup.ensure_bucket, garage_setup.ensure_named_key, garage_setup.ensure_key,
+         garage_setup.reconcile) = original
+    assert list(stored) == ["agents/eva/obsidian"]
+    assert stored["agents/eva/obsidian"]["bucket"] == "obsidian-vault"
