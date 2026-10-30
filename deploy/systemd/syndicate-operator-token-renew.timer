@@ -1,0 +1,10 @@
+[Unit]
+Description=SYNDICATE Vault operator token renewal (every 6h)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=6h
+Persistent=true
+
+[Install]
+WantedBy=timers.target
