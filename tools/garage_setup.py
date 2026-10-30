@@ -38,7 +38,7 @@ from src.agent_storage import (  # noqa: E402
     bucket_for,
 )
 from src.obsidian_sync import OBSIDIAN_BUCKET  # noqa: E402
-from src.vault_paths import DIRECTOR_IDS, STORAGE, agent_secret_path  # noqa: E402
+from src.vault_paths import DIRECTOR_IDS, STORAGE  # noqa: E402
 
 CONTAINER = "syndicate-garage-1"
 QUOTA_OBSIDIAN_BYTES = 20 * 1024 ** 3
@@ -193,7 +193,7 @@ def setup_obsidian(apply: bool, put_secret: Any) -> None:
         return
     reconcile(bucket_id, devices["accessKeyId"], read=True, write=True, owner=False)
     reconcile(bucket_id, eva["accessKeyId"], read=True, write=True, owner=False)
-    put_secret(agent_secret_path("eva", OBSIDIAN_SECRET),
+    put_secret(f"agents/eva/{OBSIDIAN_SECRET}",  # relative: put_secret adds the secret/data prefix
                {"access_key_id": devices["accessKeyId"], "secret_access_key": devices["secretAccessKey"],
                 "bucket": OBSIDIAN_BUCKET, "endpoint": OBSIDIAN_PUBLIC_ENDPOINT, "region": "garage"})
     print(f"obsidian: {OBSIDIAN_BUCKET} ready; devices key in Vault agents/eva/{OBSIDIAN_SECRET}")
