@@ -23,6 +23,7 @@ Usage:
     scripts/syndicate_vault.py set-location                  # prompts: fixed point for Eva's weather
     scripts/syndicate_vault.py rotate-master [--reveal]
     scripts/syndicate_vault.py show-master --reveal
+    scripts/syndicate_vault.py obsidian-key --reveal          # Remotely Save settings for PC/phone
 """
 from __future__ import annotations
 
@@ -312,6 +313,24 @@ def cmd_show_master(reveal: bool) -> None:
     _print_master(key)
 
 
+def cmd_obsidian_key(reveal: bool) -> None:
+    """Settings for the Remotely Save plugin (S3) on Andrii's PC and phone."""
+    if not reveal:
+        raise SystemExit("pass --reveal to display the Obsidian sync key (interactive terminal only)")
+    data = get_secret("agents/eva/obsidian")
+    if not data.get("access_key_id"):
+        raise SystemExit("no Obsidian sync key yet: run `python3 tools/garage_setup.py --apply` first")
+    if not sys.stdout.isatty():
+        raise SystemExit("refusing to print the key to a non-interactive stream")
+    print("\nRemotely Save → Remote service: S3 or compatible")
+    print(f"  Endpoint:          {data.get('endpoint')}")
+    print(f"  Region:            {data.get('region', 'garage')}")
+    print(f"  Access Key ID:     {data['access_key_id']}")
+    print(f"  Secret Access Key: {data['secret_access_key']}")
+    print(f"  Bucket Name:       {data.get('bucket')}")
+    print("  S3 URL style:      Path-Style;  Bypass CORS: on;  Encryption password: leave empty\n")
+
+
 def main(argv: list[str]) -> int:  # noqa: C901
     if len(argv) < 2:
         print(__doc__)
@@ -337,6 +356,8 @@ def main(argv: list[str]) -> int:  # noqa: C901
         cmd_set_location()
     elif cmd == "rotate-master":
         cmd_rotate_master("--reveal" in flags)
+    elif cmd == "obsidian-key":
+        cmd_obsidian_key("--reveal" in flags)
     elif cmd == "show-master":
         cmd_show_master("--reveal" in flags)
     else:

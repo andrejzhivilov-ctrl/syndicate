@@ -89,34 +89,6 @@ services:
           cpus: "1.0"
           memory: 1536M
 
-  obsidian-syncthing:
-    image: lscr.io/linuxserver/syncthing:latest
-    container_name: syndicate-obsidian-sync
-    restart: unless-stopped
-    volumes:
-      - /data/obsidian_vault:/data/Second_Brain
-      - /data/syncthing_config:/config
-    environment:
-      # 1001 = the host user owning /data/obsidian_vault and eva-agent's uid, so
-      # synced notes and the ones Eva writes stay editable on both sides.
-      - PUID=1001
-      - PGID=1001
-      - TZ=Europe/Kyiv
-    ports:
-      # Sync protocol: bind to the server's Tailscale IP (SYNCTHING_BIND_IP=100.x.y.z).
-      # Docker-published ports bypass UFW, so "allow only from my devices" cannot be
-      # enforced with UFW alone; binding to 127.0.0.1 (the default) keeps it closed.
-      - "${SYNCTHING_BIND_IP:-127.0.0.1}:22000:22000/tcp"
-      - "${SYNCTHING_BIND_IP:-127.0.0.1}:22000:22000/udp"
-      # Web GUI: loopback only — reach it with `ssh -L 8384:127.0.0.1:8384 server`.
-      # Set a GUI password on first login.
-      - "127.0.0.1:8384:8384/tcp"
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 512M
-
 networks:
   # Created by the main stack (docker-compose.yml, project "syndicate").
   syndicate_frontend:

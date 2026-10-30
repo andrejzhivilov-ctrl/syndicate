@@ -37,15 +37,21 @@ from src.agent_storage import (  # noqa: E402
     TMP_PREFIX,
     bucket_for,
 )
-from src.vault_paths import DIRECTOR_IDS, STORAGE  # noqa: E402
+from src.obsidian_sync import OBSIDIAN_BUCKET  # noqa: E402
+from src.vault_paths import DIRECTOR_IDS, STORAGE, agent_secret_path  # noqa: E402
 
 CONTAINER = "syndicate-garage-1"
+QUOTA_OBSIDIAN_BYTES = 20 * 1024 ** 3
+OBSIDIAN_DEVICES_KEY = "obsidian-devices"
+OBSIDIAN_SECRET = "obsidian"  # Vault agents/eva/obsidian: the devices' key
+OBSIDIAN_PUBLIC_ENDPOINT = "https://sync.syndicateholding.com"
 NODE_CAPACITY = 150 * 1024 ** 3  # layout capacity; buckets are capped by quotas
 LIFECYCLE = [
     {"ID": "tmp-expiry", "Status": "Enabled", "Filter": {"Prefix": TMP_PREFIX}, "Expiration": {"Days": TMP_DAYS}},
     {"ID": "abort-uploads", "Status": "Enabled", "Filter": {"Prefix": ""},
      "AbortIncompleteMultipartUpload": {"DaysAfterInitiation": 1}},
 ]
+OBSIDIAN_LIFECYCLE = [rule for rule in LIFECYCLE if rule["ID"] == "abort-uploads"]
 
 
 class GarageError(RuntimeError):
@@ -98,25 +104,31 @@ def plan_fresh_cluster() -> None:
               f"{'rw' if agent_id in SHARED_WRITERS else 'r'}; key to Vault agents/{agent_id}/{STORAGE}")
 
 
-def ensure_bucket(name: str, quota: int, apply: bool) -> Optional[str]:
+def ensure_bucket(name: str, quota: int, apply: bool,
+                  lifecycle: Optional[List[Dict[str, Any]]] = None) -> Optional[str]:
+    rules = LIFECYCLE if lifecycle is None else lifecycle
     try:
         bucket = api("GetBucketInfo", {"globalAlias": name})
         print(f"bucket {name}: exists")
     except GarageError as exc:
         if "NoSuchBucket" not in str(exc):
             raise
-        print(f"bucket {name}: create, quota {quota // 1024 ** 3} GiB, {TMP_PREFIX} expires in {TMP_DAYS} d")
+        expiry = f", {TMP_PREFIX} expires in {TMP_DAYS} d" if rules is LIFECYCLE else ""
+        print(f"bucket {name}: create, quota {quota // 1024 ** 3} GiB{expiry}")
         if not apply:
             return None
         bucket = api("CreateBucket", {"globalAlias": name})
     if apply:
         api("UpdateBucket", {"id": bucket["id"], "body": {"quotas": {"maxSize": quota, "maxObjects": None},
-                                                          "lifecycleRules": LIFECYCLE}})
+                                                          "lifecycleRules": rules}})
     return bucket["id"]
 
 
 def ensure_key(agent_id: str, apply: bool) -> Optional[Dict[str, Any]]:
-    name = bucket_for(agent_id)
+    return ensure_named_key(bucket_for(agent_id), apply)
+
+
+def ensure_named_key(name: str, apply: bool) -> Optional[Dict[str, Any]]:
     keys = [k for k in api("ListKeys") if k.get("name") == name]
     if keys:
         print(f"key {name}: exists")
@@ -161,8 +173,30 @@ def main(argv: List[str]) -> int:
                    {"access_key_id": key_id, "secret_access_key": key["secretAccessKey"],
                     "bucket": bucket_for(agent_id), "endpoint": "http://garage:3900"})
         print(f"grants {agent_id}: own rw, shared {'rw' if agent_id in SHARED_WRITERS else 'r'}; key in Vault")
+    setup_obsidian(args.apply, put_secret)
     print("done" if args.apply else "dry run: nothing changed (use --apply)")
     return 0
+
+
+def setup_obsidian(apply: bool, put_secret: Any) -> None:
+    """The Obsidian hub: Andrii's devices (Remotely Save) and Eva's sync loop share one bucket.
+
+    The devices get a key of their own, scoped to this bucket only; it is stored in
+    Eva's Vault subtree and shown to Andrii by ``syndicate_vault.py obsidian-key --reveal``.
+    No ``tmp/`` expiry here: in a vault that is an ordinary folder of notes.
+    """
+    bucket_id = ensure_bucket(OBSIDIAN_BUCKET, QUOTA_OBSIDIAN_BYTES, apply, lifecycle=OBSIDIAN_LIFECYCLE)
+    devices = ensure_named_key(OBSIDIAN_DEVICES_KEY, apply)
+    eva = ensure_key("eva", apply)
+    if not apply or bucket_id is None or devices is None or eva is None:
+        print(f"key {OBSIDIAN_DEVICES_KEY}: rw on {OBSIDIAN_BUCKET}; Eva's key: rw on {OBSIDIAN_BUCKET}")
+        return
+    reconcile(bucket_id, devices["accessKeyId"], read=True, write=True, owner=False)
+    reconcile(bucket_id, eva["accessKeyId"], read=True, write=True, owner=False)
+    put_secret(agent_secret_path("eva", OBSIDIAN_SECRET),
+               {"access_key_id": devices["accessKeyId"], "secret_access_key": devices["secretAccessKey"],
+                "bucket": OBSIDIAN_BUCKET, "endpoint": OBSIDIAN_PUBLIC_ENDPOINT, "region": "garage"})
+    print(f"obsidian: {OBSIDIAN_BUCKET} ready; devices key in Vault agents/eva/{OBSIDIAN_SECRET}")
 
 
 if __name__ == "__main__":

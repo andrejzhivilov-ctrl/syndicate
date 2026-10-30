@@ -4181,17 +4181,26 @@ def test_voice_assignment_covers_only_known_agents():
     assert set(AGENT_VOICES) <= set(DIRECTOR_IDS)
 
 
-def test_eva_and_syncthing_share_the_obsidian_vault_as_one_user():
-    # Syncthing ran as uid 1000 while /data/obsidian_vault and eva-agent are 1001:
-    # nothing could be written, so the Second Brain stayed empty on every device.
+def test_obsidian_vault_syncs_through_garage_not_syncthing():
+    # Operator 29.10: Syncthing was too fiddly on the devices. Garage is the hub:
+    # PC/phone use Remotely Save, eva-agent runs rclone bisync with Eva's own key.
     import yaml
+
+    from src.obsidian_sync import OBSIDIAN_BUCKET, bisync_args, rclone_env
+    from tools.garage_setup import OBSIDIAN_LIFECYCLE
 
     main = yaml.safe_load((REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
     voice = yaml.safe_load((REPO_ROOT / "deploy" / "docker-compose.voice.yml").read_text(encoding="utf-8"))
     eva = main["services"]["eva-agent"]
-    sync = voice["services"]["obsidian-syncthing"]
     assert eva["user"] == "1001:1001"
     assert "/data/obsidian_vault:/data/obsidian" in eva["volumes"]
     assert eva["environment"]["OBSIDIAN_VAULT_DIR"] == "/data/obsidian"
-    assert {"PUID=1001", "PGID=1001"} <= set(sync["environment"])
-    assert "/data/obsidian_vault:/data/Second_Brain" in sync["volumes"]
+    assert "obsidian-syncthing" not in voice["services"]
+    # A vault's "tmp/" is a folder of notes: no expiry rule on this bucket.
+    assert [rule["ID"] for rule in OBSIDIAN_LIFECYCLE] == ["abort-uploads"]
+    # The secret goes through the environment only, never argv.
+    key = {"access_key_id": "AK", "secret_access_key": "SECRET"}
+    args = bisync_args(Path("/v"), Path("/w"), resync=False)
+    assert "SECRET" not in " ".join(args) and f"garage:{OBSIDIAN_BUCKET}" in args
+    assert "SECRET" in rclone_env(key, Path("/w")).values()
+    assert "--resync" in bisync_args(Path("/v"), Path("/w"), resync=True)
