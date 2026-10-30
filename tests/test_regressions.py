@@ -4276,3 +4276,21 @@ def test_operator_token_renewal_fails_loudly_when_vault_refuses(monkeypatch, cap
     monkeypatch.setattr(mod.urllib.request, "urlopen", refuse)
     assert mod.main() == 1
     assert "HTTP 403" in capsys.readouterr().err
+
+
+def test_n8n_templates_do_not_read_env_and_keep_the_api_key_in_a_credential():
+    # n8n 2.x blocks $env inside nodes, and the Eva API key must never be inlined in a workflow.
+    import json as _json
+
+    from src.n8n_templates import EVA_CREDENTIAL_NAME, all_templates, bind_credential
+
+    for name in ("error_handler", "cron_briefing", "cron_evening"):
+        workflow = all_templates()[name]
+        text = _json.dumps(workflow)
+        assert "$env" not in text, name
+        assert "X-API-Key" not in text, name
+        assert "http://eva-agent:8000" in text, name
+        http_nodes = [n for n in workflow["nodes"] if n["type"] == "n8n-nodes-base.httpRequest"]
+        assert http_nodes and all(n["credentials"]["httpHeaderAuth"]["name"] == EVA_CREDENTIAL_NAME for n in http_nodes)
+        bind_credential(workflow, "cred-7")
+        assert all(n["credentials"]["httpHeaderAuth"]["id"] == "cred-7" for n in http_nodes)
