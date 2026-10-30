@@ -4294,3 +4294,16 @@ def test_n8n_templates_do_not_read_env_and_keep_the_api_key_in_a_credential():
         assert http_nodes and all(n["credentials"]["httpHeaderAuth"]["name"] == EVA_CREDENTIAL_NAME for n in http_nodes)
         bind_credential(workflow, "cred-7")
         assert all(n["credentials"]["httpHeaderAuth"]["id"] == "cred-7" for n in http_nodes)
+
+
+def test_n8n_editor_is_not_throttled_by_the_login_zone_but_login_stays_strict():
+    # The n8n editor loads dozens of requests per page; the 20r/m login zone answered 429 and the
+    # workflow list stayed empty. Password guessing must still be slow, on /rest/login only.
+    text = (REPO_ROOT / "config" / "nginx" / "nginx.conf").read_text(encoding="utf-8")
+    start = text.index("server_name n8n.syndicateholding.com;")
+    block = text[start:text.index("# 2. LiveKit", start)]
+    root = block[block.index("location / {"):]
+    assert "zone=n8n " in root and "zone=login" not in root
+    login = block[block.index("location = /rest/login"):block.index("location / {")]
+    assert "zone=login" in login
+    assert re.search(r"zone=n8n:\d+m rate=(\d+)r/m", text) and int(re.search(r"zone=n8n:\d+m rate=(\d+)r/m", text).group(1)) >= 300
