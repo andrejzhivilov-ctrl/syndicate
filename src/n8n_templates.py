@@ -6,7 +6,9 @@ n8n workflow templates for Floor 1 (all core nodes, FlowLint-compliant).
 * cron_briefing   — 07:30 morning briefing
 * cron_evening    — 21:00 evening reflection
 
-Secrets are never inlined: they come from ``$env`` / n8n credentials.
+Secrets are never inlined: the Eva API key lives in an n8n credential ("Eva API", HTTP
+Header Auth), never in a node. n8n 2.x blocks ``$env`` inside nodes, so the API base is a
+fixed in-network URL.
 """
 
 from __future__ import annotations
@@ -14,13 +16,9 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 ERROR_WORKFLOW_NAME = "syndicate_error_handler"
-_API = "={{ $env.EVA_API_BASE }}"
-_HEADERS = {
-    "parameters": [
-        {"name": "X-API-Key", "value": "={{ $env.EVA_API_KEY }}"},
-        {"name": "Content-Type", "value": "application/json"},
-    ]
-}
+EVA_API_BASE = "http://eva-agent:8000"  # in-network; n8n 2.x blocks $env inside nodes
+EVA_CREDENTIAL_NAME = "Eva API"  # n8n HTTP Header Auth credential holding X-API-Key
+_HEADERS = {"parameters": [{"name": "Content-Type", "value": "application/json"}]}
 
 _ALLOW_CODE = (
     "const allowed = ($env.ALLOWED_CHAT_IDS || '').split(',').map(s => s.trim()).filter(Boolean);\n"
@@ -53,7 +51,9 @@ def _http(name: str, path: str, pos: List[int], body: str = "={{ JSON.stringify(
         name, "n8n-nodes-base.httpRequest", 4, pos,
         {
             "method": "POST",
-            "url": f"{_API}{path}",
+            "url": f"{EVA_API_BASE}{path}",
+            "authentication": "genericCredentialType",
+            "genericAuthType": "httpHeaderAuth",
             "sendHeaders": True,
             "headerParameters": _HEADERS,
             "sendBody": True,
@@ -61,10 +61,20 @@ def _http(name: str, path: str, pos: List[int], body: str = "={{ JSON.stringify(
             "jsonBody": body,
             "options": {"timeout": 60000},
         },
+        credentials={"httpHeaderAuth": {"name": EVA_CREDENTIAL_NAME}},
         continueOnFail=True,
         retryOnFail=True,
         maxTries=3,
     )
+
+
+def bind_credential(workflow: Dict[str, Any], credential_id: str) -> Dict[str, Any]:
+    """Point every Eva API node at the n8n credential created on the live instance."""
+    for node in workflow["nodes"]:
+        entry = (node.get("credentials") or {}).get("httpHeaderAuth")
+        if entry is not None:
+            entry["id"] = str(credential_id)
+    return workflow
 
 
 def build_sensory_switch() -> Dict[str, Any]:
