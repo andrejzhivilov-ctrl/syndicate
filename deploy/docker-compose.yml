@@ -232,6 +232,8 @@ services:
       # silently replaces the first and drops these mounts.
       - ./deploy/runtime:/app/runtime:ro
       - ./src:/app/src:ro
+      # Regulations change without an image rebuild, like src (a stale copy kept "Obsidian: not connected").
+      - ./config/agent_specs:/app/config/agent_specs:ro
       - ./static/cockpit.html:/app/cockpit.html:ro
       - eva_data:/data/eva
       # Andrii's Obsidian Second Brain, synced to his PC and phone by Syncthing

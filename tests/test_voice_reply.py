@@ -45,6 +45,7 @@ def test_openai_transcribes_first_with_the_registry_model():
     text, provider = asyncio.run(transcribe(b"ogg", {"openai_api_key": "sk-test"}, transport=httpx.MockTransport(handler)))
     assert (text, provider) == ("Привіт, Фіне", "openai")
     assert seen[0].url.host == "api.openai.com" and b"gpt-4o-mini-transcribe" in seen[0].content
+    assert "Обсидіан".encode() in seen[0].content  # names the model cannot guess
     assert seen[0].headers["Authorization"] == "Bearer sk-test"
 
 
