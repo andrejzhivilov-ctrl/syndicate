@@ -36,6 +36,9 @@ TTS_MAX_CHARS = 1500             # cost cap: ~2.5 c per voiced reply at $2/60k c
 OPENAI_TIMEOUT_S = 60
 LOCAL_TIMEOUT_S = 300
 TTS_TIMEOUT_S = 60
+#: Names the model cannot guess: "Обсидіан ... в моїх нотатках" came back as "Одине ... в моїх наказах".
+STT_VOCABULARY = ("Розмова українською з Євою про холдинг Синдикат: Обсидіан, Obsidian, нотатки, сховище, Кодекс, "
+                  "Аліса, Гараж, Garage, n8n, Vault, Telegram, агенти, звіт, брифінг.")
 
 
 async def transcribe(audio: bytes, keys: Dict[str, Any], *, transport: Any = None) -> Tuple[Optional[str], str]:
@@ -47,7 +50,8 @@ async def transcribe(audio: bytes, keys: Dict[str, Any], *, transport: Any = Non
                 response = await client.post(
                     OPENAI_STT_URL,
                     headers={"Authorization": f"Bearer {openai_key}"},
-                    data={"model": model_for("OPENAI_TRANSCRIBE"), "language": "uk", "response_format": "json"},
+                    data={"model": model_for("OPENAI_TRANSCRIBE"), "language": "uk", "response_format": "json",
+                          "prompt": STT_VOCABULARY},
                     files={"file": ("voice.ogg", audio, "audio/ogg")},
                 )
             if response.status_code == 200:

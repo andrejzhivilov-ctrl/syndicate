@@ -37,6 +37,7 @@ SNIPPET_CHARS = 700
 MAX_HITS = 3
 MIN_SCORE = 3  # a title match, or a term repeated in the body; one stray mention is noise
 RECENT_NOTES = 5
+PREVIEW_CHARS = 350
 REFERENCE_CHARS = 3500
 _KYIV = ZoneInfo("Europe/Kyiv")
 
@@ -119,6 +120,10 @@ def reference_for(text: str, root: Optional[Path]) -> Optional[str]:
             lines.append(f"## {path.relative_to(root).as_posix()}\n{_snippet(path)}")
     elif terms:
         lines.append("За цим запитом збігів у нотатках немає.")
+    if not hits:
+        lines.append("Початок найновіших нотаток:")
+        lines += [f"## {path.name}
+{_snippet(path)[:PREVIEW_CHARS]}" for _, path in notes[:RECENT_NOTES]]
     return "\n".join(lines)[:REFERENCE_CHARS]
 
 

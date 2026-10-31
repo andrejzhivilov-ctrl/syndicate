@@ -4461,3 +4461,12 @@ def test_eva_own_chat_path_gets_the_obsidian_notes(tmp_path, monkeypatch):
     llm_off = _Llm()
     asyncio.run(EvaAgent(memory=None, llm=llm_off, vault=None).execute({"action": "chat", "message": "що в нотатках?"}))
     assert "не підключено" in llm_off.system
+
+
+def test_a_general_question_about_notes_shows_their_beginning_not_only_titles(tmp_path):
+    # "Що в моїх нотатках?" has no search terms: Eva could only list file names.
+    from src.obsidian_notes import reference_for
+
+    (tmp_path / "План.md").write_text("---\ntags: x\n---\nЗакупити обладнання до листопада.", encoding="utf-8")
+    found = reference_for("Що в моїх нотатках?", tmp_path)
+    assert "Закупити обладнання" in found and "tags: x" not in found
