@@ -458,7 +458,7 @@ class TestProtectedReadSurface:
         # Remotely Save; nothing else is proxied there.
         start = config.index("server_name sync.syndicateholding.com;")
         block = config[start: config.index("\n    }\n", start)]
-        assert re.findall(r"proxy_pass\s+(\S+);", block) == ["http://garage:3900"]
+        assert re.findall(r"proxy_pass\s+(\S+);", block) == ["http://eva-agent:8081"]
         assert "proxy_set_header Host $host;" in block
 
 
