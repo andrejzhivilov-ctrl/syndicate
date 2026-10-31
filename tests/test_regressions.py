@@ -4470,3 +4470,10 @@ def test_a_general_question_about_notes_shows_their_beginning_not_only_titles(tm
     (tmp_path / "План.md").write_text("---\ntags: x\n---\nЗакупити обладнання до листопада.", encoding="utf-8")
     found = reference_for("Що в моїх нотатках?", tmp_path)
     assert "Закупити обладнання" in found and "tags: x" not in found
+
+
+def test_agent_regulations_are_mounted_into_the_running_container():
+    # eva.json lived only in the image: Eva kept reading "Obsidian: not connected" after the file changed.
+    for compose in ("docker-compose.yml", "deploy/docker-compose.yml"):
+        text = (REPO_ROOT / compose).read_text(encoding="utf-8")
+        assert "./config/agent_specs:/app/config/agent_specs:ro" in text, compose
