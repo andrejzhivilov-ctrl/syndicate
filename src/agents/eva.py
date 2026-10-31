@@ -32,11 +32,23 @@ EVENING_REQUIRED = ("doc", "kira.quiz", "kodex")
 def _file_summary(rep: Dict[str, Any]) -> str:
     """Короткий підсумок файлової частини — з реальних лічильників звіту KODEX."""
     awaiting = rep.get("awaiting_andrii", {}).get("permission", 0)
-    return (
+    summary = (
         f"змін {rep.get('rewritten', 0)}, переміщень {rep.get('moved', 0)}, "
         f"у кошик {rep.get('trashed', 0)}, завантажень агентами {len(rep.get('agent_ingests', []))}, "
         f"автоочищень кошика {len(rep.get('auto_purged', []))}, чекають дозволу Андрія: {awaiting}"
     )
+    return summary + _obsidian_summary(rep.get("obsidian"))
+
+
+def _obsidian_summary(digest: Any) -> str:
+    """Agents' work in the synced Obsidian vault; an unavailable log is said so, never counted as zero."""
+    if not isinstance(digest, dict):
+        return ""
+    if digest.get("status") != "ok":
+        return "; Obsidian: журнал дій недоступний"
+    by_action = ", ".join(f"{name} {count}" for name, count in sorted(digest.get("by_action", {}).items()))
+    return (f"; Obsidian: дій агентів {digest.get('total', 0)}" + (f" ({by_action})" if by_action else "")
+            + f", чекають дозволу: {digest.get('awaiting_permission', 0)}")
 
 
 class EvaAgent:
@@ -450,6 +462,10 @@ class EvaAgent:
             "🛡️ Статус безпеки: Бекап знаходиться у стані готовності до вигрузки на флеш носій "
             "(Disaster Recovery Ready)."
         )
+        kodex_part = agent_data.get("kodex")
+        vault_line = _obsidian_summary(kodex_part.get("obsidian") if isinstance(kodex_part, dict) else None).lstrip("; ")
+        if vault_line:
+            prompt += f"- Сховище (Кодекс): {vault_line}\n"
 
         fallback_text = (
             "Доброго ранку, операторе! "

@@ -156,7 +156,8 @@ class ChatHistory:
 #: Telegram pool commands, answered without any model call.
 POOL_COMMANDS: Dict[str, Optional[str]] = {"/skills": "skill", "/prompts": "prompt", "/mcp": "mcp", "/pool": None,
                                            "/spec": None, "/files": None,
-                                           "/rates": None, "/weather": None, "/alerts": None}
+                                           "/rates": None, "/weather": None, "/alerts": None,
+                                           "/protect": None, "/vaultplan": None}
 _POOL_LABELS = {"skill": "Скіли", "prompt": "Промти", "mcp": "MCP-сервери"}
 _POOL_HINT_RE = re.compile(r"скіл|skill|промпт|промт|prompt|\bmcp\b", re.IGNORECASE)
 POOL_REFERENCE_CHARS = 1200

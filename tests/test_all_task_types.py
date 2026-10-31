@@ -308,6 +308,9 @@ def _payloads(tmp_path: Path) -> Dict[str, Dict[str, Any]]:
         },
         "kodex_triage_tasks": {},
         "kodex_storage_stats": {},
+        "kodex_obsidian_plan": {"write_note": False},
+        "kodex_obsidian_report": {},
+        "morning_data_kodex": {},
         "antigravity_contractor_dispatch": {
             "requester_agent": "architect",
             "objective": "Design async event bus",

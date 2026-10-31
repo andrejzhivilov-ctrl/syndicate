@@ -33,6 +33,7 @@ DIRS = {
     "reports": "media/reports",
     "hitl": "hitl",
     "lockdown": "lockdown",
+    "obsidian_activity": "obsidian_activity",
 }
 
 
