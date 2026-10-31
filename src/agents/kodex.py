@@ -514,6 +514,30 @@ class KodexAgent:
             vault_path = self._config.get("obsidian_vault_path")
             self._bridge = NotebookLMObsidianBridge(vault_path=vault_path)
 
+    def _notebooklm(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Deep synthesis through NotebookLM, deduplication and export to Obsidian."""
+        title = payload.get("title", "NotebookLM Research")
+        content = payload.get("content", "")
+        insights = payload.get("key_insights") or [
+            f"Grounded synthesis of: {title}",
+            "Structured and verified against existing knowledge base.",
+        ]
+        res = self._bridge.synthesize_and_export(
+            agent_id=payload.get("agent_id", self.AGENT_ID),
+            title=title,
+            raw_content=content,
+            category=payload.get("category", "research"),
+            key_insights=insights,
+            backlinks=payload.get("backlinks") or ["Knowledge Base", "Research"],
+            tags=payload.get("tags") or ["notebooklm", "grounded"],
+            sources=payload.get("sources") or [],
+            audio_file_path=payload.get("audio_file_path"),
+        )
+        # Automatic cleanup of temporary NotebookLM artifacts if requested
+        if payload.get("cleanup", True):
+            self._bridge.cleanup_notebooklm_artifacts(payload.get("notebook_id"))
+        return res
+
     def _obsidian(self, action: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         """The synced vault: a dry-run cleanup plan, or the activity digest for the daily reports."""
         from src import obsidian_archivist
@@ -563,28 +587,7 @@ class KodexAgent:
                 force=payload.get("force", False),
             )
         elif action in ("process_with_notebooklm", "notebooklm_synthesize"):
-            # Deep synthesis through NotebookLM, deduplication, and export to Obsidian
-            title = payload.get("title", "NotebookLM Research")
-            content = payload.get("content", "")
-            insights = payload.get("key_insights") or [
-                f"Grounded synthesis of: {title}",
-                "Structured and verified against existing knowledge base.",
-            ]
-            res = self._bridge.synthesize_and_export(
-                agent_id=payload.get("agent_id", self.AGENT_ID),
-                title=title,
-                raw_content=content,
-                category=payload.get("category", "research"),
-                key_insights=insights,
-                backlinks=payload.get("backlinks") or ["Knowledge Base", "Research"],
-                tags=payload.get("tags") or ["notebooklm", "grounded"],
-                sources=payload.get("sources") or [],
-                audio_file_path=payload.get("audio_file_path"),
-            )
-            # Automatic cleanup of temporary NotebookLM artifacts if requested
-            if payload.get("cleanup", True):
-                self._bridge.cleanup_notebooklm_artifacts(payload.get("notebook_id"))
-            return res
+            return self._notebooklm(payload)
         elif action in ("cleanup_notebooklm", "purge_notebooks"):
             return self._bridge.cleanup_notebooklm_artifacts(payload.get("notebook_id"))
         elif action in ("scan_user_notes", "read_obsidian_notes"):
