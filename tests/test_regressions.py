@@ -4216,6 +4216,33 @@ def test_obsidian_webdav_without_a_login_stays_down_and_says_so(tmp_path):
     assert result["status"] == "unavailable"
 
 
+def test_obsidian_webdav_rotate_replaces_the_password_only_where_it_can_be_seen(monkeypatch, capsys):
+    # A password shown in a screenshot must be replaceable; a rotation nobody can read must not happen.
+    from scripts import syndicate_vault as sv
+
+    store = {"access_key_id": "GK-keep", "webdav_user": "andrii", "webdav_password": "OLD"}
+    writes = []
+    monkeypatch.setattr(sv, "get_secret", lambda path: dict(store))
+    monkeypatch.setattr(sv, "put_secret", lambda path, data: writes.append((path, data)))
+
+    monkeypatch.setattr(sv.sys.stdout, "isatty", lambda: False)
+    with pytest.raises(SystemExit):
+        sv.cmd_obsidian_webdav(True, rotate=True)
+    assert writes == []
+
+    monkeypatch.setattr(sv.sys.stdout, "isatty", lambda: True)
+    with pytest.raises(SystemExit):
+        sv.cmd_obsidian_webdav(False, rotate=True)
+    sv.cmd_obsidian_webdav(True)
+    assert writes == []  # plain --reveal keeps the password the devices already use
+
+    sv.cmd_obsidian_webdav(True, rotate=True)
+    path, data = writes[-1]
+    assert path == "agents/eva/obsidian" and data["webdav_password"] != "OLD"
+    assert data["access_key_id"] == "GK-keep" and data["webdav_user"] == "andrii"
+    assert data["webdav_password"] in capsys.readouterr().out
+
+
 def test_garage_setup_stores_the_obsidian_key_under_a_relative_vault_path():
     # put_secret() prefixes secret/data/syndicate/ itself: handing it the full
     # agent_secret_path() gave ".../syndicate/secret/data/syndicate/agents/..." and a 403.
