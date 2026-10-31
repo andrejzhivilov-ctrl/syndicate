@@ -64,11 +64,11 @@
   "integrations": [
     {"name": "Telegram-бот Єви", "status": "connected"},
     {"name": "Розпізнавання голосу (OpenAI)", "status": "connected"},
-    {"name": "Голосові відповіді (Respeecher)", "status": "not_connected"},
+    {"name": "Голосові відповіді (Respeecher, лише на вимогу)", "status": "connected"},
     {"name": "Дзвінки (Twilio/SIP), WhatsApp, Threema", "status": "not_connected"},
     {"name": "Пошта й Google Календар", "status": "not_connected"},
     {"name": "Google Drive", "status": "not_connected"},
-    {"name": "Obsidian", "status": "not_connected"},
+    {"name": "Obsidian (читання нотаток, синхронізація з ПК і телефоном кожні 2 хв; запису в сховище поки немає)", "status": "connected"},
     {"name": "Новинні джерела (RSS, Telegram-канали, YouTube)", "status": "not_connected"},
     {"name": "Курси НБУ (команда /rates)", "status": "connected"},
     {"name": "Погода Open-Meteo (/weather; потрібна точка від Андрія)", "status": "not_connected"},

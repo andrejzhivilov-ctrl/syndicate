@@ -1805,8 +1805,12 @@ class EvaOrchestrator:
                 self._chat_history = ChatHistory(lambda: getattr(getattr(self, "_memory", None), "_redis", None))
             from src.agent_chat import pool_reference
 
+            from src.obsidian_notes import obsidian_reference
+
             reference = await asyncio.to_thread(pool_reference, agent_id, text, self._pools())
-            result = await chat_reply(agent_id, text, self._llm_for(agent_id), self._chat_history, owner, reference)
+            notes = await asyncio.to_thread(obsidian_reference, agent_id, text)
+            result = await chat_reply(agent_id, text, self._llm_for(agent_id), self._chat_history, owner, reference,
+                                      notes)
         return {"task_id": str(uuid.uuid4()), "status": "completed", "result": result}
 
     def _pools(self) -> Any:

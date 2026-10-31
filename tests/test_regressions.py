@@ -4307,3 +4307,26 @@ def test_n8n_editor_is_not_throttled_by_the_login_zone_but_login_stays_strict():
     login = block[block.index("location = /rest/login"):block.index("location / {")]
     assert "zone=login" in login
     assert re.search(r"zone=n8n:\d+m rate=(\d+)r/m", text) and int(re.search(r"zone=n8n:\d+m rate=(\d+)r/m", text).group(1)) >= 300
+
+
+def test_obsidian_notes_reach_the_chat_of_eva_and_report_an_absent_vault_honestly(tmp_path):
+    # Eva told Andrii she could not see the vault although it was synced: nothing fed it to the chat.
+    from src.obsidian_notes import obsidian_reference, reference_for
+
+    inbox = tmp_path / "00_Inbox"
+    inbox.mkdir()
+    (inbox / "Синхронізація.md").write_text("---\ntags: x\n---\nПеревірка синхронізації з телефона.", encoding="utf-8")
+    (tmp_path / ".obsidian").mkdir()
+    (tmp_path / ".obsidian" / "secret.md").write_text("Синхронізація службова", encoding="utf-8")
+
+    found = reference_for("Єво, бачиш нову нотатку Синхронізація?", tmp_path)
+    assert "00_Inbox/Синхронізація.md" in found and "Перевірка синхронізації" in found
+    assert ".obsidian" not in found and "tags: x" not in found
+    assert "нотаток 1" in found
+
+    assert reference_for("Привіт, як справи?", tmp_path) is None  # ordinary chat pays nothing
+    assert "не підключено" in reference_for("що в моїх нотатках?", None)
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    assert "немає жодної нотатки" in reference_for("що в моїх нотатках?", empty)
+    assert obsidian_reference("sam", "що в моїх нотатках?") is None  # only Eva and Kodex read the vault
