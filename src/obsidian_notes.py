@@ -35,6 +35,7 @@ MAX_FILES = 3000
 MAX_FILE_BYTES = 200_000
 SNIPPET_CHARS = 700
 MAX_HITS = 3
+MIN_SCORE = 3  # a title match, or a term repeated in the body; one stray mention is noise
 RECENT_NOTES = 5
 REFERENCE_CHARS = 3500
 _KYIV = ZoneInfo("Europe/Kyiv")
@@ -111,7 +112,7 @@ def reference_for(text: str, root: Optional[Path]) -> Optional[str]:
     lines += [f"- {path.relative_to(root).as_posix()} ({_when(mtime)})" for mtime, path in notes[:RECENT_NOTES]]
     terms = _terms(text)
     hits = sorted(((_score(path, terms), path) for _, path in notes), key=lambda item: -item[0]) if terms else []
-    hits = [(score, path) for score, path in hits if score > 0][:MAX_HITS]
+    hits = [(score, path) for score, path in hits if score >= MIN_SCORE][:MAX_HITS]
     if hits:
         lines.append("Збіги за запитом:")
         for _, path in hits:
