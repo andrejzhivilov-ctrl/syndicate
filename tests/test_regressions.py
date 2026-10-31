@@ -4428,3 +4428,36 @@ def test_archivist_activity_feeds_the_daily_reports_and_commands_are_owner_scope
     monkeypatch.delenv("OBSIDIAN_VAULT_DIR", raising=False)
     assert chat_command("sam", "/protect", "a.md")["status"] == "refused"
     assert chat_command("kodex", "/protect", "a.md")["status"] == "unavailable"
+
+
+def test_eva_own_chat_path_gets_the_obsidian_notes(tmp_path, monkeypatch):
+    # Eva's Telegram chat does not go through agent_chat.chat_reply: she kept saying
+    # "Obsidian is not connected" until her own _chat fed the notes to the model.
+    from src.agents.eva import EvaAgent
+
+    (tmp_path / "00_Inbox").mkdir()
+    (tmp_path / "00_Inbox" / "Синхронізація.md").write_text("Перевірка синхронізації з телефона.", encoding="utf-8")
+
+    class _Llm:
+        def __init__(self):
+            self.system = ""
+
+        async def ainvoke(self, messages):
+            self.system = messages[0].content
+            return type("Reply", (), {"content": "ok"})()
+
+    monkeypatch.setenv("OBSIDIAN_VAULT_DIR", str(tmp_path))
+    llm = _Llm()
+    result = asyncio.run(EvaAgent(memory=None, llm=llm, vault=None).execute(
+        {"action": "chat", "message": "Єво, бачиш нотатку Синхронізація?"}))
+    assert result["status"] == "completed"
+    assert "00_Inbox/Синхронізація.md" in llm.system and "недовірений" in llm.system
+
+    llm_plain = _Llm()
+    asyncio.run(EvaAgent(memory=None, llm=llm_plain, vault=None).execute({"action": "chat", "message": "Привіт!"}))
+    assert "Obsidian Андрія" not in llm_plain.system  # ordinary chat pays nothing
+
+    monkeypatch.delenv("OBSIDIAN_VAULT_DIR")
+    llm_off = _Llm()
+    asyncio.run(EvaAgent(memory=None, llm=llm_off, vault=None).execute({"action": "chat", "message": "що в нотатках?"}))
+    assert "не підключено" in llm_off.system
