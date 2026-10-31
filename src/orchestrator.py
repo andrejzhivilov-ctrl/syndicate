@@ -307,6 +307,9 @@ class EvaOrchestrator:
         "kodex_dispatch_task": "kodex",
         "kodex_triage_tasks": "kodex",
         "kodex_storage_stats": "kodex",
+        "kodex_obsidian_plan": "kodex",
+        "kodex_obsidian_report": "kodex",
+        "morning_data_kodex": "kodex",
         # Antigravity (External 24/7 VM Super-Agent Contractor Gateway)
         "antigravity_contractor_dispatch": "antigravity_gateway",
         "antigravity_contractor_compact": "antigravity_gateway",
@@ -1460,6 +1463,9 @@ class EvaOrchestrator:
             "kodex_dispatch_task": "dispatch_task",
             "kodex_triage_tasks": "triage_task_web",
             "kodex_storage_stats": "storage_stats",
+            "kodex_obsidian_plan": "obsidian_plan",
+            "kodex_obsidian_report": "obsidian_report",
+            "morning_data_kodex": "obsidian_report",
         }
         payload.setdefault("action", action_map.get(state.get("task_type", ""), "storage_stats"))
         if "content" not in payload and "summary" in payload:
@@ -1790,6 +1796,10 @@ class EvaOrchestrator:
             from src.agent_storage import AgentStorage, files_reply
 
             result = await files_reply(agent_id, command[1], AgentStorage(agent_id, self._vault_client))
+        elif command is not None and command[0] in {"/protect", "/vaultplan"}:
+            from src.obsidian_archivist import chat_command
+
+            result = await asyncio.to_thread(chat_command, agent_id, command[0], command[1])
         elif command is not None and command[0] in {"/rates", "/weather", "/alerts"}:
             from src.integrations.public_data import source_reply
 
@@ -1805,8 +1815,12 @@ class EvaOrchestrator:
                 self._chat_history = ChatHistory(lambda: getattr(getattr(self, "_memory", None), "_redis", None))
             from src.agent_chat import pool_reference
 
+            from src.obsidian_notes import obsidian_reference
+
             reference = await asyncio.to_thread(pool_reference, agent_id, text, self._pools())
-            result = await chat_reply(agent_id, text, self._llm_for(agent_id), self._chat_history, owner, reference)
+            notes = await asyncio.to_thread(obsidian_reference, agent_id, text)
+            result = await chat_reply(agent_id, text, self._llm_for(agent_id), self._chat_history, owner, reference,
+                                      notes)
         return {"task_id": str(uuid.uuid4()), "status": "completed", "result": result}
 
     def _pools(self) -> Any:

@@ -4307,3 +4307,124 @@ def test_n8n_editor_is_not_throttled_by_the_login_zone_but_login_stays_strict():
     login = block[block.index("location = /rest/login"):block.index("location / {")]
     assert "zone=login" in login
     assert re.search(r"zone=n8n:\d+m rate=(\d+)r/m", text) and int(re.search(r"zone=n8n:\d+m rate=(\d+)r/m", text).group(1)) >= 300
+
+
+def test_obsidian_notes_reach_the_chat_of_eva_and_report_an_absent_vault_honestly(tmp_path):
+    # Eva told Andrii she could not see the vault although it was synced: nothing fed it to the chat.
+    from src.obsidian_notes import obsidian_reference, reference_for
+
+    inbox = tmp_path / "00_Inbox"
+    inbox.mkdir()
+    (inbox / "Синхронізація.md").write_text("---\ntags: x\n---\nПеревірка синхронізації з телефона.", encoding="utf-8")
+    (tmp_path / ".obsidian").mkdir()
+    (tmp_path / ".obsidian" / "secret.md").write_text("Синхронізація службова", encoding="utf-8")
+
+    found = reference_for("Єво, бачиш нову нотатку Синхронізація?", tmp_path)
+    assert "00_Inbox/Синхронізація.md" in found and "Перевірка синхронізації" in found
+    assert ".obsidian" not in found and "tags: x" not in found
+    assert "нотаток 1" in found
+
+    assert reference_for("Привіт, як справи?", tmp_path) is None  # ordinary chat pays nothing
+    assert "не підключено" in reference_for("що в моїх нотатках?", None)
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    assert "немає жодної нотатки" in reference_for("що в моїх нотатках?", empty)
+    assert obsidian_reference("sam", "що в моїх нотатках?") is None  # only Eva and Kodex read the vault
+
+
+def _aged_note(path, text, days=30):
+    import os as _os
+    import time as _time
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    old = _time.time() - days * 86400
+    _os.utime(path, (old, old))
+
+
+def test_archivist_protected_notes_may_be_read_created_and_moved_but_never_edited_or_deleted(tmp_path):
+    from src.obsidian_archivist import ActivityLog, Archivist, is_protected
+
+    (tmp_path / "a").mkdir()
+    _aged_note(tmp_path / "a" / "Моя.md", "---\nandrii_protected: true\n---\nособисте, дуже довге речення про щось важливе")
+    _aged_note(tmp_path / "a" / "Теж.md", "текст з міткою #andrii_protected усередині нотатки на кілька слів")
+    _aged_note(tmp_path / "a" / "Вільна.md", "звичайна нотатка без мітки, яку агенти можуть прибрати самі")
+    assert is_protected((tmp_path / "a" / "Моя.md").read_text(encoding="utf-8"))
+    assert is_protected((tmp_path / "a" / "Теж.md").read_text(encoding="utf-8"))
+
+    arch = Archivist(tmp_path, ActivityLog(tmp_path.parent / "log.jsonl"))
+    for protected in ("a/Моя.md", "a/Теж.md"):
+        assert arch.check("read", protected)["allowed"] and arch.check("move", protected)["allowed"]
+        assert arch.check("create", protected)["allowed"]
+        for action in ("edit", "delete"):
+            verdict = arch.check(action, protected)
+            assert verdict["allowed"] is False and verdict["reason"] == "protected"
+    assert arch.trash("a/Моя.md")["status"] == "needs_permission"
+    assert (tmp_path / "a" / "Моя.md").exists()
+    assert arch.check("delete", "../outside.md")["reason"] == "path_escapes_vault"
+
+    assert arch.trash("a/Вільна.md")["status"] == "trashed"
+    assert (tmp_path / "_Кошик_агентів" / "a" / "Вільна.md").exists() and not (tmp_path / "a" / "Вільна.md").exists()
+
+
+def test_archivist_asks_permission_for_what_looks_important(tmp_path):
+    from src.obsidian_archivist import Archivist
+
+    _aged_note(tmp_path / "Хаб_знань.md", "огляд усіх матеріалів, довгий текст щоб не бути порожнім")
+    _aged_note(tmp_path / "Цільова.md", "нотатка, на яку посилаються інші нотатки в сховищі")
+    _aged_note(tmp_path / "Перша.md", "див. [[Цільова]] для деталей, а також багато іншого тексту")
+    _aged_note(tmp_path / "Друга.md", "ще раз [[Цільова]] і зовсім інший текст про щось своє")
+    _aged_note(tmp_path / "Нова.md", "щойно змінена нотатка з достатньою кількістю слів", days=0)
+    _aged_note(tmp_path / "Звичайна.md", "стара нотатка без посилань і без особливих ознак важливості")
+    arch = Archivist(tmp_path)
+    assert arch.check("delete", "Хаб_знань.md")["because"] == ["хаб, реєстр чи регламент"]
+    assert any("посилаються" in r for r in arch.check("delete", "Цільова.md")["because"])
+    assert any("протягом" in r for r in arch.check("edit", "Нова.md")["because"])
+    assert arch.check("delete", "Звичайна.md") == {"allowed": True}
+
+
+def test_archivist_mark_goes_on_only_when_andrii_asks_and_the_plan_changes_nothing(tmp_path):
+    from src.obsidian_archivist import ActivityLog, Archivist, is_protected
+
+    log = ActivityLog(tmp_path.parent / "log2.jsonl")
+    _aged_note(tmp_path / "Нотатка.md", "---\ntags: x\n---\nтекст нотатки, достатньо довгий для перевірки")
+    _aged_note(tmp_path / "Копія.md", "текст нотатки, достатньо довгий для перевірки")
+    _aged_note(tmp_path / "Порожня.md", "")
+    arch = Archivist(tmp_path, log)
+
+    assert arch.protect("Нотатка.md", "eva")["status"] == "refused"  # an agent cannot mark on its own
+    assert not is_protected((tmp_path / "Нотатка.md").read_text(encoding="utf-8"))
+    assert arch.protect("Нотатка.md", "andrii")["status"] == "protected"
+    text = (tmp_path / "Нотатка.md").read_text(encoding="utf-8")
+    assert is_protected(text) and "tags: x" in text and "текст нотатки" in text
+    assert arch.protect("Нотатка.md", "andrii")["status"] == "already_protected"
+
+    before = {p.name: p.read_text(encoding="utf-8") for p in tmp_path.glob("*.md")}
+    plan = arch.plan()
+    assert plan["dry_run"] is True and {p.name: p.read_text(encoding="utf-8") for p in tmp_path.glob("*.md")} == before
+    kinds = {i["kind"] for i in plan["items"]}
+    assert {"empty", "duplicate"} <= kinds
+    note = arch.write_plan_note(plan)
+    assert note.startswith("00_Inbox/Звіт_Кодекса_") and "Нічого не змінено" in (tmp_path / note).read_text(encoding="utf-8")
+    assert arch.write_plan_note(plan) != note  # never overwrites a previous report
+
+
+def test_archivist_activity_feeds_the_daily_reports_and_commands_are_owner_scoped(tmp_path, monkeypatch):
+    from datetime import datetime, timedelta, timezone
+
+    from src.agents.eva import _obsidian_summary
+    from src.obsidian_archivist import ActivityLog, chat_command
+
+    log = ActivityLog(tmp_path / "log.jsonl")
+    log.record("kodex", "trash", "a.md")
+    log.record("kodex", "permission_requested", "b.md")
+    log.record("eva", "create", "c.md")
+    digest = {"status": "ok", **log.digest(datetime.now(timezone.utc) - timedelta(hours=24))}
+    assert digest["total"] == 3 and digest["awaiting_permission"] == 1
+    line = _obsidian_summary(digest)
+    assert "дій агентів 3" in line and "trash 1" in line and "чекають дозволу: 1" in line
+    assert "недоступний" in _obsidian_summary({"status": "unavailable"})  # absent log is not a zero
+
+    monkeypatch.delenv("OBSIDIAN_VAULT_DIR", raising=False)
+    assert chat_command("sam", "/protect", "a.md")["status"] == "refused"
+    assert chat_command("kodex", "/protect", "a.md")["status"] == "unavailable"
