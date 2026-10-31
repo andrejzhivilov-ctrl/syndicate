@@ -122,8 +122,7 @@ def reference_for(text: str, root: Optional[Path]) -> Optional[str]:
         lines.append("За цим запитом збігів у нотатках немає.")
     if not hits:
         lines.append("Початок найновіших нотаток:")
-        lines += [f"## {path.name}
-{_snippet(path)[:PREVIEW_CHARS]}" for _, path in notes[:RECENT_NOTES]]
+        lines += [f"## {path.name}\n{_snippet(path)[:PREVIEW_CHARS]}" for _, path in notes[:RECENT_NOTES]]
     return "\n".join(lines)[:REFERENCE_CHARS]
 
 
