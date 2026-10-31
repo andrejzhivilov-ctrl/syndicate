@@ -23,7 +23,7 @@ Usage:
     scripts/syndicate_vault.py set-location                  # prompts: fixed point for Eva's weather
     scripts/syndicate_vault.py rotate-master [--reveal]
     scripts/syndicate_vault.py show-master --reveal
-    scripts/syndicate_vault.py obsidian-key --reveal          # Remotely Save settings for PC/phone
+    scripts/syndicate_vault.py obsidian-webdav --reveal       # Remotely Save (WebDAV) login for PC/phone
 """
 from __future__ import annotations
 
@@ -313,6 +313,25 @@ def cmd_show_master(reveal: bool) -> None:
     _print_master(key)
 
 
+def cmd_obsidian_webdav(reveal: bool) -> None:
+    """WebDAV login for the Remotely Save plugin; created in Vault on the first run."""
+    if not reveal:
+        raise SystemExit("pass --reveal to display the Obsidian WebDAV login (interactive terminal only)")
+    if not sys.stdout.isatty():
+        raise SystemExit("refusing to print the login to a non-interactive stream")
+    data = get_secret("agents/eva/obsidian")
+    if not data.get("webdav_password"):
+        data = {**data, "webdav_user": "andrii", "webdav_password": secrets.token_urlsafe(24)}
+        put_secret("agents/eva/obsidian", data)
+        print("New login stored in Vault: restart eva-agent so the WebDAV server picks it up.")
+    print("\nRemotely Save → Remote service: WebDAV")
+    print("  Server Address: https://sync.syndicateholding.com")
+    print(f"  Username:       {data['webdav_user']}")
+    print(f"  Password:       {data['webdav_password']}")
+    print("  Auth Type:      basic")
+    print("  Change The Remote Base Directory: vault")
+
+
 def cmd_obsidian_key(reveal: bool) -> None:
     """Settings for the Remotely Save plugin (S3) on Andrii's PC and phone."""
     if not reveal:
@@ -358,6 +377,8 @@ def main(argv: list[str]) -> int:  # noqa: C901
         cmd_rotate_master("--reveal" in flags)
     elif cmd == "obsidian-key":
         cmd_obsidian_key("--reveal" in flags)
+    elif cmd == "obsidian-webdav":
+        cmd_obsidian_webdav("--reveal" in flags)
     elif cmd == "show-master":
         cmd_show_master("--reveal" in flags)
     else:
