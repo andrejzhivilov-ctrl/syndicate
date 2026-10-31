@@ -480,6 +480,9 @@ def evening_section(data_dir: Optional[str], now: datetime) -> Dict[str, Any]:
     base = Path(data_dir)
     store = KodexStore(base / "kodex.json", base / "blobs")
     rep = store.report_for_eva(now - EVENING_WINDOW)
+    from src.obsidian_archivist import activity_digest
+
+    rep["obsidian"] = activity_digest(int(EVENING_WINDOW.total_seconds() // 3600))  # what agents did in the vault
     return {"status": "ok", "window_hours": int(EVENING_WINDOW.total_seconds() // 3600), "report": rep}
 
 
@@ -511,8 +514,24 @@ class KodexAgent:
             vault_path = self._config.get("obsidian_vault_path")
             self._bridge = NotebookLMObsidianBridge(vault_path=vault_path)
 
+    def _obsidian(self, action: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """The synced vault: a dry-run cleanup plan, or the activity digest for the daily reports."""
+        from src import obsidian_archivist
+
+        if action == "obsidian_report":
+            return obsidian_archivist.activity_digest(int(payload.get("hours", 24)))
+        archivist = obsidian_archivist.from_env(self.AGENT_ID)
+        if archivist is None:
+            return {"status": "unavailable", "reason": "obsidian_vault_not_mounted"}
+        plan = archivist.plan()
+        if payload.get("write_note", True):
+            plan["note"] = archivist.write_plan_note(plan)
+        return plan
+
     async def execute(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         action = payload.get("action", "capabilities")
+        if action in ("obsidian_plan", "obsidian_report"):
+            return self._obsidian(action, payload)
         if action == "capabilities":
             return {
                 "agent": self.AGENT_ID,
@@ -523,6 +542,8 @@ class KodexAgent:
                     "cleanup_notebooklm",
                     "scan_user_notes",
                     "ingest_file",
+                    "obsidian_plan",
+                    "obsidian_report",
                     "capabilities",
                 ],
                 "status": "ready",
