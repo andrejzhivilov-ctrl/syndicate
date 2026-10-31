@@ -23,7 +23,7 @@ Usage:
     scripts/syndicate_vault.py set-location                  # prompts: fixed point for Eva's weather
     scripts/syndicate_vault.py rotate-master [--reveal]
     scripts/syndicate_vault.py show-master --reveal
-    scripts/syndicate_vault.py obsidian-webdav --reveal       # Remotely Save (WebDAV) login for PC/phone
+    scripts/syndicate_vault.py obsidian-webdav --reveal [--rotate]  # Remotely Save (WebDAV) login for PC/phone
 """
 from __future__ import annotations
 
@@ -313,14 +313,15 @@ def cmd_show_master(reveal: bool) -> None:
     _print_master(key)
 
 
-def cmd_obsidian_webdav(reveal: bool) -> None:
+def cmd_obsidian_webdav(reveal: bool, rotate: bool = False) -> None:
     """WebDAV login for the Remotely Save plugin; created in Vault on the first run."""
     if not reveal:
         raise SystemExit("pass --reveal to display the Obsidian WebDAV login (interactive terminal only)")
+    # Checked before any write: a rotated password nobody saw would lock out every device.
     if not sys.stdout.isatty():
         raise SystemExit("refusing to print the login to a non-interactive stream")
     data = get_secret("agents/eva/obsidian")
-    if not data.get("webdav_password"):
+    if rotate or not data.get("webdav_password"):
         data = {**data, "webdav_user": "andrii", "webdav_password": secrets.token_urlsafe(24)}
         put_secret("agents/eva/obsidian", data)
         print("New login stored in Vault: restart eva-agent so the WebDAV server picks it up.")
@@ -378,7 +379,7 @@ def main(argv: list[str]) -> int:  # noqa: C901
     elif cmd == "obsidian-key":
         cmd_obsidian_key("--reveal" in flags)
     elif cmd == "obsidian-webdav":
-        cmd_obsidian_webdav("--reveal" in flags)
+        cmd_obsidian_webdav("--reveal" in flags, "--rotate" in flags)
     elif cmd == "show-master":
         cmd_show_master("--reveal" in flags)
     else:
