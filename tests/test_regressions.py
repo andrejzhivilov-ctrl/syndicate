@@ -4181,13 +4181,12 @@ def test_voice_assignment_covers_only_known_agents():
     assert set(AGENT_VOICES) <= set(DIRECTOR_IDS)
 
 
-def test_obsidian_vault_syncs_through_garage_not_syncthing():
-    # Operator 29.10: Syncthing was too fiddly on the devices. Garage is the hub:
-    # PC/phone use Remotely Save, eva-agent runs rclone bisync with Eva's own key.
+def test_obsidian_vault_is_served_over_webdav_not_through_a_bucket():
+    # Operator 31.10: Obsidian is the archive, Garage the agents' working memory. Devices reach
+    # the vault directory itself; S3 signatures also broke behind Cloudflare (Invalid signature).
     import yaml
 
-    from src.obsidian_sync import OBSIDIAN_BUCKET, bisync_args, rclone_env
-    from tools.garage_setup import OBSIDIAN_LIFECYCLE
+    from src.obsidian_webdav import REMOTE_BASE_DIR, WEBDAV_PORT, serve_args, serve_env
 
     main = yaml.safe_load((REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
     voice = yaml.safe_load((REPO_ROOT / "deploy" / "docker-compose.voice.yml").read_text(encoding="utf-8"))
@@ -4196,14 +4195,25 @@ def test_obsidian_vault_syncs_through_garage_not_syncthing():
     assert "/data/obsidian_vault:/data/obsidian" in eva["volumes"]
     assert eva["environment"]["OBSIDIAN_VAULT_DIR"] == "/data/obsidian"
     assert "obsidian-syncthing" not in voice["services"]
-    # A vault's "tmp/" is a folder of notes: no expiry rule on this bucket.
-    assert [rule["ID"] for rule in OBSIDIAN_LIFECYCLE] == ["abort-uploads"]
-    # The secret goes through the environment only, never argv.
-    key = {"access_key_id": "AK", "secret_access_key": "SECRET"}
-    args = bisync_args(Path("/v"), Path("/w"), resync=False)
-    assert "SECRET" not in " ".join(args) and f"garage:{OBSIDIAN_BUCKET}" in args
-    assert "SECRET" in rclone_env(key, Path("/w")).values()
-    assert "--resync" in bisync_args(Path("/v"), Path("/w"), resync=True)
+    # The login goes through the environment only, never argv.
+    creds = {"webdav_user": "andrii", "webdav_password": "SECRET"}
+    args = serve_args(Path("/v"), Path("/w"))
+    assert "SECRET" not in " ".join(args) and "bisync" not in args
+    assert args[:4] == ["rclone", "serve", "webdav", "/v"] and REMOTE_BASE_DIR in args
+    assert serve_env(creds, Path("/w"))["RCLONE_PASS"] == "SECRET"
+    nginx = (REPO_ROOT / "config" / "nginx" / "nginx.conf").read_text(encoding="utf-8")
+    assert f"proxy_pass http://eva-agent:{WEBDAV_PORT};" in nginx
+
+
+def test_obsidian_webdav_without_a_login_stays_down_and_says_so(tmp_path):
+    from src.obsidian_webdav import ObsidianWebDAV
+
+    class _Vault:
+        async def get_secret(self, path):
+            return {}
+
+    result = asyncio.run(ObsidianWebDAV(_Vault(), tmp_path, tmp_path / "w").run_once())
+    assert result["status"] == "unavailable"
 
 
 def test_garage_setup_stores_the_obsidian_key_under_a_relative_vault_path():

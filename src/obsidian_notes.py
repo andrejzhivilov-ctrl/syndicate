@@ -1,7 +1,7 @@
 """Read-only view of Andrii's synced Obsidian vault for the chat of Eva and Kodex.
 
-The vault directory (``OBSIDIAN_VAULT_DIR``) is kept in step with the phone and the PC by
-``src/obsidian_sync.py``. When a chat message asks about notes or the vault, the newest
+The vault directory (``OBSIDIAN_VAULT_DIR``) is what the phone and the PC reach through
+``src/obsidian_webdav.py``. When a chat message asks about notes or the vault, the newest
 notes and the best keyword matches are put in front of the model as untrusted reference
 material. Nothing here writes, and a missing or empty vault is reported as such: the
 model must never be left to guess whether it can see the notes.

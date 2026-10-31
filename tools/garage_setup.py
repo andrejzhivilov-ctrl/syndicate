@@ -37,10 +37,10 @@ from src.agent_storage import (  # noqa: E402
     TMP_PREFIX,
     bucket_for,
 )
-from src.obsidian_sync import OBSIDIAN_BUCKET  # noqa: E402
 from src.vault_paths import DIRECTOR_IDS, STORAGE  # noqa: E402
 
 CONTAINER = "syndicate-garage-1"
+OBSIDIAN_BUCKET = "obsidian-vault"  # retired hub (31.10: WebDAV); kept until Andrii confirms deletion
 QUOTA_OBSIDIAN_BYTES = 20 * 1024 ** 3
 OBSIDIAN_DEVICES_KEY = "obsidian-devices"
 OBSIDIAN_SECRET = "obsidian"  # Vault agents/eva/obsidian: the devices' key
