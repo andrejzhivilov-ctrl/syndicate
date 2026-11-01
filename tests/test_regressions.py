@@ -4514,3 +4514,13 @@ def test_agent_regulations_are_mounted_into_the_running_container():
     for compose in ("docker-compose.yml", "deploy/docker-compose.yml"):
         text = (REPO_ROOT / compose).read_text(encoding="utf-8")
         assert "./config/agent_specs:/app/config/agent_specs:ro" in text, compose
+
+
+def test_daily_backup_covers_both_databases_and_proves_each_dump_by_restoring_it():
+    script = (REPO_ROOT / "deploy" / "scripts" / "backup_daily.sh").read_text(encoding="utf-8")
+
+    assert 'backup_database n8n "${N8N_DB_NAME:-n8n}"' in script
+    assert 'verify_restore n8n "${N8N_DB_NAME:-n8n}"' in script
+    assert 'verify_restore postgres "${POSTGRES_DB_NAME:-syndicate}"' in script
+    assert 'record vault unavailable' in script
+    assert "--network none" in script

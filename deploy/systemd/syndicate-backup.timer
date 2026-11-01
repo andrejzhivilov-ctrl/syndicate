@@ -1,0 +1,10 @@
+[Unit]
+Description=Run the SYNDICATE backup every night
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+Unit=syndicate-backup.service
+
+[Install]
+WantedBy=timers.target
