@@ -1139,7 +1139,7 @@ class EvaOrchestrator:
             }
             state["status"] = "completed"
             return state
-        agent = EvaAgent(memory=self._memory, llm=self._llm_for("eva"), config=self._config, vault=self._vault)
+        agent = EvaAgent(memory=self._memory, llm=self._llm_for("eva"), config=self._config, chat_history=self._chat_buffer(), vault=self._vault)
         if "action" not in payload:
             payload["action"] = state["task_type"] if state["task_type"] in ("chat", "compose_briefing", "compose_reflection", "delegate", "system_status") else "chat"
         result = await agent.execute(payload)
@@ -1780,7 +1780,7 @@ class EvaOrchestrator:
         Returns None when the message is not chat (commands, Eva) so the regular
         task routing handles it.
         """
-        from src.agent_chat import PERSONAS, ChatHistory, chat_reply, chat_text, pool_command
+        from src.agent_chat import PERSONAS, chat_reply, chat_text, pool_command
 
         agent_id = source[len("telegram_"):] if source.startswith("telegram_") else None
         command = pool_command(payload or {})
@@ -1810,18 +1810,24 @@ class EvaOrchestrator:
             # The first use scans the pool files: keep it off the event loop.
             result = await asyncio.to_thread(pool_reply, agent_id, command[0], command[1], self._pools())
         else:
-            if getattr(self, "_chat_history", None) is None:
-                # Read the Redis handle on every call: MemoryManager drops it on failure.
-                self._chat_history = ChatHistory(lambda: getattr(getattr(self, "_memory", None), "_redis", None))
             from src.agent_chat import pool_reference
 
             from src.obsidian_notes import obsidian_reference
 
             reference = await asyncio.to_thread(pool_reference, agent_id, text, self._pools())
             notes = await asyncio.to_thread(obsidian_reference, agent_id, text)
-            result = await chat_reply(agent_id, text, self._llm_for(agent_id), self._chat_history, owner, reference,
+            result = await chat_reply(agent_id, text, self._llm_for(agent_id), self._chat_buffer(), owner, reference,
                                       notes)
         return {"task_id": str(uuid.uuid4()), "status": "completed", "result": result}
+
+    def _chat_buffer(self) -> Any:
+        """Short-term chat memory shared by Telegram conversations."""
+        from src.agent_chat import ChatHistory
+
+        if getattr(self, "_chat_history", None) is None:
+            # Read the Redis handle on every call: MemoryManager drops it on failure.
+            self._chat_history = ChatHistory(lambda: getattr(getattr(self, "_memory", None), "_redis", None))
+        return self._chat_history
 
     def _pools(self) -> Any:
         """Shared skill/prompt/MCP pools (lazy; index is built on first use)."""

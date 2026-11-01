@@ -8,6 +8,7 @@ v4.1 Verified:
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any, Dict, List, Optional
 
@@ -17,6 +18,9 @@ from sqlalchemy import text
 from src.embeddings import EmbeddingUnavailable
 
 logger = structlog.get_logger(__name__)
+
+#: Upper bound for embedding the action text before an agent answers.
+ACTION_EMBED_TIMEOUT_S = 3.0
 
 
 class LessonsStore:
@@ -157,9 +161,15 @@ class LessonsStore:
             return []
 
         if action_embedding is None and action_text:
-            action_embedding = await self._embed(
-                str(action_text), what=f"action_check:{agent_id}"
-            )
+            # A slow embedding service must not hold the agent's answer: past this
+            # bound the check runs without vectors, as it does on embedding failure.
+            try:
+                action_embedding = await asyncio.wait_for(
+                    self._embed(str(action_text), what=f"action_check:{agent_id}"), ACTION_EMBED_TIMEOUT_S
+                )
+            except asyncio.TimeoutError:
+                logger.warning("action_check_embedding_timeout", agent_id=agent_id)
+                action_embedding = None
 
         try:
             async with self._session_factory() as session:

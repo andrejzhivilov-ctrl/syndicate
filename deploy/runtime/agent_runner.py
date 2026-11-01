@@ -10,6 +10,7 @@ Fixes applied:
 from __future__ import annotations
 
 import asyncio
+from collections import deque
 import base64
 import binascii
 import contextlib
@@ -21,7 +22,7 @@ import sys
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Deque, Dict, List, Optional, Tuple
 
 import structlog
 import uvicorn
@@ -1238,6 +1239,8 @@ async def telegram_webhook(
         update = await request.json()
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid JSON") from None
+    if not _first_delivery(agent_id, update):
+        return {"ok": True}  # Telegram retried after a slow reply; the first delivery still answers
     message = extract_message(update)
     gateway = state.telegram_gateway
     if message is None or gateway is None:
@@ -1266,6 +1269,20 @@ async def telegram_webhook(
 
 #: Running voice-note tasks (a bare create_task result can be garbage-collected).
 _VOICE_TASKS: set = set()
+#: Recent (agent, update_id) pairs: Telegram redelivers when the webhook times out.
+_SEEN_UPDATES: Deque[Tuple[str, int]] = deque(maxlen=512)
+
+
+def _first_delivery(agent_id: str, update: Any) -> bool:
+    update_id = update.get("update_id") if isinstance(update, dict) else None
+    if not isinstance(update_id, int):
+        return True
+    key = (agent_id, update_id)
+    if key in _SEEN_UPDATES:
+        logger.info("telegram_update_redelivered", agent_id=agent_id)
+        return False
+    _SEEN_UPDATES.append(key)
+    return True
 
 
 async def _telegram_reply(state: AppState, agent_id: str, message: Dict[str, Any], text: str) -> str:
