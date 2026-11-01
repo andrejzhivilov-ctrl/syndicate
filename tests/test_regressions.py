@@ -4514,3 +4514,20 @@ def test_agent_regulations_are_mounted_into_the_running_container():
     for compose in ("docker-compose.yml", "deploy/docker-compose.yml"):
         text = (REPO_ROOT / compose).read_text(encoding="utf-8")
         assert "./config/agent_specs:/app/config/agent_specs:ro" in text, compose
+
+
+def test_direct_gemini_goes_first_without_taking_web_search_from_research_agents():
+    from src.llm_router import AGENT_PROFILES, BASE, HEAVY, TieredLLM
+
+    direct = ("gemini", "GEMINI_FLASH_LATEST")
+    factory = lambda transport, model_id: None  # noqa: E731
+
+    for agent_id in AGENT_PROFILES:
+        assert next(iter(TieredLLM(agent_id, factory).candidates(BASE))) == direct
+
+    assert next(iter(TieredLLM("sam", factory).candidates(HEAVY))) == direct
+    for agent_id in ("sonar", "scout", "atlas"):
+        assert next(iter(TieredLLM(agent_id, factory).candidates(HEAVY))) == AGENT_PROFILES[agent_id][HEAVY][0]
+
+    custom = {"agent": {BASE: (("openrouter", "OR_CLAUDE_HAIKU"),), HEAVY: (("openrouter", "OR_CLAUDE_SONNET"),)}}
+    assert direct not in list(TieredLLM("agent", factory, profiles=custom).candidates(BASE))

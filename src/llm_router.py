@@ -44,6 +44,14 @@ _DEEPSEEK_FLASH: Sequence[Candidate] = (("openrouter", "OR_DEEPSEEK_FLASH"),)
 _GEMINI_FLASH: Sequence[Candidate] = (("openrouter", "OR_GEMINI_FLASH"), ("gemini", "GEMINI_FLASH_LATEST"))
 _GEMINI_ARGON: Sequence[Candidate] = (("openrouter", "OR_GEMINI_ARGON"),)
 
+#: Tried before each agent's own candidates: the OpenRouter balance is nearly
+#: gone, so direct Gemini carries the load and the profiles stay the backup.
+#: Empty this tuple to return to the per-agent order.
+PRIORITY_CANDIDATES: Sequence[Candidate] = (("gemini", "GEMINI_FLASH_LATEST"),)
+#: Their heavy tier is live web search; a model without search would answer
+#: such a request from memory, so these calls keep their own route.
+SEARCH_HEAVY_AGENTS = frozenset({"sonar", "scout", "atlas"})
+
 #: agent_id -> {tier: candidates in order}. Covers all 18 directors plus the
 #: office copilot; tests assert the coverage.
 AGENT_PROFILES: Dict[str, Dict[str, Sequence[Candidate]]] = {
@@ -155,6 +163,7 @@ class TieredLLM:
             raise ValueError(f"no_llm_profile: {agent_id}")
         self.agent_id = agent_id
         self._profile = table[agent_id]
+        self._priority = tuple(PRIORITY_CANDIDATES) if profiles is None else ()
         self._factory = factory
         self._fallback = fallback
         self._clients: Dict[Tuple[str, str], Optional[Any]] = {}
@@ -170,8 +179,10 @@ class TieredLLM:
     def candidates(self, tier: str) -> Iterable[Tuple[str, str]]:
         """Chosen tier first, then the other tier — escalation and de-escalation."""
         other = HEAVY if tier == BASE else BASE
+        keeps_search = tier == HEAVY and self.agent_id in SEARCH_HEAVY_AGENTS
+        priority = [] if keeps_search else list(self._priority)
         seen = set()
-        for transport, key in list(self._profile[tier]) + list(self._profile[other]):
+        for transport, key in priority + list(self._profile[tier]) + list(self._profile[other]):
             if (transport, key) not in seen:
                 seen.add((transport, key))
                 yield transport, key
