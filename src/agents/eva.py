@@ -198,15 +198,7 @@ class EvaAgent:
             system_prompt = f"{system_prompt}\n\n{memory['text']}"
         system_prompt += await self._notes_context(user_message)
 
-        safe_message, _ = PIIRedactor().redact(user_message)
-        chat_id = str(payload.get("chat_id") or "")
-        remember = self._chat_history is not None and bool(chat_id)
-        prior = await self._chat_history.load(self.AGENT_ID, chat_id) if remember else []
-        messages = [SystemMessage(content=system_prompt), *prior, HumanMessage(content=safe_message)]
-        resp = await self._llm.ainvoke(messages)
-        content = getattr(resp, "content", str(resp))
-        if remember and not is_military(user_message):
-            await self._chat_history.append(self.AGENT_ID, chat_id, safe_message, str(content))
+        content = await self._model_turn(system_prompt, user_message, str(payload.get("chat_id") or ""))
 
         return {
             "agent": self.AGENT_ID,
@@ -222,6 +214,18 @@ class EvaAgent:
                 "write_policy": "explicit_low_sensitivity_request_only",
             },
         }
+
+    async def _model_turn(self, system_prompt: str, user_message: str, chat_id: str) -> Any:
+        """One model call over the masked message and the chat buffer."""
+        safe_message, _ = PIIRedactor().redact(user_message)
+        remember = self._chat_history is not None and bool(chat_id)
+        prior = await self._chat_history.load(self.AGENT_ID, chat_id) if remember else []
+        messages = [SystemMessage(content=system_prompt), *prior, HumanMessage(content=safe_message)]
+        resp = await self._llm.ainvoke(messages)
+        content = getattr(resp, "content", str(resp))
+        if remember and not is_military(user_message):  # operational military detail stays out of chat memory
+            await self._chat_history.append(self.AGENT_ID, chat_id, safe_message, str(content))
+        return content
 
     async def _notes_context(self, user_message: str) -> str:
         """Andrii's synced Obsidian notes when the message asks about them: read-only and PII-masked."""
