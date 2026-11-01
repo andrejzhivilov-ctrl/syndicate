@@ -18,6 +18,7 @@ from src.agents.eva_memory_policy import EvaMemoryPolicy, MemoryDisposition
 from src.memory_commands import execute_command, parse_command
 from src.floors import active_floors, reserved_floors
 from src.pii import PIIRedactor
+from src.sensitive import is_military
 
 logger = structlog.get_logger(__name__)
 
@@ -79,8 +80,10 @@ class EvaAgent:
         registry: Optional[Any] = None,
         curator: Optional[EvaCurator] = None,
         vault: Optional[Any] = None,
+        chat_history: Optional[Any] = None,
     ) -> None:
         self._memory = memory
+        self._chat_history = chat_history
         self._llm = llm
         self._config = dict(config or {})
         self._registry = registry
@@ -118,7 +121,7 @@ class EvaAgent:
             return {"status": "error", "error": "eva_action_failed", "agent": self.AGENT_ID, "action": action}
 
     async def _chat(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Answer a text turn without persisting the raw conversation."""
+        """Answer a text turn; only the masked, bounded chat buffer remembers it."""
         # Telegram webhooks send ``message`` as an object ({"chat": …, "text": …})
         # next to a plain ``text``; only a string is the user's turn.
         user_message = payload.get("message")
@@ -195,9 +198,15 @@ class EvaAgent:
             system_prompt = f"{system_prompt}\n\n{memory['text']}"
         system_prompt += await self._notes_context(user_message)
 
-        messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_message)]
+        safe_message, _ = PIIRedactor().redact(user_message)
+        chat_id = str(payload.get("chat_id") or "")
+        remember = self._chat_history is not None and bool(chat_id)
+        prior = await self._chat_history.load(self.AGENT_ID, chat_id) if remember else []
+        messages = [SystemMessage(content=system_prompt), *prior, HumanMessage(content=safe_message)]
         resp = await self._llm.ainvoke(messages)
         content = getattr(resp, "content", str(resp))
+        if remember and not is_military(user_message):
+            await self._chat_history.append(self.AGENT_ID, chat_id, safe_message, str(content))
 
         return {
             "agent": self.AGENT_ID,

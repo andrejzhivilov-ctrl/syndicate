@@ -4514,3 +4514,67 @@ def test_agent_regulations_are_mounted_into_the_running_container():
     for compose in ("docker-compose.yml", "deploy/docker-compose.yml"):
         text = (REPO_ROOT / compose).read_text(encoding="utf-8")
         assert "./config/agent_specs:/app/config/agent_specs:ro" in text, compose
+
+
+def test_telegram_redelivery_of_one_update_is_answered_once():
+    import importlib
+
+    sys.path.insert(0, str(REPO_ROOT / "deploy" / "runtime"))
+    mod = importlib.import_module("agent_runner")
+
+    assert mod._first_delivery("eva", {"update_id": 987654}) is True
+    assert mod._first_delivery("eva", {"update_id": 987654}) is False
+    assert mod._first_delivery("sam", {"update_id": 987654}) is True
+    assert mod._first_delivery("eva", {}) is True
+
+
+def test_slow_embedding_does_not_hold_the_lessons_check(monkeypatch):
+    import src.lessons as lessons_module
+
+    class Session:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def execute(self, query, params):
+            class Rows:
+                def fetchall(self):
+                    return []
+            return Rows()
+
+    async def hung(*args, **kwargs):
+        await asyncio.sleep(30)
+
+    store = object.__new__(lessons_module.LessonsStore)
+    store._session_factory = Session
+    store._embed = hung
+    monkeypatch.setattr(lessons_module, "ACTION_EMBED_TIMEOUT_S", 0.01)
+
+    assert asyncio.run(store.check_before_action("eva", action_text="hello")) == []
+
+
+def test_eva_remembers_the_masked_conversation():
+    import types
+
+    from src.agent_chat import ChatHistory
+    from src.agents.eva import EvaAgent
+
+    seen = []
+
+    class Llm:
+        async def ainvoke(self, messages):
+            seen.append(messages)
+            return types.SimpleNamespace(content="reply")
+
+    history = ChatHistory()
+    agent = EvaAgent(memory=None, llm=Llm(), chat_history=history)
+    secret_mail = "andrii@example.com"
+
+    asyncio.run(agent._chat({"text": f"my mail {secret_mail}", "chat_id": "1"}))
+    asyncio.run(agent._chat({"text": "what did I say?", "chat_id": "1"}))
+
+    assert secret_mail not in str(seen)
+    assert ("ai", "reply") in seen[1]
+    assert asyncio.run(history.load("eva", "2")) == []
