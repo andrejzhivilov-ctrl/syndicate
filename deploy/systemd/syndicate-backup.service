@@ -1,0 +1,8 @@
+[Unit]
+Description=SYNDICATE daily backup set
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/syndicate/deploy/scripts/backup_daily.sh
