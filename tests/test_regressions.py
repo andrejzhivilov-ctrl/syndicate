@@ -4922,28 +4922,3 @@ def test_confirmed_facts_get_a_one_way_copy_in_obsidian(tmp_path, monkeypatch):
     monkeypatch.delenv("OBSIDIAN_VAULT_DIR")
     vault.remember("eva", "Улюблена пора: осінь", source="user", confirmed=True)
     assert vault.obsidian_copied is False and not copy.exists()
-
-
-def test_confirmed_facts_get_a_one_way_copy_in_obsidian(tmp_path, monkeypatch):
-    from src.vault_md import MarkdownVault, OBSIDIAN_FACTS_DIR
-
-    obsidian = tmp_path / "obsidian"
-    obsidian.mkdir()
-    monkeypatch.setenv("OBSIDIAN_VAULT_DIR", str(obsidian))
-    vault = MarkdownVault(vault_root=tmp_path / "vault")
-    copy = obsidian / OBSIDIAN_FACTS_DIR / "eva.md"
-
-    vault.remember("eva", "Улюблене дерево: кедр", source="user", confirmed=True)
-    assert vault.obsidian_copied is True and "кедр" in copy.read_text(encoding="utf-8")
-    assert "<!--" not in copy.read_text(encoding="utf-8")  # provenance stays in the source
-
-    copy.write_text("змінено andrii_protected", encoding="utf-8")
-    vault.remember("eva", "Улюблений колір: синій", source="user", confirmed=True)
-    assert vault.obsidian_copied is False
-    assert copy.read_text(encoding="utf-8") == "змінено andrii_protected"  # his mark is never overwritten
-    assert "синій" in vault.read("agents/eva/memory.md")
-
-    copy.unlink()
-    monkeypatch.delenv("OBSIDIAN_VAULT_DIR")
-    vault.remember("eva", "Улюблена пора: осінь", source="user", confirmed=True)
-    assert vault.obsidian_copied is False and not copy.exists()
