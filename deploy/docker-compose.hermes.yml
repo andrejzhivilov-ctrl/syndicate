@@ -27,8 +27,8 @@ services:
       - /etc/syndicate/hermes-trainer.env   # API_SERVER_KEY, SYNDICATE_TOKEN
     volumes:
       - trainer_hermes_data:/opt/data
-      - ./hermes/trainer/config.yaml:/opt/syndicate-config/config.yaml:ro
-      - ./hermes/trainer/SOUL.md:/opt/syndicate-config/SOUL.md:ro
+      - ./hermes/trainer/config.yaml:/opt/data/config.yaml:ro
+      - ./hermes/trainer/SOUL.md:/opt/data/SOUL.md:ro
     networks:
       - hermes_net
     mem_limit: 1g
