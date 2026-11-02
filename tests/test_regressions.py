@@ -4778,3 +4778,9 @@ def test_daily_backup_covers_agent_data_volume_with_confirmed_memory():
     assert 'EVA_VOLUME="${EVA_VOLUME:-syndicate_eva_data}"' in script
     assert 'backup_volume eva_data "$EVA_VOLUME"' in script
     assert 'backup_volume n8n_home "$N8N_VOLUME"' in script
+
+
+def test_ukrainealarm_public_key_ships_with_the_code():
+    from src.alert_watch import _public_key
+
+    assert _public_key(None).key_size >= 2048
