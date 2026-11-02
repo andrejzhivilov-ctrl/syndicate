@@ -34,6 +34,7 @@ DIRS = {
     "hitl": "hitl",
     "lockdown": "lockdown",
     "obsidian_activity": "obsidian_activity",
+    "alerts": "alerts",
 }
 
 

@@ -7,9 +7,9 @@
 # Verify in CI with: python tools/export_openapi.py --check
 # ============================================================
 #
-# contract_sha256: ae3faa85c26366929ff1ef26504b77a96a1aa806b6a6fc87db582db3481c2905
+# contract_sha256: 3e56f9bf2c1303245d61fecbfc252908706e3a68b69027449206f0da95471e63
 # api_version:     4.1.0
-# paths:           35
+# paths:           36
 #
 ---
 components:
@@ -1584,6 +1584,49 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Telegram Webhook
+  /webhook/ukrainealarm:
+    post:
+      description: Air-raid events pushed by Ukraine Alarm, signed with their RSA
+        key.
+      operationId: ukrainealarm_webhook_webhook_ukrainealarm_post
+      parameters:
+      - in: header
+        name: X-Webhook-Signature
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Webhook-Signature
+      - in: header
+        name: X-Webhook-Timestamp
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Webhook-Timestamp
+      - in: header
+        name: X-Webhook-Signature-Alg
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Webhook-Signature-Alg
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Ukrainealarm Webhook
   /webhook/{source}:
     post:
       description: Generic signed webhook (n8n, CI, partners). HMAC-SHA256 over the
