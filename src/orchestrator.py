@@ -706,6 +706,8 @@ class EvaOrchestrator:
             )
             if lessons:
                 payload["prior_lessons"] = lessons
+        if str(agent_id) == "eva":  # Eva keeps her own chat path; set here, a caller cannot supply it
+            payload["operator_lessons"] = await self._operator_lessons("eva")
 
         # Only the educational agent consumes learned procedures today.
         # Health, finance, trading, and security decisions stay isolated until
@@ -1780,7 +1782,7 @@ class EvaOrchestrator:
         Returns None when the message is not chat (commands, Eva) so the regular
         task routing handles it.
         """
-        from src.agent_chat import PERSONAS, chat_reply, chat_text, pool_command
+        from src.agent_chat import PERSONAS, chat_reply, chat_text, lessons_note, pool_command
 
         agent_id = source[len("telegram_"):] if source.startswith("telegram_") else None
         command = pool_command(payload or {})
@@ -1808,6 +1810,10 @@ class EvaOrchestrator:
             from src.alert_watch import regions_reply
 
             result = {"agent": agent_id, **regions_reply(command[1])}
+        elif command is not None and command[0] == "/lesson":
+            from src.agent_chat import lesson_reply
+
+            result = await lesson_reply(agent_id, command[1], self._lessons)
         elif command is not None:
             from src.agent_chat import pool_reply
 
@@ -1821,8 +1827,11 @@ class EvaOrchestrator:
             reference = await asyncio.to_thread(pool_reference, agent_id, text, self._pools())
             notes = await asyncio.to_thread(obsidian_reference, agent_id, text)
             result = await chat_reply(agent_id, text, self._llm_for(agent_id), self._chat_buffer(), owner, reference,
-                                      notes)
+                                      notes, lessons_note(await self._operator_lessons(agent_id)))
         return {"task_id": str(uuid.uuid4()), "status": "completed", "result": result}
+
+    async def _operator_lessons(self, agent_id: str) -> Optional[List[Dict[str, str]]]:
+        return await self._lessons.operator_lessons(agent_id) if self._lessons else None
 
     def _chat_buffer(self) -> Any:
         """Short-term chat memory shared by Telegram conversations."""

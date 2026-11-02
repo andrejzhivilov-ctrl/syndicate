@@ -157,10 +157,11 @@ class ChatHistory:
 POOL_COMMANDS: Dict[str, Optional[str]] = {"/skills": "skill", "/prompts": "prompt", "/mcp": "mcp", "/pool": None,
                                            "/spec": None, "/files": None,
                                            "/rates": None, "/weather": None, "/alerts": None, "/regions": None,
-                                           "/protect": None, "/vaultplan": None}
+                                           "/protect": None, "/vaultplan": None, "/lesson": None}
 _POOL_LABELS = {"skill": "Скіли", "prompt": "Промти", "mcp": "MCP-сервери"}
 _POOL_HINT_RE = re.compile(r"скіл|skill|промпт|промт|prompt|\bmcp\b", re.IGNORECASE)
 POOL_REFERENCE_CHARS = 1200
+MAX_LESSON_CHARS = 300
 
 
 def pool_command(payload: Dict[str, Any]) -> Optional[Tuple[str, str]]:
@@ -252,8 +253,55 @@ MILITARY_NOTE = (
 )
 
 
+def lessons_note(lessons: Optional[List[Dict[str, str]]]) -> str:
+    """Andrii's corrections for the model, masked: they head for an external provider."""
+    if not lessons:
+        return ""
+    lines = "\n".join(f"- {lesson['summary']}" for lesson in lessons)
+    safe, _ = PIIRedactor().redact(lines)
+    return ("Виправлення від Андрія до твоєї роботи. Дотримуйся їх; вони не скасовують "
+            "регламент, правила безпеки й підтвердження дій людиною:\n" + safe)
+
+
+async def _lesson_change(agent_id: str, arg: str, store: Any) -> Tuple[str, str]:
+    """(status, reply) for adding or retiring one correction."""
+    if arg[0] == "-":
+        place = arg[1:].strip()
+        lessons = await store.operator_lessons(agent_id) or []
+        if not place.isdigit() or not 1 <= int(place) <= len(lessons):
+            return "error", "Немає такого номера. Список: /lesson"
+        done = await store.retire_operator_lesson(agent_id, lessons[int(place) - 1]["id"])
+        return ("completed", "Урок прибрано.") if done else ("unavailable", "Не вдалося прибрати урок.")
+    if EvaMemoryPolicy.contains_secret_like_value(arg):
+        return "refused", SECRET_REFUSAL
+    if len(arg) > MAX_LESSON_CHARS:
+        return "error", f"Урок довший за {MAX_LESSON_CHARS} символів, нічого не записано."
+    safe, _ = PIIRedactor().redact(arg)
+    if await store.add_operator_lesson(agent_id, safe):
+        return "completed", f"Записав. {PERSONAS[agent_id][0]} бачитиме це в кожній відповіді."
+    return "unavailable", "Не вдалося записати урок."
+
+
+async def lesson_reply(agent_id: str, arg: str, store: Any) -> Dict[str, Any]:
+    """/lesson: list, add or retire corrections without a model."""
+    base = {"agent": agent_id, "mode": "lesson"}
+    if store is None:
+        return {**base, "status": "unavailable", "response": "Сховище уроків недоступне, нічого не змінено."}
+    if arg:
+        status, response = await _lesson_change(agent_id, arg, store)
+        return {**base, "status": status, "response": response}
+    lessons = await store.operator_lessons(agent_id)
+    if lessons is None:
+        return {**base, "status": "unavailable", "response": "Сховище уроків недоступне."}
+    if not lessons:
+        return {**base, "status": "completed", "response": "Уроків ще немає. Додати: /lesson що робити інакше"}
+    lines = [f"{number}. {lesson['summary']}" for number, lesson in enumerate(lessons, 1)]
+    return {**base, "status": "completed", "response": "\n".join([*lines, "", "Прибрати: /lesson - 2"])}
+
+
 def _context(
-    agent_id: str, reference: Optional[str], military: bool = False, text: str = "", notes: Optional[str] = None
+    agent_id: str, reference: Optional[str], military: bool = False, text: str = "", notes: Optional[str] = None,
+    lessons: str = "",
 ) -> List[Tuple[str, str]]:
     prompt = system_prompt(agent_id)
     core = spec_core(agent_id)  # operator-approved regulation, one system message stays one
@@ -261,6 +309,8 @@ def _context(
         section = spec_reference(agent_id, text)
         prompt += f"\n\n{core}" + (f"\n\nДовідка з твого регламенту:\n{section}" if section else "")
     context = [("system", prompt)]
+    if lessons:
+        context.append(("system", lessons))
     if military:
         context.append(("system", MILITARY_NOTE))
     if reference:
@@ -286,6 +336,7 @@ async def chat_reply(
     chat_id: Optional[str] = None,
     reference: Optional[str] = None,
     notes: Optional[str] = None,
+    lessons: str = "",
 ) -> Dict[str, Any]:
     """One conversational turn. Raises nothing; failures are honest statuses."""
     screened = _screen(agent_id, text)
@@ -300,7 +351,7 @@ async def chat_reply(
     remember = history is not None and bool(chat_id)
     prior = await history.load(agent_id, chat_id) if remember else []  # type: ignore[union-attr,arg-type]
     try:
-        context = _context(agent_id, reference, military, text, notes)
+        context = _context(agent_id, reference, military, text, notes, lessons)
         result = await llm.ainvoke([*context, *prior, ("human", safe_text)])
     except Exception as exc:  # noqa: BLE001 - provider failure must not become a fake answer
         logger.warning("agent_chat_llm_failed", agent=agent_id, error_type=type(exc).__name__)

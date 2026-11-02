@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from src.agent_chat import lessons_note
 from src.agents.eva_access import eva_memory_namespace_allowed
 from src.agents.eva_curator import EvaCurator
 from src.agent_specs import spec_core, spec_reference
@@ -207,6 +208,9 @@ class EvaAgent:
         if memory["text"]:
             system_prompt = f"{system_prompt}\n\n{memory['text']}"
         system_prompt += await self._notes_context(user_message)
+        corrections = lessons_note(payload.get("operator_lessons"))
+        if corrections:
+            system_prompt = f"{system_prompt}\n\n{corrections}"
 
         content = await self._model_turn(system_prompt, user_message, str(payload.get("chat_id") or ""))
 

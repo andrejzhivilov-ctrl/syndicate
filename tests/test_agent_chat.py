@@ -194,3 +194,51 @@ def test_feminine_personas_are_told_their_grammatical_gender():
     assert "жіночому роді" in system_prompt("kira")
     assert "жіночому роді" in system_prompt("alice")
     assert "чоловічому роді" in system_prompt("oscar")
+
+
+class _Lessons:
+    def __init__(self, ok=True):
+        self.rows, self.ok = [], ok
+
+    async def add_operator_lesson(self, agent_id, summary):
+        if self.ok:
+            self.rows.insert(0, {"id": str(len(self.rows)), "summary": summary})
+        return "id" if self.ok else None
+
+    async def operator_lessons(self, agent_id):
+        return self.rows if self.ok else None
+
+    async def retire_operator_lesson(self, agent_id, lesson_id):
+        self.rows = [row for row in self.rows if row["id"] != lesson_id]
+        return True
+
+
+def test_lesson_command_adds_lists_and_refuses_without_a_model():
+    from src.agent_chat import MAX_LESSON_CHARS, lesson_reply, pool_command
+
+    assert pool_command({"text": "/lesson Пиши коротше"}) == ("/lesson", "Пиши коротше")
+    store = _Lessons()
+    assert "ще немає" in asyncio.run(lesson_reply("fin", "", store))["response"]
+    assert asyncio.run(lesson_reply("fin", "Пиши коротше", store))["status"] == "completed"
+    assert "1. Пиши коротше" in asyncio.run(lesson_reply("fin", "", store))["response"]
+
+    assert asyncio.run(lesson_reply("fin", "- 5", store))["status"] == "error"
+    assert asyncio.run(lesson_reply("fin", "x" * (MAX_LESSON_CHARS + 1), store))["status"] == "error"
+    assert asyncio.run(lesson_reply("fin", "ключ sk-ant-api03-" + "x" * 40, store))["status"] == "refused"
+    assert len(store.rows) == 1
+    assert asyncio.run(lesson_reply("fin", "- 1", store))["response"] == "Урок прибрано."
+    assert store.rows == []
+
+    assert asyncio.run(lesson_reply("fin", "щось", None))["status"] == "unavailable"
+    assert asyncio.run(lesson_reply("fin", "щось", _Lessons(ok=False)))["status"] == "unavailable"
+    assert asyncio.run(lesson_reply("fin", "", _Lessons(ok=False)))["status"] == "unavailable"
+
+
+def test_lessons_reach_the_model_masked():
+    from src.agent_chat import _context, lessons_note
+
+    assert lessons_note(None) == "" and lessons_note([]) == ""
+    note = lessons_note([{"id": "1", "summary": "Пиши на test@example.com коротко"}])
+    assert "коротко" in note and "test@example.com" not in note
+    assert any(role == "system" and text == note for role, text in _context("fin", None, lessons=note))
+    assert all(text != "" for _, text in _context("fin", None))
