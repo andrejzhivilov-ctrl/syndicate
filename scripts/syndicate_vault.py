@@ -92,6 +92,8 @@ PROVIDER_KEYS = {
     "elevenlabs": ("elevenlabs_api_key",),
     # Air-raid alerts for Eva's briefings (src/integrations/public_data.py).
     "alerts": ("alerts_in_ua_token",),
+    # Ukraine Alarm region for Alice's air-raid watch (src/alert_watch.py).
+    "alerts_region": ("alerts_region_id",),
     # Sam's macro sources (src/integrations/macro_data.py). EDGAR takes no key but
     # a "Name email" User-Agent, stored the same way so it never lands in code.
     "fred": ("fred_api_key",),
