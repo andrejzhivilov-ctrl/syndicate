@@ -4629,14 +4629,6 @@ def test_daily_backup_covers_both_databases_and_proves_each_dump_by_restoring_it
     assert "--network none" in script
 
 
-class _AlertVault:
-    def __init__(self, region="99"):
-        self.keys = {"alerts_in_ua_token": "key-value", "alerts_region_id": region}
-
-    async def get_secret(self, path):
-        return self.keys
-
-
 class _AlertGateway:
     def __init__(self):
         self.sent = []
@@ -4651,90 +4643,132 @@ class _AlertGateway:
         return self.accept
 
 
-def _alarm_transport(replies, seen=None):
-    import httpx
+def _vinnytsia():
+    from src.alert_watch import PARENTS, STATES
 
-    queue = list(replies)
-
-    def handler(request):
-        if seen is not None:
-            seen.append(request)
-        reply = queue.pop(0)
-        return httpx.Response(reply) if isinstance(reply, int) else httpx.Response(200, json=reply)
-
-    return httpx.MockTransport(handler)
+    state = next(key for key, name in STATES.items() if name == "Вінницька область")
+    child = next(region for region, parent in PARENTS.items() if parent == state and region != state)
+    return state, child
 
 
-def _alarm(levels=None, active=True, region="99"):
-    alert = {"type": "AIR", "activeAlertLevels": [{"alertLevel": x} for x in levels or []]}
-    return [{"regionId": region, "regionName": "Район", "activeAlerts": [alert] if active else []}]
+def _air(region, *levels):
+    return {"status": "Activate", "regionId": int(region), "alarmType": "AIR",
+            "activeAlertLevels": [{"alertLevel": level, "reason": "x"} for level in levels]}
 
 
-def test_region_alert_level_reads_ukraine_alarm_honestly():
-    from src.integrations.public_data import region_alert_level
+def test_ukrainealarm_signature_refuses_everything_unproven():
+    import base64
+    import time
 
-    seen = []
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
-    def level(reply):
-        return asyncio.run(region_alert_level("key-value", "99", transport=_alarm_transport([reply], seen)))
+    from src.alert_watch import AlertWatch, verify_signature
 
-    assert level(_alarm(["RED"]))["level"] == "R"
-    assert level(_alarm([]))["level"] == "Y", "an alert without a level is yellow"
-    assert level(_alarm(active=False))["level"] == "N"
-    assert seen[0].headers["authorization"] == "key-value"
-    assert level(_alarm(region="1"))["status"] == "unavailable"
-    assert level(401)["status"] == "unavailable"
-    assert asyncio.run(region_alert_level(None, "99"))["reason"] == "token_not_configured"
-    assert asyncio.run(region_alert_level("key-value", None))["reason"] == "region_not_configured"
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    pem = key.public_key().public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo)
+    body = b'{"a": 1}'
+    stamp = str(int(time.time()))
+    good = base64.b64encode(key.sign(f"{stamp}.".encode() + body, padding.PKCS1v15(), hashes.SHA256())).decode()
+
+    assert verify_signature(body, good, stamp, "rsa-sha256", public_key_pem=pem)
+    assert verify_signature(body, good, stamp, None, public_key_pem=pem)
+    assert not verify_signature(b'{"a": 2}', good, stamp, "rsa-sha256", public_key_pem=pem)
+    assert not verify_signature(body, good, stamp, "hmac-sha256", public_key_pem=pem)
+    assert not verify_signature(body, good, stamp, "rsa-sha256", public_key_pem=pem, now=int(stamp) + 301)
+    assert not verify_signature(body, None, stamp, None, public_key_pem=pem)
+    assert not verify_signature(body, "@@@", stamp, None, public_key_pem=pem)
+    assert not verify_signature(body, good, "soon", None, public_key_pem=pem)
+    assert not verify_signature(body, good, stamp, None, public_key_pem=b"not a key")
+
+    watch = AlertWatch(_AlertGateway(), path=REPO_ROOT / "does-not-exist.json")
+    assert watch.accept(body, good, stamp, None, public_key_pem=pem)
+    assert not watch.accept(body, good, stamp, None, public_key_pem=pem), "a repeated event is refused"
 
 
-def test_alert_watch_sends_bank_phrases_through_alice_bot():
+def test_alert_watch_rolls_regions_into_oblast_phrases_through_alice_bot(tmp_path):
     from src.alert_phrases import POOLS
     from src.alert_watch import AlertWatch
 
+    state, child = _vinnytsia()
     gateway = _AlertGateway()
-    replies = [_alarm(active=False), _alarm([]), _alarm(["RED"]), _alarm(active=False)]
-    watch = AlertWatch(_AlertVault(), gateway, transport=_alarm_transport(replies))
+    watch = AlertWatch(gateway, path=tmp_path / "state.json")
 
-    for _ in replies:
-        asyncio.run(watch.tick())
+    watch.handle(_air(child, "Yellow"))
+    watch.handle(_air(state, "Red", "Yellow"))
+    watch.handle(_air(state))  # the oblast cleared, the district is still on
+    watch.handle(_air(child))
+    asyncio.run(watch.flush())
 
-    assert [(bot, chat) for bot, chat, _ in gateway.sent] == [("alice", "1")] * 3
-    texts = [text.split(" ", 1)[1] for _, _, text in gateway.sent]
-    assert texts[0] in POOLS["yellow"]
-    assert texts[1] in POOLS["escalate_to_red"]
-    assert texts[2] in POOLS["clear_after_red"]
+    assert [(bot, chat) for bot, chat, _ in gateway.sent] == [("alice", "1")]
+    lines = gateway.sent[0][2].split("\n\n")
+    assert all("Вінницька область: " in line for line in lines)
+    phrases = [line.split("Вінницька область: ", 1)[1] for line in lines]
+    assert phrases[0].removesuffix(" (тривога лише в частині регіону)") in POOLS["yellow"]
+    assert phrases[1] in POOLS["escalate_to_red"]
+    assert phrases[2] in POOLS["ease_to_yellow"]
+    assert phrases[3] in POOLS["clear_after_red"]
 
 
-def test_alert_watch_keeps_unsent_notification_and_reports_blindness_once():
-    from src.alert_watch import BLIND_AFTER, SIGHT_NOTICE, AlertWatch
+def test_alert_watch_uses_the_snapshot_not_the_status_field(tmp_path):
+    from src.alert_watch import AlertWatch
 
+    state, _ = _vinnytsia()
+    gateway = _AlertGateway()
+    watch = AlertWatch(gateway, path=tmp_path / "state.json")
+
+    watch.handle(_air(state, "Red", "Yellow"))
+    watch.handle({**_air(state, "Yellow"), "status": "DEACTIVATE"})  # one cause ended, the alert goes on
+    asyncio.run(watch.flush())
+
+    assert len(gateway.sent[0][2].split("\n\n")) == 2
+    assert "🟢" not in gateway.sent[0][2]
+
+
+def test_alert_watch_ignores_what_it_cannot_place_and_keeps_state_over_restart(tmp_path):
+    from src.alert_phrases import POOLS
+    from src.alert_watch import AlertWatch, read_snapshot, snapshot_text
+
+    state, _ = _vinnytsia()
+    path = tmp_path / "state.json"
+    gateway = _AlertGateway()
+    watch = AlertWatch(gateway, path=path)
+    watch.handle(_air("999999", "Red"))
+    watch.handle({**_air(state, "Red"), "alarmType": "ARTILLERY"})
+    watch.handle({"alarmType": "AIR", "regionId": int(state)})
+    assert read_snapshot(path) is None
+    watch.handle(_air(state, "Red"))
+    assert "Вінницька область: червоний" in snapshot_text(read_snapshot(path))
+
+    restarted = AlertWatch(gateway, path=path)
+    restarted.handle(_air(state, "Red"))
+    restarted.handle(_air(state))
+    asyncio.run(restarted.flush())
+
+    assert gateway.sent[0][2].split(": ", 1)[1] in POOLS["clear_after_red"]
+
+
+def test_alert_watch_keeps_a_notification_telegram_refused(tmp_path):
+    from src.alert_watch import AlertWatch
+
+    state, _ = _vinnytsia()
     gateway = _AlertGateway()
     gateway.accept = False
-    replies = [_alarm(active=False), _alarm(["RED"]), *[500] * (BLIND_AFTER + 1), _alarm(["RED"])]
-    watch = AlertWatch(_AlertVault(), gateway, transport=_alarm_transport(replies))
-
-    asyncio.run(watch.tick())
-    asyncio.run(watch.tick())
-    assert gateway.sent == []
+    watch = AlertWatch(gateway, path=tmp_path / "state.json")
+    watch.handle(_air(state, "Red"))
+    asyncio.run(watch.flush())
 
     gateway.accept = True
-    for _ in replies[2:]:
-        asyncio.run(watch.tick())
+    asyncio.run(watch.flush())
+    asyncio.run(watch.flush())
 
-    texts = [text for _, _, text in gateway.sent]
-    assert len(texts) == 3, "one alert, one blindness notice, one recovery; no alert or all-clear was invented"
-    assert texts[0].startswith("🔴")
-    assert "Не бачу" in texts[1]
-    assert texts[2] == SIGHT_NOTICE
+    assert len(gateway.sent) == 1
 
 
-def test_alerts_command_uses_the_region_when_it_is_set():
-    from src.integrations.public_data import _alerts_reply
+def test_ukrainealarm_route_takes_precedence_over_generic_webhook():
+    source = (REPO_ROOT / "deploy" / "runtime" / "agent_runner.py").read_text(encoding="utf-8")
 
-    reply = asyncio.run(_alerts_reply(_AlertVault(), _alarm_transport([_alarm(["RED"])])))
-    assert reply["status"] == "completed"
-    assert "червоний" in reply["response"]
+    assert source.index('@app.post("/webhook/ukrainealarm")') < source.index('@app.post("/webhook/{source}")')
 
 
 def test_daily_backup_covers_agent_data_volume_with_confirmed_memory():

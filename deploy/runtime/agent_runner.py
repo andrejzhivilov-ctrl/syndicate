@@ -127,6 +127,7 @@ class AppState:
     ready: bool = False
     vault_renewal_task: Optional[Any] = None
     obsidian_webdav_task: Optional[Any] = None
+    alert_watch: Optional[AlertWatch] = None
     alert_watch_task: Optional[Any] = None
 
 
@@ -366,9 +367,8 @@ async def lifespan(app: FastAPI):
         app_state.change_request_notifier = notifier
         app_state.telegram_gateway = TelegramGateway(app_state.vault_client)
         logger.info("HITL surface initialized", change_requests=store is not None)
-        app_state.alert_watch_task = asyncio.create_task(
-            AlertWatch(app_state.vault_client, app_state.telegram_gateway).loop()
-        )
+        app_state.alert_watch = AlertWatch(app_state.telegram_gateway)
+        app_state.alert_watch_task = asyncio.create_task(app_state.alert_watch.loop())
 
         app_state.ready = True
         logger.info("SYNDICATE agent ready", uptime=0)
@@ -1371,6 +1371,26 @@ async def _voice_answer(
     ogg = await wav_to_ogg_opus(wav) if wav else None
     if ogg:
         await state.telegram_gateway.send_voice(agent_id, chat_id, ogg)
+
+
+@app.post("/webhook/ukrainealarm")
+async def ukrainealarm_webhook(
+    request: Request,
+    x_webhook_signature: Optional[str] = Header(default=None, alias="X-Webhook-Signature"),
+    x_webhook_timestamp: Optional[str] = Header(default=None, alias="X-Webhook-Timestamp"),
+    x_webhook_signature_alg: Optional[str] = Header(default=None, alias="X-Webhook-Signature-Alg"),
+    state: AppState = Depends(require_ready),
+):
+    """Air-raid events pushed by Ukraine Alarm, signed with their RSA key."""
+    raw_bytes = await request.body()
+    watch = state.alert_watch
+    if watch is None or not watch.accept(raw_bytes, x_webhook_signature, x_webhook_timestamp, x_webhook_signature_alg):
+        raise HTTPException(status_code=401, detail="Invalid signature")
+    try:
+        watch.handle(json.loads(raw_bytes))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid JSON") from None
+    return {"ok": True}
 
 
 @app.post("/webhook/{source}")
