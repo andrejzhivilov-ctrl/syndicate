@@ -393,11 +393,7 @@ async def lifespan(app: FastAPI):
             # slip that dropped the reference to the wrong task and left the
             # purge task pointing at an already-cancelled object.
             app_state.device_purge_task = None
-        await _stop_obsidian_webdav()
-        if app_state.alert_watch_task is not None:
-            app_state.alert_watch_task.cancel()
-            with contextlib.suppress(BaseException):
-                await app_state.alert_watch_task
+        await _stop_background_loops()
         if app_state.memory_manager:
             await app_state.memory_manager.close()
         if app_state.embedding_provider:
@@ -415,12 +411,14 @@ def _start_obsidian_webdav() -> None:
         app_state.obsidian_webdav_task = asyncio.create_task(server.loop())
 
 
-async def _stop_obsidian_webdav() -> None:
-    if app_state.obsidian_webdav_task is not None:
-        app_state.obsidian_webdav_task.cancel()
-        with contextlib.suppress(BaseException):
-            await app_state.obsidian_webdav_task
-        app_state.obsidian_webdav_task = None
+async def _stop_background_loops() -> None:
+    for name in ("obsidian_webdav_task", "alert_watch_task"):
+        task = getattr(app_state, name)
+        if task is not None:
+            task.cancel()
+            with contextlib.suppress(BaseException):
+                await task
+            setattr(app_state, name, None)
 
 
 # ─── FastAPI App ─────────────────────────────────────────────────────────────
