@@ -164,20 +164,24 @@ class EvaAgent:
             )
             command_status = command_result.get("status", "error")
             command_responses = {
-                "created": "Факт записано до підтвердженої пам'яті Obsidian.",
+                "created": "Факт записано до підтвердженої пам'яті.",
                 "updated": "Факт оновлено за явним запитом; попередню версію переміщено до архіву.",
-                "thought_saved": "Думку записано до чернеток Obsidian.",
+                "thought_saved": "Думку записано до чернеток пам'яті Єви; в Obsidian чернетки не копіюються.",
                 "review_required": "Матеріал збережено лише в черзі ручного перегляду, не в активній пам'яті.",
                 "refused": "Матеріал не збережено.",
                 "confirmation_required": "Пам'ять не змінено; потрібне окреме підтвердження цієї дії.",
-                "archived": "Факт переміщено до архіву Obsidian; це не остаточне видалення.",
+                "archived": "Факт переміщено до архіву пам'яті; це не остаточне видалення.",
                 "ok": "Ось факти, які Єва має у підтвердженій пам'яті.",
                 "not_found": "Відповідного факту не знайдено; пам'ять не змінено.",
             }
+            response = command_responses.get(command_status, "Команду пам'яті оброблено без інших дій.")
+            if command_status in {"created", "updated", "archived"}:  # the reply states what really reached Obsidian
+                copied = getattr(self._vault, "obsidian_copied", None) is True
+                response += " Копію в Obsidian оновлено." if copied else " Копію в Obsidian не оновлено."
             return {
                 "agent": self.AGENT_ID,
                 "status": command_status,
-                "response": command_responses.get(command_status, "Команду пам'яті оброблено без інших дій."),
+                "response": response,
                 "memory_command": command_result,
             }
 
