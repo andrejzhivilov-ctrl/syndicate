@@ -13,6 +13,7 @@ import base64
 import binascii
 import hashlib
 import json
+import re
 import time
 from collections import deque
 from datetime import datetime, timezone
@@ -101,6 +102,63 @@ def snapshot_text(snapshot: Mapping[str, Any]) -> str:
     return "\n".join([head, *lines, f"Остання подія: {snapshot.get('last_event_at')}. Джерело: ukrainealarm.com"])
 
 
+def _choice_path(path: Optional[Path]) -> Path:
+    return (path or state_path()).with_name("regions.json")
+
+
+def chosen_states(path: Optional[Path] = None) -> Optional[List[str]]:
+    """Oblasts the operator wants to hear about; ``None`` means all of Ukraine."""
+    try:
+        saved = json.loads(_choice_path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    chosen = [state for state in saved if state in STATES] if isinstance(saved, list) else []
+    return chosen or None
+
+
+def _ordered_states() -> List[str]:
+    return sorted(STATES, key=STATES.__getitem__)
+
+
+def _match_states(part: str) -> List[str]:
+    if part.isdigit():
+        ordered = _ordered_states()
+        return [ordered[int(part) - 1]] if 1 <= int(part) <= len(ordered) else []
+    return [state for state in _ordered_states() if part.lower() in STATES[state].lower()]
+
+
+def _choice_text(chosen: Optional[List[str]]) -> str:
+    names = "вся Україна" if chosen is None else ", ".join(sorted(STATES[state] for state in chosen))
+    return f"Сповіщення про тривоги: {names}."
+
+
+def _regions_help(chosen: Optional[List[str]]) -> str:
+    listing = [f"{number}. {STATES[state]}" for number, state in enumerate(_ordered_states(), 1)]
+    return "\n".join([_choice_text(chosen), "/regions Вінницька, Київська — вибрати за назвою",
+                      "/regions 3 7 — вибрати за номером", "/regions всі — уся Україна", "", *listing])
+
+
+def regions_reply(arg: str, path: Optional[Path] = None) -> Dict[str, Any]:
+    """/regions: show or change the notified oblasts. The whole country stays tracked."""
+    arg = arg.strip()
+    if not arg:
+        return {"status": "completed", "response": _regions_help(chosen_states(path))}
+    chosen: List[str] = []
+    if arg.lower() not in {"всі", "все", "вся", "all"}:
+        parts = re.split(r"[,\s]+", arg) if re.fullmatch(r"[\d,\s]+", arg) else arg.split(",")
+        for part in filter(None, map(str.strip, parts)):
+            found = _match_states(part)
+            if not found:
+                return {"status": "error", "response": f"Не знайшов «{part}», вибір не змінено. Список: /regions"}
+            chosen.extend(state for state in found if state not in chosen)
+    try:
+        _choice_path(path).write_text(json.dumps(chosen), encoding="utf-8")
+    except OSError as exc:
+        logger.warning("alert_choice_not_saved", error_type=type(exc).__name__)
+        return {"status": "unavailable", "reason": "not_saved", "response": "Не вдалося зберегти вибір, він не змінився."}
+    return {"status": "completed", "response": _choice_text(chosen or None)}
+
+
 class AlertWatch:
     def __init__(self, gateway: Any, *, path: Optional[Path] = None) -> None:
         self._gateway = gateway
@@ -140,7 +198,8 @@ class AlertWatch:
         else:
             self._regions.pop(region, None)
         note = self._trackers[state].update(_state_level(self._regions, state))
-        if note:
+        chosen = chosen_states(self._path)
+        if note and (chosen is None or state in chosen):  # every oblast stays tracked, only the notice is filtered
             mark, _, phrase = note.partition(" ")
             self._pending.append(f"{mark} {STATES[state]}: {phrase}")
         self._save()

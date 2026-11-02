@@ -1804,6 +1804,10 @@ class EvaOrchestrator:
             from src.integrations.public_data import source_reply
 
             result = {"agent": agent_id, **await source_reply(command[0], self._vault_client)}
+        elif command is not None and command[0] == "/regions":
+            from src.alert_watch import regions_reply
+
+            result = {"agent": agent_id, **regions_reply(command[1])}
         elif command is not None:
             from src.agent_chat import pool_reply
 

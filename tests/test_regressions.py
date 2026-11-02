@@ -4784,3 +4784,35 @@ def test_ukrainealarm_public_key_ships_with_the_code():
     from src.alert_watch import _public_key
 
     assert _public_key(None).key_size >= 2048
+
+
+def test_regions_command_filters_notices_but_keeps_tracking_all_of_ukraine(tmp_path):
+    from src.agent_chat import pool_command
+    from src.alert_watch import AlertWatch, STATES, chosen_states, regions_reply
+
+    assert pool_command({"text": "/regions Вінницька"}) == ("/regions", "Вінницька")
+    path = tmp_path / "state.json"
+    state, _ = _vinnytsia()
+    other = next(key for key, name in STATES.items() if name == "Волинська область")
+    gateway = _AlertGateway()
+    watch = AlertWatch(gateway, path=path)
+
+    assert chosen_states(path) is None
+    assert regions_reply("вінницька", path)["response"].endswith("Вінницька область.")
+    watch.handle(_air(other, "Red"))
+    watch.handle(_air(state, "Red"))
+    asyncio.run(watch.flush())
+    assert "Волинська" not in gateway.sent[0][2] and "Вінницька" in gateway.sent[0][2]
+
+    regions_reply("Вінницька, Волинська", path)
+    watch.handle(_air(other))  # its alert was tracked while it was muted, so the all-clear is real
+    asyncio.run(watch.flush())
+    assert "Волинська" in gateway.sent[1][2]
+
+    assert regions_reply("Атлантида", path)["status"] == "error"
+    assert sorted(chosen_states(path)) == sorted([state, other])
+    assert regions_reply("всі", path)["response"].endswith("вся Україна.")
+    assert chosen_states(path) is None
+    assert len(regions_reply("1, 2", path)["response"]) > 0
+    assert len(chosen_states(path)) == 2
+    assert regions_reply("99", path)["status"] == "error"
