@@ -20,7 +20,7 @@ from src.embeddings import EmbeddingUnavailable
 logger = structlog.get_logger(__name__)
 
 #: Upper bound for embedding the action text before an agent answers.
-ACTION_EMBED_TIMEOUT_S = 3.0
+ACTION_EMBED_TIMEOUT_S = 1.0
 
 
 class LessonsStore:
@@ -141,6 +141,23 @@ class LessonsStore:
             logger.exception("failed_to_record_lesson", agent_id=agent_id, exc_info=exc)
             return None
 
+    async def _has_vectors(self) -> bool:
+        """Whether any live lesson can match by vector; without one, embedding is wasted time."""
+        query = text("""
+            SELECT EXISTS (
+                SELECT 1 FROM memory.lessons
+                WHERE lesson_vector IS NOT NULL
+                  AND (expires_at IS NULL OR expires_at > NOW())
+            );
+        """)
+        try:
+            async with self._session_factory() as session:
+                result = await session.execute(query)
+                return bool(result.scalar())
+        except Exception as exc:  # noqa: BLE001 - the check below reports a database failure itself
+            logger.warning("lessons_vector_probe_failed", error_type=type(exc).__name__)
+            return False
+
     async def check_before_action(
         self,
         agent_id: str,
@@ -160,7 +177,7 @@ class LessonsStore:
         if self._session_factory is None:
             return []
 
-        if action_embedding is None and action_text:
+        if action_embedding is None and action_text and await self._has_vectors():
             # A slow embedding service must not hold the agent's answer: past this
             # bound the check runs without vectors, as it does on embedding failure.
             try:

@@ -4538,13 +4538,19 @@ def test_slow_embedding_does_not_hold_the_lessons_check(monkeypatch):
         async def __aexit__(self, *exc):
             return False
 
-        async def execute(self, query, params):
+        async def execute(self, query, params=None):
             class Rows:
                 def fetchall(self):
                     return []
+
+                def scalar(self):
+                    return True
             return Rows()
 
+    calls = []
+
     async def hung(*args, **kwargs):
+        calls.append(args)
         await asyncio.sleep(30)
 
     store = object.__new__(lessons_module.LessonsStore)
@@ -4553,6 +4559,39 @@ def test_slow_embedding_does_not_hold_the_lessons_check(monkeypatch):
     monkeypatch.setattr(lessons_module, "ACTION_EMBED_TIMEOUT_S", 0.01)
 
     assert asyncio.run(store.check_before_action("eva", action_text="hello")) == []
+    assert calls, "the bound must be what stopped the embedding"
+
+
+def test_lessons_check_skips_embedding_when_no_lesson_has_a_vector():
+    import src.lessons as lessons_module
+
+    class Session:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def execute(self, query, params=None):
+            class Rows:
+                def fetchall(self):
+                    return []
+
+                def scalar(self):
+                    return False
+            return Rows()
+
+    calls = []
+
+    async def embed(*args, **kwargs):
+        calls.append(args)
+
+    store = object.__new__(lessons_module.LessonsStore)
+    store._session_factory = Session
+    store._embed = embed
+
+    assert asyncio.run(store.check_before_action("eva", action_text="hello")) == []
+    assert calls == []
 
 
 def test_eva_remembers_the_masked_conversation():
