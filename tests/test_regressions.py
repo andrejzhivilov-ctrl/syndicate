@@ -4704,7 +4704,8 @@ def test_alert_watch_rolls_regions_into_oblast_phrases_through_alice_bot(tmp_pat
     lines = gateway.sent[0][2].split("\n\n")
     assert all("Вінницька область: " in line for line in lines)
     phrases = [line.split("Вінницька область: ", 1)[1] for line in lines]
-    assert phrases[0].removesuffix(" (тривога лише в частині регіону)") in POOLS["yellow"]
+    phrases = [phrase.removesuffix(" (тривога лише в частині регіону)") for phrase in phrases]
+    assert phrases[0] in POOLS["yellow"]
     assert phrases[1] in POOLS["escalate_to_red"]
     assert phrases[2] in POOLS["ease_to_yellow"]
     assert phrases[3] in POOLS["clear_after_red"]
