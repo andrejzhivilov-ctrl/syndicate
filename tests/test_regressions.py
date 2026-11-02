@@ -4588,3 +4588,11 @@ def test_daily_backup_covers_both_databases_and_proves_each_dump_by_restoring_it
     assert 'verify_restore postgres "${POSTGRES_DB_NAME:-syndicate}"' in script
     assert 'record vault unavailable' in script
     assert "--network none" in script
+
+
+def test_daily_backup_covers_agent_data_volume_with_confirmed_memory():
+    script = (REPO_ROOT / "deploy" / "scripts" / "backup_daily.sh").read_text(encoding="utf-8")
+
+    assert 'EVA_VOLUME="${EVA_VOLUME:-syndicate_eva_data}"' in script
+    assert 'backup_volume eva_data "$EVA_VOLUME"' in script
+    assert 'backup_volume n8n_home "$N8N_VOLUME"' in script

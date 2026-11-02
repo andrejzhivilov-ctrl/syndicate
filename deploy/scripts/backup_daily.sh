@@ -1,5 +1,6 @@
 #!/bin/bash
-# Daily backup set: both PostgreSQL databases, n8n home, Obsidian, bootstrap .env, Vault snapshot.
+# Daily backup set: both PostgreSQL databases, n8n home, agent data (confirmed memory, HITL queue),
+# Obsidian, bootstrap .env, Vault snapshot.
 # Every step reports ok or unavailable; a skipped step is never reported as ok.
 # Each database dump is proven by restoring it into a throwaway container.
 set -uo pipefail
@@ -11,6 +12,7 @@ REPO_DIR="${SYNDICATE_DIR:-/opt/syndicate}"
 OBSIDIAN_DIR="${OBSIDIAN_DIR:-/data/obsidian_vault}"
 POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-syndicate-postgres-1}"
 N8N_VOLUME="${N8N_VOLUME:-syndicate_n8n_data}"
+EVA_VOLUME="${EVA_VOLUME:-syndicate_eva_data}"
 RESTORE_IMAGE="${RESTORE_IMAGE:-pgvector/pgvector:pg16}"
 VAULT_TOKEN_FILE="${VAULT_BACKUP_TOKEN_FILE:-/root/.vault-backup-token}"
 
@@ -71,10 +73,10 @@ verify_restore() {  # name database
     fi
 }
 
-backup_n8n_home() {
-    local target="$DEST/n8n_home.tar.gz"
-    docker run --rm --network none -v "$N8N_VOLUME:/source:ro" alpine:3.20 tar -czf - -C /source . > "$target" 2> /dev/null
-    checked n8n_home "$target"
+backup_volume() {  # name volume
+    local target="$DEST/$1.tar.gz"
+    docker run --rm --network none -v "$2:/source:ro" alpine:3.20 tar -czf - -C /source . > "$target" 2> /dev/null
+    checked "$1" "$target"
 }
 
 backup_obsidian() {
@@ -113,7 +115,8 @@ backup_database postgres "${POSTGRES_DB_NAME:-syndicate}"
 verify_restore postgres "${POSTGRES_DB_NAME:-syndicate}"
 backup_database n8n "${N8N_DB_NAME:-n8n}"
 verify_restore n8n "${N8N_DB_NAME:-n8n}"
-backup_n8n_home
+backup_volume n8n_home "$N8N_VOLUME"
+backup_volume eva_data "$EVA_VOLUME"
 backup_obsidian
 backup_env
 backup_vault
