@@ -157,7 +157,18 @@ class ChatHistory:
 POOL_COMMANDS: Dict[str, Optional[str]] = {"/skills": "skill", "/prompts": "prompt", "/mcp": "mcp", "/pool": None,
                                            "/spec": None, "/files": None,
                                            "/rates": None, "/weather": None, "/alerts": None, "/regions": None,
-                                           "/protect": None, "/vaultplan": None, "/lesson": None}
+                                           "/protect": None, "/vaultplan": None, "/lesson": None,
+                                           "/commands": None}
+#: What /commands shows; a test keeps it equal to POOL_COMMANDS.
+COMMAND_HELP: Dict[str, str] = {
+    "/commands": "усі команди цього агента", "/lesson": "виправити агента: /lesson що робити інакше",
+    "/spec": "регламент агента", "/files": "файли агента",
+    "/skills": "пошук у хабі скілів", "/prompts": "пошук у хабі промптів", "/mcp": "пошук у хабі MCP",
+    "/pool": "відкрити запис хабу за id",
+    "/rates": "курси валют", "/weather": "погода", "/alerts": "повітряна тривога",
+    "/regions": "регіони сповіщень про тривогу",
+    "/protect": "захистити файл міткою Андрія", "/vaultplan": "план упорядкування Obsidian",
+}
 _POOL_LABELS = {"skill": "Скіли", "prompt": "Промти", "mcp": "MCP-сервери"}
 _POOL_HINT_RE = re.compile(r"скіл|skill|промпт|промт|prompt|\bmcp\b", re.IGNORECASE)
 POOL_REFERENCE_CHARS = 1200
@@ -181,6 +192,9 @@ def pool_reply(agent_id: str, command: str, arg: str, library: Any) -> Dict[str,
     if command == "/spec":  # the agent's own regulation, also without a model
         return spec_reply(agent_id, arg)
     base = {"agent": agent_id, "mode": "pool"}
+    if command == "/commands":
+        return {**base, "status": "completed",
+                "response": "\n".join(f"{name} — {text}" for name, text in COMMAND_HELP.items())}
     try:
         if command == "/pool":
             if not arg:

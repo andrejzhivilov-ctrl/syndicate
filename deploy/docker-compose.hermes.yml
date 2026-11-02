@@ -1,0 +1,44 @@
+# Hermes agents. Each one has no route but the internal hermes_net to eva-agent.
+# Rights and the reasons for each cap: docs/HERMES_ROLLOUT.md.
+services:
+  trainer-hermes:
+    image: nousresearch/hermes-agent@sha256:d27689bc6e8581ec884a7227c9101fdaebf6c853cff8859020dac14f21452b4d
+    command: ["gateway", "run"]
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    cap_add:   # the image starts as root only to prepare /opt/data, the agent runs as uid 10000
+      - CHOWN
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
+      - FOWNER
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,nosuid,size=128m
+      - /run:rw,nosuid,exec,size=16m
+    environment:
+      API_SERVER_ENABLED: "true"
+      API_SERVER_HOST: 0.0.0.0
+      HERMES_DASHBOARD: "0"
+    env_file:
+      - /etc/syndicate/hermes-trainer.env   # API_SERVER_KEY, SYNDICATE_TOKEN
+    volumes:
+      - trainer_hermes_data:/opt/data
+      - ./hermes/trainer/config.yaml:/opt/syndicate-config/config.yaml:ro
+      - ./hermes/trainer/SOUL.md:/opt/syndicate-config/SOUL.md:ro
+    networks:
+      - hermes_net
+    mem_limit: 1g
+    cpus: 1.0
+    pids_limit: 256
+
+networks:
+  hermes_net:
+    external: true
+    name: syndicate_hermes_net
+
+volumes:
+  trainer_hermes_data: {}
