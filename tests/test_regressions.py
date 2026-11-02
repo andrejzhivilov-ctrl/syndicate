@@ -4784,3 +4784,116 @@ def test_ukrainealarm_public_key_ships_with_the_code():
     from src.alert_watch import _public_key
 
     assert _public_key(None).key_size >= 2048
+
+
+def test_regions_command_filters_notices_but_keeps_tracking_all_of_ukraine(tmp_path):
+    from src.agent_chat import pool_command
+    from src.alert_watch import AlertWatch, STATES, chosen_places, regions_reply
+
+    assert pool_command({"text": "/regions Вінницька"}) == ("/regions", "Вінницька")
+    path = tmp_path / "state.json"
+    state, _ = _vinnytsia()
+    other = next(key for key, name in STATES.items() if name == "Волинська область")
+    gateway = _AlertGateway()
+    watch = AlertWatch(gateway, path=path)
+
+    assert chosen_places(path) is None
+    assert regions_reply("вінницька", path)["response"].endswith("Вінницька область.")
+    watch.handle(_air(other, "Red"))
+    watch.handle(_air(state, "Red"))
+    asyncio.run(watch.flush())
+    assert "Волинська" not in gateway.sent[0][2] and "Вінницька" in gateway.sent[0][2]
+
+    regions_reply("Вінницька, Волинська", path)
+    watch.handle(_air(other))  # its alert was tracked while it was muted, so the all-clear is real
+    asyncio.run(watch.flush())
+    assert "Волинська" in gateway.sent[1][2]
+
+    assert regions_reply("Атлантида", path)["status"] == "error"
+    assert sorted(chosen_places(path)) == sorted([state, other])
+    assert regions_reply("всі", path)["response"].endswith("вся Україна.")
+    assert chosen_places(path) is None
+    assert len(regions_reply(f"{state}, {other}", path)["response"]) > 0
+    assert len(chosen_places(path)) == 2
+    assert regions_reply("0", path)["status"] == "error"
+
+
+def _place(name):
+    from src.alert_watch import NAMES
+
+    return next(region for region, value in NAMES.items() if value == name)
+
+
+def test_regions_command_reaches_districts_and_communities(tmp_path):
+    from src.alert_watch import NAMES, UP, _unclear, _find, chosen_places, regions_reply
+
+    assert len(NAMES) == 1605 and "Тестовий регіон" not in NAMES.values()
+    path = tmp_path / "state.json"
+    district, community = _place("Тульчинський район"), _place("Тульчинська територіальна громада")
+    assert UP[community] == district
+
+    listing = regions_reply("", path)["response"]
+    assert "Вінницька область" in listing and "Тульчинський" in listing  # the hint, the list stays oblasts only
+    districts = regions_reply("список Вінницька", path)["response"]
+    assert f"{district} — Тульчинський район" in districts
+    assert chosen_places(path) is None  # looking changes nothing
+    assert f"{community} — Тульчинська" in regions_reply("список Тульчинський район", path)["response"]
+    assert regions_reply("список Атлантида", path)["status"] == "error"
+    assert "немає дрібніших" in regions_reply("список м. Київ", path)["response"]
+
+    regions_reply("Тульчинський район", path)
+    assert chosen_places(path) == [district]
+    assert regions_reply("- Атлантида", path)["status"] == "error"
+    regions_reply(f"+ {community}", path)
+    regions_reply(f"+ {community}", path)
+    assert chosen_places(path) == [district, community]
+    regions_reply(f"- {district}", path)
+    assert chosen_places(path) == [community]
+    assert "Вінницька область" in regions_reply(str(community), path)["response"]
+    regions_reply("всі", path)
+    assert regions_reply(f"- {community}", path)["status"] == "error"
+
+    # The same name in several oblasts is never guessed: the choice stays, the candidates are listed.
+    same = regions_reply("Миколаївська територіальна громада", path)
+    assert same["status"] == "error" and same["response"].count("\n") == 6
+    assert chosen_places(path) is None
+    assert _find("мар'янівська") == _find("Мар’янівська")  # the source mixes the apostrophes
+    assert _unclear("район", _find("район")).endswith("уточни назву.")
+
+
+def test_alert_notices_follow_the_chosen_district_and_community(tmp_path):
+    from src.alert_watch import AlertWatch, UP, regions_reply
+
+    path = tmp_path / "state.json"
+    district, community = _place("Тульчинський район"), _place("Тульчинська територіальна громада")
+    sibling = next(region for region, parent in UP.items() if parent == district and region != community)
+    oblast = UP[district]
+    other_district = next(region for region, parent in UP.items() if parent == oblast and region != district)
+    gateway = _AlertGateway()
+    watch = AlertWatch(gateway, path=path)
+
+    def sent_after(event):
+        before = len(gateway.sent)
+        watch.handle(event)
+        asyncio.run(watch.flush())
+        return " ".join(item[2] for item in gateway.sent[before:])
+
+    regions_reply(community, path)
+    assert sent_after(_air(other_district, "Red")) == ""
+    assert sent_after(_air(other_district)) == ""
+    assert sent_after(_air(sibling, "Red")) == ""  # a neighbouring community is not this one
+    assert sent_after(_air(sibling)) == ""
+    assert "Тульчинська територіальна громада, Тульчинський район" in sent_after(_air(oblast, "Yellow"))  # covered whole
+    assert "🟢" in sent_after(_air(oblast))
+    assert "🔴" in sent_after(_air(community, "Red"))
+    assert "🟢" in sent_after(_air(community))
+
+    regions_reply(district, path)
+    assert "(тривога лише в частині регіону)" in sent_after(_air(sibling, "Yellow"))
+    assert "🟢" in sent_after(_air(sibling))
+
+    # Chosen during an alert: nothing to announce yet, but the all-clear still comes.
+    watch.handle(_air(other_district, "Red"))
+    regions_reply(other_district, path)
+    assert sent_after(_air(sibling, "Red")) == ""
+    assert "🟢" in sent_after(_air(other_district))
