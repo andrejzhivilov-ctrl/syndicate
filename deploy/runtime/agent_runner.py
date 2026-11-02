@@ -54,6 +54,7 @@ from src.orchestrator import OPERATOR_ONLY_TASK_TYPES, EvaOrchestrator  # noqa: 
 from src.hitl_queue import HitlError  # noqa: E402
 from src.directors_registry import roster as directors_roster  # noqa: E402
 from src.lockdown import Lockdown  # noqa: E402
+from src.alert_watch import AlertWatch  # noqa: E402
 from src.telegram_gateway import (  # noqa: E402
     TelegramGateway,
     extract_message,
@@ -126,6 +127,7 @@ class AppState:
     ready: bool = False
     vault_renewal_task: Optional[Any] = None
     obsidian_webdav_task: Optional[Any] = None
+    alert_watch_task: Optional[Any] = None
 
 
 app_state = AppState()
@@ -364,6 +366,9 @@ async def lifespan(app: FastAPI):
         app_state.change_request_notifier = notifier
         app_state.telegram_gateway = TelegramGateway(app_state.vault_client)
         logger.info("HITL surface initialized", change_requests=store is not None)
+        app_state.alert_watch_task = asyncio.create_task(
+            AlertWatch(app_state.vault_client, app_state.telegram_gateway).loop()
+        )
 
         app_state.ready = True
         logger.info("SYNDICATE agent ready", uptime=0)
@@ -388,7 +393,7 @@ async def lifespan(app: FastAPI):
             # slip that dropped the reference to the wrong task and left the
             # purge task pointing at an already-cancelled object.
             app_state.device_purge_task = None
-        await _stop_obsidian_webdav()
+        await _stop_background_loops()
         if app_state.memory_manager:
             await app_state.memory_manager.close()
         if app_state.embedding_provider:
@@ -406,12 +411,14 @@ def _start_obsidian_webdav() -> None:
         app_state.obsidian_webdav_task = asyncio.create_task(server.loop())
 
 
-async def _stop_obsidian_webdav() -> None:
-    if app_state.obsidian_webdav_task is not None:
-        app_state.obsidian_webdav_task.cancel()
-        with contextlib.suppress(BaseException):
-            await app_state.obsidian_webdav_task
-        app_state.obsidian_webdav_task = None
+async def _stop_background_loops() -> None:
+    for name in ("obsidian_webdav_task", "alert_watch_task"):
+        task = getattr(app_state, name)
+        if task is not None:
+            task.cancel()
+            with contextlib.suppress(BaseException):
+                await task
+            setattr(app_state, name, None)
 
 
 # ─── FastAPI App ─────────────────────────────────────────────────────────────

@@ -4629,6 +4629,114 @@ def test_daily_backup_covers_both_databases_and_proves_each_dump_by_restoring_it
     assert "--network none" in script
 
 
+class _AlertVault:
+    def __init__(self, region="99"):
+        self.keys = {"alerts_in_ua_token": "key-value", "alerts_region_id": region}
+
+    async def get_secret(self, path):
+        return self.keys
+
+
+class _AlertGateway:
+    def __init__(self):
+        self.sent = []
+        self.accept = True
+
+    async def owner_user_id(self):
+        return "1"
+
+    async def send(self, agent_id, chat_id, text):
+        if self.accept:
+            self.sent.append((agent_id, chat_id, text))
+        return self.accept
+
+
+def _alarm_transport(replies, seen=None):
+    import httpx
+
+    queue = list(replies)
+
+    def handler(request):
+        if seen is not None:
+            seen.append(request)
+        reply = queue.pop(0)
+        return httpx.Response(reply) if isinstance(reply, int) else httpx.Response(200, json=reply)
+
+    return httpx.MockTransport(handler)
+
+
+def _alarm(levels=None, active=True, region="99"):
+    alert = {"type": "AIR", "activeAlertLevels": [{"alertLevel": x} for x in levels or []]}
+    return [{"regionId": region, "regionName": "Район", "activeAlerts": [alert] if active else []}]
+
+
+def test_region_alert_level_reads_ukraine_alarm_honestly():
+    from src.integrations.public_data import region_alert_level
+
+    seen = []
+
+    def level(reply):
+        return asyncio.run(region_alert_level("key-value", "99", transport=_alarm_transport([reply], seen)))
+
+    assert level(_alarm(["RED"]))["level"] == "R"
+    assert level(_alarm([]))["level"] == "Y", "an alert without a level is yellow"
+    assert level(_alarm(active=False))["level"] == "N"
+    assert seen[0].headers["authorization"] == "key-value"
+    assert level(_alarm(region="1"))["status"] == "unavailable"
+    assert level(401)["status"] == "unavailable"
+    assert asyncio.run(region_alert_level(None, "99"))["reason"] == "token_not_configured"
+    assert asyncio.run(region_alert_level("key-value", None))["reason"] == "region_not_configured"
+
+
+def test_alert_watch_sends_bank_phrases_through_alice_bot():
+    from src.alert_phrases import POOLS
+    from src.alert_watch import AlertWatch
+
+    gateway = _AlertGateway()
+    replies = [_alarm(active=False), _alarm([]), _alarm(["RED"]), _alarm(active=False)]
+    watch = AlertWatch(_AlertVault(), gateway, transport=_alarm_transport(replies))
+
+    for _ in replies:
+        asyncio.run(watch.tick())
+
+    assert [(bot, chat) for bot, chat, _ in gateway.sent] == [("alice", "1")] * 3
+    texts = [text.split(" ", 1)[1] for _, _, text in gateway.sent]
+    assert texts[0] in POOLS["yellow"]
+    assert texts[1] in POOLS["escalate_to_red"]
+    assert texts[2] in POOLS["clear_after_red"]
+
+
+def test_alert_watch_keeps_unsent_notification_and_reports_blindness_once():
+    from src.alert_watch import BLIND_AFTER, SIGHT_NOTICE, AlertWatch
+
+    gateway = _AlertGateway()
+    gateway.accept = False
+    replies = [_alarm(active=False), _alarm(["RED"]), *[500] * (BLIND_AFTER + 1), _alarm(["RED"])]
+    watch = AlertWatch(_AlertVault(), gateway, transport=_alarm_transport(replies))
+
+    asyncio.run(watch.tick())
+    asyncio.run(watch.tick())
+    assert gateway.sent == []
+
+    gateway.accept = True
+    for _ in replies[2:]:
+        asyncio.run(watch.tick())
+
+    texts = [text for _, _, text in gateway.sent]
+    assert len(texts) == 3, "one alert, one blindness notice, one recovery; no alert or all-clear was invented"
+    assert texts[0].startswith("🔴")
+    assert "Не бачу" in texts[1]
+    assert texts[2] == SIGHT_NOTICE
+
+
+def test_alerts_command_uses_the_region_when_it_is_set():
+    from src.integrations.public_data import _alerts_reply
+
+    reply = asyncio.run(_alerts_reply(_AlertVault(), _alarm_transport([_alarm(["RED"])])))
+    assert reply["status"] == "completed"
+    assert "червоний" in reply["response"]
+
+
 def test_daily_backup_covers_agent_data_volume_with_confirmed_memory():
     script = (REPO_ROOT / "deploy" / "scripts" / "backup_daily.sh").read_text(encoding="utf-8")
 

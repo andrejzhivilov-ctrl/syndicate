@@ -23,6 +23,8 @@ logger = structlog.get_logger(__name__)
 NBU_URL = "https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange"
 METEO_URL = "https://api.open-meteo.com/v1/forecast"
 ALERTS_URL = "https://api.alerts.in.ua/v1/alerts/active.json"
+UKRAINE_ALARM = "ukrainealarm.com"
+UKRAINE_ALARM_URL = "https://api.ukrainealarm.com/api/v3/alerts"
 TIMEOUT_S = 15
 FORECAST_HOURS = 24
 #: Pressure levels ≈ heights above sea level: 925 hPa ~ 750 m, 850 hPa ~ 1500 m, 800 hPa ~ 2000 m.
@@ -126,6 +128,45 @@ async def alerts_token(vault: Any) -> Optional[str]:
     return token if isinstance(token, str) and token else None
 
 
+async def alerts_region(vault: Any) -> Optional[str]:
+    """The operator's Ukraine Alarm region; kept in Vault because it reveals where they live."""
+    try:
+        region = (await vault.get_secret(secret_path("api-keys")) or {}).get("alerts_region_id")
+    except Exception:  # noqa: BLE001
+        return None
+    return str(region).strip() if isinstance(region, (str, int)) and str(region).strip().isdigit() else None
+
+
+def _region_level(region: Dict[str, Any]) -> str:
+    """R, Y or N. An alert without a level is yellow (operator's rule, 29.10)."""
+    alerts = [a for a in region.get("activeAlerts") or [] if isinstance(a, dict)]
+    if not alerts:
+        return "N"
+    levels = [level for a in alerts for level in a.get("activeAlertLevels") or [] if isinstance(level, dict)]
+    return "R" if any(str(level.get("alertLevel") or "").upper() == "RED" for level in levels) else "Y"
+
+
+async def region_alert_level(key: Optional[str], region: Optional[str], *, transport: Any = None) -> Dict[str, Any]:
+    """Alert level of one region from api.ukrainealarm.com (the key goes without ``Bearer``)."""
+    if not key:
+        return _unavailable(UKRAINE_ALARM, "token_not_configured")
+    if not region:
+        return _unavailable(UKRAINE_ALARM, "region_not_configured")
+    try:
+        response = await _get(f"{UKRAINE_ALARM_URL}/{region}", headers={"Authorization": key, "Accept": "application/json"},
+                              transport=transport)
+        data = response.json() if response.status_code == 200 else None
+    except Exception as exc:  # noqa: BLE001 - never log the key
+        logger.warning("region_alert_error", error_type=type(exc).__name__)
+        return _unavailable(UKRAINE_ALARM, "network_error")
+    rows = data if isinstance(data, list) else [data]
+    match = [row for row in rows if isinstance(row, dict) and str(row.get("regionId")) == region]
+    if not match:  # a reply about another region says nothing about this one
+        return _unavailable(UKRAINE_ALARM, f"http_{response.status_code}")
+    return {"status": "ok", "source": UKRAINE_ALARM, "level": _region_level(match[0]),
+            "region_name": match[0].get("regionName")}
+
+
 def _fmt(value: Any, unit: str = "") -> str:
     return "немає даних" if value is None else f"{value}{unit}"
 
@@ -175,7 +216,18 @@ def _alerts_text(alerts: List[Dict[str, Any]]) -> str:
     return text + "\nДжерело: alerts.in.ua"
 
 
+async def _region_alerts_reply(vault: Any, region: str, transport: Any) -> Dict[str, Any]:
+    data = await region_alert_level(await alerts_token(vault), region, transport=transport)
+    if data["status"] != "ok":
+        return {**data, "response": "Ukraine Alarm зараз не відповідає, стан тривоги невідомий."}
+    state = {"R": "червоний рівень", "Y": "жовтий рівень", "N": "тривоги немає"}[data["level"]]
+    return {"status": "completed", "response": f"{data['region_name'] or 'Твій регіон'}: {state}.\nДжерело: {UKRAINE_ALARM}"}
+
+
 async def _alerts_reply(vault: Any, transport: Any) -> Dict[str, Any]:
+    region = await alerts_region(vault)
+    if region:
+        return await _region_alerts_reply(vault, region, transport)
     data = await air_alerts(await alerts_token(vault), transport=transport)
     if data["status"] != "ok":
         text = ("Токен alerts.in.ua ще не внесено." if data["reason"] == "token_not_configured"
