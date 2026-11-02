@@ -208,9 +208,7 @@ class EvaAgent:
         if memory["text"]:
             system_prompt = f"{system_prompt}\n\n{memory['text']}"
         system_prompt += await self._notes_context(user_message)
-        corrections = lessons_note(payload.get("operator_lessons"))
-        if corrections:
-            system_prompt = f"{system_prompt}\n\n{corrections}"
+        system_prompt = "\n\n".join(filter(None, [system_prompt, lessons_note(payload.get("operator_lessons"))]))
 
         content = await self._model_turn(system_prompt, user_message, str(payload.get("chat_id") or ""))
 

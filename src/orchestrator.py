@@ -1831,7 +1831,8 @@ class EvaOrchestrator:
         return {"task_id": str(uuid.uuid4()), "status": "completed", "result": result}
 
     async def _operator_lessons(self, agent_id: str) -> Optional[List[Dict[str, str]]]:
-        return await self._lessons.operator_lessons(agent_id) if self._lessons else None
+        store = getattr(self, "_lessons", None)
+        return await store.operator_lessons(agent_id) if store else None
 
     def _chat_buffer(self) -> Any:
         """Short-term chat memory shared by Telegram conversations."""
