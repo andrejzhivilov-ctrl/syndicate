@@ -54,6 +54,27 @@ def _obsidian_summary(digest: Any) -> str:
             + f", чекають дозволу: {digest.get('awaiting_permission', 0)}")
 
 
+_MEMORY_REPLIES = {
+    "created": "Факт записано до підтвердженої пам'яті.",
+    "updated": "Факт оновлено за явним запитом; попередню версію переміщено до архіву.",
+    "thought_saved": "Думку записано до чернеток пам'яті Єви; в Obsidian чернетки не копіюються.",
+    "review_required": "Матеріал збережено лише в черзі ручного перегляду, не в активній пам'яті.",
+    "refused": "Матеріал не збережено.",
+    "confirmation_required": "Пам'ять не змінено; потрібне окреме підтвердження цієї дії.",
+    "archived": "Факт переміщено до архіву пам'яті; це не остаточне видалення.",
+    "ok": "Ось факти, які Єва має у підтвердженій пам'яті.",
+    "not_found": "Відповідного факту не знайдено; пам'ять не змінено.",
+}
+
+
+def _memory_reply(status: str, copied: bool) -> str:
+    """The reply states what really reached Obsidian."""
+    reply = _MEMORY_REPLIES.get(status, "Команду пам'яті оброблено без інших дій.")
+    if status in {"created", "updated", "archived"}:
+        reply += " Копію в Obsidian оновлено." if copied else " Копію в Obsidian не оновлено."
+    return reply
+
+
 class EvaAgent:
     """Conversational assistant implementation; it grants itself no tools or rights."""
 
@@ -163,21 +184,10 @@ class EvaAgent:
                 operator_confirmed_forget=payload.get("confirmed") is True,
             )
             command_status = command_result.get("status", "error")
-            command_responses = {
-                "created": "Факт записано до підтвердженої пам'яті Obsidian.",
-                "updated": "Факт оновлено за явним запитом; попередню версію переміщено до архіву.",
-                "thought_saved": "Думку записано до чернеток Obsidian.",
-                "review_required": "Матеріал збережено лише в черзі ручного перегляду, не в активній пам'яті.",
-                "refused": "Матеріал не збережено.",
-                "confirmation_required": "Пам'ять не змінено; потрібне окреме підтвердження цієї дії.",
-                "archived": "Факт переміщено до архіву Obsidian; це не остаточне видалення.",
-                "ok": "Ось факти, які Єва має у підтвердженій пам'яті.",
-                "not_found": "Відповідного факту не знайдено; пам'ять не змінено.",
-            }
             return {
                 "agent": self.AGENT_ID,
                 "status": command_status,
-                "response": command_responses.get(command_status, "Команду пам'яті оброблено без інших дій."),
+                "response": _memory_reply(command_status, getattr(self._vault, "obsidian_copied", None) is True),
                 "memory_command": command_result,
             }
 
