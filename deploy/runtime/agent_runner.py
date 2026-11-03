@@ -55,6 +55,7 @@ from src.hitl_queue import HitlError  # noqa: E402
 from src.directors_registry import roster as directors_roster  # noqa: E402
 from src.lockdown import Lockdown  # noqa: E402
 from src.alert_watch import AlertWatch  # noqa: E402
+from src import hermes_gateway  # noqa: E402
 from src.telegram_gateway import (  # noqa: E402
     TelegramGateway,
     extract_message,
@@ -314,6 +315,7 @@ async def lifespan(app: FastAPI):
             auth_secrets = {}
         app_state.api_key = auth_secrets.get("api_key") or os.getenv("EVA_API_KEY") or os.getenv("MCP_SIGNING_KEY")
         app_state.webhook_secret = auth_secrets.get("webhook_secret") or os.getenv("WEBHOOK_SECRET") or os.getenv("MCP_SIGNING_KEY")
+        hermes_gateway.set_master(app_state.api_key)
 
         # 6b. Per-device token store (PC/mobile clients). The master key above
         #     is never handed to a client binary; devices get their own
@@ -1391,6 +1393,41 @@ async def ukrainealarm_webhook(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid JSON") from None
     return {"ok": True}
+
+
+@app.post("/hermes/{agent}/llm/{purpose}/v1/chat/completions", include_in_schema=False)
+async def hermes_llm(
+    agent: str,
+    purpose: str,
+    request: Request,
+    authorization: Optional[str] = Header(default=None, alias="Authorization"),
+    state: AppState = Depends(require_ready),
+):
+    """Model calls of a Hermes container: the key stays here, PII is masked here."""
+    if purpose not in {hermes_gateway.CHAT, hermes_gateway.LEARNING} or not hermes_gateway.token_ok(agent, authorization):
+        raise HTTPException(status_code=401, detail="unauthorized")
+    budget = hermes_gateway.LearningBudget()
+    if purpose == hermes_gateway.LEARNING and not budget.allowed():
+        raise HTTPException(status_code=429, detail="learning_budget_exhausted")
+    key = state.orchestrator.openrouter_key()
+    if not key:
+        raise HTTPException(status_code=503, detail="model_key_unavailable")
+    status, chunks = await hermes_gateway.relay(agent, purpose, await request.json(), key, budget)
+    return StreamingResponse(chunks, status_code=status, media_type="text/event-stream")
+
+
+@app.post("/hermes/{agent}/mcp", include_in_schema=False)
+async def hermes_mcp(
+    agent: str,
+    request: Request,
+    authorization: Optional[str] = Header(default=None, alias="Authorization"),
+    state: AppState = Depends(require_ready),
+):
+    """Tools of a Hermes container: its only way to act, limited per agent."""
+    if not hermes_gateway.token_ok(agent, authorization):
+        raise HTTPException(status_code=401, detail="unauthorized")
+    reply = await hermes_gateway.mcp_reply(agent, await request.json(), state.orchestrator)
+    return Response(status_code=202) if reply is None else reply
 
 
 @app.post("/webhook/{source}")

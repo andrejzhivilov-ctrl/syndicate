@@ -1826,9 +1826,22 @@ class EvaOrchestrator:
 
             reference = await asyncio.to_thread(pool_reference, agent_id, text, self._pools())
             notes = await asyncio.to_thread(obsidian_reference, agent_id, text)
-            result = await chat_reply(agent_id, text, self._llm_for(agent_id), self._chat_buffer(), owner, reference,
-                                      notes, lessons_note(await self._operator_lessons(agent_id)))
+            lessons = lessons_note(await self._operator_lessons(agent_id))
+            result = await self._hermes_turn(agent_id, text, owner, lessons) or await chat_reply(
+                agent_id, text, self._llm_for(agent_id), self._chat_buffer(), owner, reference, notes, lessons)
         return {"task_id": str(uuid.uuid4()), "status": "completed", "result": result}
+
+    async def _hermes_turn(self, agent_id: str, text: str, owner: str, lessons: str) -> Optional[Dict[str, Any]]:
+        """The agent's Hermes when it runs on one; a failed turn falls back to the direct path."""
+        from src import hermes_gateway
+
+        if agent_id not in hermes_gateway.enabled_agents():
+            return None
+        result = await hermes_gateway.hermes_chat(agent_id, text, owner, lessons)
+        return None if result.get("reason") == "hermes_unavailable" else result
+
+    def openrouter_key(self) -> str:
+        return self._llm_config.get("openrouter_api_key") or self._llm_config.get("openrouter", "")
 
     async def _operator_lessons(self, agent_id: str) -> Optional[List[Dict[str, str]]]:
         store = getattr(self, "_lessons", None)

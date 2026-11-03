@@ -242,3 +242,12 @@ def test_lessons_reach_the_model_masked():
     assert "коротко" in note and "test@example.com" not in note
     assert any(role == "system" and text == note for role, text in _context("fin", None, lessons=note))
     assert all(text != "" for _, text in _context("fin", None))
+
+
+def test_commands_lists_every_command_of_the_agent():
+    from src.agent_chat import COMMAND_HELP, POOL_COMMANDS, pool_command, pool_reply
+
+    assert set(COMMAND_HELP) == set(POOL_COMMANDS)
+    assert pool_command({"text": "/commands"}) == ("/commands", "")
+    response = pool_reply("trainer", "/commands", "", None)["response"]
+    assert all(name in response for name in POOL_COMMANDS)
