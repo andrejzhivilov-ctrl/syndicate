@@ -129,3 +129,10 @@ def test_weekly_reflection_needs_hermes_and_says_so(tmp_path, monkeypatch):
     done = asyncio.run(bridge.handle("trainer", {"kind": "reflection"}, gateway))
     assert done["status"] == "ok" and asked["owner"] == "1" and "learning_inbox" in asked["text"]
     assert gateway.sent == [("trainer", "1", "Нового з джерел немає.")]
+
+
+def test_files_the_bridge_reads_at_runtime_are_inside_the_mounted_src():
+    """eva-agent mounts src/ but bakes config/ into the image: a list in config/ was invisible (2026-11-03)."""
+    compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+    assert "./src:/app/src" in compose
+    assert bridge.SOURCES_PATH.parent == ROOT / "src" and bridge.SOURCES_PATH.is_file()
