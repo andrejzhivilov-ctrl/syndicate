@@ -26,6 +26,18 @@
 
 ---
 
+## 2026-11-03 — Claude Code: env-файл Тренера ламав рядок журналу Vault
+
+**Гілка:** `fix/hermes-token-stdout`  **Ворота:** див. PR
+
+### Зроблено
+- `python -m src.hermes_token` писав рядок «Vault authenticated» у stdout, тобто в сам env-файл, і docker відмовив: `key cannot contain a space`. Тепер журнал іде в stderr, тест перевіряє, що в stdout лише два ключі.
+
+### Не дороблено / свідомо залишено
+- `HERMES_LEARNING_BUDGET_USD` не передається в `eva-agent` через compose, діє типові $10 на місяць. Баланс OpenRouter 03.11: $11.87, спільний для чату й навчання.
+
+---
+
 ## 2026-11-02 — Claude Code: Hermes, Тренер, шлюз без ключів у контейнері
 
 **Гілка:** `feat/hermes-trainer`  **Ворота:** див. PR
