@@ -250,3 +250,12 @@ def test_alice_knows_the_alarm_feed_is_hers_only_when_asked():
     assert ("system", ALERT_NOTE) in _context("alice", None, text="Чому не попередила про тривогу?")
     assert ("system", ALERT_NOTE) not in _context("alice", None, text="Як справи?")
     assert ("system", ALERT_NOTE) not in _context("fin", None, text="Була тривога?")
+
+
+def test_commands_lists_every_command_of_the_agent():
+    from src.agent_chat import COMMAND_HELP, POOL_COMMANDS, pool_command, pool_reply
+
+    assert set(COMMAND_HELP) == set(POOL_COMMANDS)
+    assert pool_command({"text": "/commands"}) == ("/commands", "")
+    response = pool_reply("trainer", "/commands", "", None)["response"]
+    assert all(name in response for name in POOL_COMMANDS)

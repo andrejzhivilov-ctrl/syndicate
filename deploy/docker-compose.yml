@@ -24,6 +24,14 @@ networks:
     ipam:
       config:
         - subnet: 172.21.0.0/24
+  # Hermes containers reach eva-agent here and nothing else: no internet, no database.
+  hermes_net:
+    name: syndicate_hermes_net
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.31.0.0/24
 
 volumes:
   postgres_data:
@@ -227,6 +235,7 @@ services:
     networks:
       - db_net
       - backend
+      - hermes_net
     volumes:
       # NOTE: a service must declare ``volumes`` exactly once — a second key
       # silently replaces the first and drops these mounts.
@@ -254,6 +263,8 @@ services:
       # (Markdown vault, rendered media, browser profiles) lives under EVA_DATA_DIR.
       EVA_DATA_DIR: /data/eva
       OBSIDIAN_VAULT_DIR: /data/obsidian
+      # Agents answered by their Hermes container; empty keeps every agent on the direct path.
+      EVA_HERMES_AGENTS: ${EVA_HERMES_AGENTS:-}
       # Vector search. Unset EMBEDDINGS_URL disables semantic search cleanly —
       # episodic memory keeps working, which is a supported mode, not a failure.
       EMBEDDINGS_URL: ${EMBEDDINGS_URL:-http://embeddings:8000}
