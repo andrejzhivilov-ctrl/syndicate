@@ -49,12 +49,20 @@ def front_matter(text: str) -> Dict[str, str]:
     if not lines or lines[0].strip() != "---":
         return {}
     found: Dict[str, str] = {}
+    block: List[str] = []
     for line in lines[1:]:
         if line.strip() == "---":
             break
+        if block and line.startswith((" ", "\t")):
+            block.append(line.strip())  # a folded ">-" or "|" value continues on indented lines
+            found[block[0]] = " ".join(block[1:])
+            continue
+        block = []
         match = _FIELD.match(line)
         if match:
-            found[match.group(1)] = match.group(2).strip().strip("'\"")
+            value = match.group(2).strip()
+            found[match.group(1)] = "" if value in {">", ">-", "|", "|-"} else value.strip("'\"")
+            block = [match.group(1)] if value in {">", ">-", "|", "|-"} else []
     return found
 
 
@@ -85,7 +93,8 @@ def _licence_name(checkout: Path) -> str:
         head = next(checkout.glob("LICEN[CS]E*")).read_text(encoding="utf-8", errors="replace")[:400]
     except StopIteration:
         return "unknown"
-    for marker, name in (("Apache License", "Apache-2.0"), ("MIT License", "MIT"), ("unlicense", "Unlicense")):
+    for marker, name in (("Apache License", "Apache-2.0"), ("Apache 2.0 License", "Apache-2.0"),
+                         ("MIT License", "MIT"), ("unlicense", "Unlicense")):
         if marker.lower() in head.lower():
             return name
     return "see LICENSE"
