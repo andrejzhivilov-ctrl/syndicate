@@ -96,15 +96,16 @@ class ErrorCollector:
 
         if self._lessons is not None and self.SEVERITY_ORDER[severity] >= self.SEVERITY_ORDER["error"]:
             try:
-                await self._lessons.record_lesson(
+                lesson_id = await self._lessons.record_lesson(
                     agent_id="architect",
-                    kind="failure",
+                    kind="warning",
                     summary=f"[{source}{'/' + node if node else ''}] {clean_msg[:240]}",
                     context={"fingerprint": fp, "payload_sample": clean_sample},
                     category="incident",
                     severity="critical" if severity == "critical" else "high",
                 )
-                rep.routed_to.append("architect_lessons")
+                if lesson_id:  # the store answers None when the row was not written
+                    rep.routed_to.append("architect_lessons")
             except Exception as exc:  # noqa: BLE001
                 logger.warning("error_collector_lesson_failed", error=str(exc))
 

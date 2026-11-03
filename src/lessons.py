@@ -21,6 +21,9 @@ logger = structlog.get_logger(__name__)
 
 #: Upper bound for embedding the action text before an agent answers.
 ACTION_EMBED_TIMEOUT_S = 1.0
+OPERATOR_CATEGORY = "operator_correction"
+#: Corrections put in front of the model on every turn, so their number stays bounded.
+MAX_OPERATOR_LESSONS = 10
 
 
 class LessonsStore:
@@ -140,6 +143,49 @@ class LessonsStore:
         except Exception as exc:  # noqa: BLE001
             logger.exception("failed_to_record_lesson", agent_id=agent_id, exc_info=exc)
             return None
+
+    async def add_operator_lesson(self, agent_id: str, summary: str) -> Optional[str]:
+        """A correction from Andrii. Applied by name, so it needs no vector and no embedding delay."""
+        return await self.record_lesson(
+            agent_id=agent_id, kind="lesson", summary=summary, category=OPERATOR_CATEGORY,
+            embedding=[], do_not_compress=True,
+        )
+
+    async def operator_lessons(self, agent_id: str) -> Optional[List[Dict[str, str]]]:
+        """Andrii's live corrections for one agent, newest first; ``None`` when unreadable."""
+        if self._session_factory is None:
+            return None
+        query = text("""
+            SELECT id, summary FROM memory.lessons
+            WHERE agent_id = :agent_id AND category = :category
+              AND (expires_at IS NULL OR expires_at > NOW())
+            ORDER BY created_at DESC
+            LIMIT :limit;
+        """)
+        params = {"agent_id": agent_id, "category": OPERATOR_CATEGORY, "limit": MAX_OPERATOR_LESSONS}
+        try:
+            async with self._session_factory() as session:
+                rows = (await session.execute(query, params)).fetchall()
+        except Exception as exc:  # noqa: BLE001 - a reply must not fail for its lessons
+            logger.warning("operator_lessons_unavailable", agent_id=agent_id, error_type=type(exc).__name__)
+            return None
+        return [{"id": str(row.id), "summary": row.summary} for row in rows]
+
+    async def retire_operator_lesson(self, agent_id: str, lesson_id: str) -> bool:
+        """Expire a correction; the row stays, so nothing is finally deleted."""
+        query = text("""
+            UPDATE memory.lessons SET expires_at = NOW()
+            WHERE id = CAST(:lesson_id AS uuid) AND agent_id = :agent_id AND category = :category;
+        """)
+        params = {"lesson_id": lesson_id, "agent_id": agent_id, "category": OPERATOR_CATEGORY}
+        try:
+            async with self._session_factory() as session:
+                changed = (await session.execute(query, params)).rowcount
+                await session.commit()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("operator_lesson_not_retired", agent_id=agent_id, error_type=type(exc).__name__)
+            return False
+        return bool(changed)
 
     async def _has_vectors(self) -> bool:
         """Whether any live lesson can match by vector; without one, embedding is wasted time."""
