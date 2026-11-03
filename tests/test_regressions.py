@@ -4777,6 +4777,70 @@ def test_alert_watch_says_once_that_the_feed_went_quiet_and_when_it_is_back(tmp_
     assert len(watch._pending) == 2 and "знову" in watch._pending[1]
 
 
+def _relay_post(body, secret="relay-secret", stamp=None):
+    import hashlib
+    import hmac
+    import time
+
+    raw = json.dumps(body).encode()
+    stamp = stamp or str(int(time.time()))
+    return raw, hmac.new(secret.encode(), f"{stamp}.".encode() + raw, hashlib.sha256).hexdigest(), stamp
+
+
+def test_alarm_relay_signature_refuses_everything_unproven():
+    import time
+
+    from src.alert_watch import verify_relay
+
+    raw, signature, stamp = _relay_post({"regions": {}})
+    assert verify_relay(raw, signature, stamp, "relay-secret")
+    assert verify_relay(raw, signature.upper(), stamp, "relay-secret")
+    assert not verify_relay(raw, signature, stamp, None)  # no secret in Vault, nothing passes
+    assert not verify_relay(raw, signature, stamp, "other-secret")
+    assert not verify_relay(raw + b" ", signature, stamp, "relay-secret")
+    assert not verify_relay(raw, signature, "soon", "relay-secret")
+    old_raw, old_signature, old_stamp = _relay_post({"regions": {}}, stamp=str(int(time.time()) - 600))
+    assert not verify_relay(old_raw, old_signature, old_stamp, "relay-secret")
+
+
+def test_alarm_relay_picture_replaces_the_state_and_heals_missed_events(tmp_path):
+    from src.alert_phrases import POOLS
+    from src.alert_watch import RELAY_SILENCE_S, AlertWatch, read_snapshot
+
+    state, child = _vinnytsia()
+    gateway = _AlertGateway()
+    watch = AlertWatch(gateway, path=tmp_path / "state.json")
+
+    raw, signature, stamp = _relay_post({"regions": {state: "R", "no-such-region": "R", child: "purple"}})
+    assert watch.accept_relay(raw, signature, stamp, "relay-secret")
+    assert not watch.accept_relay(raw, signature, stamp, "relay-secret")  # a replay counts once
+    watch.handle_relay(json.loads(raw))
+    assert read_snapshot(tmp_path / "state.json")["regions"] == {state: "R"}
+
+    watch.handle_relay({"regions": {}})  # the oblast is absent from the next picture: all clear
+    watch.handle_relay({"regions": {}})
+    watch.handle_relay("not a picture")
+    asyncio.run(watch.flush())
+
+    lines = gateway.sent[0][2].split("\n\n")
+    assert len(lines) == 2 and all("Вінницька область: " in line for line in lines)
+    assert lines[0].split(": ", 1)[1] in POOLS["red"]
+    assert lines[1].split(": ", 1)[1] in POOLS["clear_after_red"]
+
+    watch.check_silence(watch._heard + RELAY_SILENCE_S + 60)  # a minute-by-minute feed is missed fast
+    assert "15 хв" in watch._pending[-1]
+
+
+def test_alarm_relay_route_takes_precedence_and_its_secret_lives_in_vault():
+    source = (REPO_ROOT / "deploy" / "runtime" / "agent_runner.py").read_text(encoding="utf-8")
+    worker = (REPO_ROOT / "deploy" / "cloudflare" / "alarm-relay.js").read_text(encoding="utf-8")
+    vault_script = (REPO_ROOT / "scripts" / "syndicate_vault.py").read_text(encoding="utf-8")
+
+    assert source.index('@app.post("/webhook/alarm-relay")') < source.index('@app.post("/webhook/{source}")')
+    assert '"alarm_relay": ("alarm_relay_secret",)' in vault_script and '"alarm_relay_secret"' in source
+    assert "/webhook/alarm-relay" in worker and "X-Alarm-Signature" in worker and "X-Alarm-Timestamp" in worker
+
+
 def test_alert_watch_keeps_a_notification_telegram_refused(tmp_path):
     from src.alert_watch import AlertWatch
 
