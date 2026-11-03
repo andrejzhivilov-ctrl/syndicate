@@ -1,6 +1,6 @@
 """Vendor SKILL.md files from pinned repositories into the skill hub as reference only.
 
-    python tools/import_skills.py <checkouts_dir> <report.json> owner/repo@commit:skills_root ...
+    python tools/import_skills.py <checkouts_dir> <report.json> owner/repo@commit:skills_root ... [--with-references=id,...]
 
 ``<checkouts_dir>/<owner>_<repo>`` must be a clone at that exact commit. Nothing from it is
 executed: only SKILL.md and LICENSE are copied. Each SKILL.md is screened for prompt
@@ -80,13 +80,46 @@ def _skill_id(name: str, owner_repo: str, taken: Dict[str, str]) -> str:
     return f"{owner_repo.split('/')[1].lower()}-{name}"
 
 
-def _one_skill(folder: Path, spec: Tuple[str, str, str], catalog: dict,
-               taken: Dict[str, str], date: str) -> Dict[str, object]:
-    owner_repo, commit, root = spec
+def _licence_name(checkout: Path) -> str:
+    try:
+        head = next(checkout.glob("LICEN[CS]E*")).read_text(encoding="utf-8", errors="replace")[:400]
+    except StopIteration:
+        return "unknown"
+    for marker, name in (("Apache License", "Apache-2.0"), ("MIT License", "MIT"), ("unlicense", "Unlicense")):
+        if marker.lower() in head.lower():
+            return name
+    return "see LICENSE"
+
+
+def _copy_references(folder: Path, vendor_dir: str, catalog: dict, entry: dict, row: Dict[str, object]) -> None:
+    """Text references the SKILL.md points to; each one screened, scripts never copied."""
+    skipped: List[str] = []
+    for path in sorted((folder / "references").rglob("*.md")) if (folder / "references").is_dir() else []:
+        name = path.relative_to(folder).as_posix()
+        data = path.read_bytes()
+        if screen(data.decode("utf-8", errors="replace")) or len(data) > MAX_BYTES:
+            skipped.append(name)
+            continue
+        target = ROOT / vendor_dir / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+        entry["resources"][name] = f"{vendor_dir}/{name}"
+        catalog["files"][f"{vendor_dir}/{name}"] = _sha(target)
+    row["references"] = len(entry["resources"]) - 1
+    if skipped:
+        row["references_skipped"] = skipped
+
+
+def _one_skill(folder: Path, checkout: Path, spec: Tuple[str, str, str], catalog: dict,
+               taken: Dict[str, str], options: Dict[str, object]) -> Dict[str, object]:
+    owner_repo, commit, _ = spec
     text_bytes = (folder / "SKILL.md").read_bytes()
     text = text_bytes.decode("utf-8", errors="replace")
     meta = front_matter(text)
-    skill_id = _skill_id(folder.name, owner_repo, taken)
+    inside = folder.relative_to(checkout).as_posix()
+    # A SKILL.md at the repository root is named by its own front matter.
+    name = re.sub(r"[^a-z0-9-]+", "-", meta.get("name", "").lower()).strip("-") if inside == "." else folder.name
+    skill_id = _skill_id(name or owner_repo.split("/")[1].lower(), owner_repo, taken)
     row: Dict[str, object] = {"id": skill_id, "source": owner_repo, "description": meta.get("description", ""),
                               "bytes": len(text_bytes),
                               "extra_files": sorted(p.name for p in folder.iterdir() if p.name != "SKILL.md")}
@@ -95,49 +128,59 @@ def _one_skill(folder: Path, spec: Tuple[str, str, str], catalog: dict,
         return {**row, "status": "already_in_hub"}
     if flags:
         return {**row, "status": "excluded", "flags": flags}
-    relative = f"skills/vendor/{owner_repo}/{root}/{folder.name}/SKILL.md"
-    target = ROOT / relative
+    vendor_dir = f"skills/vendor/{owner_repo}" + ("" if inside == "." else f"/{inside}")
+    target = ROOT / vendor_dir / "SKILL.md"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(text_bytes)
-    catalog["files"][relative] = _sha(target)
-    catalog["skills"].append({
+    catalog["files"][f"{vendor_dir}/SKILL.md"] = _sha(target)
+    entry = {
         "id": skill_id, "source": f"https://github.com/{owner_repo}", "commit": commit,
-        "source_path": f"{root}/{folder.name}", "license": "MIT", "mode": "reference_only",
-        "agents": [], "resources": {"SKILL.md": relative}, "summary": meta.get("description", "")[:300],
-        "review": REVIEW.format(date=date),
-    })
+        "source_path": inside, "license": options["licence"], "mode": "reference_only",
+        "agents": [], "resources": {"SKILL.md": f"{vendor_dir}/SKILL.md"}, "summary": meta.get("description", "")[:300],
+        "review": REVIEW.format(date=options["date"]),
+    }
+    if skill_id in options["with_references"]:
+        _copy_references(folder, vendor_dir, catalog, entry, row)
+    catalog["skills"].append(entry)
     taken[skill_id] = f"https://github.com/{owner_repo}"
     return {**row, "status": "added"}
 
 
 def import_repo(checkouts: Path, spec: Tuple[str, str, str], catalog: dict, taken: Dict[str, str],
-                date: str) -> List[Dict[str, object]]:
+                options: Dict[str, object]) -> List[Dict[str, object]]:
+    """``root`` is a folder of skill folders, or one skill folder (``.`` for the repository root)."""
     owner_repo, commit, root = spec
     checkout = checkouts / owner_repo.replace("/", "_")
     if _head(checkout) != commit:
         raise SystemExit(f"{owner_repo}: checkout is not at {commit}")
-    licence = checkout / "LICENSE"
+    licence = next(checkout.glob("LICEN[CS]E*"), None)
     vendor = ROOT / "skills" / "vendor" / owner_repo
-    if licence.is_file():
+    if licence is not None:
         vendor.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(licence, vendor / "LICENSE")
         catalog["files"][f"skills/vendor/{owner_repo}/LICENSE"] = _sha(vendor / "LICENSE")
-    folders = sorted(p.parent for p in (checkout / root).glob("*/SKILL.md"))
-    return [_one_skill(folder, spec, catalog, taken, date) for folder in folders]
+    base = checkout / root
+    folders = [base] if (base / "SKILL.md").is_file() else sorted(p.parent for p in base.glob("*/SKILL.md"))
+    options = {**options, "licence": _licence_name(checkout)}
+    return [_one_skill(folder, checkout, spec, catalog, taken, options) for folder in folders]
 
 
 def main(argv: List[str]) -> int:
     if len(argv) < 4:
         print(__doc__, file=sys.stderr)
         return 2
-    checkouts, report_path, date = Path(argv[1]), Path(argv[2]), "2026-11-03"
+    checkouts, report_path = Path(argv[1]), Path(argv[2])
+    specs = [raw for raw in argv[3:] if not raw.startswith("--with-references=")]
+    wanted = {name for raw in argv[3:] if raw.startswith("--with-references=")
+              for name in raw.split("=", 1)[1].split(",") if name}
+    options: Dict[str, object] = {"date": "2026-11-03", "with_references": wanted}
     catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
     taken = {item["id"]: item["source"] for item in catalog["skills"]}
     report: List[Dict[str, object]] = []
-    for raw in argv[3:]:
+    for raw in specs:
         owner_repo, _, rest = raw.partition("@")
         commit, _, root = rest.partition(":")
-        report += import_repo(checkouts, (owner_repo, commit, root or "skills"), catalog, taken, date)
+        report += import_repo(checkouts, (owner_repo, commit, root or "skills"), catalog, taken, options)
     catalog["files"] = dict(sorted(catalog["files"].items()))
     CATALOG.write_text(json.dumps(catalog, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
