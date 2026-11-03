@@ -140,3 +140,23 @@ def test_hermes_chat_screens_masks_and_fails_honestly(monkeypatch):
     down = asyncio.run(gateway.hermes_chat("trainer", "Привіт", "42",
                                            transport=httpx.MockTransport(lambda r: httpx.Response(502))))
     assert down["status"] == "unavailable" and down["reason"] == "hermes_unavailable"
+
+
+def test_the_token_tool_prints_nothing_but_the_env_file(monkeypatch, capsys):
+    import structlog
+
+    from src import hermes_token
+
+    async def master():
+        structlog.get_logger("test").info("Vault authenticated", lease_duration_seconds=3600)
+        return "master-for-tests"
+
+    saved = structlog.get_config()
+    monkeypatch.setattr(hermes_token, "_master", master)
+    monkeypatch.setattr(hermes_token.sys, "argv", ["hermes_token", "trainer"])
+    try:
+        assert hermes_token.main() == 0
+    finally:
+        structlog.configure(**saved)
+    lines = capsys.readouterr().out.splitlines()
+    assert [line.split("=", 1)[0] for line in lines] == ["API_SERVER_KEY", "SYNDICATE_TOKEN"]
