@@ -3,6 +3,9 @@
 The API refuses the server's address, so Ukraine Alarm pushes events to
 ``/webhook/ukrainealarm``. Each event carries a snapshot of the region's active levels,
 which replaces the stored state (``status`` alone can describe one of several causes).
+The relay Worker in Andrii's Cloudflare (``deploy/cloudflare/alarm-relay.js``) polls the
+API every minute and posts the whole air-raid picture to ``/webhook/alarm-relay``, signed
+with a shared HMAC secret; that picture replaces the state, so missed events heal.
 Districts and communities roll up into their oblast, so all of Ukraine fits one bot; the
 operator can narrow the notices to any oblast, district or community with /regions.
 No model is called. An event that is unsigned, stale or repeated changes nothing.
@@ -13,6 +16,7 @@ import asyncio
 import base64
 import binascii
 import hashlib
+import hmac
 import json
 import re
 import time
@@ -38,6 +42,9 @@ FLUSH_INTERVAL_S = 5
 BATCH = 15
 #: Some part of Ukraine changes state every few hours, so this much quiet means the feed is down.
 SILENCE_S = 6 * 3600
+#: The relay Worker posts every minute, so once it has spoken, a short gap is already a failure.
+RELAY_SILENCE_S = 15 * 60
+_RELAY_LEVELS = {"R", "Y"}
 PUBLIC_KEY_PATH = Path(__file__).with_name("ukrainealarm_webhook_public.pem")
 #: The tree of /api/v3/regions, region id -> [name, parent id].
 _TABLE: Dict[str, List[Any]] = json.loads(
@@ -93,6 +100,19 @@ def verify_signature(raw_body: bytes, signature: Optional[str], timestamp: Optio
     except InvalidSignature:
         return False
     return True
+
+
+def verify_relay(raw_body: bytes, signature: Optional[str], timestamp: Optional[str], secret: Optional[str],
+                 *, now: Optional[float] = None) -> bool:
+    """HMAC SHA-256 (hex) of ``{timestamp}.{raw_body}`` with the relay Worker's secret."""
+    if not signature or not timestamp or not secret:
+        return False
+    try:
+        age = abs((time.time() if now is None else now) - int(timestamp))
+    except ValueError:
+        return False
+    expected = hmac.new(secret.encode("utf-8"), timestamp.encode("utf-8") + b"." + raw_body, hashlib.sha256)
+    return age <= REPLAY_WINDOW_S and hmac.compare_digest(expected.hexdigest(), signature.strip().lower())
 
 
 def _level(regions: Mapping[str, str], place: str) -> str:
@@ -267,12 +287,25 @@ class AlertWatch:
         self._trackers: Dict[str, AlertTracker] = {}  # only what is notified, so silence spends no phrases
         self._heard = _heard_at(saved)
         self._silent = False
+        self._quiet_limit = SILENCE_S
 
     def accept(self, raw_body: bytes, signature: Optional[str], timestamp: Optional[str],
                algorithm: Optional[str], *, public_key_pem: Optional[bytes] = None) -> bool:
         if not verify_signature(raw_body, signature, timestamp, algorithm, public_key_pem=public_key_pem):
             logger.warning("ukrainealarm_webhook_refused")
             return False
+        return self._fresh(raw_body, timestamp)
+
+    def accept_relay(self, raw_body: bytes, signature: Optional[str], timestamp: Optional[str],
+                     secret: Optional[str]) -> bool:
+        if not verify_relay(raw_body, signature, timestamp, secret):
+            logger.warning("alarm_relay_refused", secret_configured=bool(secret))
+            return False
+        self._quiet_limit = RELAY_SILENCE_S
+        return self._fresh(raw_body, str(timestamp))
+
+    def _fresh(self, raw_body: bytes, timestamp: Optional[str]) -> bool:
+        """A proven event counts once and shows the feed is alive."""
         digest = hashlib.sha256(f"{timestamp}.".encode("utf-8") + raw_body).hexdigest()
         if digest in self._seen:
             return False
@@ -285,9 +318,11 @@ class AlertWatch:
 
     def check_silence(self, now: Optional[float] = None) -> None:
         """Say once that the feed went quiet: silence must never read as a calm sky."""
-        if not self._silent and (time.time() if now is None else now) - self._heard > SILENCE_S:
+        if not self._silent and (time.time() if now is None else now) - self._heard > self._quiet_limit:
             self._silent = True
-            self._pending.append(f"⚠️ Від Ukraine Alarm немає подій понад {SILENCE_S // 3600} год. "
+            limit = self._quiet_limit
+            span = f"{limit // 3600} год" if limit >= 3600 else f"{limit // 60} хв"
+            self._pending.append(f"⚠️ Від Ukraine Alarm немає подій понад {span}. "
                                  "Сповіщення про тривоги зараз можуть не приходити, стеж за офіційним застосунком.")
 
     def handle(self, event: Any) -> None:
@@ -298,13 +333,32 @@ class AlertWatch:
         if region not in NAMES or not isinstance(levels, list):
             logger.warning("ukrainealarm_event_ignored", region=region)
             return
-        places = chosen_places(self._path) or list(STATES)
-        self._trackers = {place: self._trackers.get(place) or self._baseline(place) for place in places}
+        self._watch_places()
         if levels:
             red = any(isinstance(x, Mapping) and str(x.get("alertLevel")).lower() == "red" for x in levels)
             self._regions[region] = "R" if red else "Y"
         else:
             self._regions.pop(region, None)
+        self._report()
+
+    def handle_relay(self, payload: Any) -> None:
+        """The relay Worker's full air-raid picture replaces the stored one, so missed events heal."""
+        regions = payload.get("regions") if isinstance(payload, Mapping) else None
+        if not isinstance(regions, Mapping):
+            logger.warning("alarm_relay_payload_ignored")
+            return
+        self._watch_places()
+        self._regions = {str(region): level for region, level in regions.items()
+                         if str(region) in NAMES and level in _RELAY_LEVELS}
+        self._report()
+
+    def _watch_places(self) -> None:
+        """Trackers for the notified places, set from the levels before a change."""
+        places = chosen_places(self._path) or list(STATES)
+        self._trackers = {place: self._trackers.get(place) or self._baseline(place) for place in places}
+
+    def _report(self) -> None:
+        """Queue a phrase for each notified place whose level changed, then store the state."""
         for place, tracker in self._trackers.items():
             note = tracker.update(_level(self._regions, place))
             if note:

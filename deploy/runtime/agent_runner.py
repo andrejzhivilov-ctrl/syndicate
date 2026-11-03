@@ -130,6 +130,7 @@ class AppState:
     obsidian_webdav_task: Optional[Any] = None
     alert_watch: Optional[AlertWatch] = None
     alert_watch_task: Optional[Any] = None
+    alarm_relay_secret: Tuple[Optional[str], float] = (None, 0.0)
 
 
 app_state = AppState()
@@ -1390,6 +1391,44 @@ async def ukrainealarm_webhook(
         raise HTTPException(status_code=401, detail="Invalid signature")
     try:
         watch.handle(json.loads(raw_bytes))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid JSON") from None
+    return {"ok": True}
+
+
+_RELAY_SECRET_RETRY_S = 60
+
+
+async def _alarm_relay_secret(state: AppState) -> Optional[str]:
+    """The relay Worker's shared secret from Vault; a missing one is looked up again a minute later."""
+    value, fetched = state.alarm_relay_secret
+    if value or time.time() - fetched < _RELAY_SECRET_RETRY_S:
+        return value
+    try:
+        keys = await state.vault_client.get_secret(secret_path("api-keys")) or {}
+        value = keys.get("alarm_relay_secret") or None
+    except Exception as exc:  # noqa: BLE001 - Vault trouble refuses the event, never the server
+        logger.warning("alarm_relay_secret_unavailable", error_type=type(exc).__name__)
+        value = None
+    state.alarm_relay_secret = (value, time.time())
+    return value
+
+
+@app.post("/webhook/alarm-relay")
+async def alarm_relay_webhook(
+    request: Request,
+    x_alarm_signature: Optional[str] = Header(default=None, alias="X-Alarm-Signature"),
+    x_alarm_timestamp: Optional[str] = Header(default=None, alias="X-Alarm-Timestamp"),
+    state: AppState = Depends(require_ready),
+):
+    """The full air-raid picture from the relay Worker in Andrii's Cloudflare, HMAC-signed."""
+    raw_bytes = await request.body()
+    watch = state.alert_watch
+    secret = await _alarm_relay_secret(state)
+    if watch is None or not watch.accept_relay(raw_bytes, x_alarm_signature, x_alarm_timestamp, secret):
+        raise HTTPException(status_code=401, detail="Invalid signature")
+    try:
+        watch.handle_relay(json.loads(raw_bytes))
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid JSON") from None
     return {"ok": True}
