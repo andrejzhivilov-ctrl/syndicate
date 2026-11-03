@@ -265,6 +265,8 @@ services:
       OBSIDIAN_VAULT_DIR: /data/obsidian
       # Agents answered by their Hermes container; empty keeps every agent on the direct path.
       EVA_HERMES_AGENTS: ${EVA_HERMES_AGENTS:-}
+      # Monthly USD for Hermes learning across all agents; Andrii set 5 while the balance is low.
+      HERMES_LEARNING_BUDGET_USD: ${HERMES_LEARNING_BUDGET_USD:-5}
       # Vector search. Unset EMBEDDINGS_URL disables semantic search cleanly —
       # episodic memory keeps working, which is a supported mode, not a failure.
       EMBEDDINGS_URL: ${EMBEDDINGS_URL:-http://embeddings:8000}
