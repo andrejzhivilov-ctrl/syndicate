@@ -2513,6 +2513,60 @@
         "summary": "Error Webhook"
       }
     },
+    "/webhook/n8n/{agent}": {
+      "post": {
+        "description": "Reminders, check-ins and learning items from n8n for one agent (src/n8n_bridge.py).",
+        "operationId": "n8n_agent_webhook_webhook_n8n__agent__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent",
+            "required": true,
+            "schema": {
+              "title": "Agent",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "N8N Agent Webhook"
+      }
+    },
     "/webhook/telegram/{agent_id}": {
       "post": {
         "description": "One of the 18 director bots. Per-bot secret, owner-only, honest replies.",
@@ -2565,6 +2619,83 @@
           }
         },
         "summary": "Telegram Webhook"
+      }
+    },
+    "/webhook/ukrainealarm": {
+      "post": {
+        "description": "Air-raid events pushed by Ukraine Alarm, signed with their RSA key.",
+        "operationId": "ukrainealarm_webhook_webhook_ukrainealarm_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Webhook-Signature",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Webhook-Signature"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Webhook-Timestamp",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Webhook-Timestamp"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Webhook-Signature-Alg",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Webhook-Signature-Alg"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ukrainealarm Webhook"
       }
     },
     "/webhook/{source}": {

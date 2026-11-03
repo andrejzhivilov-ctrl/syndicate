@@ -1,0 +1,101 @@
+{
+  "name": "Тренер — навчання з джерел (пн 04:00) і саморефлексія (пн 05:00)",
+  "active": false,
+  "settings": {"executionOrder": "v1", "timezone": "Europe/Kyiv"},
+  "nodes": [
+    {
+      "id": "c2e4d9b1-0002-4b7f-8b62-000000000001",
+      "name": "Понеділок 04:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0],
+      "parameters": {"rule": {"interval": [{"field": "cronExpression", "expression": "0 4 * * 1"}]}}
+    },
+    {
+      "id": "c2e4d9b1-0002-4b7f-8b62-000000000002",
+      "name": "Джерело (RSS)",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [240, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "onError": "continueErrorOutput",
+      "parameters": {"url": "https://example.org/feed.xml"}
+    },
+    {
+      "id": "c2e4d9b1-0002-4b7f-8b62-000000000003",
+      "name": "Свіже за тиждень",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 0],
+      "parameters": {
+        "jsCode": "const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;\nconst items = $input.all()\n  .filter(i => !i.json.isoDate || Date.parse(i.json.isoDate) >= weekAgo)\n  .slice(0, 50)\n  .map(i => ({url: i.json.link, title: i.json.title || '', text: String(i.json.contentSnippet || i.json.content || '').slice(0, 4000)}));\nreturn [{json: {kind: 'learning', items}}];"
+      }
+    },
+    {
+      "id": "c2e4d9b1-0002-4b7f-8b62-000000000004",
+      "name": "Вхідні навчання Тренера",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 0],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "onError": "continueErrorOutput",
+      "credentials": {"httpHeaderAuth": {"name": "SYNDICATE Тренер"}},
+      "parameters": {
+        "method": "POST",
+        "url": "http://eva-agent:8000/webhook/n8n/trainer",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}"
+      }
+    },
+    {
+      "id": "c2e4d9b1-0002-4b7f-8b62-000000000005",
+      "name": "Не доставлено",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [960, 120],
+      "parameters": {"errorMessage": "Джерело або SYNDICATE не відповіли"}
+    },
+    {
+      "id": "c2e4d9b1-0002-4b7f-8b62-000000000006",
+      "name": "Понеділок 05:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 240],
+      "parameters": {"rule": {"interval": [{"field": "cronExpression", "expression": "0 5 * * 1"}]}}
+    },
+    {
+      "id": "c2e4d9b1-0002-4b7f-8b62-000000000007",
+      "name": "Саморефлексія Тренера",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 240],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "onError": "continueErrorOutput",
+      "credentials": {"httpHeaderAuth": {"name": "SYNDICATE Тренер"}},
+      "parameters": {
+        "method": "POST",
+        "url": "http://eva-agent:8000/webhook/n8n/trainer",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"kind\": \"reflection\"}",
+        "options": {"timeout": 180000}
+      }
+    }
+  ],
+  "connections": {
+    "Понеділок 04:00": {"main": [[{"node": "Джерело (RSS)", "type": "main", "index": 0}]]},
+    "Джерело (RSS)": {"main": [[{"node": "Свіже за тиждень", "type": "main", "index": 0}], [{"node": "Не доставлено", "type": "main", "index": 0}]]},
+    "Свіже за тиждень": {"main": [[{"node": "Вхідні навчання Тренера", "type": "main", "index": 0}]]},
+    "Вхідні навчання Тренера": {"main": [[], [{"node": "Не доставлено", "type": "main", "index": 0}]]},
+    "Понеділок 05:00": {"main": [[{"node": "Саморефлексія Тренера", "type": "main", "index": 0}]]},
+    "Саморефлексія Тренера": {"main": [[], [{"node": "Не доставлено", "type": "main", "index": 0}]]}
+  }
+}

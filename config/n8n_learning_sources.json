@@ -1,0 +1,10 @@
+{
+  "_comment": "Hosts Andrii connected as learning sources per agent (docs/agents/TRAINER_KNOWLEDGE_SOURCES.md). Subdomains match. Empty: nothing is accepted.",
+  "trainer": [
+    "pubmed.ncbi.nlm.nih.gov",
+    "examine.com",
+    "labdoor.com",
+    "journals.lww.com",
+    "endocrine.org"
+  ]
+}

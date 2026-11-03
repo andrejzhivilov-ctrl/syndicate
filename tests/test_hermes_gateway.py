@@ -88,7 +88,7 @@ def test_tools_refuse_what_was_not_granted_and_mask_results():
     orchestrator = _Orchestrator()
     listed = asyncio.run(gateway.mcp_reply("trainer", {"id": 1, "method": "tools/list"}, orchestrator))
     names = {tool["name"] for tool in listed["result"]["tools"]}
-    assert names == {"agent_action", "hub_search", "hub_read", "obsidian_search", "obsidian_read"}
+    assert names == {"agent_action", "hub_search", "hub_read", "obsidian_search", "obsidian_read", "learning_inbox"}
 
     denied = asyncio.run(gateway.mcp_reply("trainer", _call("agent_action", action="place_trade"), orchestrator))
     text = denied["result"]["content"][0]["text"]
