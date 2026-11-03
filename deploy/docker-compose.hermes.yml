@@ -29,6 +29,9 @@ services:
       - trainer_hermes_data:/opt/data
       - ./hermes/trainer/config.yaml:/opt/data/config.yaml:ro
       - ./hermes/trainer/SOUL.md:/opt/data/SOUL.md:ro
+      # The Trainer's hub skills (config/agents/trainer.profile.json reference_skills), read-only.
+      - ../skills/vendor/ayghri/i-have-adhd/skills/i-have-adhd:/opt/syndicate-skills/i-have-adhd:ro
+      - ../skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking:/opt/syndicate-skills/scientific-critical-thinking:ro
     networks:
       - hermes_net
     mem_limit: 1g
