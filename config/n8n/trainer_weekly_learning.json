@@ -1,5 +1,5 @@
 {
-  "name": "Тренер — навчання з джерел (пн 04:00) і саморефлексія (пн 05:00)",
+  "name": "Тренер — навчання (пн 04:00) і саморефлексія (пн 05:00)",
   "active": false,
   "settings": {"executionOrder": "v1", "timezone": "Europe/Kyiv"},
   "nodes": [
@@ -12,24 +12,34 @@
       "parameters": {"rule": {"interval": [{"field": "cronExpression", "expression": "0 4 * * 1"}]}}
     },
     {
+      "id": "c2e4d9b1-0002-4b7f-8b62-000000000008",
+      "name": "Список джерел",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0],
+      "parameters": {
+        "jsCode": "// Джерела навчання Тренера. Новий сайт також має бути в src/n8n_learning_sources.json, інакше SYNDICATE його не прийме.\nreturn [\n \"https://pubmed.ncbi.nlm.nih.gov/rss/search/1DOWGEXM0L6N-g69sm5REljY8QCTlluV-ecIShwYU7vd_OAQAb/?limit=15&utm_campaign=pubmed-2&fc=20261103113328\",\n \"https://pubmed.ncbi.nlm.nih.gov/rss/search/1fYfMzmpBkCeYUrKpE1OmpkjbxBhHgXro-jbQnj45kFBadHYYc/?limit=15&utm_campaign=pubmed-2&fc=20261103113345\",\n \"https://pubmed.ncbi.nlm.nih.gov/rss/search/1lQlR_8mqnm-USQ-UBLoK_5lOGTpaJ7J9fL-p76o77qTWsw9a-/?limit=15&utm_campaign=pubmed-2&fc=20261103113400\",\n \"https://www.frontiersin.org/journals/physiology/rss\"\n].map(url => ({json: {url}}));"
+      }
+    },
+    {
       "id": "c2e4d9b1-0002-4b7f-8b62-000000000002",
-      "name": "Джерело (RSS)",
+      "name": "Джерела (RSS)",
       "type": "n8n-nodes-base.rssFeedRead",
       "typeVersion": 1,
-      "position": [240, 0],
+      "position": [440, 0],
       "retryOnFail": true,
       "maxTries": 3,
       "onError": "continueErrorOutput",
-      "parameters": {"url": "https://example.org/feed.xml"}
+      "parameters": {"url": "={{ $json.url }}"}
     },
     {
       "id": "c2e4d9b1-0002-4b7f-8b62-000000000003",
       "name": "Свіже за тиждень",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [480, 0],
+      "position": [660, 0],
       "parameters": {
-        "jsCode": "const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;\nconst items = $input.all()\n  .filter(i => !i.json.isoDate || Date.parse(i.json.isoDate) >= weekAgo)\n  .slice(0, 50)\n  .map(i => ({url: i.json.link, title: i.json.title || '', text: String(i.json.contentSnippet || i.json.content || '').slice(0, 4000)}));\nreturn [{json: {kind: 'learning', items}}];"
+        "jsCode": "const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;\nconst seen = new Set();\nconst items = $input.all()\n  .filter(i => i.json.link && !seen.has(i.json.link) && seen.add(i.json.link))\n  .filter(i => !i.json.isoDate || Date.parse(i.json.isoDate) >= weekAgo)\n  .slice(0, 50)\n  .map(i => ({url: i.json.link, title: i.json.title || '', text: String(i.json.contentSnippet || i.json.content || '').slice(0, 4000)}));\nreturn [{json: {kind: 'learning', items}}];"
       }
     },
     {
@@ -37,7 +47,7 @@
       "name": "Вхідні навчання Тренера",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [720, 0],
+      "position": [880, 0],
       "retryOnFail": true,
       "maxTries": 3,
       "onError": "continueErrorOutput",
@@ -57,7 +67,7 @@
       "name": "Не доставлено",
       "type": "n8n-nodes-base.stopAndError",
       "typeVersion": 1,
-      "position": [960, 120],
+      "position": [1100, 120],
       "parameters": {"errorMessage": "Джерело або SYNDICATE не відповіли"}
     },
     {
@@ -73,7 +83,7 @@
       "name": "Саморефлексія Тренера",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [240, 240],
+      "position": [220, 240],
       "retryOnFail": true,
       "maxTries": 2,
       "onError": "continueErrorOutput",
@@ -91,8 +101,9 @@
     }
   ],
   "connections": {
-    "Понеділок 04:00": {"main": [[{"node": "Джерело (RSS)", "type": "main", "index": 0}]]},
-    "Джерело (RSS)": {"main": [[{"node": "Свіже за тиждень", "type": "main", "index": 0}], [{"node": "Не доставлено", "type": "main", "index": 0}]]},
+    "Понеділок 04:00": {"main": [[{"node": "Список джерел", "type": "main", "index": 0}]]},
+    "Список джерел": {"main": [[{"node": "Джерела (RSS)", "type": "main", "index": 0}]]},
+    "Джерела (RSS)": {"main": [[{"node": "Свіже за тиждень", "type": "main", "index": 0}], [{"node": "Не доставлено", "type": "main", "index": 0}]]},
     "Свіже за тиждень": {"main": [[{"node": "Вхідні навчання Тренера", "type": "main", "index": 0}]]},
     "Вхідні навчання Тренера": {"main": [[], [{"node": "Не доставлено", "type": "main", "index": 0}]]},
     "Понеділок 05:00": {"main": [[{"node": "Саморефлексія Тренера", "type": "main", "index": 0}]]},
