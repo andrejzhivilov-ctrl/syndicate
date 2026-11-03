@@ -4749,6 +4749,34 @@ def test_alert_watch_ignores_what_it_cannot_place_and_keeps_state_over_restart(t
     assert gateway.sent[0][2].split(": ", 1)[1] in POOLS["clear_after_red"]
 
 
+def test_alert_watch_says_once_that_the_feed_went_quiet_and_when_it_is_back(tmp_path):
+    import base64
+    import time
+
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import padding, rsa
+
+    from src.alert_watch import SILENCE_S, AlertWatch
+
+    gateway = _AlertGateway()
+    watch = AlertWatch(gateway, path=tmp_path / "state.json")
+    start = time.time()
+    watch.check_silence(start + SILENCE_S - 60)
+    assert watch._pending == []
+    watch.check_silence(start + SILENCE_S + 60)
+    watch.check_silence(start + SILENCE_S + 120)
+    assert len(watch._pending) == 1 and "немає подій" in watch._pending[0]
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    pem = key.public_key().public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo)
+    stamp = str(int(time.time()))
+    signature = base64.b64encode(key.sign(f"{stamp}.{{}}".encode(), padding.PKCS1v15(), hashes.SHA256())).decode()
+    assert not watch.accept(b"{}", "bad", stamp, "rsa-sha256", public_key_pem=pem)
+    assert len(watch._pending) == 1  # a refused event proves nothing
+    assert watch.accept(b"{}", signature, stamp, "rsa-sha256", public_key_pem=pem)
+    assert len(watch._pending) == 2 and "знову" in watch._pending[1]
+
+
 def test_alert_watch_keeps_a_notification_telegram_refused(tmp_path):
     from src.alert_watch import AlertWatch
 
