@@ -160,3 +160,14 @@ def test_the_token_tool_prints_nothing_but_the_env_file(monkeypatch, capsys):
         structlog.configure(**saved)
     lines = capsys.readouterr().out.splitlines()
     assert [line.split("=", 1)[0] for line in lines] == ["API_SERVER_KEY", "SYNDICATE_TOKEN"]
+
+
+def test_trainer_tools_reach_the_model_without_the_search_bridge():
+    """The tool_search bridge cost ~9 model calls per turn in the first live run (2026-11-03)."""
+    from pathlib import Path
+
+    import yaml
+
+    config = yaml.safe_load((Path(__file__).resolve().parent.parent / "deploy/hermes/trainer/config.yaml")
+                            .read_text(encoding="utf-8"))
+    assert config["tools"]["tool_search"]["enabled"] == "off"
