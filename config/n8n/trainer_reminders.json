@@ -1,5 +1,5 @@
 {
-  "name": "Тренер — ранковий план і вечірній контроль",
+  "name": "Тренер — план 08:00, контроль 21:30, заміри пн 07:30",
   "active": false,
   "settings": {"executionOrder": "v1", "timezone": "Europe/Kyiv"},
   "nodes": [
@@ -66,9 +66,39 @@
       "typeVersion": 1,
       "position": [520, 110],
       "parameters": {"errorMessage": "SYNDICATE не прийняв повідомлення Тренера"}
+    },
+    {
+      "id": "b1d3c8a0-0001-4a6e-9a51-000000000006",
+      "name": "Понеділок 07:30",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 440],
+      "parameters": {"rule": {"interval": [{"field": "cronExpression", "expression": "30 7 * * 1"}]}}
+    },
+    {
+      "id": "b1d3c8a0-0001-4a6e-9a51-000000000007",
+      "name": "Тижневі заміри",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 440],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "onError": "continueErrorOutput",
+      "credentials": {"httpHeaderAuth": {"name": "SYNDICATE Тренер"}},
+      "parameters": {
+        "method": "POST",
+        "url": "http://eva-agent:8000/webhook/n8n/trainer",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"kind\": \"reminder\", \"text\": \"Понеділок — тижневі заміри: вага натщесерце після туалету, талія, груди, стегна, фото в тих самих умовах. Надішли Тренеру, він внесе в щоденник.\"}"
+      }
     }
   ],
   "connections": {
+    "Понеділок 07:30": {"main": [[{"node": "Тижневі заміри", "type": "main", "index": 0}]]},
+    "Тижневі заміри": {"main": [[], [{"node": "Не доставлено", "type": "main", "index": 0}]]},
     "Щодня 08:00": {"main": [[{"node": "Ранковий план", "type": "main", "index": 0}]]},
     "Щодня 21:30": {"main": [[{"node": "Контроль дня", "type": "main", "index": 0}]]},
     "Ранковий план": {"main": [[], [{"node": "Не доставлено", "type": "main", "index": 0}]]},
