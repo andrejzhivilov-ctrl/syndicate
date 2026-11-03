@@ -26,6 +26,22 @@
 
 ---
 
+## 2026-11-03 — Claude Code: скіли тренувань і харчування, Тренеру ще три
+
+**Гілка:** `feat/trainer-skills`  **Ворота:** див. PR
+
+### Зроблено
+- Пошук на GitHub (репозиторії з SKILL.md про харчування, КБЖУ, тренування). Імпортовано 46 скілів з 15 репозиторіїв на закріплених комітах, відсіяних немає. У хабі 451.
+- `tools/import_skills.py`: SKILL.md у корені репозиторію (назва з front matter), ліцензія з файлу (MIT/Apache-2.0/Unlicense), багаторядкові описи, `--with-references=` копіює перевірені `references/*.md` без скриптів.
+- Тренер: `evidence-based-fitness-coach` (Lancetnik), `hypertrophy-training` (disco-trooper, 19 довідок з PubMed), `rep-max` (таблиця ACSM). SKILL.md прочитано повністю, довідки перевірено автоматично. Змонтовано в Hermes лише для читання, SOUL пояснює, коли який.
+- Не взято Тренеру: `meal-planner` (типи статури — слабка основа), `nutrition-coach` (пише свої файли й оцінює калорії з фото, що суперечить «числа не на око»).
+
+### Не дороблено / свідомо залишено
+- У `hypertrophy-training` твердження «<6 год сну = −60% тестостерону» завищене; Тренер має перевіряти через `scientific-critical-thinking`.
+- Кандидати даних і MCP (не встановлено, потрібні погодження Андрія й перевірка Маршала): `yuhonas/free-exercise-db` (800 вправ, Unlicense), USDA FoodData Central MCP (`cyanheads/usda-mcp-server`, Apache-2.0), `deadletterq/mcp-opennutrition` (MIT, 300 тис. продуктів офлайн).
+
+---
+
 ## 2026-11-03 — Claude Code: 373 скіли в хабі, Тренеру два свої
 
 **Гілка:** `feat/skill-hub-import` (на основі `fix/hermes-direct-tools`)  **Ворота:** ✅ на чистому клоні

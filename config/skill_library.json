@@ -5833,6 +5833,716 @@
       },
       "summary": "Shape output for a reader with ADHD: lead with the next action, number multi-step work, restate state across turns, suppress tangents, give specific time estimates, make wins visible. Invoke with /i-have-adhd; stays on until \"stop adhd mode\".",
       "review": "Read in full 2026-11-03 for the Trainer: answer-shaping rules only, no tools, links or installs. Not a permission grant."
+    },
+    {
+      "id": "trainer",
+      "source": "https://github.com/Yuvasee/trainer",
+      "commit": "9b2eb99c3dd2c9a923a6994e9c63f4734fcf636a",
+      "source_path": ".claude/skills/trainer",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/Yuvasee/trainer/.claude/skills/trainer/SKILL.md"
+      },
+      "summary": "Personal fitness & lifestyle coach for this repo. Use whenever the user asks about their training, nutrition, weight, sleep, steps, recovery or stress; wants to log something; asks \"what should I do now / today?\"; wants a plan, a check-in, or progress review; or is being onboarded. Keeps durable not",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "cycling-training",
+      "source": "https://github.com/disco-trooper/skills",
+      "commit": "08fdae8812c18f74f80b35828240a26cab1c8860",
+      "source_path": "cycling-training",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/disco-trooper/skills/cycling-training/SKILL.md"
+      },
+      "summary": "Cycling training plans, power zones, FTP testing, intervals, periodization, indoor/outdoor training, race preparation, training-load analysis, and recovery guidance. Use when Codex needs to design cycling workouts, calculate FTP-based zones or TSS, analyze training data, manage CTL/ATL/TSB, or answe",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "hypertrophy-training",
+      "source": "https://github.com/disco-trooper/skills",
+      "commit": "08fdae8812c18f74f80b35828240a26cab1c8860",
+      "source_path": "hypertrophy-training",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "trainer"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/disco-trooper/skills/hypertrophy-training/SKILL.md",
+        "references/age-specific-training.md": "skills/vendor/disco-trooper/skills/hypertrophy-training/references/age-specific-training.md",
+        "references/cardio-interference.md": "skills/vendor/disco-trooper/skills/hypertrophy-training/references/cardio-interference.md",
+        "references/exercises.md": "skills/vendor/disco-trooper/skills/hypertrophy-training/references/exercises.md",
+        "references/female-training.md": "skills/vendor/disco-trooper/skills/hypertrophy-training/references/female-training.md",
+        "references/glossary.md": "skills/vendor/disco-trooper/skills/hypertrophy-training/references/glossary.md",
+        "references/injury-prevention.md": "skills/vendor/disco-trooper/skills/hypertrophy-training/references/injury-prevention.md",
+        "references/meal-plans.md": "skills/vendor/disco-trooper/skills/hypertrophy-training/references/meal-plans.md",
+        "references/mechanisms.md": "skills/vendor/disco-trooper/skills/hypertrophy-training/references/mechanisms.md",
+        "references/muscle-imbalances.md": "skills/vendor/disco-trooper/skills/hypertrophy-training/references/muscle-imbalances.md",
+        "references/nutrition.md": "skills/vendor/disco-trooper/skills/hypertrophy-training/references/nutrition.md",
+        "references/periodization.md": "skills/vendor/disco-trooper/skills/hypertrophy-training/references/periodization.md",
+        "references/programs.md": "skills/vendor/disco-trooper/skills/hypertrophy-training/references/programs.md",
+        "references/progress-tracking.md": "skills/vendor/disco-trooper/skills/hypertrophy-training/references/progress-tracking.md",
+        "references/psychology.md": "skills/vendor/disco-trooper/skills/hypertrophy-training/references/psychology.md",
+        "references/recovery.md": "skills/vendor/disco-trooper/skills/hypertrophy-training/references/recovery.md",
+        "references/sample-logs.md": "skills/vendor/disco-trooper/skills/hypertrophy-training/references/sample-logs.md",
+        "references/supplements.md": "skills/vendor/disco-trooper/skills/hypertrophy-training/references/supplements.md",
+        "references/techniques.md": "skills/vendor/disco-trooper/skills/hypertrophy-training/references/techniques.md",
+        "references/volume-landmarks.md": "skills/vendor/disco-trooper/skills/hypertrophy-training/references/volume-landmarks.md"
+      },
+      "summary": "Evidence-based muscle hypertrophy training, nutrition, exercise selection, periodization, recovery, supplements, and progress tracking. Use when Codex needs to build strength-training programs, set volume or RIR targets, choose exercises, troubleshoot plateaus, calculate macros/TDEE, or answer bodyb",
+      "review": "SKILL.md read in full 2026-11-03 for the Trainer; references screened automatically. Not a permission grant."
+    },
+    {
+      "id": "intervals-icu",
+      "source": "https://github.com/disco-trooper/skills",
+      "commit": "08fdae8812c18f74f80b35828240a26cab1c8860",
+      "source_path": "intervals-icu",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/disco-trooper/skills/intervals-icu/SKILL.md"
+      },
+      "summary": "Intervals.icu API workflows for fetching and updating wellness, activities, fitness metrics, events, zones, power curves, activity streams, and uploads. Use when Codex needs to call Intervals.icu, prepare authenticated API commands, export athlete data, debug API responses, or pair platform data wit",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "process-automation-audit",
+      "source": "https://github.com/disco-trooper/skills",
+      "commit": "08fdae8812c18f74f80b35828240a26cab1c8860",
+      "source_path": "process-automation-audit",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/disco-trooper/skills/process-automation-audit/SKILL.md"
+      },
+      "summary": "Scope, sell, run, and package paid audits for manual business process automation. Use when Codex needs to help with discovery, scoping, pricing, stakeholder questions, process maps, audit deliverables, pilot proposals, or negotiation boundaries for automating operational workflows such as invoices, ",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "nutrition-coach",
+      "source": "https://github.com/NataMoroz/nutrition-coach",
+      "commit": "a9c8d2fc655a5dcec15fc588c65a95778f96da49",
+      "source_path": "skills/nutrition-coach",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/NataMoroz/nutrition-coach/skills/nutrition-coach/SKILL.md"
+      },
+      "summary": "Personal nutrition and body-recomposition coach. Activates when the user logs food (by text or photo), asks for a macro/calorie breakdown, wants to track daily targets, asks about meal timing, workout nutrition, or body-composition strategy. Trigger even when the user just describes what they ate wi",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "fitness-coach",
+      "source": "https://github.com/neilberget/fitness-skill",
+      "commit": "4d99d9476915ea005add4060e075276bcf4a3362",
+      "source_path": "fitness-coach",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/neilberget/fitness-skill/fitness-coach/SKILL.md"
+      },
+      "summary": "Personal fitness coach that designs workouts tailored to the user's bio, goals, equipment, preferences, and recent training history. Use whenever the user asks for a workout, workout idea, exercise suggestion, training session, daily lift/cardio/mobility plan, modifications to a proposed workout, or",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "agri-deep-research",
+      "source": "https://github.com/PangenomeAI/academic-skills-food-nutrition",
+      "commit": "01b2158a48408a8d0e56238c04075080c793d53c",
+      "source_path": "agri-deep-research",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/PangenomeAI/academic-skills-food-nutrition/agri-deep-research/SKILL.md"
+      },
+      "summary": "Deep research producing a fully written, source-validated literature review on an agricultural question, as a senior agricultural scientist of the relevant discipline: scope, design the method, discover and screen by journal ranking, validate every source, extract and verify evidence, synthesize, st",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "agri-paper",
+      "source": "https://github.com/PangenomeAI/academic-skills-food-nutrition",
+      "commit": "01b2158a48408a8d0e56238c04075080c793d53c",
+      "source_path": "agri-paper",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/PangenomeAI/academic-skills-food-nutrition/agri-paper/SKILL.md"
+      },
+      "summary": "Multi-subagent manuscript system for agricultural science, written as a senior agricultural scientist of the relevant discipline: understand the field, frame questions, curate data, run statistics, build figures and tables, construct the discussion, draft, polish, and self-review — journal-aware thr",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "agri-pipeline",
+      "source": "https://github.com/PangenomeAI/academic-skills-food-nutrition",
+      "commit": "01b2158a48408a8d0e56238c04075080c793d53c",
+      "source_path": "agri-pipeline",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/PangenomeAI/academic-skills-food-nutrition/agri-pipeline/SKILL.md"
+      },
+      "summary": "Master orchestrator for the whole agricultural research-to-publication workflow, run as a senior agricultural scientist. Coordinates the agri skills — journal selection, research (agri-research or agri-deep-research), writing and analysis (agri-paper), figures (food-figure), peer review (agri-review",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "agri-ppt",
+      "source": "https://github.com/PangenomeAI/academic-skills-food-nutrition",
+      "commit": "01b2158a48408a8d0e56238c04075080c793d53c",
+      "source_path": "agri-ppt",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/PangenomeAI/academic-skills-food-nutrition/agri-ppt/SKILL.md"
+      },
+      "summary": "Turn an agricultural-science review report, evidence brief, or manuscript into a fully EDITABLE PowerPoint (.pptx) — every title, bullet, table, and figure a native editable object, nothing flattened to an image. Same machinery as food-ppt, but for agricultural work: converts the outputs of agri-res",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "agri-research",
+      "source": "https://github.com/PangenomeAI/academic-skills-food-nutrition",
+      "commit": "01b2158a48408a8d0e56238c04075080c793d53c",
+      "source_path": "agri-research",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/PangenomeAI/academic-skills-food-nutrition/agri-research/SKILL.md"
+      },
+      "summary": "Run a comprehensive, multi-source literature and evidence-synthesis workflow for agricultural science, as a senior agricultural scientist of the relevant discipline (agronomy, soil science, horticulture, dairy and animal science, agricultural engineering, or agricultural economics). Same machinery a",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "agri-review",
+      "source": "https://github.com/PangenomeAI/academic-skills-food-nutrition",
+      "commit": "01b2158a48408a8d0e56238c04075080c793d53c",
+      "source_path": "agri-review",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/PangenomeAI/academic-skills-food-nutrition/agri-review/SKILL.md"
+      },
+      "summary": "Multi-reviewer peer-review system for agricultural manuscripts. Simulates an editorial panel — a coordinating editor, three domain reviewers (methodology, domain/novelty, integrity/ethics) and a devil's advocate — plus a formatting check against the target journal, all acting as senior agricultural ",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "food-deep-research",
+      "source": "https://github.com/PangenomeAI/academic-skills-food-nutrition",
+      "commit": "01b2158a48408a8d0e56238c04075080c793d53c",
+      "source_path": "food-deep-research",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/PangenomeAI/academic-skills-food-nutrition/food-deep-research/SKILL.md"
+      },
+      "summary": "General-purpose deep research that produces a fully written, source-validated literature review on any question: scope it, design the method, discover and screen sources by journal ranking, validate every source, extract and verify evidence, synthesize, stress-test, then write and format the review ",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "food-fetch",
+      "source": "https://github.com/PangenomeAI/academic-skills-food-nutrition",
+      "commit": "01b2158a48408a8d0e56238c04075080c793d53c",
+      "source_path": "food-fetch",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/PangenomeAI/academic-skills-food-nutrition/food-fetch/SKILL.md"
+      },
+      "summary": "Lawfully acquire the full text of academic articles so the research and review skills can read papers, not just abstracts. Routes each article through legal open access (Unpaywall/OpenAlex/PMC/arXiv), the user's own reference-manager library (EndNote/Zotero/Mendeley PDFs), and — only with the user's",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "food-figure",
+      "source": "https://github.com/PangenomeAI/academic-skills-food-nutrition",
+      "commit": "01b2158a48408a8d0e56238c04075080c793d53c",
+      "source_path": "food-figure",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/PangenomeAI/academic-skills-food-nutrition/food-figure/SKILL.md"
+      },
+      "summary": "Comprehensive figure system for food & nutrition manuscripts: analyzes the user's data, recommends the best figure(s) to make, then produces submission-grade graphics in Python or R at the target journal's spec. Handles all common scientific figure types (bar/box/violin, line/kinetic, scatter/regres",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "food-paper",
+      "source": "https://github.com/PangenomeAI/academic-skills-food-nutrition",
+      "commit": "01b2158a48408a8d0e56238c04075080c793d53c",
+      "source_path": "food-paper",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/PangenomeAI/academic-skills-food-nutrition/food-paper/SKILL.md"
+      },
+      "summary": "Multi-subagent manuscript system for food & nutrition science covering the whole research process: understand the field, frame research questions, curate and analyze data, run statistics, build figures and tables, construct the discussion, draft, polish, and self-review — journal-aware throughout. I",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "food-pipeline",
+      "source": "https://github.com/PangenomeAI/academic-skills-food-nutrition",
+      "commit": "01b2158a48408a8d0e56238c04075080c793d53c",
+      "source_path": "food-pipeline",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/PangenomeAI/academic-skills-food-nutrition/food-pipeline/SKILL.md"
+      },
+      "summary": "Master orchestrator for the whole food & nutrition research-to-publication workflow. Coordinates the specialist skills — each with its own subagent set — into one governed path: journal selection, research (food-research / food-deep-research), writing & analysis (food-paper), figures (food-figure), ",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "food-ppt",
+      "source": "https://github.com/PangenomeAI/academic-skills-food-nutrition",
+      "commit": "01b2158a48408a8d0e56238c04075080c793d53c",
+      "source_path": "food-ppt",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/PangenomeAI/academic-skills-food-nutrition/food-ppt/SKILL.md"
+      },
+      "summary": "Turn a food & nutrition review report, evidence brief, or manuscript into a fully EDITABLE PowerPoint (.pptx) that opens in PowerPoint / Keynote / Google Slides with every title, bullet, table, and figure as a native editable object — nothing flattened to an image. Converts the outputs of food-resea",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "food-proposal",
+      "source": "https://github.com/PangenomeAI/academic-skills-food-nutrition",
+      "commit": "01b2158a48408a8d0e56238c04075080c793d53c",
+      "source_path": "food-proposal",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/PangenomeAI/academic-skills-food-nutrition/food-proposal/SKILL.md"
+      },
+      "summary": "Master orchestrator for preparing research proposals and funding-application proposals in food, nutrition & agricultural science. Like food-pipeline, but for proposals: it resolves the target funding scheme's format first (headings, order, page/word limit, font, assessment criteria), then drafts fro",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "food-research",
+      "source": "https://github.com/PangenomeAI/academic-skills-food-nutrition",
+      "commit": "01b2158a48408a8d0e56238c04075080c793d53c",
+      "source_path": "food-research",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/PangenomeAI/academic-skills-food-nutrition/food-research/SKILL.md"
+      },
+      "summary": "Run a comprehensive, multi-source literature and evidence-synthesis workflow for food & nutrition science. Use when the user wants to research a food/nutrition topic in depth, do a literature review, build an evidence brief, screen and synthesize many sources, verify citations, or scope a systematic",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "food-review",
+      "source": "https://github.com/PangenomeAI/academic-skills-food-nutrition",
+      "commit": "01b2158a48408a8d0e56238c04075080c793d53c",
+      "source_path": "food-review",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/PangenomeAI/academic-skills-food-nutrition/food-review/SKILL.md"
+      },
+      "summary": "Multi-reviewer peer-review system for food & nutrition manuscripts. Simulates an editorial panel — a coordinating editor, three domain reviewers (methodology/statistics, domain/novelty, integrity/ethics), and a devil's advocate — plus a formatting-compliance check against the target journal (APA 7.0",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "journal-selector",
+      "source": "https://github.com/PangenomeAI/academic-skills-food-nutrition",
+      "commit": "01b2158a48408a8d0e56238c04075080c793d53c",
+      "source_path": "journal-selector",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/PangenomeAI/academic-skills-food-nutrition/journal-selector/SKILL.md"
+      },
+      "summary": "Resolve a target food/nutrition journal to its author-guideline skill and formatting constraints. Use at the start of writing, formatting, or submission-prep for a food-science paper, and whenever the user names a journal they want to publish in or format their manuscript for, to load that journal's",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "hypertrophy-programme-designer",
+      "source": "https://github.com/flaviusapop/personal-trainer-hypertrophy-programme-designer",
+      "commit": "36a04c774813058674e6a4c5ed48b2afd5ba8526",
+      "source_path": ".",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/flaviusapop/personal-trainer-hypertrophy-programme-designer/SKILL.md"
+      },
+      "summary": "Full-pipeline custom hypertrophy programme designer. Ingests workout history CSV (or uses an intake questionnaire for users without data), analyses volume/frequency/progression, interrogates the user for preferences, designs a periodised block, runs multi-round AI expert review (sports science, biom",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "fitness-diet-planner",
+      "source": "https://github.com/Kyo-zmol/fitness-diet-planner-free",
+      "commit": "29da09e7d20497011526e3c90ede0c61246dfc1f",
+      "source_path": ".",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/Kyo-zmol/fitness-diet-planner-free/SKILL.md"
+      },
+      "summary": "Generate personalized weekly training plans and daily meal plans from body data, fitness goals, diet preferences, and available equipment, with automatic calorie/macro calculation and progress-based adjustments. Also logs meals from food photos or text descriptions using the agent's own vision (no e",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "adaptive-endurance-coach",
+      "source": "https://github.com/mprecilio20/adaptive-endurance-coach",
+      "commit": "14fcace9b143311f72bd175128b9b2cf86f57652",
+      "source_path": "skills/adaptive-endurance-coach",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/mprecilio20/adaptive-endurance-coach/skills/adaptive-endurance-coach/SKILL.md"
+      },
+      "summary": "World-class adaptive endurance coach and sports nutritionist for swimming, cycling, running, and triathlon. Manages long-term athlete development toward the athlete's primary (A-race) goals — periodized training, readiness-guided daily adjustment, evidence-tiered methods (strength, heat, durability,",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "douyin-question-distiller",
+      "source": "https://github.com/LZheng0411/Lzheng-fitness",
+      "commit": "643958790f54a7e0a89193468bc86cd279d20dd2",
+      "source_path": "skills/douyin-question-distiller",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/LZheng0411/Lzheng-fitness/skills/douyin-question-distiller/SKILL.md"
+      },
+      "summary": "读取用户指定的公开抖音视频，核对来源与时间段转写，围绕具体问题生成有出处、方法细节和适用边界的详细蒸馏报告；适合单条视频学习，不依赖个人收藏或私聊配置。",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "lzheng-fitness-plan",
+      "source": "https://github.com/LZheng0411/Lzheng-fitness",
+      "commit": "643958790f54a7e0a89193468bc86cd279d20dd2",
+      "source_path": "skills/lzheng-fitness-plan",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/LZheng0411/Lzheng-fitness/skills/lzheng-fitness-plan/SKILL.md"
+      },
+      "summary": "基于用户当前状态、Skill 内置健身知识和最新官方指南，完成问诊、安全筛查、P0—L3 分层、固定器械与自由重量动作选择、完整训练计划、短期降级方案、时间快照及移动端友好 HTML 交付。用于用户要求制定、重做、解释或可视化增肌、减脂、体态重组、健康、基础力量或综合健身计划，以及询问一周练几次、如何分化、动作怎样选时；不用于单次训练复盘、医疗康复或未经用户确认的单项力量周期调用。",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "lzheng-fitness-workbench-builder",
+      "source": "https://github.com/LZheng0411/Lzheng-fitness",
+      "commit": "643958790f54a7e0a89193468bc86cd279d20dd2",
+      "source_path": "skills/lzheng-fitness-workbench-builder",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/LZheng0411/Lzheng-fitness/skills/lzheng-fitness-workbench-builder/SKILL.md"
+      },
+      "summary": "将训练计划 JSON、执行基准、训练复盘、可选 Notion 导出和内置界面素材组装为可离线打开的个人健身工作台，并完成数据刷新、壁纸替换、内置文档阅读、可选 Obsidian 编辑、响应式页面、发布副本与自动校验。用于用户要求从零构建、迁移、重建、替换背景、打包、同步、修复或发布健身工作台，或希望在新电脑上复刻同款个人训练系统时；不用于制定个性化训练处方、单次训练复盘或医疗建议。",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "lzheng-knowledge-library",
+      "source": "https://github.com/LZheng0411/Lzheng-fitness",
+      "commit": "643958790f54a7e0a89193468bc86cd279d20dd2",
+      "source_path": "skills/lzheng-knowledge-library",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/LZheng0411/Lzheng-fitness/skills/lzheng-knowledge-library/SKILL.md"
+      },
+      "summary": "将用户确认的学习材料作为独立知识数据接入健身工作台，保留作者、来源与学习反馈，支持多主题和本地更新；不自动公开私人内容或修改训练饮食事实。",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "lzheng-nutrition-system",
+      "source": "https://github.com/LZheng0411/Lzheng-fitness",
+      "commit": "643958790f54a7e0a89193468bc86cd279d20dd2",
+      "source_path": "skills/lzheng-nutrition-system",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/LZheng0411/Lzheng-fitness/skills/lzheng-nutrition-system/SKILL.md"
+      },
+      "summary": "建立、校验和复盘与当前训练计划联动的通用营养系统，包括建档、重训练/普通训练/休息日目标、餐食估算候选、用户确认入账和趋势调整；不用于疾病营养治疗、过敏原诊断或把照片估算包装成精确事实。",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "lzheng-strength-cycle-planner",
+      "source": "https://github.com/LZheng0411/Lzheng-fitness",
+      "commit": "643958790f54a7e0a89193468bc86cd279d20dd2",
+      "source_path": "skills/lzheng-strength-cycle-planner",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/LZheng0411/Lzheng-fitness/skills/lzheng-strength-cycle-planner/SKILL.md"
+      },
+      "summary": "为深蹲、卧推、硬拉、负重引体、推举等力量主项制定、解释、调整或复盘完整的 8—12 周周期，并交付含主项渐进曲线的可本地打开训练计划 HTML。用于用户要求规划组数、次数、重量、RPE/RIR、顶组、回退组、减量、测试、渐进规则或未完成分支，或要求把训练计划做成网页、总览页、可视化计划时。",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "lzheng-strength-training-review",
+      "source": "https://github.com/LZheng0411/Lzheng-fitness",
+      "commit": "643958790f54a7e0a89193468bc86cd279d20dd2",
+      "source_path": "skills/lzheng-strength-training-review",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/LZheng0411/Lzheng-fitness/skills/lzheng-strength-training-review/SKILL.md"
+      },
+      "summary": "复盘一次力量训练或一个训练周。支持按当前计划定位 Wn 和训练职责、无周期滚动渐进、数据不足时的基准训练，以及固定格式的周训练阶段复盘。用于“今天练了”“这次练得怎么样”“下次练什么”“这周训练复盘/总结”“是否严格执行”“是否需要减载或调整计划”等；正式沉淀前必须询问个人体感，并对会影响判断的含糊外部训练记录和重复问题做追问。",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "lzheng-training-expert-library",
+      "source": "https://github.com/LZheng0411/Lzheng-fitness",
+      "commit": "643958790f54a7e0a89193468bc86cd279d20dd2",
+      "source_path": "skills/lzheng-training-expert-library",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/LZheng0411/Lzheng-fitness/skills/lzheng-training-expert-library/SKILL.md"
+      },
+      "summary": "为 Lzheng 计划、力量周期、训练复盘和停训接回 Skill 提供六个可移植、来源限定的训练专家模块，包含来源边界、覆盖矩阵、问题路由、知识卡、协作选择和验证状态；用于内部选择最少必要专家并保留分歧条件，不作为名人角色扮演、医疗诊断或独立动态处方入口。",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "lzheng-training-return",
+      "source": "https://github.com/LZheng0411/Lzheng-fitness",
+      "commit": "643958790f54a7e0a89193468bc86cd279d20dd2",
+      "source_path": "skills/lzheng-training-return",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/LZheng0411/Lzheng-fitness/skills/lzheng-training-return/SKILL.md"
+      },
+      "summary": "处理停训达到7天、连续漏练3次、生病或伤病评估后恢复、训练条件或能力明显变化、4周内反复中断，以及用户主动询问“如何重新开始训练”的情况。基于原计划、时间化状态快照和 Skill 内置训练接回知识重新建档，输出正常版、降级版、最低版任务、48小时接回动作与《Lzheng 个人训练接回卡》。漏练1—2次或单日状态差仍由 lzheng-fitness-plan 的短期降级规则处理；本 Skill 不作医疗诊断，也不把停训前重量直接照搬回来。",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "lzheng-training-system",
+      "source": "https://github.com/LZheng0411/Lzheng-fitness",
+      "commit": "643958790f54a7e0a89193468bc86cd279d20dd2",
+      "source_path": "skills/lzheng-training-system",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/LZheng0411/Lzheng-fitness/skills/lzheng-training-system/SKILL.md"
+      },
+      "summary": "初始化、升级、诊断、校验和迁移 Lzheng 本地训练系统，并把增肌、减脂、力量与综合健身计划、训练复盘和健身工作台串成单一主源闭环。用于用户刚下载/刚安装、说开始建立健身系统、想增肌/减脂/提升力量、新电脑搭建、系统升级或工作台异常排查；首次使用时由 AI 自然语言接管引导，不要求用户先找 README、命令或 Skill 名称。",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "lzheng-video-learning",
+      "source": "https://github.com/LZheng0411/Lzheng-fitness",
+      "commit": "643958790f54a7e0a89193468bc86cd279d20dd2",
+      "source_path": "skills/lzheng-video-learning",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/LZheng0411/Lzheng-fitness/skills/lzheng-video-learning/SKILL.md"
+      },
+      "summary": "围绕用户问题学习抖音收藏或指定视频，核对作者与来源、获取并转写、分批保存进度，再按真实反馈组织交互学习；支持不同主题，不自动改变训练或饮食计划。",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "lzheng-video-lessons",
+      "source": "https://github.com/LZheng0411/Lzheng-fitness",
+      "commit": "643958790f54a7e0a89193468bc86cd279d20dd2",
+      "source_path": "skills/lzheng-video-lessons",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/LZheng0411/Lzheng-fitness/skills/lzheng-video-lessons/SKILL.md"
+      },
+      "summary": "将抖音或本地健身教学视频核对为有起止点的分段课程，用直接教读者怎么做的详细解释生成播放器，接入现有知识库并按用户授权完成发布和线上验证；支持复用更新，不把视频建议自动写成个人训练处方。",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "weekly-meal-planner",
+      "source": "https://github.com/marklavine-mlv/weekly-meal-planner",
+      "commit": "4bdd99d1c742818bbddc216aecf4249ced0ea7b9",
+      "source_path": ".",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/marklavine-mlv/weekly-meal-planner/SKILL.md"
+      },
+      "summary": "Plan a week of meals around the staples someone already keeps on hand. Produces an editable N-day plan (default 5 cooking nights + 2 flex days for leftovers or eating out), a grocery list grouped by store section, prep/cook notes with thaw/make-ahead timing, and short recipes. Optionally estimates p",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "body-composition",
+      "source": "https://github.com/Jeffallan/Fitness-Tools",
+      "commit": "80be3182b063157849eb9da00feb35d2b9a7c18a",
+      "source_path": "skills/body-composition",
+      "license": "Apache-2.0",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/Jeffallan/Fitness-Tools/skills/body-composition/SKILL.md"
+      },
+      "summary": "Use when assessing body fat percentage from skinfold measurements, calculating body density, or interpreting body composition results using Durnin-Womersley or Jackson-Pollock equations.",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "meal-planner",
+      "source": "https://github.com/Jeffallan/Fitness-Tools",
+      "commit": "80be3182b063157849eb9da00feb35d2b9a7c18a",
+      "source_path": "skills/meal-planner",
+      "license": "Apache-2.0",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/Jeffallan/Fitness-Tools/skills/meal-planner/SKILL.md"
+      },
+      "summary": "Use when planning macronutrient targets, calculating daily calorie ranges, or building meal plans based on body type, activity level, and fitness goals.",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "rep-max",
+      "source": "https://github.com/Jeffallan/Fitness-Tools",
+      "commit": "80be3182b063157849eb9da00feb35d2b9a7c18a",
+      "source_path": "skills/rep-max",
+      "license": "Apache-2.0",
+      "mode": "reference_only",
+      "agents": [
+        "trainer"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/Jeffallan/Fitness-Tools/skills/rep-max/SKILL.md",
+        "references/percentage-table.md": "skills/vendor/Jeffallan/Fitness-Tools/skills/rep-max/references/percentage-table.md"
+      },
+      "summary": "Use when estimating one-rep max (1RM), converting between weight and rep ranges, or calculating training loads from a validated percentage-of-max table.",
+      "review": "SKILL.md read in full 2026-11-03 for the Trainer; references screened automatically. Not a permission grant."
+    },
+    {
+      "id": "edamam-barcode-lookup",
+      "source": "https://github.com/edamam-llc/edamam-skills",
+      "commit": "297984da3180a74bd4170bea2cb3eaff5a5b0bcf",
+      "source_path": "skills/edamam-barcode-lookup",
+      "license": "Apache-2.0",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/edamam-llc/edamam-skills/skills/edamam-barcode-lookup/SKILL.md"
+      },
+      "summary": "Look up nutrition facts for a product barcode (UPC/EAN) using the Edamam MCP. Use when the user provides a barcode number (or a photo/scan of one) and wants calories, macros, or full nutrition for that packaged product. Barcode input only — for typed food descriptions or plate photos, this skill is ",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "evidence-based-fitness-coach",
+      "source": "https://github.com/Lancetnik/evidence-based-fitness-coach",
+      "commit": "2665ccb4d58d563c5eb3bb8d371b79e7035e0fbb",
+      "source_path": "skills/evidence-based-fitness-coach",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "trainer"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/Lancetnik/evidence-based-fitness-coach/skills/evidence-based-fitness-coach/SKILL.md",
+        "references/nutrition.md": "skills/vendor/Lancetnik/evidence-based-fitness-coach/skills/evidence-based-fitness-coach/references/nutrition.md",
+        "references/training.md": "skills/vendor/Lancetnik/evidence-based-fitness-coach/skills/evidence-based-fitness-coach/references/training.md"
+      },
+      "summary": "Use when the user asks about strength training, building a training program, hypertrophy, fat loss, gaining mass, nutrition plans, protein/macros, supplements (creatine, BCAA), recovery, cardio + lifting, training at home, or choosing a coach — any strength training or nutrition question. Triggers o",
+      "review": "SKILL.md read in full 2026-11-03 for the Trainer; references screened automatically. Not a permission grant."
+    },
+    {
+      "id": "fitness-review-board",
+      "source": "https://github.com/MuscleOtter/rowan-fitness-skill",
+      "commit": "26e4f349d40956889dc5e72577d69f3b18af82ab",
+      "source_path": "skills/fitness-review-board",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/SKILL.md",
+        "references/athlete-training.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/athlete-training.md",
+        "references/cardio-conditioning.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/cardio-conditioning.md",
+        "references/feature-sources.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/feature-sources.md",
+        "references/fitness-rubric.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/fitness-rubric.md",
+        "references/fitness-visuals.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/fitness-visuals.md",
+        "references/habits-handoff.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/habits-handoff.md",
+        "references/history-and-connections.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/history-and-connections.md",
+        "references/hosts.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/hosts.md",
+        "references/maintenance-rubric.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/maintenance-rubric.md",
+        "references/memory.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/memory.md",
+        "references/migration.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/migration.md",
+        "references/nutrition-evidence.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/nutrition-evidence.md",
+        "references/nutrition-programming.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/nutrition-programming.md",
+        "references/onboarding.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/onboarding.md",
+        "references/personal-workflow.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/personal-workflow.md",
+        "references/recipes-meal-prep.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/recipes-meal-prep.md",
+        "references/recursion-maintenance.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/recursion-maintenance.md",
+        "references/research-upkeep.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/research-upkeep.md",
+        "references/review-protocol.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/review-protocol.md",
+        "references/roles.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/roles.md",
+        "references/rowan-visual-style.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/rowan-visual-style.md",
+        "references/sleep-evidence.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/sleep-evidence.md",
+        "references/sleep-recovery.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/sleep-recovery.md",
+        "references/task-routing.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/task-routing.md",
+        "references/training-data.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/training-data.md",
+        "references/verification.md": "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/verification.md"
+      },
+      "summary": "Coach experienced adults in training, nutrition and sleep; preserve useful programs and a Training Record. Independently review new advice, with full review when risk requires it.",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "fitcoach-pro",
+      "source": "https://github.com/danilogj/fitcoach-pro",
+      "commit": "c2619387af739a79a0f1b2b4e16939467a499aa7",
+      "source_path": "claude/fitcoach-pro",
+      "license": "Apache-2.0",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/SKILL.md",
+        "references/01-principles.md": "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/references/01-principles.md",
+        "references/02-intake-screening.md": "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/references/02-intake-screening.md",
+        "references/03-program-design.md": "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/references/03-program-design.md",
+        "references/04-progression-adjustment.md": "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/references/04-progression-adjustment.md",
+        "references/05-nutrition.md": "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/references/05-nutrition.md",
+        "references/06-body-assessment.md": "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/references/06-body-assessment.md",
+        "references/07-cardio.md": "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/references/07-cardio.md",
+        "references/08-deliverables.md": "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/references/08-deliverables.md",
+        "references/09-scientific-evidence.md": "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/references/09-scientific-evidence.md",
+        "references/10-high-performance-athletes.md": "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/references/10-high-performance-athletes.md",
+        "references/11-enhanced-and-harm-reduction.md": "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/references/11-enhanced-and-harm-reduction.md",
+        "references/INDEX.md": "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/references/INDEX.md"
+      },
+      "summary": "Technical assistant for personal trainers — strength training and nutrition prescription, with deterministic calculations. Use when intaking a new client, screening for red flags, building a training block, choosing a split or weekly volume, analyzing a training log, running a weekly check-in, setti",
+      "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
     }
   ],
   "files": {
@@ -5865,6 +6575,11 @@
     "skills/vendor/Jakeschincariol/replica-skill/replica-test/bug-report.md": "53572b3a7b09914644903f982f8206fb667be41095601507e26238f59d9e25c3",
     "skills/vendor/Jakeschincariol/replica-skill/replica-test/e2e.example.spec.ts": "20f2c1778027d0c5d42bf6017392701e0e6ce628c170dad1fc14599c99c5ac6c",
     "skills/vendor/Jakeschincariol/replica-skill/replica-test/test-plan.md": "284ff8b60ebc86c3ab0e797c628cb5d0f870ca1e4bdba02ba53853d83b32dc26",
+    "skills/vendor/Jeffallan/Fitness-Tools/LICENSE": "984257bb34b6e85a367c8d6bd41c25d36e41e39e6e765e2f0791866c239768a2",
+    "skills/vendor/Jeffallan/Fitness-Tools/skills/body-composition/SKILL.md": "5385298cd369d2b860fbbe41f28ae1bbf425df32b491ed1eca32c5f4e845fe02",
+    "skills/vendor/Jeffallan/Fitness-Tools/skills/meal-planner/SKILL.md": "cf4e4d616d2edabc3317ff279a871ef0b62de750928d448bb079e8ceaaf0bec2",
+    "skills/vendor/Jeffallan/Fitness-Tools/skills/rep-max/SKILL.md": "47c3462a23c84fc4870e1d7d77cf77c97b980326065fbfe56edbbb155cf10795",
+    "skills/vendor/Jeffallan/Fitness-Tools/skills/rep-max/references/percentage-table.md": "54fbd41ab6260b5f04e9c35160bdff06505b19700024d0cda4317aff70d2db6c",
     "skills/vendor/K-Dense-AI/scientific-agent-skills/LICENSE.md": "09b02a3c9df3053c55531d503357a9c7cde275970e6c3ceaa1ddf5f0e90b40c1",
     "skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking/SKILL.md": "563af70571b7dcd6a96bf2e303bedfdcba623b4e9f082d58f04aacbc961fdae4",
     "skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking/references/common_biases.md": "641e8e8e6dfadac1643ea8691b7d3e4e58cf013f134cd42c71301878096a5a39",
@@ -5875,6 +6590,72 @@
     "skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking/references/review_sources.md": "71e75106f36f3e69b28959ad1fec503ccdb21b7f5361ab230173e4812accbf62",
     "skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking/references/scientific_method.md": "5aa925b97c7a916f819dafc8b42a9c24e4bd3eb2836594e724f1e7f9ae75ea0f",
     "skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking/references/statistical_pitfalls.md": "0c43204a0a81110cfeb7c982fa4caa89f274bdcebf096e09e5adfccf31241cb9",
+    "skills/vendor/Kyo-zmol/fitness-diet-planner-free/LICENSE": "64dc0da57a4b1c905b4888567d8cb3c3257ce1955634fdc10eaf357a0ab39f6f",
+    "skills/vendor/Kyo-zmol/fitness-diet-planner-free/SKILL.md": "b2e95142ce0986a4f561e0f749408b143d42b7db1986ac78d6b9f083f532b05e",
+    "skills/vendor/LZheng0411/Lzheng-fitness/LICENSE": "e6f16820c557451f8beac11467aff73e9b47dfd1d8d5c2680433618ebbe59d1d",
+    "skills/vendor/LZheng0411/Lzheng-fitness/skills/douyin-question-distiller/SKILL.md": "d9d49e061498ec8e13ed46d67ca59a883297a27b2ea353239904fa7c65a1616b",
+    "skills/vendor/LZheng0411/Lzheng-fitness/skills/lzheng-fitness-plan/SKILL.md": "25c672a6efa976d45fa708c3d67f9c1b21a70b8fbda31c44989aa1ef813ef94c",
+    "skills/vendor/LZheng0411/Lzheng-fitness/skills/lzheng-fitness-workbench-builder/SKILL.md": "707481fc88902e420413f7da05796e38a839b77af3263ddbd881b7ee0fc835ec",
+    "skills/vendor/LZheng0411/Lzheng-fitness/skills/lzheng-knowledge-library/SKILL.md": "c706e408059aafc7a5afcdad1cc5773df9237ba43afb944e3b9dab040f4770da",
+    "skills/vendor/LZheng0411/Lzheng-fitness/skills/lzheng-nutrition-system/SKILL.md": "e593611520eeac1b6bbc33960faac16f1e5f6b00507f870687658ede06eeeeec",
+    "skills/vendor/LZheng0411/Lzheng-fitness/skills/lzheng-strength-cycle-planner/SKILL.md": "d963052d6e58214c25b138337309ddeaa6c1528ba32a1a8cc0285b62ea05d144",
+    "skills/vendor/LZheng0411/Lzheng-fitness/skills/lzheng-strength-training-review/SKILL.md": "e0c3f1c34a6ddb02d226e7fd86fc01b3a4cfb0d26564ae4113ff0c377dbb44c7",
+    "skills/vendor/LZheng0411/Lzheng-fitness/skills/lzheng-training-expert-library/SKILL.md": "d27b206f0b623806a0906a7bb241cde27e36c287cfc45bae1b57c541bca023c6",
+    "skills/vendor/LZheng0411/Lzheng-fitness/skills/lzheng-training-return/SKILL.md": "a255226a8100bd3654fb0bb91cb5d6efe9f529570d80ff15e5a1bc27963e5275",
+    "skills/vendor/LZheng0411/Lzheng-fitness/skills/lzheng-training-system/SKILL.md": "34377320cf1d40008eb87b729cff23d01b7396869d058c657ec5e15da5e5369e",
+    "skills/vendor/LZheng0411/Lzheng-fitness/skills/lzheng-video-learning/SKILL.md": "8677ac1aa1b8238b794df253b907ef50316d5f6ae33eb95ae4ee0502df1eedd8",
+    "skills/vendor/LZheng0411/Lzheng-fitness/skills/lzheng-video-lessons/SKILL.md": "6a0f1e3bc12f17d2d4d61bbd1c59dc396bfb9c1fc0d0343da64972610647ad13",
+    "skills/vendor/Lancetnik/evidence-based-fitness-coach/LICENSE": "3fcfac2a67a0e7852f89e14b63325520b160011620dcd9aa34ef2fe174561115",
+    "skills/vendor/Lancetnik/evidence-based-fitness-coach/skills/evidence-based-fitness-coach/SKILL.md": "9f135174469397c87880999d2334b1911d498961be7345f798c871c578ae19f7",
+    "skills/vendor/Lancetnik/evidence-based-fitness-coach/skills/evidence-based-fitness-coach/references/nutrition.md": "82c8d15576a769af5da41a8889fa0181c7f2b1e454b88961d41ac70575c5d545",
+    "skills/vendor/Lancetnik/evidence-based-fitness-coach/skills/evidence-based-fitness-coach/references/training.md": "cd37716da63d44c6ddcd40b9d2fdce43a0ea4bf69c5752d4692914187bf0f609",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/LICENSE": "96bd3f7afbdee3296dd773410bd4d673ea5a388752cfc56543b219c7d1e9bdf5",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/SKILL.md": "3a85c3b72cac4bd2e950c44422648a0ecfa760519f3ccb91cc51595e054aa65f",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/athlete-training.md": "f0828487a7764aefc64991df3b3673424a52c31861589f12b67f8acc604dec49",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/cardio-conditioning.md": "6334399d941467f08d7f787de0eb36765bd1813e048d2bbd73a24cfa241eeaca",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/feature-sources.md": "6f1a776bf3f39178b99c156f987fed39c9fe75e61b0c09933c782ea626c8d36b",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/fitness-rubric.md": "0e563b2990f19e57250ea71d3830baec12c0a748d6fac7955dcea21199417988",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/fitness-visuals.md": "7251ee46d62e7c0d2329623a9df75065b2f2524660facb244ff8eeccab5c680d",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/habits-handoff.md": "28dbf72c967c7fbc804a6f237b711dc28af9be8d0fea4aa548688a821fbeae9b",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/history-and-connections.md": "8c92ef2f626679f6039af6288536186cfdc901fb964cdf476a4e0411ebcdd250",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/hosts.md": "e1c1d8cda2a62a3a883d1101b57c5fc8c4d90b0fee6c6d680c12c68776dbc263",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/maintenance-rubric.md": "013c219a150632aadb1d976bf517ad888b4ebab10b65c1dd546c2d1b19c84cfb",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/memory.md": "67c3624113aef1f73e5f0c21cad5e0608dab72cc7c127607a4532ec912e7e0f8",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/migration.md": "8f7e8e0fcc91ac982872a62be99a3fd3362cb75c8a80c8cacfa58311b9ed46bb",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/nutrition-evidence.md": "593180d732dab9b4564a1927cffcf564b3a599aa8e019e41e81152d8f53a3be9",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/nutrition-programming.md": "0f70e52761f60ddc29957c17dfa806d6b3f135baac66d88d9014dc551c7528b9",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/onboarding.md": "f261f491d2dce2d2e8b911b776c43d4d08f21451793047dbe071bd8d0064154f",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/personal-workflow.md": "a233f74ea730f61a0491faf6113cee31ac3c86b2d124c37867532ce9198718dd",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/recipes-meal-prep.md": "98777db7bbdf862805f1dd996af92b1a09288031427d35cf66c25a488d240b0d",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/recursion-maintenance.md": "b52a96baf1f7e36d5bbd337297d7ba69f3e1b6763d7ab7b02adb55e2dc088574",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/research-upkeep.md": "a3754902f8c6d00665a6f93d1e8eacf994c6716c616cb04837d25cbc40e4eb1a",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/review-protocol.md": "9bd5dcd093cf871d4ea6a0d772f049dcc31a0805d3e4beee3d0498b45dce4c51",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/roles.md": "1913927d1c336c7fd9976f7c3f3aa3b2b17c24eba0cfc69d0c5beef518d33743",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/rowan-visual-style.md": "02286753eed4dbc2b8c5b93087abc2a3a3c223efaa3b6b47543dbbc9e14dd691",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/sleep-evidence.md": "2862cadde516cf62888a347f5c04799f6e20f434c6476f11b38df7058615377c",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/sleep-recovery.md": "0fa97a15a2130e873951ceb4030301828f3822782f7a1ed78980d59bce82547f",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/task-routing.md": "b58ac2cc0c64af6d9000e71841c5497ed6aa5123d58b9fdfadcedf1dd611517a",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/training-data.md": "81892bcf52a0b65c6b1b391b5213cd5761f191021f85bb5681d2f3a08ad1394e",
+    "skills/vendor/MuscleOtter/rowan-fitness-skill/skills/fitness-review-board/references/verification.md": "c2c459ba9c5b91b02597476ef050b616fa3f4f6240e790012f6e7e1395325a7d",
+    "skills/vendor/NataMoroz/nutrition-coach/LICENSE": "4909849ab96418f725057ed589407ddf4f4dea243d74d3239eca5272e0a80eb2",
+    "skills/vendor/NataMoroz/nutrition-coach/skills/nutrition-coach/SKILL.md": "defbf9b548ffa28188aec7cf01a5c114f6c049694c07838ad18e9680dbe6739e",
+    "skills/vendor/PangenomeAI/academic-skills-food-nutrition/LICENSE": "65a69edf061ae31ada2955a126de4652a70dba3cfaf400f55b68863ed5ba1cc9",
+    "skills/vendor/PangenomeAI/academic-skills-food-nutrition/agri-deep-research/SKILL.md": "c7ff086497c9e73b78495310a105e1071ac72f92e0270644976fb3b8930559bf",
+    "skills/vendor/PangenomeAI/academic-skills-food-nutrition/agri-paper/SKILL.md": "afed5930e38c7df2a86fec754f6f4e473cc06a2c927652c7e28decb7924c80e9",
+    "skills/vendor/PangenomeAI/academic-skills-food-nutrition/agri-pipeline/SKILL.md": "abc8529cd7b13bb3a1f24dd9332ca77b3a0bca56daac7cd20b2ead9a9accd0a5",
+    "skills/vendor/PangenomeAI/academic-skills-food-nutrition/agri-ppt/SKILL.md": "76d5191c6a15f50654257f4708e5b338be68989f6caffe58f97210366c466c27",
+    "skills/vendor/PangenomeAI/academic-skills-food-nutrition/agri-research/SKILL.md": "202698dbd06c41ce5e933f0df5ca06219ea460a34298e7fb02bfda4f86ef2bda",
+    "skills/vendor/PangenomeAI/academic-skills-food-nutrition/agri-review/SKILL.md": "cd716b554286ef6ffc127cae5ea869b134e3e8ea141183838917061318c2df8a",
+    "skills/vendor/PangenomeAI/academic-skills-food-nutrition/food-deep-research/SKILL.md": "8b03c0a2f645eb241535aa792da76443e9287319c38247c9aaab6e8410cdccb4",
+    "skills/vendor/PangenomeAI/academic-skills-food-nutrition/food-fetch/SKILL.md": "243ede99976b7ef226f3703f57ea08a2d273b5bb9bfed22c074dd5c2b8cb573d",
+    "skills/vendor/PangenomeAI/academic-skills-food-nutrition/food-figure/SKILL.md": "2218e94324d4218adf7bccf2d6136f69bd62bfe1a82aa7a5afc44f4f0af81d72",
+    "skills/vendor/PangenomeAI/academic-skills-food-nutrition/food-paper/SKILL.md": "ef52cd88e1cd9aadcd89961f27880240d241fa89336a99f06e2b871a1cc19986",
+    "skills/vendor/PangenomeAI/academic-skills-food-nutrition/food-pipeline/SKILL.md": "e09e6b6d1ced56125d09673d8ee500dcb167715fa2cd20373d6066052624d141",
+    "skills/vendor/PangenomeAI/academic-skills-food-nutrition/food-ppt/SKILL.md": "ef476597c95ac76645bb7b39749bab1353d92dbd1736eca327cbbccf9bcc045c",
+    "skills/vendor/PangenomeAI/academic-skills-food-nutrition/food-proposal/SKILL.md": "6f2db1f08a8e1ff5412ca123a1ce93292421e7cfe4c837852017a1b5a91b0dcd",
+    "skills/vendor/PangenomeAI/academic-skills-food-nutrition/food-research/SKILL.md": "e47b95973b28ea6488b709403e80cc676999138e846417c1455a1a7a0801e2c6",
+    "skills/vendor/PangenomeAI/academic-skills-food-nutrition/food-review/SKILL.md": "b2fb1314e6939c088f86ccdd0f5522f0868d4b6ce9a383d2cef4603ac31709f6",
+    "skills/vendor/PangenomeAI/academic-skills-food-nutrition/journal-selector/SKILL.md": "3cc2632aedffacfd7d6dbb0f25a15f58d957f39c84e903fa04f3e970fb169b4c",
     "skills/vendor/Varnan-Tech/OpenDirectory/LICENSE": "14c562ebbaab1db479665cc884db539bd8554079e5cdbc08a7deb328616abc6e",
     "skills/vendor/Varnan-Tech/OpenDirectory/skills/app-store-review-arbitrage/SKILL.md": "94d400d861eef9d48865d97e73d0164f6bab8d04fa1f8597cf6692eb62aea985",
     "skills/vendor/Varnan-Tech/OpenDirectory/skills/blog-cover-image-cli/SKILL.md": "9cb3165d4f5611a703a5f793f5a416c853712e933e93c5290365c3d215e00eb7",
@@ -5936,6 +6717,8 @@
     "skills/vendor/Varnan-Tech/OpenDirectory/skills/where-your-customer-lives/SKILL.md": "1866b69c7f229368ed3692c6f7ed1e37d712b21d2eb180cbf096e51a16641b9c",
     "skills/vendor/Varnan-Tech/OpenDirectory/skills/xquik-x-follower-scraper/SKILL.md": "1a9fe6d3d976d675c28315a8277d84cc3595ee79d14e48e454fbf42acd93fab8",
     "skills/vendor/Varnan-Tech/OpenDirectory/skills/xquik-x-tweet-scraper/SKILL.md": "964a36cef0ab59bf44b77f84f0f30ee93075f3700c57193950d3ab9ed8fa8f1f",
+    "skills/vendor/Yuvasee/trainer/.claude/skills/trainer/SKILL.md": "f76bef67f75e4d915750e1aab5eb09577668a292f4911d1cffb32da340ed30b3",
+    "skills/vendor/Yuvasee/trainer/LICENSE": "d1c5adc034f407a688cc12849cc6efd040b0b613c70e4b9c7f88ddd62bae2d55",
     "skills/vendor/addyosmani/agent-skills/LICENSE": "6f202f8bd568cd730dbb2b0d1f8e243bc74c2fa1f64dbce9b2c7ea08bd5c9fd7",
     "skills/vendor/addyosmani/agent-skills/references/accessibility-checklist.md": "61c759d94d52296231f5f310b92b401f56c44e4430dc3cc95ebac5d7b1d5ffac",
     "skills/vendor/addyosmani/agent-skills/references/definition-of-done.md": "d1c75d2ae65d2c7a9cd01f93fa8de63e00e75f2fe5d08be224d576157054dcee",
@@ -6274,6 +7057,50 @@
     "skills/vendor/anthropics/skills/skills/internal-comms/examples/general-comms.md": "4d3a4bb198a77626bcf018e96b2b45a2dbabed172d4ade0fcd70d23ae8a47a47",
     "skills/vendor/ayghri/i-have-adhd/LICENSE": "8acbb618089b738404f76ac60fca1aaa995d9a87995eddf95f0b777acd7f7d2c",
     "skills/vendor/ayghri/i-have-adhd/skills/i-have-adhd/SKILL.md": "88955c019bbb1419ff4b49dbb1f80a867467de6233d7865af2e06a7d7b76c7d3",
+    "skills/vendor/danilogj/fitcoach-pro/LICENSE": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/SKILL.md": "5088531dec8e7f58d09b18aafa62f34a26acf84578eb121aad75d4c327e6fde9",
+    "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/references/01-principles.md": "8d6bdeda26b08c2a67431cb1445f50f8dcd023df50a811a17dfbf00704166e64",
+    "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/references/02-intake-screening.md": "37e34481bb346395c50d4019ab4f68a5f00cf20ceb6960ee8a09076cc7c42e5e",
+    "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/references/03-program-design.md": "0ed80ccf0d5fc10e9033d851d3a03c156943a96a174b05c640c8fc412a52c39c",
+    "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/references/04-progression-adjustment.md": "af543f83b6dee624f4ccc736718e40b01aed3476301b2e876b937bc8e36ae474",
+    "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/references/05-nutrition.md": "35f80b36ccfaae1996aeb8c4f642e0dd4fc6735af5df96d44c834f2a06a181fc",
+    "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/references/06-body-assessment.md": "da42bfc64c95f9a7a9a3b237dd86b6cfe2021db5a35bf9a1f249f73f5d8d9bdd",
+    "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/references/07-cardio.md": "80c1e69e492f0da43ababd541617abe707be50f6c620ed5e2d7f01b03e0d9fff",
+    "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/references/08-deliverables.md": "946af3db3bcdf8e593e42220cc8f3b416db36e4d37c754f1fc731e961dc55a03",
+    "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/references/09-scientific-evidence.md": "9cd7e3c5507d695364e94802d33cc712c44c4618e9f7fdc72a2aba7ea7fb2574",
+    "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/references/10-high-performance-athletes.md": "5eb352e955919443c5fca9e961b7ca59668b3e8f64630b20091e5acb32994c2c",
+    "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/references/11-enhanced-and-harm-reduction.md": "6ef265addd71dc6d5353c7cf505a0322424fa2cc43517861130bc48e06d46187",
+    "skills/vendor/danilogj/fitcoach-pro/claude/fitcoach-pro/references/INDEX.md": "6c4a38288cff969df961cad852d4f407e00997858967ebb317d57301d5a6603b",
+    "skills/vendor/disco-trooper/skills/LICENSE": "8f4ca1e13249197097b1d7692a73cdeea701d9a76ff7d942b088766aceee3f01",
+    "skills/vendor/disco-trooper/skills/cycling-training/SKILL.md": "d7660abb89642036985255bbbf1fe1bfdfa6f582c56d42f9ec337fd8f86cbedc",
+    "skills/vendor/disco-trooper/skills/hypertrophy-training/SKILL.md": "ccc707f23c81d4efbf5763d828f58f0166f16307bd28826d46eafc1691b293ac",
+    "skills/vendor/disco-trooper/skills/hypertrophy-training/references/age-specific-training.md": "f0008c5bc582436571f2a115dfb8e449ecb0894cd8ffa4736e719dd931caee98",
+    "skills/vendor/disco-trooper/skills/hypertrophy-training/references/cardio-interference.md": "d2be5dd5e4ab06574dcad0f6ff9b2f063072850b9aa3fb557ea4e7b08a5a6a00",
+    "skills/vendor/disco-trooper/skills/hypertrophy-training/references/exercises.md": "b7d06ebf54bf31edb27b2b92b7fb6d706ac1ca7aa1852d2ee9a2ec90cc77307c",
+    "skills/vendor/disco-trooper/skills/hypertrophy-training/references/female-training.md": "a36846185795893ba335992fe6aadb4e3eb47fedbcac32526ded5294e01e3eda",
+    "skills/vendor/disco-trooper/skills/hypertrophy-training/references/glossary.md": "cc14d78fad1571122dfb91ee9b988b5fca20216028bdd78a5eb8bc91d564fdea",
+    "skills/vendor/disco-trooper/skills/hypertrophy-training/references/injury-prevention.md": "665cb37d1dcf93ab2cd706cb8715a81aaf4f6fc7184b6bf9cb6a0f7db434162e",
+    "skills/vendor/disco-trooper/skills/hypertrophy-training/references/meal-plans.md": "e19d0aac328d6bb6a60be21c01e698c6adace99d2df4ff6583bb028be00c503f",
+    "skills/vendor/disco-trooper/skills/hypertrophy-training/references/mechanisms.md": "cf8ceca65aeec088fb643a25eb75a08d640760f560813002d9cf9185f6c0a1fc",
+    "skills/vendor/disco-trooper/skills/hypertrophy-training/references/muscle-imbalances.md": "37063cf0c40bf8b03850bb89681169a297e8aeb6ce69bd4132c9f35bf8dde3cb",
+    "skills/vendor/disco-trooper/skills/hypertrophy-training/references/nutrition.md": "ee56d2698ca78ad8f919693df6cfafc1f21737c04e47256233846a97cc111890",
+    "skills/vendor/disco-trooper/skills/hypertrophy-training/references/periodization.md": "69d4dbfeac0f3fb5a8c5046c23fa10c2f6cdbedb2a39eac4a78cf957bcab5b31",
+    "skills/vendor/disco-trooper/skills/hypertrophy-training/references/programs.md": "bd0544c90b8b0d2ab83566599fb52afac055081fd71dc02b646238ad671fbb0b",
+    "skills/vendor/disco-trooper/skills/hypertrophy-training/references/progress-tracking.md": "ac0e039daaede21bc869ff0b97a547570515d81a6169f6e93261e68eb565a0fc",
+    "skills/vendor/disco-trooper/skills/hypertrophy-training/references/psychology.md": "b535d141fced14ddb6be01288b6e08f81ff86c23bced7388ba8f96161a664798",
+    "skills/vendor/disco-trooper/skills/hypertrophy-training/references/recovery.md": "e62e367e43729999e4c01671c5275a7fabdf2309ea7bbdcf32b6468e83cfe3cc",
+    "skills/vendor/disco-trooper/skills/hypertrophy-training/references/sample-logs.md": "1879fd2880c3d4a111acf888e145aee810cfc91ce3ae87c519e91851cb45af63",
+    "skills/vendor/disco-trooper/skills/hypertrophy-training/references/supplements.md": "13562775fd99bcdddcb024b95545dae2dc2c628199422fba2a992e8e4e06ab7b",
+    "skills/vendor/disco-trooper/skills/hypertrophy-training/references/techniques.md": "383e94d8254b3e77b7255fd9fb9f5ab6b990f1c5822ede2ca003d64d242f8eb9",
+    "skills/vendor/disco-trooper/skills/hypertrophy-training/references/volume-landmarks.md": "1cda8f3d37457c1efe43c032ef49353f1ce132497d7fd94bc042eed1d8c32889",
+    "skills/vendor/disco-trooper/skills/intervals-icu/SKILL.md": "b359d4b4b42db2c4d59458ad90dc5f6c565c150932ba70c068315e569fcdcb2e",
+    "skills/vendor/disco-trooper/skills/process-automation-audit/SKILL.md": "94cb93401c321fc250925907068fe154f09e627ab8e9f1d16893f4e2041bda83",
+    "skills/vendor/edamam-llc/edamam-skills/LICENSE": "660df4acb51215dfa11422612d99d33465a682c4ae1961ad6fc465fd672070c7",
+    "skills/vendor/edamam-llc/edamam-skills/skills/edamam-barcode-lookup/SKILL.md": "de4a2ea27ac6746042cf052e432fe4e7d60fcd3f0a6c7cd901a9002ec23902da",
+    "skills/vendor/flaviusapop/personal-trainer-hypertrophy-programme-designer/LICENSE": "b69a8be80a10da41537993b7398bec792d59ae83bd407229bfbefc5e8c01530a",
+    "skills/vendor/flaviusapop/personal-trainer-hypertrophy-programme-designer/SKILL.md": "1deb56ba9c29313cc0ef39e32e9401936c713c2731602e260dd72f8adf291331",
+    "skills/vendor/marklavine-mlv/weekly-meal-planner/LICENSE": "cbc95f95efd254f470b21e22f1899469b5d244031171381d81f077358e30f5b4",
+    "skills/vendor/marklavine-mlv/weekly-meal-planner/SKILL.md": "c82626ceeaf165fa9c13c8329a5306b4f2710f2d74e169748147b00febd025c1",
     "skills/vendor/mattpocock/skills/LICENSE": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
     "skills/vendor/mattpocock/skills/skills/productivity/grill-me/SKILL.md": "caaf8b8de1684f96e26b28f3c29189db5c89cce4b73e1c93d86164f66ef88637",
     "skills/vendor/mattpocock/skills/skills/productivity/grill-me/agents/openai.yaml": "c061e39c3e0f9d865fb1b97556d485704af2a8a58f4b8221a8917a5c2074a32b",
@@ -6281,6 +7108,10 @@
     "skills/vendor/mattpocock/skills/skills/productivity/grilling/agents/openai.yaml": "1411d7df7d99b7e621a1ff8283c8133cc2464be63d064e52d8ce169c6800ee9b",
     "skills/vendor/mattpocock/skills/skills/productivity/handoff/SKILL.md": "4cbb043950dad2ffd3662ff1a5a0b51ae676004b5cae10e3787e8ee7a4ee69d3",
     "skills/vendor/mattpocock/skills/skills/productivity/handoff/agents/openai.yaml": "5c479fd562c691851690e8b18c8501045bef0943c10743d636b2fae26add1d28",
+    "skills/vendor/mprecilio20/adaptive-endurance-coach/LICENSE": "55a87ce2c88894f94825923ba57d6d4a7e6b9e944293c51e8f4895ab7cb51fba",
+    "skills/vendor/mprecilio20/adaptive-endurance-coach/skills/adaptive-endurance-coach/SKILL.md": "c9935c8c8b598f5a1752f5fb8b4a50d726254093001ffbe3ea6c1dce624b20db",
+    "skills/vendor/neilberget/fitness-skill/LICENSE": "7252e01597caabe07d1a481bbdcb194297f6e9bd1085d6a27f0c63cc78bd0d64",
+    "skills/vendor/neilberget/fitness-skill/fitness-coach/SKILL.md": "1c86e3b1ead4d39543e92811335566029201eb40d60c9982460e085e52705a58",
     "tyler_core/skills/tyler-listing-draft/SKILL.md": "ffd9ebed744be62616f7513e799832f4def4ca1ff5ceba3d276ce248f486660d",
     "tyler_core/skills/tyler-price-compare/SKILL.md": "af70b581339de19b5ddff016e3482a2d88329f688b36ff0ac25915552dc2c3c5",
     "tyler_core/skills/tyler-store-legitimacy-review/SKILL.md": "b01a25640d35771505d85d6a1c5e86f1f3dce6b95a9627704c4627e7545be1db",
