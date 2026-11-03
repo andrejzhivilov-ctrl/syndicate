@@ -13,6 +13,11 @@ platform_toolsets:
 agent:
   max_turns: 12
   disabled_toolsets: [terminal, file, web, browser, code_execution, delegation, cronjob, computer_use, image_gen, video_gen, tts, vision, x_search]
+# Our tools are few and known, so they go to the model directly. The tool_search bridge
+# made every turn search and describe a tool first: ~9 model calls instead of 2-3.
+tools:
+  tool_search:
+    enabled: "off"
 mcp_servers:
   syndicate:
     url: http://eva-agent:8000/hermes/trainer/mcp
