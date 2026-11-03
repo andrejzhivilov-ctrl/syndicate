@@ -242,3 +242,11 @@ def test_lessons_reach_the_model_masked():
     assert "коротко" in note and "test@example.com" not in note
     assert any(role == "system" and text == note for role, text in _context("fin", None, lessons=note))
     assert all(text != "" for _, text in _context("fin", None))
+
+
+def test_alice_knows_the_alarm_feed_is_hers_only_when_asked():
+    from src.agent_chat import ALERT_NOTE, _context
+
+    assert ("system", ALERT_NOTE) in _context("alice", None, text="Чому не попередила про тривогу?")
+    assert ("system", ALERT_NOTE) not in _context("alice", None, text="Як справи?")
+    assert ("system", ALERT_NOTE) not in _context("fin", None, text="Була тривога?")
