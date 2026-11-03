@@ -7,9 +7,9 @@
 # Verify in CI with: python tools/export_openapi.py --check
 # ============================================================
 #
-# contract_sha256: 3e56f9bf2c1303245d61fecbfc252908706e3a68b69027449206f0da95471e63
+# contract_sha256: cb694bfb3356daa592e2fb9c199e022fc12ae2db3f26e5e66139874abc14db99
 # api_version:     4.1.0
-# paths:           36
+# paths:           37
 #
 ---
 components:
@@ -1551,6 +1551,39 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Error Webhook
+  /webhook/n8n/{agent}:
+    post:
+      description: Reminders, check-ins and learning items from n8n for one agent
+        (src/n8n_bridge.py).
+      operationId: n8n_agent_webhook_webhook_n8n__agent__post
+      parameters:
+      - in: path
+        name: agent
+        required: true
+        schema:
+          title: Agent
+          type: string
+      - in: header
+        name: Authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: N8N Agent Webhook
   /webhook/telegram/{agent_id}:
     post:
       description: One of the 18 director bots. Per-bot secret, owner-only, honest
