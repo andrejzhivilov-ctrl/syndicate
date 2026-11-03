@@ -4950,3 +4950,24 @@ def test_confirmed_facts_get_a_one_way_copy_in_obsidian(tmp_path, monkeypatch):
     monkeypatch.delenv("OBSIDIAN_VAULT_DIR")
     vault.remember("eva", "Улюблена пора: осінь", source="user", confirmed=True)
     assert vault.obsidian_copied is False and not copy.exists()
+
+
+def test_every_data_dir_key_used_without_a_default_is_registered():
+    """``ensure_dir("hermes")`` raised KeyError in production: the key was never added to DIRS."""
+    import re
+
+    from src.data_paths import DIRS
+
+    used = set()
+    for folder in ("src", "deploy", "tools"):
+        for path in (REPO_ROOT / folder).rglob("*.py"):
+            used |= set(re.findall(r'(?:ensure_dir|data_dir)\("([a-z_]+)"\)', path.read_text(encoding="utf-8")))
+    assert "hermes" in used and used <= set(DIRS), sorted(used - set(DIRS))
+
+
+def test_learning_budget_finds_its_file_under_the_data_dir(tmp_path, monkeypatch):
+    from src import hermes_gateway
+
+    monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
+    budget = hermes_gateway.LearningBudget(limit=1.0)
+    assert budget.allowed() and (tmp_path / "hermes").is_dir()
