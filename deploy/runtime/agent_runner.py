@@ -56,6 +56,7 @@ from src.directors_registry import roster as directors_roster  # noqa: E402
 from src.lockdown import Lockdown  # noqa: E402
 from src.alert_watch import AlertWatch  # noqa: E402
 from src import hermes_gateway  # noqa: E402
+from src import n8n_bridge  # noqa: E402
 from src.telegram_gateway import (  # noqa: E402
     TelegramGateway,
     extract_message,
@@ -1393,6 +1394,23 @@ async def ukrainealarm_webhook(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid JSON") from None
     return {"ok": True}
+
+
+@app.post("/webhook/n8n/{agent}")
+async def n8n_agent_webhook(
+    agent: str,
+    request: Request,
+    authorization: Optional[str] = Header(default=None, alias="Authorization"),
+    state: AppState = Depends(require_ready),
+):
+    """Reminders, check-ins and learning items from n8n for one agent (src/n8n_bridge.py)."""
+    if not n8n_bridge.token_ok(agent, authorization, state.api_key):
+        raise HTTPException(status_code=401, detail="unauthorized")
+    try:
+        payload = json.loads(await request.body())
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid JSON") from None
+    return await n8n_bridge.handle(agent, payload, state.telegram_gateway)
 
 
 @app.post("/hermes/{agent}/llm/{purpose}/v1/chat/completions", include_in_schema=False)

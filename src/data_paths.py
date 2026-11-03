@@ -36,6 +36,8 @@ DIRS = {
     "obsidian_activity": "obsidian_activity",
     "alerts": "alerts",
     "hermes": "hermes",
+    "learning": "learning",
+    "n8n_events": "n8n_events",
 }
 
 
