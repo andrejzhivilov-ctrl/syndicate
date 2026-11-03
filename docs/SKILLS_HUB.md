@@ -1,6 +1,6 @@
 # Хаб скілів SYNDICATE
 
-Джерело правди: `config/skill_library.json` (405 скілів, кожен закріплений комітом і SHA-256).
+Джерело правди: `config/skill_library.json` (451 скіл, кожен закріплений комітом і SHA-256).
 Скіл лише довідка (`reference_only`): він не дає агенту жодних прав і нічого не запускає.
 Агент отримує скіл тільки через `reference_skills` у своєму профілі `config/agents/<агент>.profile.json`.
 
@@ -12,7 +12,7 @@
 
 ## Призначено агентам зараз
 
-- **Тренер:** `i-have-adhd` (прочитано повністю), `scientific-critical-thinking`.
+- **Тренер:** `evidence-based-fitness-coach`, `hypertrophy-training`, `rep-max`, `i-have-adhd` (усі чотири прочитано повністю, довідкові файли перевірено автоматично), `scientific-critical-thinking`.
 - Решта профілів без змін, перелік у `docs/PERMISSIONS_MATRIX.md`.
 
 ## Власні скіли холдингу (local)
@@ -256,6 +256,33 @@
 - `blender-motion-state-inspection`, `manim-video`, `motion-advanced`, `motion-foundations`, `motion-patterns`, `remotion-video-creation`, `tasteforge-video`, `video-editing`, `videodb`, `fal-ai-media` — відео й анімація
 - `ito-baskets`, `ito-compute`, `ito-inference`, `ito-training`, `ml-adoption-playbook`, `mle-workflow`, `recsys-pipeline-architect` — машинне навчання
 - `scientific-db-pubmed-database`, `scientific-db-uspto-database`, `scientific-pkg-gget`, `scientific-thinking-literature-review`, `scientific-thinking-scholar-evaluation` — наукові бази й огляд літератури
+
+## Тренування й харчування (46, імпорт 03.11.2026)
+
+- `evidence-based-fitness-coach` — програма й харчування з доказовою базою, межі «не лікар» (Lancetnik) — **Тренер**
+- `hypertrophy-training` — наука росту м'язів, 19 довідок з джерелами PubMed (disco-trooper) — **Тренер**
+- `rep-max` — 1ПМ і робочі ваги за таблицею ACSM (Jeffallan) — **Тренер**
+- `body-composition` — відсоток жиру за каліпером (Jeffallan)
+- `meal-planner` — макроси за типом статури, слабка наукова основа (Jeffallan)
+- `cycling-training` — велотренування, FTP, зони (disco-trooper)
+- `intervals-icu` — дані з Intervals.icu (disco-trooper)
+- `process-automation-audit` — аудит автоматизації процесів (disco-trooper)
+- `trainer` — особистий коуч з цитованою базою (Yuvasee)
+- `nutrition-coach` — щоденник їжі й макроси (NataMoroz)
+- `fitness-coach` — тренування під профіль і журнал (neilberget)
+- `hypertrophy-programme-designer` — програма на масу з історії тренувань (flaviusapop)
+- `fitness-diet-planner` — тиждень тренувань і меню (Kyo-zmol)
+- `adaptive-endurance-coach` — біг, плавання, вело, тріатлон (mprecilio20)
+- `weekly-meal-planner` — меню на тиждень і список покупок (marklavine)
+- `fitness-review-board` — рада експертів для перевірки плану (Rowan)
+- `fitcoach-pro` — методика персонального тренера (FitCoach Pro)
+- `edamam-barcode-lookup` — харчова цінність за штрихкодом, потрібен Edamam MCP
+- `lzheng-fitness-plan`, `lzheng-strength-cycle-planner`, `lzheng-strength-training-review`, `lzheng-training-system`, `lzheng-training-return`, `lzheng-training-expert-library` — силові плани, цикли, розбір тренувань, повернення після перерви (китайською)
+- `lzheng-nutrition-system` — харчування під тренування (китайською)
+- `lzheng-fitness-workbench-builder`, `lzheng-knowledge-library`, `lzheng-video-learning`, `lzheng-video-lessons`, `douyin-question-distiller` — робочий простір, бібліотека знань, навчання з відео (китайською)
+- `food-research`, `food-deep-research`, `food-review`, `food-paper`, `food-proposal`, `food-fetch`, `food-figure`, `food-ppt`, `food-pipeline` — наукова робота з харчування: пошук, огляд, статті (Pangenome)
+- `agri-research`, `agri-deep-research`, `agri-review`, `agri-paper`, `agri-ppt`, `agri-pipeline` — те саме для агронауки (Pangenome)
+- `journal-selector` — вибір журналу для статті (Pangenome)
 
 ## Кандидати, які не є скілами (не встановлено)
 

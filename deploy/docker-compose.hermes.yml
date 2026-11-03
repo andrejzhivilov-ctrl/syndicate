@@ -32,6 +32,9 @@ services:
       # The Trainer's hub skills (config/agents/trainer.profile.json reference_skills), read-only.
       - ../skills/vendor/ayghri/i-have-adhd/skills/i-have-adhd:/opt/syndicate-skills/i-have-adhd:ro
       - ../skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking:/opt/syndicate-skills/scientific-critical-thinking:ro
+      - ../skills/vendor/Lancetnik/evidence-based-fitness-coach/skills/evidence-based-fitness-coach:/opt/syndicate-skills/evidence-based-fitness-coach:ro
+      - ../skills/vendor/disco-trooper/skills/hypertrophy-training:/opt/syndicate-skills/hypertrophy-training:ro
+      - ../skills/vendor/Jeffallan/Fitness-Tools/skills/rep-max:/opt/syndicate-skills/rep-max:ro
     networks:
       - hermes_net
     mem_limit: 1g
