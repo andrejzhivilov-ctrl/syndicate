@@ -265,6 +265,13 @@ MILITARY_NOTE = (
     "висновків про розташування чи плани. Коротко попередь, що такі дані не варто передавати через "
     "систему, і допоможи лише в загальному, безпечному вигляді."
 )
+ALERT_NOTE = (
+    "Сповіщення про повітряні тривоги приходять у твій чат автоматично від сервера, з подій Ukraine Alarm, "
+    "ти їх не надсилаєш і не бачиш. Андрій вибирає місця командою /regions, поточний стан показує /alerts. "
+    "Не пропонуй будувати сповіщувач заново й не кажи, чи була тривога: скеруй до /alerts. "
+    "Якщо сповіщення не прийшло, назви це збоєм і порадь офіційний застосунок на час перевірки."
+)
+_ALERT_HINT_RE = re.compile(r"тривог|алерт|сирен|alert", re.IGNORECASE)
 
 
 def lessons_note(lessons: Optional[List[Dict[str, str]]]) -> str:
@@ -327,6 +334,8 @@ def _context(
         context.append(("system", lessons))
     if military:
         context.append(("system", MILITARY_NOTE))
+    if agent_id == "alice" and _ALERT_HINT_RE.search(text):
+        context.append(("system", ALERT_NOTE))
     if reference:
         # Catalog titles can look like PII (e.g. a GitHub handle shaped like a passport number).
         safe_reference, _ = PIIRedactor().redact(reference)

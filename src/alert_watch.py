@@ -36,6 +36,8 @@ REPLAY_WINDOW_S = 300
 FLUSH_INTERVAL_S = 5
 #: Notifications joined into one Telegram message, so a mass attack stays readable.
 BATCH = 15
+#: Some part of Ukraine changes state every few hours, so this much quiet means the feed is down.
+SILENCE_S = 6 * 3600
 PUBLIC_KEY_PATH = Path(__file__).with_name("ukrainealarm_webhook_public.pem")
 #: The tree of /api/v3/regions, region id -> [name, parent id].
 _TABLE: Dict[str, List[Any]] = json.loads(
@@ -246,6 +248,14 @@ def regions_reply(arg: str, path: Optional[Path] = None) -> Dict[str, Any]:
     return {"status": "completed", "response": _choice_text(chosen or None)}
 
 
+def _heard_at(snapshot: Mapping[str, Any]) -> float:
+    """When the stored state last changed; a new watch starts counting from now."""
+    try:
+        return datetime.fromisoformat(str(snapshot.get("last_event_at"))).timestamp()
+    except ValueError:
+        return time.time()
+
+
 class AlertWatch:
     def __init__(self, gateway: Any, *, path: Optional[Path] = None) -> None:
         self._gateway = gateway
@@ -255,6 +265,8 @@ class AlertWatch:
         saved = read_snapshot(path) or {}
         self._regions: Dict[str, str] = dict(saved.get("regions") or {})
         self._trackers: Dict[str, AlertTracker] = {}  # only what is notified, so silence spends no phrases
+        self._heard = _heard_at(saved)
+        self._silent = False
 
     def accept(self, raw_body: bytes, signature: Optional[str], timestamp: Optional[str],
                algorithm: Optional[str], *, public_key_pem: Optional[bytes] = None) -> bool:
@@ -265,7 +277,18 @@ class AlertWatch:
         if digest in self._seen:
             return False
         self._seen.append(digest)
+        self._heard = time.time()
+        if self._silent:
+            self._silent = False
+            self._pending.append("✅ Події тривог знову надходять.")
         return True
+
+    def check_silence(self, now: Optional[float] = None) -> None:
+        """Say once that the feed went quiet: silence must never read as a calm sky."""
+        if not self._silent and (time.time() if now is None else now) - self._heard > SILENCE_S:
+            self._silent = True
+            self._pending.append(f"⚠️ Від Ukraine Alarm немає подій понад {SILENCE_S // 3600} год. "
+                                 "Сповіщення про тривоги зараз можуть не приходити, стеж за офіційним застосунком.")
 
     def handle(self, event: Any) -> None:
         """Replace one region's snapshot and queue a phrase for each notified place that changed level."""
@@ -315,6 +338,7 @@ class AlertWatch:
     async def loop(self) -> None:
         while True:
             try:
+                self.check_silence()
                 await self.flush()
             except Exception as exc:  # noqa: BLE001 - one bad round must not end the watch
                 logger.warning("alert_watch_flush_failed", error_type=type(exc).__name__)
