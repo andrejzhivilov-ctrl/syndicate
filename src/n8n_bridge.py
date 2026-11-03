@@ -30,7 +30,7 @@ AGENT_KINDS: Dict[str, frozenset] = {
     "trainer": frozenset({"reminder", "checkin", "learning", "morning_brief", "reflection"}),
 }
 #: Each agent's folder in Obsidian; the morning brief is a note Andrii edits there.
-OBSIDIAN_DIRS = {"trainer": "09_База_Знань/Тренер"}
+OBSIDIAN_DIRS = {"trainer": "Health_Coach"}
 PLAN_NOTE = "План_дня.md"
 MAX_TEXT = 1000
 #: Telegram allows 4096 characters; the brief stays under it.

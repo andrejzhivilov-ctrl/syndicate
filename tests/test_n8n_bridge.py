@@ -68,8 +68,10 @@ def test_learning_keeps_only_connected_sources_and_the_inbox_reads_them(tmp_path
     assert none["status"] == "unavailable" and none["reason"] == "no_source_connected"
 
 
-def test_no_learning_source_is_connected_until_andrii_adds_one():
-    assert bridge.connected_sources("trainer") == []
+def test_learning_sources_are_the_ones_andrii_listed():
+    hosts = bridge.connected_sources("trainer")
+    assert "pubmed.ncbi.nlm.nih.gov" in hosts and "examine.com" in hosts
+    assert all("/" not in host and host == host.lower() for host in hosts)
 
 
 def test_workflow_templates_are_inactive_lint_clean_and_call_the_trainer_door():
