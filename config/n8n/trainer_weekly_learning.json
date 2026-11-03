@@ -25,7 +25,7 @@
       "id": "c2e4d9b1-0002-4b7f-8b62-000000000002",
       "name": "Джерела (RSS)",
       "type": "n8n-nodes-base.rssFeedRead",
-      "typeVersion": 1,
+      "typeVersion": 1.2,
       "position": [440, 0],
       "retryOnFail": true,
       "maxTries": 3,

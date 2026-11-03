@@ -87,6 +87,13 @@ def test_workflow_templates_are_inactive_lint_clean_and_call_the_trainer_door():
                              and node["parameters"]["genericAuthType"] == "httpHeaderAuth" for node in calls)
 
 
+def test_rss_reader_reads_every_feed_in_the_list():
+    # rssFeedRead below 1.1 reads only the first input item, so three of four feeds were silently skipped.
+    workflow = json.loads((ROOT / "config" / "n8n" / "trainer_weekly_learning.json").read_text(encoding="utf-8"))
+    readers = [node for node in workflow["nodes"] if node["type"] == "n8n-nodes-base.rssFeedRead"]
+    assert readers and all(node["typeVersion"] >= 1.1 for node in readers)
+
+
 def test_the_n8n_route_checks_the_token_before_reading_the_body():
     source = (ROOT / "deploy" / "runtime" / "agent_runner.py").read_text(encoding="utf-8")
     route = source[source.index('@app.post("/webhook/n8n/{agent}")'):]
