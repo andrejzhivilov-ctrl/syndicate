@@ -34,6 +34,16 @@ memory:
 skills:
   write_approval: true
   creation_nudge_interval: 25
+  # Hub skills assigned in the Trainer's profile, mounted read-only by docker-compose.hermes.yml.
+  external_dirs: [/opt/syndicate-skills]
+  # Hermes' own bundled skills would be listed in every request; none is the Trainer's work.
+  disabled: [apple-notes, apple-reminders, architecture-diagram, arxiv, ascii-video, baoyu-infographic,
+    blocked-page-recovery, claude-code, claude-design, codebase-inspection, codex, competitor-news-monitor,
+    computer-use, document-to-action-items, dogfood, email-inbox-triage, findmy, github, google-workspace,
+    grounded-citations, hermes-agent, himalaya, humanizer, imessage, manim-video, maps, meeting-action-items,
+    microsoft-office, obsidian, p5js, pdf, popular-web-designs, product-price-monitor, requesting-code-review,
+    sdlc-review, simplify-code, songwriting-and-ai-music, spike, systematic-debugging, teams-meeting-pipeline,
+    test-driven-development, weekly-review-planning, xurl, youtube-content]
 curator:
   enabled: true
   consolidate: false

@@ -1,0 +1,152 @@
+"""Vendor SKILL.md files from pinned repositories into the skill hub as reference only.
+
+    python tools/import_skills.py <checkouts_dir> <report.json> owner/repo@commit:skills_root ...
+
+``<checkouts_dir>/<owner>_<repo>`` must be a clone at that exact commit. Nothing from it is
+executed: only SKILL.md and LICENSE are copied. Each SKILL.md is screened for prompt
+injection, hidden characters, remote execution and detection evasion; a flagged skill is
+left out and listed in the report. New entries are assigned to no agent: an agent gets a
+skill only through its profile, and the screen is not a human review.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+from typing import Dict, List, Tuple
+
+ROOT = Path(__file__).resolve().parents[1]
+CATALOG = ROOT / "config" / "skill_library.json"
+MAX_BYTES = 256_000
+REVIEW = ("Automated screen {date}: prompt injection, hidden characters, remote execution, "
+          "detection evasion. Not a human review and not a permission grant.")
+FLAGS = {
+    "prompt_injection": re.compile(
+        r"ignore (all |any )?(previous|prior|above) (instructions|prompts|rules)"
+        r"|disregard (all |any )?(previous|prior|the system)"
+        r"|you are now (in )?(developer|dan|jailbreak)", re.IGNORECASE),
+    "remote_execution": re.compile(
+        r"(curl|wget)[^\n|]{0,200}\|\s*(sudo\s+)?(ba|z)?sh\b|invoke-expression|\biex\s*\("
+        r"|base64\s+(-d|--decode)[^\n]{0,80}\|\s*(ba)?sh", re.IGNORECASE),
+    "detection_evasion": re.compile(
+        r"anti-?detect|undetect|fingerprint (spoof|evasion|randomi)|stealth (mode|browser|plugin)"
+        r"|captcha (solv|bypass)|bypass (bot|captcha|cloudflare|rate.?limit)|residential prox", re.IGNORECASE),
+    "credential_exfiltration": re.compile(
+        r"(send|post|upload|exfiltrat)\w*[^\n]{0,60}(api[_ -]?key|token|password|credential|\.env)"
+        r"[^\n]{0,60}(https?://)", re.IGNORECASE),
+}
+HIDDEN = re.compile("[​-‏‪-‮⁦-⁩﻿\U000e0000-\U000e007f]")
+_FIELD = re.compile(r"^(name|description):\s*(.*)$")
+
+
+def front_matter(text: str) -> Dict[str, str]:
+    """name and description from the leading YAML block, quotes stripped."""
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return {}
+    found: Dict[str, str] = {}
+    for line in lines[1:]:
+        if line.strip() == "---":
+            break
+        match = _FIELD.match(line)
+        if match:
+            found[match.group(1)] = match.group(2).strip().strip("'\"")
+    return found
+
+
+def screen(text: str) -> List[str]:
+    flags = [name for name, pattern in FLAGS.items() if pattern.search(text)]
+    return flags + (["hidden_characters"] if HIDDEN.search(text) else [])
+
+
+def _sha(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _head(checkout: Path) -> str:
+    return subprocess.run(["git", "-C", str(checkout), "rev-parse", "HEAD"], check=True,
+                          capture_output=True, text=True).stdout.strip()
+
+
+def _skill_id(name: str, owner_repo: str, taken: Dict[str, str]) -> str:
+    """The folder name, or the repository name in front when another source holds it."""
+    source = f"https://github.com/{owner_repo}"
+    if taken.get(name, source) == source:
+        return name
+    return f"{owner_repo.split('/')[1].lower()}-{name}"
+
+
+def _one_skill(folder: Path, spec: Tuple[str, str, str], catalog: dict,
+               taken: Dict[str, str], date: str) -> Dict[str, object]:
+    owner_repo, commit, root = spec
+    text_bytes = (folder / "SKILL.md").read_bytes()
+    text = text_bytes.decode("utf-8", errors="replace")
+    meta = front_matter(text)
+    skill_id = _skill_id(folder.name, owner_repo, taken)
+    row: Dict[str, object] = {"id": skill_id, "source": owner_repo, "description": meta.get("description", ""),
+                              "bytes": len(text_bytes),
+                              "extra_files": sorted(p.name for p in folder.iterdir() if p.name != "SKILL.md")}
+    flags = screen(text) + (["too_large"] if len(text_bytes) > MAX_BYTES else [])
+    if skill_id in taken:
+        return {**row, "status": "already_in_hub"}
+    if flags:
+        return {**row, "status": "excluded", "flags": flags}
+    relative = f"skills/vendor/{owner_repo}/{root}/{folder.name}/SKILL.md"
+    target = ROOT / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(text_bytes)
+    catalog["files"][relative] = _sha(target)
+    catalog["skills"].append({
+        "id": skill_id, "source": f"https://github.com/{owner_repo}", "commit": commit,
+        "source_path": f"{root}/{folder.name}", "license": "MIT", "mode": "reference_only",
+        "agents": [], "resources": {"SKILL.md": relative}, "summary": meta.get("description", "")[:300],
+        "review": REVIEW.format(date=date),
+    })
+    taken[skill_id] = f"https://github.com/{owner_repo}"
+    return {**row, "status": "added"}
+
+
+def import_repo(checkouts: Path, spec: Tuple[str, str, str], catalog: dict, taken: Dict[str, str],
+                date: str) -> List[Dict[str, object]]:
+    owner_repo, commit, root = spec
+    checkout = checkouts / owner_repo.replace("/", "_")
+    if _head(checkout) != commit:
+        raise SystemExit(f"{owner_repo}: checkout is not at {commit}")
+    licence = checkout / "LICENSE"
+    vendor = ROOT / "skills" / "vendor" / owner_repo
+    if licence.is_file():
+        vendor.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(licence, vendor / "LICENSE")
+        catalog["files"][f"skills/vendor/{owner_repo}/LICENSE"] = _sha(vendor / "LICENSE")
+    folders = sorted(p.parent for p in (checkout / root).glob("*/SKILL.md"))
+    return [_one_skill(folder, spec, catalog, taken, date) for folder in folders]
+
+
+def main(argv: List[str]) -> int:
+    if len(argv) < 4:
+        print(__doc__, file=sys.stderr)
+        return 2
+    checkouts, report_path, date = Path(argv[1]), Path(argv[2]), "2026-11-03"
+    catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
+    taken = {item["id"]: item["source"] for item in catalog["skills"]}
+    report: List[Dict[str, object]] = []
+    for raw in argv[3:]:
+        owner_repo, _, rest = raw.partition("@")
+        commit, _, root = rest.partition(":")
+        report += import_repo(checkouts, (owner_repo, commit, root or "skills"), catalog, taken, date)
+    catalog["files"] = dict(sorted(catalog["files"].items()))
+    CATALOG.write_text(json.dumps(catalog, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
+    counts: Dict[str, int] = {}
+    for row in report:
+        counts[str(row["status"])] = counts.get(str(row["status"]), 0) + 1
+    print(json.dumps(counts))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv))
