@@ -26,8 +26,21 @@ logger = structlog.get_logger(__name__)
 ROOT = Path(__file__).resolve().parents[1]
 SOURCES_PATH = ROOT / "config" / "n8n_learning_sources.json"
 #: Agents n8n may reach, and what each may receive.
-AGENT_KINDS: Dict[str, frozenset] = {"trainer": frozenset({"reminder", "checkin", "learning"})}
+AGENT_KINDS: Dict[str, frozenset] = {
+    "trainer": frozenset({"reminder", "checkin", "learning", "morning_brief", "reflection"}),
+}
+#: Each agent's folder in Obsidian; the morning brief is a note Andrii edits there.
+OBSIDIAN_DIRS = {"trainer": "09_База_Знань/Тренер"}
+PLAN_NOTE = "План_дня.md"
 MAX_TEXT = 1000
+#: Telegram allows 4096 characters; the brief stays under it.
+MAX_BRIEF = 3500
+REFLECTION_PROMPT = (
+    "Тижнева саморефлексія. Прочитай learning_inbox (нове з підключених джерел за тиждень) і свою пам'ять "
+    "про Андрія. Коротко: 1) що нового й достовірного, з джерелом; 2) що це змінює в його програмі, "
+    "харчуванні чи відновленні; 3) що запам'ятати і який скіл запропонувати Андрію на погодження. "
+    "Нічого не вигадуй: якщо нового немає або даних про прогрес бракує, так і скажи."
+)
 MAX_ITEMS = 50
 MAX_ITEM_TEXT = 4000
 INBOX_LIMIT = 10
@@ -113,19 +126,51 @@ def learning_inbox(agent: str) -> List[Dict[str, str]]:
     return items[:INBOX_LIMIT]
 
 
+def plan_note(agent: str) -> Optional[str]:
+    """The day plan Andrii keeps in Obsidian, or ``None``: a missing plan is never invented."""
+    from src.obsidian_notes import vault_dir_from_env
+
+    root = vault_dir_from_env()
+    if root is None or agent not in OBSIDIAN_DIRS:
+        return None
+    try:
+        text = (root / OBSIDIAN_DIRS[agent] / PLAN_NOTE).read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return text[:MAX_BRIEF] or None
+
+
+async def _deliver(agent: str, text: str, gateway: Any, missing: str) -> Dict[str, Any]:
+    owner = await gateway.owner_user_id() if text and gateway else None
+    sent = bool(owner) and await gateway.send(agent, owner, text)
+    return {"status": "ok" if sent else "unavailable", "sent": sent,
+            **({} if sent else {"reason": missing if not text else "telegram_unavailable"})}
+
+
+async def _reflection(agent: str, gateway: Any) -> Dict[str, Any]:
+    """The weekly self-review is one Hermes turn; without Hermes it is reported, not faked."""
+    from src import hermes_gateway
+
+    owner = await gateway.owner_user_id() if gateway else None
+    if agent not in hermes_gateway.enabled_agents() or not owner:
+        return {"status": "unavailable", "sent": False, "reason": "hermes_not_enabled" if owner else "no_owner"}
+    reply = await hermes_gateway.hermes_chat(agent, REFLECTION_PROMPT, owner)
+    return await _deliver(agent, str(reply.get("response") or ""), gateway, "reflection_failed")
+
+
 async def handle(agent: str, payload: Any, gateway: Any) -> Dict[str, Any]:
-    """One n8n call: reminder/check-in text to the owner, or learning items to the inbox."""
+    """One n8n call: text to the owner, the day plan, the weekly review, or learning items."""
     kind = payload.get("kind") if isinstance(payload, Mapping) else None
     if kind not in AGENT_KINDS.get(agent, frozenset()):
         return {"status": "error", "error": "unknown_kind", "available_kinds": sorted(AGENT_KINDS.get(agent, ()))}
     if kind == "learning":
         result = accept_learning(agent, payload.get("items"))
+    elif kind == "morning_brief":
+        result = await _deliver(agent, plan_note(agent) or "", gateway, "plan_note_missing")
+    elif kind == "reflection":
+        result = await _reflection(agent, gateway)
     else:
-        text = str(payload.get("text") or "").strip()[:MAX_TEXT]
-        owner = await gateway.owner_user_id() if text and gateway else None
-        sent = bool(owner) and await gateway.send(agent, owner, text)
-        result = {"status": "ok" if sent else "unavailable", "sent": sent,
-                  **({} if sent else {"reason": "empty_text" if not text else "telegram_unavailable"})}
+        result = await _deliver(agent, str(payload.get("text") or "").strip()[:MAX_TEXT], gateway, "empty_text")
     _log(agent, {"kind": kind, "status": result["status"],
                  "at": datetime.now(timezone.utc).isoformat(timespec="seconds")})
     return result

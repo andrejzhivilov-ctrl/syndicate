@@ -45,7 +45,7 @@ def test_reminder_goes_to_the_owner_through_the_agents_bot(tmp_path, monkeypatch
     assert empty["reason"] == "empty_text" and len(gateway.sent) == 1
 
     wrong = asyncio.run(bridge.handle("trainer", {"kind": "order_food"}, gateway))
-    assert wrong["error"] == "unknown_kind" and wrong["available_kinds"] == ["checkin", "learning", "reminder"]
+    assert wrong["error"] == "unknown_kind" and wrong["available_kinds"] == sorted(bridge.AGENT_KINDS["trainer"])
     events = (tmp_path / "n8n_events" / "trainer.jsonl").read_text(encoding="utf-8").splitlines()
     assert [json.loads(line)["status"] for line in events] == ["ok", "unavailable", "unavailable"]
 
@@ -90,3 +90,40 @@ def test_the_n8n_route_checks_the_token_before_reading_the_body():
     route = source[source.index('@app.post("/webhook/n8n/{agent}")'):]
     route = route[:route.index("\n\n\n")]
     assert route.index("n8n_bridge.token_ok") < route.index("await request.body()")
+
+
+def test_morning_brief_is_andriis_own_plan_note_and_never_invented(tmp_path, monkeypatch):
+    monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path / "data"))
+    vault = tmp_path / "vault"
+    monkeypatch.setenv("OBSIDIAN_VAULT_DIR", str(vault))
+    gateway = _Gateway()
+    missing = asyncio.run(bridge.handle("trainer", {"kind": "morning_brief"}, gateway))
+    assert missing["reason"] == "plan_note_missing" and gateway.sent == []
+
+    folder = vault / bridge.OBSIDIAN_DIRS["trainer"]
+    folder.mkdir(parents=True)
+    (folder / bridge.PLAN_NOTE).write_text("08:30 зал\nКреатин 5 г\n2 протеїнові коктейлі\n2400 ккал", encoding="utf-8")
+    sent = asyncio.run(bridge.handle("trainer", {"kind": "morning_brief"}, gateway))
+    assert sent["status"] == "ok" and "Креатин 5 г" in gateway.sent[0][2]
+
+
+def test_weekly_reflection_needs_hermes_and_says_so(tmp_path, monkeypatch):
+    monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("EVA_HERMES_AGENTS", raising=False)
+    off = asyncio.run(bridge.handle("trainer", {"kind": "reflection"}, _Gateway()))
+    assert off == {"status": "unavailable", "sent": False, "reason": "hermes_not_enabled"}
+
+    from src import hermes_gateway
+
+    monkeypatch.setenv("EVA_HERMES_AGENTS", "trainer")
+    asked = {}
+
+    async def hermes_chat(agent, text, owner):
+        asked.update(agent=agent, owner=owner, text=text)
+        return {"status": "completed", "response": "Нового з джерел немає."}
+
+    monkeypatch.setattr(hermes_gateway, "hermes_chat", hermes_chat)
+    gateway = _Gateway()
+    done = asyncio.run(bridge.handle("trainer", {"kind": "reflection"}, gateway))
+    assert done["status"] == "ok" and asked["owner"] == "1" and "learning_inbox" in asked["text"]
+    assert gateway.sent == [("trainer", "1", "Нового з джерел немає.")]
