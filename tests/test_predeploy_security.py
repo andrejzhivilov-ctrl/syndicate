@@ -398,12 +398,12 @@ def test_hitl_endpoints_decide_with_credential_identity_and_release_once(app):
     assert client.post(f"/hitl/release/{item}", headers=hdr).status_code == 409
 
 
-def test_directors_endpoint_lists_all_eighteen_without_invented_status(app):
+def test_directors_endpoint_lists_every_bot_without_invented_status(app):
     client, _state, _orch = app
     body = client.get("/directors", headers=_basic("device", MASTER)).json()
-    assert body["count"] == 18
+    assert body["count"] == 9  # seven agents + two bots without an agent (2026-11-04)
     ids = [d["id"] for d in body["directors"]]
-    assert len(set(ids)) == 18 and {"eva", "sonar", "kodex", "atlas", "kira"} <= set(ids)
+    assert len(set(ids)) == 9 and {"eva", "trainer", "kodex", "alice", "kira"} <= set(ids)
     eva = next(d for d in body["directors"] if d["id"] == "eva")
     fin = next(d for d in body["directors"] if d["id"] == "fin")
     assert eva["bot_configured"] is True and fin["bot_configured"] is False
@@ -420,7 +420,7 @@ def test_webhook_secrets_are_unique_per_bot_and_url_safe():
     from src.vault_paths import DIRECTOR_IDS
 
     secrets_ = {a: derive_webhook_secret(WEBHOOK_SECRET, a) for a in DIRECTOR_IDS}
-    assert len(set(secrets_.values())) == 18
+    assert len(set(secrets_.values())) == len(DIRECTOR_IDS)
     assert all(len(v) == 64 and all(c in "0123456789abcdef" for c in v) for v in secrets_.values())
     with pytest.raises(ValueError):
         derive_webhook_secret("", "eva")
