@@ -5,7 +5,6 @@ These JSON files are **deployment templates only**. They are not read by the app
 ## Prepared, bounded grants
 
 - `kodex.example.json`: skills list/read, review-only knowledge-pool search/read for KODEX, and local MCP-pool search/read for KODEX.
-- `architect.example.json`: skills list/read and local MCP-pool search/read for Architect.
 - `marshal.example.json`: skills list/read, review-only knowledge-pool search/read for Marshal, and local MCP-pool search/read for Marshal.
 
 The MCP server map is empty in every template. There is no `mcp.list` or `mcp.call`, server launch, package installation, external account access, or shared knowledge-pool access. MCP catalog descriptions remain untrusted. Knowledge and MCP pool handlers also require the matching per-agent allowlists shown in each file.

@@ -8,7 +8,7 @@ import pytest
 
 from src.llm_router import AGENT_PROFILES, BASE, HEAVY, TieredLLM, classify_complexity
 from src.model_registry import DEFAULTS, model_for
-from src.vault_paths import DIRECTOR_IDS
+from src.vault_paths import AGENT_ROSTER
 
 
 class FakeChat:
@@ -31,7 +31,7 @@ PROFILE = {"agent": {BASE: (("openrouter", "OR_CLAUDE_HAIKU"),),
 
 
 def test_every_director_has_a_profile_with_registered_models():
-    assert set(DIRECTOR_IDS) <= set(AGENT_PROFILES)
+    assert set(AGENT_ROSTER) <= set(AGENT_PROFILES)  # Alice and Kodex are bots without an agent
     for agent, tiers in AGENT_PROFILES.items():
         assert set(tiers) == {BASE, HEAVY}, agent
         for tier, candidates in tiers.items():
@@ -121,17 +121,6 @@ def test_a_client_that_cannot_be_built_fails_over_instead_of_crashing():
 
     llm = TieredLLM("agent", factory, profiles=PROFILE)
     assert asyncio.run(llm.ainvoke("x", complexity=HEAVY)).content == "direct"
-
-
-def test_architect_keeps_the_reasoning_model_as_its_last_resort():
-    from src.orchestrator import EvaOrchestrator
-
-    orch = EvaOrchestrator.__new__(EvaOrchestrator)
-    orch._llm, reasoning = FakeChat("primary"), FakeChat("reasoning")
-    orch._provider_keys = {}
-    assert orch._llm_for("architect", default=reasoning) is reasoning
-    orch._provider_keys = {"openrouter": "k"}
-    assert orch._llm_for("architect", default=reasoning)._fallback is reasoning
 
 
 def test_curator_reports_unavailable_when_the_model_did_not_answer():

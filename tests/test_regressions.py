@@ -4853,3 +4853,27 @@ def test_evas_routing_hint_names_only_the_seven_agents():
                             ("ставки на футбол", "sam"), ("бюджет на місяць", "fin"), ("привіт", "eva")):
         hint = asyncio.run(eva._delegate_intent({"query": query}))
         assert hint["target_agent"] == expected and hint["target_agent"] in AGENT_ROSTER, query
+
+
+def test_retired_task_types_answer_retired_and_never_reach_eva():
+    # 04.11.2026: Alice, the Architect and the Antigravity gateway were removed. Unknown
+    # task types fall to Eva, so their old names must answer "retired" explicitly instead.
+    from src.orchestrator import EvaOrchestrator
+
+    retired = sorted(t for t, target in EvaOrchestrator.TASK_ROUTING.items() if target == "retired")
+    assert {"review_code", "alice_engineer", "antigravity_contractor_dispatch", "gitops_sync"} <= set(retired)
+    orchestrator = object.__new__(EvaOrchestrator)
+    for task_type in retired:
+        state = asyncio.run(orchestrator._retired_handler({"task_type": task_type, "payload": {}}))
+        result = state["result"]
+        assert result["status"] == "unavailable" and result["retired"] is True and result["value"] is None
+        assert "Claude Code" in result["reason"]
+
+
+def test_n8n_templates_are_still_linted_after_the_architect_left():
+    from src.n8n_flowlint import lint_workflow
+
+    leaky = {"nodes": [{"name": "Call", "type": "n8n-nodes-base.httpRequest",
+                        "parameters": {"headerParameters": {"api_key": "sk-live-abcdefghijklmnopqrstuvwxyz123456"}}}],
+             "connections": {}}
+    assert not lint_workflow(leaky).passed

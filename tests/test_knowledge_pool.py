@@ -64,9 +64,9 @@ def test_integration_worker_image_includes_hash_verified_knowledge_pool_inputs()
 
 def test_review_pending_content_is_hidden_from_non_reviewers() -> None:
     pool = KnowledgePool()
-    assert pool.search("alice", "prompt engineering") == []
+    assert pool.search("kira", "prompt engineering") == []
     with pytest.raises(KnowledgePoolError, match="item_unavailable"):
-        pool.read("alice", "prompt-engineering-basics")
+        pool.read("kira", "prompt-engineering-basics")
     with pytest.raises(KnowledgePoolError, match="unknown_agent"):
         pool.search("not-a-registered-agent", "prompt engineering")
 
@@ -107,9 +107,9 @@ def test_approved_metadata_without_host_attestation_stays_hidden(tmp_path: Path)
     item["visibility"] = "shared"
     _persist_test_registry(root, catalog, registry)
 
-    pool_without_key = KnowledgePool(catalog_path, shared_agents=["alice"])
+    pool_without_key = KnowledgePool(catalog_path, shared_agents=["kira"])
     with pytest.raises(KnowledgePoolError, match="item_unavailable"):
-        pool_without_key.read("alice", item["id"])
+        pool_without_key.read("kira", item["id"])
 
 
 def test_marshal_hmac_is_bound_to_exact_item_hash_and_review(tmp_path: Path) -> None:
@@ -132,19 +132,19 @@ def test_marshal_hmac_is_bound_to_exact_item_hash_and_review(tmp_path: Path) -> 
     )
     _persist_test_registry(root, catalog, registry)
 
-    approved = KnowledgePool(catalog_path, approval_key=b"m" * 32, shared_agents=["alice"])
-    assert approved.search("alice", "curated skill")
-    assert approved.read("alice", item["id"])["content"].startswith("# Curated skill")
+    approved = KnowledgePool(catalog_path, approval_key=b"m" * 32, shared_agents=["kira"])
+    assert approved.search("kira", "curated skill")
+    assert approved.read("kira", item["id"])["content"].startswith("# Curated skill")
 
-    wrong_key = KnowledgePool(catalog_path, approval_key=b"x" * 32, shared_agents=["alice"])
+    wrong_key = KnowledgePool(catalog_path, approval_key=b"x" * 32, shared_agents=["kira"])
     with pytest.raises(KnowledgePoolError, match="item_unavailable"):
-        wrong_key.read("alice", item["id"])
+        wrong_key.read("kira", item["id"])
 
     item["sha256"] = "0" * 64
     _persist_test_registry(root, catalog, registry)
-    tampered = KnowledgePool(catalog_path, approval_key=b"m" * 32, shared_agents=["alice"])
+    tampered = KnowledgePool(catalog_path, approval_key=b"m" * 32, shared_agents=["kira"])
     with pytest.raises(KnowledgePoolError, match="item_unavailable"):
-        tampered.read("alice", item["id"])
+        tampered.read("kira", item["id"])
 
 
 def test_failed_scan_cannot_produce_marshal_attestation() -> None:
@@ -194,7 +194,7 @@ def _write_test_catalog(tmp_path: Path) -> Path:
     resource_dir = root / "knowledge_pools/skills"
     profile_dir.mkdir(parents=True)
     resource_dir.mkdir(parents=True)
-    for agent_id in ("alice", "kodex", "marshal"):
+    for agent_id in ("kira", "kodex", "marshal"):
         (profile_dir / f"{agent_id}.profile.json").write_text(
             json.dumps({"agent_id": agent_id, "activation": "prepared_not_enabled"}),
             encoding="utf-8",
@@ -208,7 +208,7 @@ def _write_test_catalog(tmp_path: Path) -> Path:
         "title": "Curated skill",
         "summary": "A curated skill for tests.",
         "tags": ["curated", "skill"],
-        "target_agents": ["alice"],
+        "target_agents": ["kira"],
         "source_ids": ["test-source"],
         "resource_path": "knowledge_pools/skills/curated-skill.md",
         "sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
