@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Tuple
 
-from src.vault_paths import DIRECTOR_IDS, ISOLATED_WORKERS
+from src.vault_paths import DIRECTOR_IDS
 
 #: id -> (display name, role, wing, bot handle)
 _ROSTER: Dict[str, Tuple[str, str, str, str]] = {
@@ -23,8 +23,9 @@ _ROSTER: Dict[str, Tuple[str, str, str, str]] = {
     "kodex": ("Кодекс", "Bot without an agent", "channel", "SyndicateKodexBot"),
 }
 
-#: Trainer also runs as an isolated container (deploy/docker-compose.directors.yml).
-_CONTAINERISED = set(ISOLATED_WORKERS) | {"trainer"}
+#: The old worker containers were removed on 04.11.2026; Alex runs on Hermes (its own
+#: container, deploy/docker-compose.hermes.yml), the rest inside eva-agent.
+_CONTAINERISED = {"trainer"}
 
 
 def roster() -> List[Dict[str, str]]:

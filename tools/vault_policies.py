@@ -95,19 +95,9 @@ def runtime_policy() -> Tuple[str, str]:
 def agent_policy(agent_id: str) -> Tuple[str, str]:
     """One agent's own policy (used when floors get their own containers)."""
     services = vault_paths.AGENT_SERVICES.get(agent_id, ())
-    if agent_id == "alice":
-        own_scope = (
-            f"{vault_paths.agent_secret_path(agent_id, 'auth')} and "
-            f"{vault_paths.agent_secret_path(agent_id, 'gemini')}"
-        )
-        own_scope_label = "Own secrets"
-    elif agent_id == "antigravity":
-        own_scope = "none (retired profile; no Vault data access)"
-        own_scope_label = "Secret paths"
-    else:
-        own_scope = f"{vault_paths.agent_secret_path(agent_id, '<name>')}"
-        own_scope_label = "Own subtree"
-    if agent_id in vault_paths.ISOLATED_WORKERS or agent_id in {"alice", "antigravity"}:
+    own_scope = f"{vault_paths.agent_secret_path(agent_id, '<name>')}"
+    own_scope_label = "Own subtree"
+    if agent_id in vault_paths.ISOLATED_WORKERS:
         infrastructure = "none"
     else:
         infrastructure = ", ".join(vault_paths.INFRA_SERVICES)
