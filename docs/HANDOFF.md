@@ -26,6 +26,23 @@
 
 ---
 
+## 2026-11-04 — Андрій і Claude Code: етап 5 виконано на сервері
+
+**Гілка:** `docs/stage5-done` (лише документи)
+
+**Що на сервері** (команди запускав Андрій за `docs/STAGE5_RUNBOOK.md`, перевірки — Claude Code, лише читання):
+- сервер на `e4f56d7`; `syndicate-syndicate-agent-1` працює з 18:58 CET, `healthy`; старого `syndicate-eva-agent-1` немає;
+- Андрій виконав `docker tag` + `up` раніше за зупинку (кроки не в тому порядку), але в логах за 3 години немає ні
+  `Traceback`, ні конфлікту Telegram `getUpdates`, тож двох копій ботів одночасно не було;
+- nginx перезапущено (`healthy`), `https://syndicateholding.com/health` → 200 через nginx;
+- `/health` відповідає і з nginx на `syndicate-agent:8000`, і з n8n на `eva-agent:8000` (псевдонім працює);
+- Hermes Алекса: `POST /hermes/trainer/mcp` → 200. Hermes не перезапускали: він ще на старому конфігу через псевдонім.
+
+**Не зроблено:** старий тег образу `syndicate-eva-agent:latest` лишився (крок 6 runbook, за бажанням). Hermes підхопить
+новий `config.yaml` при наступному перезапуску. Наступне — етап 4а (перенос файлів) або етап 6 (планувальник, потім n8n).
+
+---
+
 ## 2026-11-04 — Claude Code: перехід на 7 агентів, етап 5 (`eva-agent` → `syndicate-agent`)
 
 **Гілка:** `refactor/seven-agents-stage5`  **Ворота:** див. PR
