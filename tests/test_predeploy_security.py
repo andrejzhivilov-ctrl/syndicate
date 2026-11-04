@@ -477,7 +477,8 @@ def test_director_roster_matches_manifest_and_has_a_vault_policy_each():
 
     # Seven agents plus two bots without an agent (Andrii, 2026-11-04).
     assert len(AGENT_ROSTER) == 7 and set(BOT_ONLY_IDS) == {"alice", "kodex"}
-    assert set(DIRECTOR_IDS) <= set(AGENTS_IDS) and not set(AGENT_ROSTER) & set(BOT_ONLY_IDS)
+    # Alice keeps only her bot (no AppRole since stage 4); Kodex keeps both.
+    assert set(AGENT_ROSTER) | {"kodex"} <= set(AGENTS_IDS) and not set(AGENT_ROSTER) & set(BOT_ONLY_IDS)
     ids = [d["id"] for d in roster()]
     assert ids == list(DIRECTOR_IDS)
     handles = {d["bot_handle"] for d in roster()}

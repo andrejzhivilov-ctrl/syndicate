@@ -63,7 +63,8 @@ def test_every_director_has_a_policy_and_workers_stay_isolated():
     policies = vault_policies.build_policies()
     from src import vault_paths
 
-    for agent in vault_paths.DIRECTOR_IDS:
+    # Alice keeps only her bot since stage 4 (04.11.2026); she has no policy of her own.
+    for agent in vault_paths.AGENT_ROSTER + ("kodex",):
         if agent == "eva":
             assert "eva-agent" in policies
         else:

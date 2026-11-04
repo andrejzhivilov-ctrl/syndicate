@@ -280,11 +280,12 @@ def build_runtime_config(env: Optional[Dict[str, str]] = None) -> Dict[str, Any]
             "model_reasoning": get("PERPLEXITY_MODEL_REASONING") or "sonar-reasoning-pro",
         },
     }
+    # The old worker containers are gone (04.11.2026): these parts of the seven agents run
+    # inside eva-agent, and stay off until an operator turns one on.
     for agent_id in ("oscar", "tyler", "jack", "scout", "dex", "ray", "atlas", "sonar"):
         prefix = agent_id.upper()
         config[agent_id] = {
             "enabled": _to_bool(get(f"{prefix}_WORKER_ENABLED")),
-            "worker_url": get(f"{prefix}_WORKER_URL"),
             "allowed_actions": _split_csv(get(f"{prefix}_COORDINATOR_ACTIONS")) or ["capabilities"],
         }
     return config

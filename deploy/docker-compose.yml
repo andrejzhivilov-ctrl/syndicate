@@ -273,11 +273,6 @@ services:
       EMBEDDINGS_MODEL: ${EMBEDDINGS_MODEL:-bge-m3}
       EMBEDDINGS_DIM: "1024"
       EMBEDDINGS_TOKEN: ${EMBEDDINGS_TOKEN:-}
-      # Optional Alice worker bridge. The worker remains dormant unless both
-      # the host profile and a separately gated Alice deployment are enabled.
-      ALICE_WORKER_ENABLED: ${ALICE_WORKER_ENABLED:-false}
-      ALICE_WORKER_URL: ${ALICE_WORKER_URL:-http://alice-agent:8000}
-      ALICE_COORDINATOR_ACTIONS: ${ALICE_COORDINATOR_ACTIONS:-capabilities}
     read_only: true
     tmpfs:
       - /tmp:size=128m,uid=1001,gid=1001

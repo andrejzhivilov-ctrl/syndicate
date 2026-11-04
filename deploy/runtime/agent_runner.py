@@ -75,7 +75,6 @@ from src.voice_reply import (  # noqa: E402
     wants_voice,
     wav_to_ogg_opus,
 )
-from src.agent_platform.director_client import build_director_clients  # noqa: E402
 from src.pii import PIIRedactor  # noqa: E402
 from src.runtime_config import build_runtime_config  # noqa: E402
 from src.vault_client import VaultClient, is_placeholder_secret  # noqa: E402
@@ -334,7 +333,6 @@ async def lifespan(app: FastAPI):
             memory_manager=app_state.memory_manager,
             sentinel=app_state.sentinel,
             llm_config=llm_secrets,
-            director_clients=build_director_clients(runtime_config, app_state.vault_client),
             vault_client=app_state.vault_client,
             config=runtime_config,
             registry=app_state.registry,

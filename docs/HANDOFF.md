@@ -26,6 +26,42 @@
 
 ---
 
+## 2026-11-04 — Claude Code: перехід на 7 агентів, етап 4 (старі контейнери)
+
+**Гілка:** `refactor/seven-agents-stage4`  **Ворота:** див. PR
+
+### Перевірено на сервері (лише читання)
+- 9 контейнерів `deploy-*-agent-1`: дії лише `capabilities`, постачальників немає. `eva-agent` їх не викликає
+  (немає `*_WORKER_URL`). Hermes Алекса ходить до `eva-agent`.
+- Томи `deploy_*_data` порожні. Контейнера Аліси немає.
+- **Виправлення моїх слів на етапі 2:** старі контейнери не монтують `src`, код у них вбудований в образ.
+  Перенос файлів їх не зламав би. Етап 4а (перенос файлів) тепер можна робити будь-коли.
+
+### Зроблено в коді
+- Видалено: `deploy/docker-compose.directors.yml`, `deploy/docker-compose.alice.yml`,
+  `deploy/docker/Dockerfile.director`, `deploy/runtime/director_runner.py`, `src/agent_platform/director_client.py`.
+- `docker-compose.yml` (обидві копії): прибрано `ALICE_WORKER_*` з `eva-agent`.
+- `agent_runner` більше не будує клієнти воркерів; `runtime_config` без `worker_url`. Частини старих агентів
+  працюють усередині `eva-agent` і лишаються вимкненими (`<ID>_WORKER_ENABLED`), як і досі.
+- `vault_paths`: `AGENTS_IDS` = eva, marshal, fin, kira, sam, tyler, trainer, kodex; `ISOLATED_WORKERS` = tyler
+  (права Тайлера не розширились); `AGENT_SERVICES` без видалених. Гілки alice/antigravity прибрано з генератора.
+- 11 файлів політик видалено (`eva-{alice,antigravity,architect,atlas,dex,doc,jack,oscar,ray,scout,sonar}.hcl`),
+  решта без змін, зокрема `eva-agent.hcl`.
+- `docs/STAGE4_RUNBOOK.md`: покрокові команди для Андрія.
+
+### Видалені тести (разом із можливістю)
+- Тести запуску воркера й клієнта воркерів у `test_directors.py` (6 шт.), `test_every_director_overlay_secret_id_*`,
+  `test_retired_antigravity_profile_has_no_vault_data_grants`.
+- Новий: `test_old_worker_containers_are_gone_from_compose_and_vault`.
+
+### Не дороблено
+- Сервер: кроки з `docs/STAGE4_RUNBOOK.md` виконує Андрій.
+- `scripts/syndicate_vault.py distribute-keys` ще знає старих воркерів (копії ключів `agents/<id>/<provider>`).
+  Не заважає. Переглянути, коли вмикатимемо частини старих агентів у `eva-agent`.
+- `deploy/scripts/vault_init.sh` (захищений) у коментарі згадує видалені compose-файли.
+
+---
+
 ## 2026-11-04 — Claude Code: перехід на 7 агентів, етап 3 (Аліса й Архітектор)
 
 **Гілка:** `refactor/seven-agents-stage3`  **Ворота:** див. PR

@@ -43,31 +43,10 @@ CONNECTOR_SERVICES: Tuple[str, ...] = ("google_workspace", "mcp", "telegram", "y
 #: Secrets read by voice providers (``src/voice/*``).
 VOICE_SERVICES: Tuple[str, ...] = ("elevenlabs", "groq", "openai", "xai")
 
-#: IDs with generated policy artifacts (includes retired compatibility names).
-AGENTS_IDS: Tuple[str, ...] = (
-    "eva",
-    "marshal",
-    "architect",
-    "fin",
-    "doc",
-    "kira",
-    "sam",
-    "oscar",
-    "tyler",
-    "jack",
-    "alice",
-    "antigravity",
-    "trainer",
-    # Added for the 18-director holding: these had containers/roles referenced
-    # in deploy/docker-compose.directors.yml but no policy or AppRole, so the
-    # containers could not authenticate to Vault.
-    "sonar",
-    "kodex",
-    "scout",
-    "ray",
-    "dex",
-    "atlas",
-)
+#: IDs with generated per-agent policy artifacts: the seven agents (Eva runs as
+#: ``eva-agent``) plus Kodex, whose bot stays. The old worker containers and their
+#: AppRoles were removed on 04.11.2026 (docs/MIGRATION_7_AGENTS.md, stage 4).
+AGENTS_IDS: Tuple[str, ...] = ("eva", "marshal", "fin", "kira", "sam", "tyler", "trainer", "kodex")
 
 #: The seven agents (Andrii's decision of 2026-11-04, docs/MIGRATION_7_AGENTS.md).
 #: ``trainer`` is Alex, the health agent; the id changes with his new bot.
@@ -86,9 +65,7 @@ DIRECTOR_IDS: Tuple[str, ...] = AGENT_ROSTER + BOT_ONLY_IDS
 #: ``scripts/syndicate_vault.py distribute-keys`` (``agents/<id>/<provider>``),
 #: which ``director_providers.build_provider`` reads first. A compromised
 #: worker therefore exposes only the providers it uses, never the whole pool.
-ISOLATED_WORKERS: Tuple[str, ...] = (
-    "oscar", "tyler", "jack", "sonar", "scout", "dex", "ray", "atlas",
-)
+ISOLATED_WORKERS: Tuple[str, ...] = ("tyler",)  # stays without infrastructure secrets
 
 #: Which *extra* services each agent may read, on top of ``INFRA_SERVICES`` and
 #: its own ``agents/<id>/*`` subtree. Default deny: an agent without an entry
@@ -97,21 +74,10 @@ ISOLATED_WORKERS: Tuple[str, ...] = (
 AGENT_SERVICES: Dict[str, Tuple[str, ...]] = {
     "eva": CONNECTOR_SERVICES + VOICE_SERVICES,
     "marshal": ("mcp", "telegram"),
-    "architect": ("mcp",),
     "fin": ("google_workspace",),
-    "doc": (),
     "kira": (),
     "sam": (),
-    "alice": (),
-    "sonar": (),
     "kodex": ("google_workspace",),
-    "scout": (),
-    "ray": (),
-    "dex": (),
-    "atlas": (),
-    # Legacy profile retired: Antigravity is an SDK/runtime technology, not a
-    # separate agent. Keep its policy file generated but grant no secret paths.
-    "antigravity": (),
     "trainer": (),
 }
 
@@ -259,29 +225,6 @@ def operator_write_paths() -> List[str]:
 
 def agent_policy_paths(agent_id: str) -> List[str]:
     """Read paths for one agent's policy (future per-agent container)."""
-    if agent_id == "antigravity":
-        # Retained policy name only for compatibility with the old disabled
-        # profile. Antigravity is runtime technology, not a credentialed agent.
-        return []
-    if agent_id == "alice":
-        # Alice's initial API-only profile needs its worker auth key and Gemini
-        # key, but no shared database/Redis/LLM secrets and no future subtree
-        # wildcard. Add optional provider paths only with a separately reviewed
-        # implementation and grant.
-        grants: List[str] = []
-        for name in ("auth", "gemini"):
-            for data_path in (
-                agent_secret_path(agent_id, name),
-                legacy_agent_secret_path(agent_id, name),
-            ):
-                grants.extend(
-                    [
-                        data_path,
-                        data_path.replace(f"{MOUNT}/data/", f"{MOUNT}/metadata/", 1),
-                    ]
-                )
-        return grants
-
     # Domain tool workers need only their own auth/provider subtree.
     infra = () if agent_id in ISOLATED_WORKERS else INFRA_SERVICES
     services = infra + AGENT_SERVICES.get(agent_id, ())
