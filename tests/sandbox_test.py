@@ -239,6 +239,7 @@ async def run_sandbox_suite():
         report = lint_workflow(_json.loads(template.read_text(encoding="utf-8")))
         assert report.passed, f"FlowLint failed on {template.name}: {report.to_dict()}"
     print(f"  ✅ FlowLint passed on {len(templates)} n8n templates.")
+    mock_llm = MockReasoningLLM()  # step 5 runs the orchestrator on it
 
     # -------------------------------------------------------------------------
     # STEP 5: Full LangGraph Orchestrator Execution across All Specialist Agents
