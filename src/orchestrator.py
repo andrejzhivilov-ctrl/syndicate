@@ -135,9 +135,9 @@ class EvaOrchestrator:
         "verify_sources": "sonar",
         "compare_entities": "sonar",
         "crawl_markdown": "sonar",
-        "alice_engineer": "alice",
-        "alice_code_review": "alice",
-        "alice_status": "alice",
+        "alice_engineer": "retired",
+        "alice_code_review": "retired",
+        "alice_status": "retired",
         # ─── Floor 1: Server & n8n ──────────────────────────────────────────
         "sensory_split_audio": "sensory",
         "sensory_extract_doc": "sensory",
@@ -229,9 +229,9 @@ class EvaOrchestrator:
         "chat": "eva",
         "webhook_telegram": "eva",
         "webhook_telegram_eva": "eva",
-        "webhook_telegram_alice": "alice",
+        "webhook_telegram_alice": "retired",
         "webhook_telegram_sonar": "sonar",
-        "webhook_telegram_architect": "architect",
+        "webhook_telegram_architect": "retired",
         "webhook_telegram_kodex": "kodex",
         "webhook_telegram_marshal": "marshal",
         "webhook_telegram_fin": "fin",
@@ -273,18 +273,18 @@ class EvaOrchestrator:
         "security_status": "marshal",
         "incident_report": "marshal",
         "emergency_lockdown": "marshal",
-        # Architect (CTO)
-        "design_workflow": "architect",
-        "lint_workflow": "architect",
-        "golden_template": "architect",
-        "generate_adr": "architect",
-        "review_code": "architect",
-        "generate_ui_scaffold": "architect",
-        "gitops_sync": "architect",
-        "drift_detect": "architect",
-        "verify_code": "architect",
-        "self_healing_generate": "architect",
-        "morning_data_architect": "architect",
+        # Architect (CTO): retired 04.11.2026, engineering moved to Claude Code
+        "design_workflow": "retired",
+        "lint_workflow": "retired",
+        "golden_template": "retired",
+        "generate_adr": "retired",
+        "review_code": "retired",
+        "generate_ui_scaffold": "retired",
+        "gitops_sync": "retired",
+        "drift_detect": "retired",
+        "verify_code": "retired",
+        "self_healing_generate": "retired",
+        "morning_data_architect": "retired",
         # Floor 10 Security & Governance Services
         "security_check": "sentinel",
         "sentinel_command_safety": "sentinel",
@@ -310,10 +310,10 @@ class EvaOrchestrator:
         "kodex_obsidian_plan": "kodex",
         "kodex_obsidian_report": "kodex",
         "morning_data_kodex": "kodex",
-        # Antigravity (External 24/7 VM Super-Agent Contractor Gateway)
-        "antigravity_contractor_dispatch": "antigravity_gateway",
-        "antigravity_contractor_compact": "antigravity_gateway",
-        "antigravity_contractor_status": "antigravity_gateway",
+        # Antigravity contractor gateway: retired with Alice and the Architect (04.11.2026)
+        "antigravity_contractor_dispatch": "retired",
+        "antigravity_contractor_compact": "retired",
+        "antigravity_contractor_status": "retired",
     }
 
     def __init__(
@@ -544,7 +544,6 @@ class EvaOrchestrator:
         builder.add_node("oscar_agent", self._director_handler)
         builder.add_node("tyler_agent", self._director_handler)
         builder.add_node("jack_agent", self._director_handler)
-        builder.add_node("alice_agent", self._director_handler)
         builder.add_node("scout_agent", self._director_handler)
         builder.add_node("dex_agent", self._director_handler)
         builder.add_node("ray_agent", self._director_handler)
@@ -583,7 +582,7 @@ class EvaOrchestrator:
         builder.add_node("eva_office", self._eva_office_handler)
         builder.add_node("fin_agent", self._fin_agent_handler)
         builder.add_node("marshal_agent", self._marshal_agent_handler)
-        builder.add_node("architect_agent", self._architect_agent_handler)
+        builder.add_node("retired", self._retired_handler)
         builder.add_node("sentinel_check", self._sentinel_check_handler)
         builder.add_node("council", self._council_handler)
         builder.add_node("orc_verifier", self._orc_verifier_handler)
@@ -592,7 +591,6 @@ class EvaOrchestrator:
         builder.add_node("vault", self._vault_handler)
         builder.add_node("floor_registry", self._floor_registry_handler)
         builder.add_node("kodex_agent", self._kodex_agent_handler)
-        builder.add_node("antigravity_gateway", self._antigravity_gateway_handler)
 
         # Governance & output gates
         builder.add_node("confidence_gate", self._confidence_gate)
@@ -609,7 +607,6 @@ class EvaOrchestrator:
             "oscar": "oscar_agent",
             "tyler": "tyler_agent",
             "jack": "jack_agent",
-            "alice": "alice_agent",
             "scout": "scout_agent",
             "dex": "dex_agent",
             "ray": "ray_agent",
@@ -632,7 +629,7 @@ class EvaOrchestrator:
             "eva_office": "eva_office",
             "fin": "fin_agent",
             "marshal": "marshal_agent",
-            "architect": "architect_agent",
+            "retired": "retired",
             "sentinel": "sentinel_check",
             "council": "council",
             "orc_verifier": "orc_verifier",
@@ -641,7 +638,6 @@ class EvaOrchestrator:
             "vault": "vault",
             "floor_registry": "floor_registry",
             "kodex": "kodex_agent",
-            "antigravity_gateway": "antigravity_gateway",
         }
 
         builder.add_conditional_edges(
@@ -951,7 +947,6 @@ class EvaOrchestrator:
         from src.agents.oscar import OscarAgent
         from src.agents.tyler import TylerAgent
         from src.agents.jack import JackAgent
-        from src.agents.alice import AliceAgent
         from src.agents.scout import ScoutAgent
         from src.agents.dex import DexAgent
         from src.agents.ray import RayAgent
@@ -959,15 +954,10 @@ class EvaOrchestrator:
         from src.agents.sonar import SonarAgent
 
         agent_id = state["current_agent"]
-        classes = {"oscar": OscarAgent, "tyler": TylerAgent, "jack": JackAgent, "alice": AliceAgent, "scout": ScoutAgent, "dex": DexAgent, "ray": RayAgent, "atlas": AtlasAgent, "sonar": SonarAgent}
+        classes = {"oscar": OscarAgent, "tyler": TylerAgent, "jack": JackAgent, "scout": ScoutAgent, "dex": DexAgent, "ray": RayAgent, "atlas": AtlasAgent, "sonar": SonarAgent}
         config = self._config.get(agent_id, {})
         payload = dict(state.get("payload") or {})
-        default_actions = {
-            "alice_engineer": "engineer",
-            "alice_code_review": "review",
-            "alice_status": "capabilities",
-        }
-        payload.setdefault("action", default_actions.get(state.get("task_type", ""), "capabilities"))
+        payload.setdefault("action", "capabilities")
         if config.get("enabled") is not True:
             state["result"] = {"agent": agent_id, "status": "unavailable", "value": None,
                                "warning": "agent_prepared_not_enabled"}
@@ -976,7 +966,7 @@ class EvaOrchestrator:
         else:
             agent = self._director_clients.get(agent_id)
             if agent is None:
-                agent = AliceAgent() if agent_id == "alice" else classes[agent_id](memory=self._memory, config=config)
+                agent = classes[agent_id](memory=self._memory, config=config)
             state["result"] = await agent.execute(payload)
         state["status"] = "completed"
         return state
@@ -1228,35 +1218,16 @@ class EvaOrchestrator:
         state["status"] = "completed"
         return state
 
-    async def _architect_agent_handler(self, state: AgentState) -> AgentState:
-        from src.agents.architect import ArchitectAgent
-        agent = ArchitectAgent(
-            memory=self._memory,
-            llm=self._llm_for("architect", default=self._llm_reasoning),
-            config=self._config.get("architect", self._config),
-            registry=self._registry,
-            change_request_store=self._change_requests,
-        )
-        payload = dict(state["payload"])
-        action_map = {
-            "design_workflow": "design_workflow",
-            "lint_workflow": "lint_workflow",
-            "golden_template": "golden_template",
-            "generate_adr": "adr",
-            "review_code": "review_code",
-            "generate_ui_scaffold": "generate_ui_scaffold",
-            "gitops_sync": "gitops_sync",
-            "drift_detect": "drift_detect",
-            "verify_code": "verify_code",
-            "self_healing_generate": "self_healing_generate",
-            "morning_data_architect": "capabilities",
+    async def _retired_handler(self, state: AgentState) -> AgentState:
+        """Task types of agents removed on 04.11.2026 answer honestly, never fall to Eva."""
+        state["result"] = {
+            "status": "unavailable",
+            "value": None,
+            "retired": True,
+            "task_type": state.get("task_type"),
+            "reason": "retired_2026_11_04: Alice, the Architect and the Antigravity gateway were removed; "
+                      "engineering moved to Claude Code on GitHub",
         }
-        payload.setdefault("action", action_map.get(state["task_type"], "capabilities"))
-        result = await agent.execute(payload)
-        state["result"] = result
-        if result.get("requires_hitl"):
-            state["requires_hitl"] = True
-            state["hitl_reason"] = result.get("hitl_reason") or "Architect workflow proposal requires operator approval"
         state["status"] = "completed"
         return state
 
@@ -1476,29 +1447,6 @@ class EvaOrchestrator:
         state["status"] = "completed"
         return state
 
-    async def _antigravity_gateway_handler(self, state: AgentState) -> AgentState:
-        from src.integrations.antigravity_contractor_gateway import AntigravityContractorGateway
-
-        vault_root = Path(getattr(self._vault, "root", None) or getattr(self._vault, "_root", None) or "scratch")
-        gw = AntigravityContractorGateway(
-            channels_dir=vault_root / "antigravity_contractor",
-        )
-        task_type = state.get("task_type", "")
-        payload = dict(state.get("payload") or {})
-        if task_type == "antigravity_contractor_dispatch":
-            state["result"] = gw.agent_submits_task(
-                agent_id=str(payload.get("requester_agent", payload.get("agent_id", "architect"))),
-                task_title=str(payload.get("objective", payload.get("title", "Analyze architecture"))),
-                task_prompt=str(payload.get("context_summary", payload.get("prompt", "Execute R&D task"))),
-                attachments=list(payload.get("target_files") or []),
-            )
-        elif task_type == "antigravity_contractor_compact":
-            channel = gw.get_channel(str(payload.get("agent_id", "architect")))
-            state["result"] = channel.compact_thread()
-        else:
-            state["result"] = gw.get_status()
-        state["status"] = "completed"
-        return state
 
     async def _hitl_gate(self, state: AgentState) -> AgentState:
         """Park the task for a human instead of letting its actions through.
@@ -1728,7 +1676,6 @@ class EvaOrchestrator:
             "oscar": self._director_handler,
             "tyler": self._director_handler,
             "jack": self._director_handler,
-            "alice": self._director_handler,
             "scout": self._director_handler,
             "dex": self._director_handler,
             "ray": self._director_handler,
@@ -1751,7 +1698,7 @@ class EvaOrchestrator:
             "eva_office": self._eva_office_handler,
             "fin": self._fin_agent_handler,
             "marshal": self._marshal_agent_handler,
-            "architect": self._architect_agent_handler,
+            "retired": self._retired_handler,
             "sentinel": self._sentinel_check_handler,
             "council": self._council_handler,
             "orc_verifier": self._orc_verifier_handler,
@@ -1760,7 +1707,6 @@ class EvaOrchestrator:
             "vault": self._vault_handler,
             "floor_registry": self._floor_registry_handler,
             "kodex": self._kodex_agent_handler,
-            "antigravity_gateway": self._antigravity_gateway_handler,
         }
 
         handler = dispatch_table.get(target, self._eva_direct_handler)
@@ -1793,7 +1739,9 @@ class EvaOrchestrator:
         command = pool_command(payload or {})
         text = chat_text(payload or {})
         known = agent_id in PERSONAS or agent_id in BOT_ONLY_IDS
-        if not known or (command is None and (agent_id == "eva" or text is None)):
+        # Alice's bot has no agent behind it since 04.11: a photo or voice note gets
+        # the same honest reply as text instead of a retired route.
+        if not known or (command is None and (agent_id == "eva" or (text is None and agent_id != "alice"))):
             return None
         from src.agents.eva_access import extract_telegram_chat_id
 

@@ -2,7 +2,6 @@
 from importlib import import_module
 
 _EXPORTS = {
-    "ArchitectAgent": "src.agents.architect.agent",
     "DocAgent": "src.agents.doc",
     "EvaAgent": "src.agents.eva",
     "EvaCurator": "src.agents.eva_curator",
