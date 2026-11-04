@@ -4971,3 +4971,22 @@ def test_learning_budget_finds_its_file_under_the_data_dir(tmp_path, monkeypatch
     monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
     budget = hermes_gateway.LearningBudget(limit=1.0)
     assert budget.allowed() and (tmp_path / "hermes").is_dir()
+
+
+def test_curator_decision_is_not_held_for_review_because_of_its_own_id(tmp_path, monkeypatch):
+    # CI 04.11: a random decision_id "…ec872490…" matched the passport pattern, so about
+    # 1 in 85 ordinary decisions went to manual review instead of Eva's memory.
+    import uuid as uuid_mod
+
+    from src.agents import eva_curator
+    from src.vault_md import MarkdownVault
+
+    monkeypatch.setattr(eva_curator.uuid, "uuid4",
+                        lambda: uuid_mod.UUID("ec872490-1111-4111-8111-111111111111"))
+    curator = eva_curator.EvaCurator(memory=None, llm=None, vault=MarkdownVault(vault_root=tmp_path / "vault"))
+    record = asyncio.run(curator.execute({"action": "record_decision",
+                                          "decision": "Use Obsidian for the project archive."}))
+    assert record["memory_write"]["status"] == "created"
+    # The owner's own words are still checked: a passport number in them is held for review.
+    held = asyncio.run(curator.execute({"action": "record_decision", "decision": "Passport AB123456 renewed."}))
+    assert held["memory_write"]["status"] == "review_required"
