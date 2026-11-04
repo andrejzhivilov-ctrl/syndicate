@@ -1,7 +1,7 @@
 import asyncio
 from decimal import Decimal as D
 
-from src.agents import doc_shopping as S
+from src.agents.alex import doc_shopping as S
 
 
 def test_nutrition_owner_is_doc_and_eva_uses_same_criteria():
