@@ -83,7 +83,7 @@ def test_workflow_templates_are_inactive_lint_clean_and_call_the_trainer_door():
         assert report.passed, report.to_dict()
         assert workflow["active"] is False and workflow["settings"]["timezone"] == "Europe/Kyiv"
         calls = [node for node in workflow["nodes"] if node["type"] == "n8n-nodes-base.httpRequest"]
-        assert calls and all(node["parameters"]["url"] == "http://eva-agent:8000/webhook/n8n/trainer"
+        assert calls and all(node["parameters"]["url"] == "http://syndicate-agent:8000/webhook/n8n/trainer"
                              and node["parameters"]["genericAuthType"] == "httpHeaderAuth" for node in calls)
 
 
@@ -139,7 +139,7 @@ def test_weekly_reflection_needs_hermes_and_says_so(tmp_path, monkeypatch):
 
 
 def test_files_the_bridge_reads_at_runtime_are_inside_the_mounted_src():
-    """eva-agent mounts src/ but bakes config/ into the image: a list in config/ was invisible (2026-11-03)."""
+    """syndicate-agent mounts src/ but bakes config/ into the image: a list in config/ was invisible (2026-11-03)."""
     compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
     assert "./src:/app/src" in compose
     assert bridge.SOURCES_PATH.parent == ROOT / "src" and bridge.SOURCES_PATH.is_file()

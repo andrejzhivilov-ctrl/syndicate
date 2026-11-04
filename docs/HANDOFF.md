@@ -26,6 +26,30 @@
 
 ---
 
+## 2026-11-04 — Claude Code: перехід на 7 агентів, етап 5 (`eva-agent` → `syndicate-agent`)
+
+**Гілка:** `refactor/seven-agents-stage5`  **Ворота:** див. PR
+
+**Що зроблено (лише код, на сервері ще нічого):**
+- `docker-compose.yml` і `deploy/docker-compose.yml` (ідентичні): сервіс `syndicate-agent`; мережі як мапа з
+  псевдонімом `eva-agent` у `backend` і `hermes_net`; `nginx.depends_on` за новою назвою;
+- `config/nginx/nginx.conf`: upstream `syndicate_agent`, WebDAV на `syndicate-agent:8081`;
+- `deploy/hermes/trainer/config.yaml`, `config/n8n/trainer_*.json`, `src/n8n_templates.py` (`EVA_API_BASE`) → `http://syndicate-agent:8000`;
+- `tools/unlock_lockdown.py`: `docker compose exec syndicate-agent ...`; повідомлення `scripts/syndicate_vault.py`; коментарі;
+- тести, що читали `services["eva-agent"]` або адреси nginx/n8n, переведено на нову назву (перевірки ті самі);
+  новий `test_runtime_service_is_syndicate_agent_and_the_old_name_still_resolves`;
+- документи з командами (`DEPLOYMENT_RUNBOOK.md`, `HERMES_ROLLOUT.md`, `HOME_DEPLOYMENT.md` тощо); таблиця політик без Архітектора й Дока;
+- `docs/STAGE5_RUNBOOK.md`: зупинка → `git pull` → `docker tag` старого образу → `up syndicate-agent` → restart nginx → перевірки, відкат.
+
+**Свідомо не змінено** (рішення Андрія 04.11): роль і політика Vault `eva-agent` (`RUNTIME_POLICY_NAME`), роль Postgres
+`eva_agent`, том `eva_data`, змінні `EVA_*`, файл `eva-agent.approle.env`. Історичні записи HANDOFF і `docs/archive` не правились.
+
+**Ризики:** сценарії, вже імпортовані в n8n, містять `http://eva-agent:8000` у своїй БД — працюють лише через
+псевдонім. Прибрати псевдонім можна тільки разом з n8n (етап 6). nginx і Hermes монтують конфіг як окремий файл:
+після `git pull` потрібен перезапуск, щоб вони побачили новий файл (nginx — обов'язково, Hermes — ні, бо псевдонім).
+
+---
+
 ## 2026-11-04 — Андрій і Claude Code: етап 4 виконано на сервері
 
 **Гілка:** `docs/stage4-done` (лише документи)

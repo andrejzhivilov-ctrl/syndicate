@@ -1,6 +1,6 @@
 # SYNDICATE — Agent runtime image.
 #
-# Referenced by ``deploy/docker-compose.yml`` (service ``eva-agent``); before
+# Referenced by ``deploy/docker-compose.yml`` (service ``syndicate-agent``); before
 # this file existed the compose stack could not be built at all.
 #
 # The container runs as UID 1001 with a read-only root filesystem, so the image

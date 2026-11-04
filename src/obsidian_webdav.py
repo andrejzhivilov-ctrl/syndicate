@@ -5,7 +5,7 @@ memory, so the vault no longer passes through a bucket. The Remotely Save plugin
 Andrii's PC and phone talks WebDAV directly to ``OBSIDIAN_VAULT_DIR``, the same files
 Eva and KODEX read, so there is no copy to keep in step.
 
-``rclone serve webdav`` runs inside eva-agent, reachable only through nginx on
+``rclone serve webdav`` runs inside syndicate-agent, reachable only through nginx on
 ``sync.syndicateholding.com``. The login comes from Vault (``agents/eva/obsidian``) and
 reaches rclone through the environment only, never argv or a file.
 """

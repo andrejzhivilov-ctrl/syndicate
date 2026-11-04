@@ -45,7 +45,7 @@
 - [ ] Хост-каталог `${DATA_ROOT:-/data}/nginx-certs`; погоджено renewal і перевірено копіювання оновленого cert.
 - [ ] Self-signed використовується лише в закритому тесті, не як production TLS.
 - [ ] Запущено тільки postgres/redis/vault, перевірено health, потім мінімально погоджені сервіси.
-- [ ] Запуск eva-agent не вважається безпечним «статусом»: він створює наявний orchestrator/конектори.
+- [ ] Запуск syndicate-agent не вважається безпечним «статусом»: він створює наявний orchestrator/конектори.
 - [ ] `/health`: healthy, vault_connected, memory_ready; semantic_search_enabled перевірено згідно з обраним режимом.
 - [ ] Неавторизовані `/cockpit`, `/floors`, `/api/execute`, HITL відмовляють.
 - [ ] Device token з read не виконує задач і не підтверджує HITL.

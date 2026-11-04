@@ -43,8 +43,9 @@ CONNECTOR_SERVICES: Tuple[str, ...] = ("google_workspace", "mcp", "telegram", "y
 #: Secrets read by voice providers (``src/voice/*``).
 VOICE_SERVICES: Tuple[str, ...] = ("elevenlabs", "groq", "openai", "xai")
 
-#: IDs with generated per-agent policy artifacts: the seven agents (Eva runs as
-#: ``eva-agent``) plus Kodex, whose bot stays. The old worker containers and their
+#: IDs with generated per-agent policy artifacts: the seven agents (Eva runs in
+#: ``syndicate-agent`` with the Vault role ``eva-agent``) plus Kodex, whose bot stays.
+#: The old worker containers and their
 #: AppRoles were removed on 04.11.2026 (docs/MIGRATION_7_AGENTS.md, stage 4).
 AGENTS_IDS: Tuple[str, ...] = ("eva", "marshal", "fin", "kira", "sam", "tyler", "trainer", "kodex")
 

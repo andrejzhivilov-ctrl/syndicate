@@ -435,8 +435,8 @@ class TestProtectedReadSurface:
                     return config[i:j]
             raise AssertionError(header)
 
-        assert "proxy_pass http://eva_agent/cockpit;" in block("location = /cockpit {")
-        assert "proxy_pass http://eva_agent/floors;" in block("location = /floors {")
+        assert "proxy_pass http://syndicate_agent/cockpit;" in block("location = /cockpit {")
+        assert "proxy_pass http://syndicate_agent/floors;" in block("location = /floors {")
         assert "return 404;" in block("location /cockpit/ {")
         assert "alias /usr/share/nginx/static/;" not in config
         # Credentials must never reach the access log through the query string.
@@ -458,7 +458,7 @@ class TestProtectedReadSurface:
         # Remotely Save; nothing else is proxied there.
         start = config.index("server_name sync.syndicateholding.com;")
         block = config[start: config.index("\n    }\n", start)]
-        assert re.findall(r"proxy_pass\s+(\S+);", block) == ["http://eva-agent:8081"]
+        assert re.findall(r"proxy_pass\s+(\S+);", block) == ["http://syndicate-agent:8081"]
         assert "proxy_set_header Host $host;" in block
 
 

@@ -2,7 +2,7 @@
 model:
   provider: custom
   default: syndicate-chat
-  base_url: http://eva-agent:8000/hermes/trainer/llm/chat/v1
+  base_url: http://syndicate-agent:8000/hermes/trainer/llm/chat/v1
   api_key: ${SYNDICATE_TOKEN}
   context_length: 200000
 
@@ -20,7 +20,7 @@ tools:
     enabled: "off"
 mcp_servers:
   syndicate:
-    url: http://eva-agent:8000/hermes/trainer/mcp
+    url: http://syndicate-agent:8000/hermes/trainer/mcp
     headers:
       Authorization: Bearer ${SYNDICATE_TOKEN}
     timeout: 120
@@ -53,12 +53,12 @@ auxiliary:
   background_review:
     provider: custom
     model: syndicate-learning
-    base_url: http://eva-agent:8000/hermes/trainer/llm/learning/v1
+    base_url: http://syndicate-agent:8000/hermes/trainer/llm/learning/v1
     api_key: ${SYNDICATE_TOKEN}
   compression:
     provider: custom
     model: syndicate-learning
-    base_url: http://eva-agent:8000/hermes/trainer/llm/learning/v1
+    base_url: http://syndicate-agent:8000/hermes/trainer/llm/learning/v1
     api_key: ${SYNDICATE_TOKEN}
   title_generation:
     enabled: false

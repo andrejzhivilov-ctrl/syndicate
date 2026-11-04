@@ -292,7 +292,7 @@ def cmd_rotate_master(reveal: bool) -> None:
     new_key = secrets.token_urlsafe(48)
     auth["api_key"] = new_key
     put_secret("auth", auth)
-    print("[OK] master API key rotated. Restart eva-agent so it picks up the new key.")
+    print("[OK] master API key rotated. Restart syndicate-agent so it picks up the new key.")
     print("     Every device token stays valid; the old master key stops working.")
     if reveal:
         _print_master(new_key)
@@ -324,7 +324,7 @@ def cmd_obsidian_webdav(reveal: bool, rotate: bool = False) -> None:
     if rotate or not data.get("webdav_password"):
         data = {**data, "webdav_user": "andrii", "webdav_password": secrets.token_urlsafe(24)}
         put_secret("agents/eva/obsidian", data)
-        print("New login stored in Vault: restart eva-agent so the WebDAV server picks it up.")
+        print("New login stored in Vault: restart syndicate-agent so the WebDAV server picks it up.")
     print("\nRemotely Save → Remote service: WebDAV")
     print("  Server Address: https://sync.syndicateholding.com")
     print(f"  Username:       {data['webdav_user']}")

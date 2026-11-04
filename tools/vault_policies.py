@@ -70,9 +70,10 @@ def _policy_text(title: str, paths: List[Tuple[str, str]]) -> str:
     return "\n".join(lines).rstrip("\n") + "\n"
 
 
-#: The runtime container (server + orchestrator). Named ``eva-agent`` because
-#: that is the service ``docker-compose.yml`` and ``.env.example`` already
-#: refer to; Eva's orchestrator *is* the server process, so she has no separate
+#: The runtime container (server + orchestrator). The compose service was renamed to
+#: ``syndicate-agent`` on 04.11.2026 (stage 5), but the Vault policy and AppRole keep
+#: the name ``eva-agent``: renaming them needs a new SecretID and gains nothing.
+#: Eva's orchestrator *is* the server process, so she has no separate
 #: per-agent policy.
 RUNTIME_POLICY_NAME = "eva-agent"
 

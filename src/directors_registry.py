@@ -24,7 +24,7 @@ _ROSTER: Dict[str, Tuple[str, str, str, str]] = {
 }
 
 #: The old worker containers were removed on 04.11.2026; Alex runs on Hermes (its own
-#: container, deploy/docker-compose.hermes.yml), the rest inside eva-agent.
+#: container, deploy/docker-compose.hermes.yml), the rest inside syndicate-agent.
 _CONTAINERISED = {"trainer"}
 
 
