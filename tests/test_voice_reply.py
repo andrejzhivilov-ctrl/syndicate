@@ -80,9 +80,9 @@ def test_agents_speak_with_the_voices_the_operator_picked():
     assert voice_for("kira", voices) == "mariia-audiobook"
     assert voice_for("sam", voices) == "yevhen-audiobook"
     assert voice_for("trainer", voices) == "ihoreo-conversation"
-    assert voice_for("jack", voices) == "oleksandr-commercial"
+    # Jack's voice left with Jack (merged into Sam, 2026-11-04); agents without a pick get the default.
     assert voice_for("fin", voices) == "yevhen-commercial"
-    assert voice_for("oscar", voices) == "yevhen-commercial"
+    assert voice_for("tyler", voices) == "yevhen-commercial"
     # A retired voice still gets a real one, never silence or fake audio.
     assert voice_for("eva", [{"id": "dmytro-conversation"}]) == "dmytro-conversation"
 

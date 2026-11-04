@@ -32,6 +32,14 @@
 
 ## Етапи
 
+**Стан:**
+- Етап 1 зроблено в гілці `refactor/seven-agents`:
+  - `vault_paths.AGENT_ROSTER` (7 агентів) і `BOT_ONLY_IDS` (Аліса, Кодекс);
+  - нові персони;
+  - реєстр директорів;
+  - відповіді ботів без агента.
+- `AGENTS_IDS`, `ISOLATED_WORKERS` і політики Vault не змінено: це етап 4.
+
 | # | Що | Зачіпає сервер? |
 |---|---|---|
 | 1 | Реєстри й склад: `directors_registry.py`, `agent_chat.py`, `confidence.py`, `data_paths.py`, профілі `config/agents/`, документи. Нові профілі `alex`. | ні |
