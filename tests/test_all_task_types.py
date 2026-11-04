@@ -29,6 +29,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "deploy" / "runtime"))
 
+from src.vault_paths import AGENT_ROSTER  # noqa: E402
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Test doubles
@@ -429,6 +431,8 @@ def test_task_type_routes_cleanly(harness, task_type: str):
 
     assert isinstance(result, dict), f"{task_type}: orchestrator returned {type(result)}"
     assert result.get("status") == "completed", f"{task_type}: {result}"
+    # Seven agents since 04.11: every task names the one that owns it.
+    assert result.get("owner") in AGENT_ROSTER, f"{task_type}: owner {result.get('owner')!r}"
 
     # A non-serialisable value here used to surface as an HTTP 500.
     json.dumps(result, default=str)

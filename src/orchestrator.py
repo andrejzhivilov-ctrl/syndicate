@@ -1708,10 +1708,14 @@ class EvaOrchestrator:
         else:
             final_state = await self._fallback_execute(initial_state)
 
+        from src.agent_owners import owner_of
+
         return {
             "task_id": task_id,
             "status": final_state["status"],
             "result": final_state.get("result"),
+            # Which of the seven agents did this work (old agents report their new owner).
+            "owner": owner_of(final_state.get("current_agent")),
         }
 
     async def _fallback_execute(self, state: AgentState) -> AgentState:

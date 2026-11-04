@@ -7,7 +7,7 @@
 # Verify in CI with: python tools/export_openapi.py --check
 # ============================================================
 #
-# contract_sha256: cb694bfb3356daa592e2fb9c199e022fc12ae2db3f26e5e66139874abc14db99
+# contract_sha256: dbcecab4edd9dc9578930cfeceec7146b557fcaccb679f43f348d0d5a796b8ee
 # api_version:     4.1.0
 # paths:           37
 #
@@ -97,6 +97,11 @@ components:
           - type: string
           - type: 'null'
           title: Message
+        owner:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Owner
         result:
           anyOf:
           - {}

@@ -548,6 +548,8 @@ class ExecuteResponse(BaseModel):
     # non-JSON-serialisable payloads at the edge instead of failing the request.
     result: Optional[Any] = None
     message: Optional[str] = None
+    #: Which of the seven agents owns this work (src/agent_owners.py).
+    owner: Optional[str] = None
 
 
 class HealthResponse(BaseModel):
@@ -1074,6 +1076,7 @@ async def execute_task(
             task_id=result["task_id"],
             status=result["status"],
             result=_json_safe(result.get("result")),
+            owner=result.get("owner"),
         )
 
     except HTTPException:
