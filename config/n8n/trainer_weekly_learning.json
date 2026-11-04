@@ -54,7 +54,7 @@
       "credentials": {"httpHeaderAuth": {"name": "SYNDICATE Тренер"}},
       "parameters": {
         "method": "POST",
-        "url": "http://eva-agent:8000/webhook/n8n/trainer",
+        "url": "http://syndicate-agent:8000/webhook/n8n/trainer",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
@@ -90,7 +90,7 @@
       "credentials": {"httpHeaderAuth": {"name": "SYNDICATE Тренер"}},
       "parameters": {
         "method": "POST",
-        "url": "http://eva-agent:8000/webhook/n8n/trainer",
+        "url": "http://syndicate-agent:8000/webhook/n8n/trainer",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,

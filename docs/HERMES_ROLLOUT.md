@@ -12,14 +12,14 @@
 ## Схема
 
 ```text
-Telegram → eva-agent (LangGraph, команди без моделі, HITL, Vault)
+Telegram → syndicate-agent (LangGraph, команди без моделі, HITL, Vault)
               │ hermes_chat
               ▼
         <agent>-hermes (мережа hermes_net, internal: без інтернету й бази)
               │ модель: /hermes/<agent>/llm/{chat,learning}/v1
               │ інструменти: /hermes/<agent>/mcp
               ▼
-        src/hermes_gateway.py у eva-agent → OpenRouter, хаби, Obsidian, дії агента
+        src/hermes_gateway.py у syndicate-agent → OpenRouter, хаби, Obsidian, дії агента
 ```
 
 Чому так: у контейнері Hermes немає ключа провайдера й маршруту в інтернет. Ключ лишається у Vault, це і є хаб ключів. Маскування PII діє на все, що йде до провайдера, включно з результатами інструментів. Модель вибирає реєстр, а не контейнер. Токен контейнера виводиться з майстер-ключа окремо для кожного агента.

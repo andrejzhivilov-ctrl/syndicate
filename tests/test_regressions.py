@@ -1364,7 +1364,7 @@ class TestEmbeddingContract:
         compose = yaml.safe_load(
             (REPO_ROOT / "deploy" / "docker-compose.yml").read_text(encoding="utf-8")
         )
-        env = compose["services"]["eva-agent"]["environment"]
+        env = compose["services"]["syndicate-agent"]["environment"]
         assert "embeddings:8000" in env["EMBEDDINGS_URL"]
         assert env["EMBEDDINGS_DIM"] == str(EMBEDDING_DIM)
 
@@ -1372,7 +1372,7 @@ class TestEmbeddingContract:
         assert service.get("ports") in (None, []), "the embeddings service must stay internal"
         assert service["networks"] == ["backend"]
         assert service["volumes"], "model weights need a volume or every restart re-downloads them"
-        assert not compose["services"]["eva-agent"]["depends_on"].get("embeddings"), (
+        assert not compose["services"]["syndicate-agent"]["depends_on"].get("embeddings"), (
             "a cold model must never block the agent from starting"
         )
 
@@ -1558,7 +1558,7 @@ class TestRepositoryHygiene:
 
     def test_no_duplicate_top_level_yaml_keys(self):
         """A repeated key silently drops the first block — this is how the
-        source mounts vanished from the eva-agent service."""
+        source mounts vanished from the syndicate-agent service."""
         import yaml
 
         compose = yaml.safe_load((REPO_ROOT / "deploy" / "docker-compose.yml").read_text(encoding="utf-8"))
@@ -1571,7 +1571,7 @@ class TestRepositoryHygiene:
         import yaml
 
         compose = yaml.safe_load((REPO_ROOT / "deploy" / "docker-compose.yml").read_text(encoding="utf-8"))
-        svc = compose["services"]["eva-agent"]
+        svc = compose["services"]["syndicate-agent"]
         mounts = "\n".join(svc.get("volumes", []))
         assert "/app/src" in mounts
         assert "/app/runtime" in mounts
@@ -4002,7 +4002,7 @@ def test_obsidian_vault_is_served_over_webdav_not_through_a_bucket():
 
     main = yaml.safe_load((REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
     voice = yaml.safe_load((REPO_ROOT / "deploy" / "docker-compose.voice.yml").read_text(encoding="utf-8"))
-    eva = main["services"]["eva-agent"]
+    eva = main["services"]["syndicate-agent"]
     assert eva["user"] == "1001:1001"
     assert "/data/obsidian_vault:/data/obsidian" in eva["volumes"]
     assert eva["environment"]["OBSIDIAN_VAULT_DIR"] == "/data/obsidian"
@@ -4014,7 +4014,7 @@ def test_obsidian_vault_is_served_over_webdav_not_through_a_bucket():
     assert args[:4] == ["rclone", "serve", "webdav", "/v"] and REMOTE_BASE_DIR in args
     assert serve_env(creds, Path("/w"))["RCLONE_PASS"] == "SECRET"
     nginx = (REPO_ROOT / "config" / "nginx" / "nginx.conf").read_text(encoding="utf-8")
-    assert f"proxy_pass http://eva-agent:{WEBDAV_PORT};" in nginx
+    assert f"proxy_pass http://syndicate-agent:{WEBDAV_PORT};" in nginx
 
 
 def test_obsidian_webdav_without_a_login_stays_down_and_says_so(tmp_path):
@@ -4138,7 +4138,7 @@ def test_n8n_templates_do_not_read_env_and_keep_the_api_key_in_a_credential():
         text = _json.dumps(workflow)
         assert "$env" not in text, name
         assert "X-API-Key" not in text, name
-        assert "http://eva-agent:8000" in text, name
+        assert "http://syndicate-agent:8000" in text, name
         http_nodes = [n for n in workflow["nodes"] if n["type"] == "n8n-nodes-base.httpRequest"]
         assert http_nodes and all(n["credentials"]["httpHeaderAuth"]["name"] == EVA_CREDENTIAL_NAME for n in http_nodes)
         bind_credential(workflow, "cred-7")
@@ -4873,3 +4873,32 @@ def test_old_worker_containers_are_gone_from_compose_and_vault():
     assert not any(f"eva-{agent}" in vault_policies.build_policies() for agent in removed)
     for line in (root / "docker-compose.yml").read_text(encoding="utf-8").splitlines():
         assert "ALICE_WORKER" not in line and "alice-agent" not in line
+
+
+def test_runtime_service_is_syndicate_agent_and_the_old_name_still_resolves():
+    # Stage 5 (04.11.2026): the compose service is syndicate-agent. Workflows already
+    # imported into n8n still call http://eva-agent:8000, so the old name stays a network
+    # alias until n8n is removed (stage 6). The Vault role keeps its name on purpose.
+    from pathlib import Path
+
+    import yaml
+
+    from tools import vault_policies
+
+    root = Path(__file__).resolve().parents[1]
+    main = (root / "docker-compose.yml").read_text(encoding="utf-8")
+    assert main == (root / "deploy" / "docker-compose.yml").read_text(encoding="utf-8")
+    services = yaml.safe_load(main)["services"]
+    assert "eva-agent" not in services and "syndicate-agent" in services
+    networks = services["syndicate-agent"]["networks"]
+    assert set(networks) == {"db_net", "backend", "hermes_net"}
+    for net in ("backend", "hermes_net"):
+        assert "eva-agent" in networks[net]["aliases"], net
+    assert "syndicate-agent" in services["nginx"]["depends_on"]
+    nginx = (root / "config" / "nginx" / "nginx.conf").read_text(encoding="utf-8")
+    assert "server syndicate-agent:8000;" in nginx and "eva-agent" not in nginx and "eva_agent" not in nginx
+    for path in ("deploy/hermes/trainer/config.yaml", "config/n8n/trainer_reminders.json",
+                 "config/n8n/trainer_weekly_learning.json", "src/n8n_templates.py"):
+        text = (root / path).read_text(encoding="utf-8")
+        assert "eva-agent" not in text and "syndicate-agent:8000" in text, path
+    assert vault_policies.RUNTIME_POLICY_NAME == "eva-agent"

@@ -4,7 +4,7 @@ n8n holds no agent rights. It posts to ``/webhook/n8n/<agent>`` with a per-agent
 derived from the master key (``python -m src.n8n_token trainer``), so nothing new is stored
 in Vault. A reminder or check-in is fixed text sent by the agent's own bot to the owner;
 no model is called, so it costs no tokens. Learning items are accepted only from sources
-Andrii connected in ``src/n8n_learning_sources.json`` (src is mounted into eva-agent, the rest of config is baked into the image) and land in a per-week file the
+Andrii connected in ``src/n8n_learning_sources.json`` (src is mounted into syndicate-agent, the rest of config is baked into the image) and land in a per-week file the
 agent reads with its ``learning_inbox`` tool. Activating a workflow in n8n is Andrii's step.
 """
 from __future__ import annotations

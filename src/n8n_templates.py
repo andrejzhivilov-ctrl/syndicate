@@ -16,7 +16,7 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 ERROR_WORKFLOW_NAME = "syndicate_error_handler"
-EVA_API_BASE = "http://eva-agent:8000"  # in-network; n8n 2.x blocks $env inside nodes
+EVA_API_BASE = "http://syndicate-agent:8000"  # in-network; n8n 2.x blocks $env inside nodes
 EVA_CREDENTIAL_NAME = "Eva API"  # n8n HTTP Header Auth credential holding X-API-Key
 _HEADERS = {"parameters": [{"name": "Content-Type", "value": "application/json"}]}
 

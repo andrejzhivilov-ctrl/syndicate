@@ -4,7 +4,7 @@
 
 ## 1. Коротка відповідь
 
-**Так, можна** використати старий комп'ютер як тестовий/внутрішній стенд для стеку: `postgres`, `redis`, `vault`, `embeddings`, `eva-agent`, `n8n`, `whisper`, `nginx`. Доступ лише з домашньої мережі.
+**Так, можна** використати старий комп'ютер як тестовий/внутрішній стенд для стеку: `postgres`, `redis`, `vault`, `embeddings`, `syndicate-agent`, `n8n`, `whisper`, `nginx`. Доступ лише з домашньої мережі.
 
 **Ні, не для 24/7 і не як продакшн:**
 - Немає публічної адреси та домену: Let's Encrypt у runbook не працює, nginx піде з самопідписаним сертифікатом.
@@ -43,7 +43,7 @@
 ```bash
 cp .env.example .env            # заповнити секрети; DATA_ROOT, ASR_MODEL за потреби
 sudo mkdir -p "$DATA_ROOT"/{postgres,redis,vault,n8n,whisper,embeddings,eva,nginx-certs}
-docker compose up -d --build postgres redis vault embeddings eva-agent n8n nginx
+docker compose up -d --build postgres redis vault embeddings syndicate-agent n8n nginx
 docker compose ps               # очікувати healthy
 bash scripts/verify_deployment.sh
 ```
@@ -60,7 +60,7 @@ bash scripts/verify_deployment.sh
 
 Принцип: **нічого не копіюємо мовчки**. Кожен крок перевіряється окремо.
 
-1. **Заморозити записи:** `docker compose stop eva-agent n8n`. Більше не завантажувати файли в KODEX.
+1. **Заморозити записи:** `docker compose stop syndicate-agent n8n`. Більше не завантажувати файли в KODEX.
 2. **Postgres:** `docker compose exec postgres pg_dump -Fc -U <user> <db> > pg.dump`, зашифрувати, перенести. На сервері: `pg_restore`, потім `tests/live_pg.py` (або `bash tools/check.sh`, блок PostgreSQL).
 3. **Vault: не копіювати `vault_data`.** Ключі розпечатування нового Vault будуть іншими. Новий Vault ініціалізувати на сервері, а секрети внести заново з менеджера паролів за шляхами з `src/vault_paths.py`. Політики генеруються з коду (`tools/vault_policies.py --write`).
 4. **KODEX_DATA_DIR** (файли, blobs): копіювати з перевіркою SHA-256 і шифруванням у транзиті. Відновити права каталогу; він поза git.

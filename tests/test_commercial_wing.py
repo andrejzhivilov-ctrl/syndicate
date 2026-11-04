@@ -215,7 +215,7 @@ def test_atlas_route_planning_and_destination_evaluation():
 
 
 def test_commercial_parts_stay_off_and_command_hub_includes_them():
-    # The worker containers were removed on 04.11.2026: these parts run inside eva-agent, off by default.
+    # The worker containers were removed on 04.11.2026: these parts run inside syndicate-agent, off by default.
     cfg = build_runtime_config({})
     for agent_id in ("oscar", "tyler", "jack", "scout", "dex", "ray", "atlas", "sonar"):
         assert "worker_url" not in cfg[agent_id]

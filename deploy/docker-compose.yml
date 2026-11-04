@@ -24,7 +24,7 @@ networks:
     ipam:
       config:
         - subnet: 172.21.0.0/24
-  # Hermes containers reach eva-agent here and nothing else: no internet, no database.
+  # Hermes containers reach syndicate-agent here and nothing else: no internet, no database.
   hermes_net:
     name: syndicate_hermes_net
     driver: bridge
@@ -184,7 +184,7 @@ services:
 
   embeddings:
     # Self-hosted vector model (BGE-M3, 1024 dims) so memory text never leaves
-    # the server. Deliberately NOT in eva-agent's depends_on: vector search is an
+    # the server. Deliberately NOT in syndicate-agent's depends_on: vector search is an
     # enhancement, and a cold model must not block the agent from starting.
     build:
       context: .
@@ -224,7 +224,7 @@ services:
       # Generous: the first start downloads the weights.
       start_period: 300s
 
-  eva-agent:
+  syndicate-agent:
     build:
       context: .
       dockerfile: deploy/docker/Dockerfile.agent
@@ -233,9 +233,13 @@ services:
     restart: unless-stopped
     user: "1001:1001"
     networks:
-      - db_net
-      - backend
-      - hermes_net
+      db_net: {}
+      # The old name stays as an alias until stage 6: workflows already imported into n8n
+      # and any running Hermes config still call http://eva-agent:8000.
+      backend:
+        aliases: [eva-agent]
+      hermes_net:
+        aliases: [eva-agent]
     volumes:
       # NOTE: a service must declare ``volumes`` exactly once — a second key
       # silently replaces the first and drops these mounts.
@@ -429,5 +433,5 @@ services:
       - SETUID
       - SETGID
     depends_on:
-      - eva-agent
+      - syndicate-agent
       - n8n
