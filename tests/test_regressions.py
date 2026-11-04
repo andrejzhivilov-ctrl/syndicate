@@ -4877,3 +4877,23 @@ def test_n8n_templates_are_still_linted_after_the_architect_left():
                         "parameters": {"headerParameters": {"api_key": "sk-live-abcdefghijklmnopqrstuvwxyz123456"}}}],
              "connections": {}}
     assert not lint_workflow(leaky).passed
+
+
+def test_old_worker_containers_are_gone_from_compose_and_vault():
+    # Stage 4 (04.11.2026): the nine idle worker containers, Alice's compose file and
+    # the AppRole policies of removed agents are gone; Eva's own policy is untouched.
+    from pathlib import Path
+
+    from src import vault_paths
+    from tools import vault_policies
+
+    root = Path(__file__).resolve().parents[1]
+    for gone in ("deploy/docker-compose.directors.yml", "deploy/docker-compose.alice.yml",
+                 "deploy/docker/Dockerfile.director", "deploy/runtime/director_runner.py"):
+        assert not (root / gone).exists(), gone
+    assert set(vault_paths.AGENT_ROSTER) <= set(vault_paths.AGENTS_IDS)
+    removed = {"alice", "architect", "antigravity", "doc", "oscar", "jack", "sonar", "scout", "dex", "ray", "atlas"}
+    assert not removed & set(vault_paths.AGENTS_IDS)
+    assert not any(f"eva-{agent}" in vault_policies.build_policies() for agent in removed)
+    for line in (root / "docker-compose.yml").read_text(encoding="utf-8").splitlines():
+        assert "ALICE_WORKER" not in line and "alice-agent" not in line
