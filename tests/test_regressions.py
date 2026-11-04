@@ -3264,19 +3264,6 @@ class TestVaultPolicyGeneration:
                     continue
                 assert f"{mod.vault_paths.AGENTS}/{other}/" not in text
 
-    def test_retired_antigravity_profile_has_no_vault_data_grants(self):
-        """Antigravity is runtime technology, not an agent identity or secret reader."""
-        mod = self._policies()
-        policy = mod.build_policies()["eva-antigravity"]
-        assert mod.vault_paths.AGENT_SERVICES["antigravity"] == ()
-        assert mod.vault_paths.agent_policy_paths("antigravity") == []
-        policy_paths = {
-            line.split('"')[1]
-            for line in policy.splitlines()
-            if line.startswith('path "')
-        }
-        assert policy_paths == {"auth/token/renew-self", "auth/token/lookup-self"}
-
     def test_agent_policies_cannot_read_the_server_api_key(self):
         """`auth` holds the server's API key + webhook HMAC. A floor container
         has no business impersonating the agent API."""
@@ -3643,25 +3630,14 @@ class TestDirectorSafetyRegressions:
         assert result["stake"] <= result["bankroll"] * result["event_risk_cap"]
 
     def test_agent_vault_policies_cannot_read_shared_llm_keys(self):
-        from src.vault_paths import (
-            API_KEYS,
-            agent_policy_paths,
-            agent_secret_path,
-            legacy_agent_secret_path,
-            secret_path,
-        )
-        for agent_id in ("oscar", "tyler", "jack", "alice", "antigravity"):
+        from src.vault_paths import API_KEYS, ISOLATED_WORKERS, agent_policy_paths, secret_path
+
+        assert ISOLATED_WORKERS == ("tyler",)
+        # Only Tyler stays an isolated worker since the old containers left (04.11.2026).
+        for agent_id in ISOLATED_WORKERS:
             paths = agent_policy_paths(agent_id)
             assert secret_path(API_KEYS) not in paths
             assert all(f"/agents/{agent_id}/" in path for path in paths)
-        alice_paths = set(agent_policy_paths("alice"))
-        expected = set()
-        for path_builder in (agent_secret_path, legacy_agent_secret_path):
-            for secret_name in ("auth", "gemini"):
-                data_path = path_builder("alice", secret_name)
-                expected.add(data_path)
-                expected.add(data_path.replace("/data/", "/metadata/", 1))
-        assert alice_paths == expected
 
 
 def test_vault_policy_generator_does_not_double_quote_capability_tokens():
