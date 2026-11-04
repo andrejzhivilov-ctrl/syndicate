@@ -1782,18 +1782,22 @@ class EvaOrchestrator:
         Returns None when the message is not chat (commands, Eva) so the regular
         task routing handles it.
         """
-        from src.agent_chat import PERSONAS, chat_reply, chat_text, lessons_note, pool_command
+        from src.agent_chat import PERSONAS, bot_only_reply, chat_reply, chat_text, lessons_note, pool_command
+        from src.vault_paths import BOT_ONLY_IDS
 
         agent_id = source[len("telegram_"):] if source.startswith("telegram_") else None
         command = pool_command(payload or {})
         text = chat_text(payload or {})
-        if agent_id not in PERSONAS or (command is None and (agent_id == "eva" or text is None)):
+        known = agent_id in PERSONAS or agent_id in BOT_ONLY_IDS
+        if not known or (command is None and (agent_id == "eva" or text is None)):
             return None
         from src.agents.eva_access import extract_telegram_chat_id
 
         owner = await self._telegram_owner_id()
         if not owner or extract_telegram_chat_id(payload) != owner:
             result: Dict[str, Any] = {"agent": agent_id, "status": "denied", "error": "telegram_inbound_denied"}
+        elif agent_id in BOT_ONLY_IDS and command is None:
+            result = {"agent": agent_id, "status": "completed", "reply": bot_only_reply(agent_id, text)}
         elif command is not None and command[0] == "/files":
             from src.agent_storage import AgentStorage, files_reply
 

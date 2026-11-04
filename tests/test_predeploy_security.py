@@ -473,13 +473,15 @@ def test_register_webhooks_uses_per_bot_secrets_and_reports_missing_tokens():
 # ─────────────────────────────────────────────────────────────────────────────
 def test_director_roster_matches_manifest_and_has_a_vault_policy_each():
     from src.directors_registry import roster
-    from src.vault_paths import AGENTS_IDS, DIRECTOR_IDS
+    from src.vault_paths import AGENT_ROSTER, AGENTS_IDS, BOT_ONLY_IDS, DIRECTOR_IDS
 
-    assert len(DIRECTOR_IDS) == 18 and set(DIRECTOR_IDS) <= set(AGENTS_IDS)
+    # Seven agents plus two bots without an agent (Andrii, 2026-11-04).
+    assert len(AGENT_ROSTER) == 7 and set(BOT_ONLY_IDS) == {"alice", "kodex"}
+    assert set(DIRECTOR_IDS) <= set(AGENTS_IDS) and not set(AGENT_ROSTER) & set(BOT_ONLY_IDS)
     ids = [d["id"] for d in roster()]
     assert ids == list(DIRECTOR_IDS)
     handles = {d["bot_handle"] for d in roster()}
-    assert len(handles) == 18 and "@SyndicateEvaBot" in handles
+    assert len(handles) == len(DIRECTOR_IDS) and "@SyndicateEvaBot" in handles
 
 
 def test_vault_tool_validates_bot_tokens_and_never_takes_secrets_from_argv(monkeypatch):

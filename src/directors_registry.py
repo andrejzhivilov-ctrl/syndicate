@@ -1,9 +1,8 @@
-"""The 18 directors of the SYNDICATE holding — single source for roster data.
+"""The seven SYNDICATE agents and the bots kept without an agent — single source for roster data.
 
-Names, roles, wings and bot handles come from the architecture manifest
-(v5.0, 25 Oct 2026). This module holds *descriptive* data only: what a director
-is allowed to do is decided by Vault policies, orchestrator config and the HITL
-gate — never by this table.
+The roster follows Andrii's decision of 4 Nov 2026 (docs/MIGRATION_7_AGENTS.md). This module
+holds *descriptive* data only: what a director is allowed to do is decided by Vault policies,
+orchestrator config and the HITL gate — never by this table.
 """
 from __future__ import annotations
 
@@ -13,24 +12,15 @@ from src.vault_paths import DIRECTOR_IDS, ISOLATED_WORKERS
 
 #: id -> (display name, role, wing, bot handle)
 _ROSTER: Dict[str, Tuple[str, str, str, str]] = {
-    "eva": ("Єва", "CEO / Chief of Staff", "core", "SyndicateEvaBot"),
-    "alice": ("Аліса", "Head of Delivery / R&D", "core", "SyndicateAliceBot"),
-    "architect": ("Архітектор", "CTO / n8n", "core", "SyndicateArchitectBot"),
-    "kodex": ("Кодекс", "CKO / Second Brain / Legal", "core", "SyndicateKodexBot"),
-    "marshal": ("Маршал", "CSO / Sentinel Guard", "core", "SyndicateMarshalBot"),
-    "sonar": ("Сонар", "Deep Research / Perplexity", "intelligence", "SyndicateSonarBot"),
-    "fin": ("Фін", "CFO / Ledger", "intelligence", "SyndicateFinBot"),
-    "sam": ("Сем", "Quant / Trading (paper)", "intelligence", "SyndicateSamBot"),
-    "jack": ("Джек", "OSINT / Gaming models (simulation)", "intelligence", "SyndicateJackBot"),
-    "scout": ("Скаут", "Trend Scout", "intelligence", "SyndicateScoutBot"),
-    "oscar": ("Оскар", "Publicist (drafts only)", "commerce", "SyndicateOscarBot"),
-    "tyler": ("Тайлер", "Print-on-Demand / Merch", "commerce", "SyndicateTylerBot"),
-    "ray": ("Рей", "Physical Dropshipping (analysis only)", "commerce", "SyndicateRayBot"),
-    "dex": ("Декс", "Affiliate / CPA", "commerce", "SyndicateDexBot"),
-    "doc": ("Док", "CMO / Health / HRV", "lifeops", "SyndicateDocBot"),
-    "trainer": ("Тренер", "Sport & Nutrition", "lifeops", "SyndicateTrainerBot"),
+    "eva": ("Єва", "CEO / Assistant / System status / Travel / Archive", "core", "SyndicateEvaBot"),
+    "trainer": ("Алекс", "Health: training, nutrition, biomarkers", "lifeops", "SyndicateTrainerBot"),
     "kira": ("Кіра", "Academy / Socratic mentor", "lifeops", "SyndicateKiraBot"),
-    "atlas": ("Атлас", "Travel & Logistics", "lifeops", "SyndicateAtlasBot"),
+    "fin": ("Фін", "CFO / Ledger", "intelligence", "SyndicateFinBot"),
+    "sam": ("Сем", "Quant: trading and sports models (paper)", "intelligence", "SyndicateSamBot"),
+    "tyler": ("Тайлер", "Business and content", "commerce", "SyndicateTylerBot"),
+    "marshal": ("Маршал", "CSO / Sentinel Guard", "core", "SyndicateMarshalBot"),
+    "alice": ("Аліса", "Bot without an agent: alarm feed", "channel", "SyndicateAliceBot"),
+    "kodex": ("Кодекс", "Bot without an agent", "channel", "SyndicateKodexBot"),
 }
 
 #: Trainer also runs as an isolated container (deploy/docker-compose.directors.yml).

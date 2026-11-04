@@ -69,12 +69,16 @@ AGENTS_IDS: Tuple[str, ...] = (
     "atlas",
 )
 
-#: The 18 directors of the holding (``antigravity`` is a runtime, not a director).
-DIRECTOR_IDS: Tuple[str, ...] = (
-    "eva", "alice", "sonar", "architect", "kodex", "marshal",
-    "fin", "sam", "jack", "scout", "oscar", "tyler",
-    "ray", "dex", "doc", "trainer", "kira", "atlas",
-)
+#: The seven agents (Andrii's decision of 2026-11-04, docs/MIGRATION_7_AGENTS.md).
+#: ``trainer`` is Alex, the health agent; the id changes with his new bot.
+AGENT_ROSTER: Tuple[str, ...] = ("eva", "trainer", "kira", "fin", "sam", "tyler", "marshal")
+
+#: Telegram bots Andrii kept without an agent: Alice still delivers alarms,
+#: Kodex waits for a new role. They answer commands, not free text.
+BOT_ONLY_IDS: Tuple[str, ...] = ("alice", "kodex")
+
+#: Every bot the gateway serves (``antigravity`` is a runtime, not a director).
+DIRECTOR_IDS: Tuple[str, ...] = AGENT_ROSTER + BOT_ONLY_IDS
 
 #: Isolated tool-worker containers (one process, volume, API key and Vault role
 #: each). They get NO infrastructure secrets: only their own ``agents/<id>/*``
