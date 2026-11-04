@@ -70,14 +70,12 @@ class EvaCurator:
         if category not in {"decision_journal", "deadlines", "social_contacts"}:
             return {"status": "not_written", "reason": "not_an_explicit_memory_record"}
 
-        candidate = json.dumps(data, ensure_ascii=False, sort_keys=True)
-        # The policy judges what the owner said, not ids we generated: about 1 in 85
-        # random UUIDs contains a passport-shaped run ("ec872490") and sent an
-        # ordinary decision to manual review.
+        # Only what the owner said is stored and judged; generated ids live in the key.
+        # About 1 in 85 random UUIDs contains a passport-shaped run ("ec872490"),
+        # which sent ordinary decisions to manual review.
         content = {k: v for k, v in data.items() if k not in _GENERATED_FIELDS}
-        decision = self._memory_policy.evaluate(
-            json.dumps(content, ensure_ascii=False, sort_keys=True), explicit_save_request=True
-        )
+        candidate = json.dumps(content, ensure_ascii=False, sort_keys=True)
+        decision = self._memory_policy.evaluate(candidate, explicit_save_request=True)
         if decision.disposition is MemoryDisposition.REJECT:
             return {"status": "refused", "reason_code": decision.reason_code, "stored": False}
         if decision.disposition is MemoryDisposition.DRAFT:
