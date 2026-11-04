@@ -1,7 +1,6 @@
 """Static deploy-config invariants (docker is not available in CI, so check the YAML)."""
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 import yaml
