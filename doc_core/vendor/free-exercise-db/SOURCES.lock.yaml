@@ -5,4 +5,4 @@ license: Unlicense (LICENSE.md)
 vendored_on: 2026-10-10
 scope: dist/exercises.json, schema.json, LICENSE.md, README.md
 omitted: зображення (репозиторій ~99 MB)
-status: data only, читається модулем src/agents/doc_exercises.py
+status: data only, читається модулем src/agents/alex/doc_exercises.py

@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from src.agents import doc_exercises
-from src.agents.doc_reminders import KYIV, due_slots, format_metric, reminder_text, validate_supplement
+from src.agents.alex.doc_reminders import KYIV, due_slots, format_metric, reminder_text, validate_supplement
 
 ALLOWED = {"13:10", "19:10"}
 

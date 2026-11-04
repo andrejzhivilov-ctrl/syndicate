@@ -7,10 +7,10 @@ from datetime import datetime, timezone
 
 import pytest
 
-from src.agents.jack import JackAgent
-from src.agents.jack.markets import normalize
-from src.agents.jack.quant import evaluate, fair_probabilities
-from src.agents.jack.tracker import _calibration, _clv
+from src.agents.sam.jack import JackAgent
+from src.agents.sam.jack.markets import normalize
+from src.agents.sam.jack.quant import evaluate, fair_probabilities
+from src.agents.sam.jack.tracker import _calibration, _clv
 
 
 @pytest.fixture(autouse=True)

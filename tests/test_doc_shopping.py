@@ -32,7 +32,7 @@ def test_shopping_list_rejects_bad_rows():
 
 
 def test_doc_agent_shopping_list_action():
-    from src.agents.doc import DocAgent
+    from src.agents.alex.doc import DocAgent
 
     agent = DocAgent(memory=None)
     out = asyncio.run(agent.execute({"action": "shopping_list",

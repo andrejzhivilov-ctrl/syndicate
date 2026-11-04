@@ -22,8 +22,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, FrozenSet, Iterable, List, Optional, Tuple
 
-from src.agents import kodex_buttons as kb
-from src.agents.kodex import DOMAINS, PROTECTED_LABEL, KodexStore, Record
+from src.agents import eva_kodex_buttons as kb
+from src.agents.eva_kodex import DOMAINS, PROTECTED_LABEL, KodexStore, Record
 
 ALLOWLIST_ENV = "KODEX_TELEGRAM_ALLOWED_CHAT_IDS"
 OWNER_SENDER = "andrii"

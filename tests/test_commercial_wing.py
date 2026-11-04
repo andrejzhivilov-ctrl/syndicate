@@ -8,13 +8,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.agents.atlas import AtlasAgent
-from src.agents.dex import DexAgent
-from src.agents.oscar import OscarAgent
-from src.agents.oscar.agent import LEGAL_DISCLAIMERS
-from src.agents.ray import RayAgent
-from src.agents.scout import ScoutAgent
-from src.agents.sonar import SonarAgent
+from src.agents.eva_atlas import AtlasAgent
+from src.agents.tyler.dex import DexAgent
+from src.agents.tyler.oscar import OscarAgent
+from src.agents.tyler.oscar.agent import LEGAL_DISCLAIMERS
+from src.agents.tyler.ray import RayAgent
+from src.agents.tyler.scout import ScoutAgent
+from src.agents.tyler.sonar import SonarAgent
 from src.runtime_config import build_runtime_config
 
 

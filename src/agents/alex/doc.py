@@ -99,7 +99,7 @@ class DocAgent:
 
     async def _shopping_list(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Delegated to TrainerAgent: Doc is strictly medical."""
-        from src.agents.trainer import TrainerAgent
+        from src.agents.alex.trainer import TrainerAgent
 
         trainer = TrainerAgent(memory=self._memory, llm=self._llm, config=self._config, registry=self._registry)
         res = await trainer.execute({**payload, "action": "shopping_list"})
@@ -356,7 +356,7 @@ class DocAgent:
 
     async def _training_protocol(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Delegated to TrainerAgent: Doc is strictly medical."""
-        from src.agents.trainer import TrainerAgent
+        from src.agents.alex.trainer import TrainerAgent
 
         trainer = TrainerAgent(memory=self._memory, llm=self._llm, config=self._config, registry=self._registry)
         res = await trainer.execute({**payload, "action": "training_protocol"})
@@ -366,7 +366,7 @@ class DocAgent:
 
     async def _nutrition_plan(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Delegated to TrainerAgent: Doc is strictly medical."""
-        from src.agents.trainer import TrainerAgent
+        from src.agents.alex.trainer import TrainerAgent
 
         trainer = TrainerAgent(memory=self._memory, llm=self._llm, config=self._config, registry=self._registry)
         res = await trainer.execute({**payload, "action": "nutrition_plan"})

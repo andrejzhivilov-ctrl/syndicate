@@ -25,7 +25,7 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 import structlog
 
 from src.agents.eva_memory_policy import EvaMemoryPolicy
-from src.agents.kodex import PROTECTED_LABEL
+from src.agents.eva_kodex import PROTECTED_LABEL
 from src.obsidian_notes import _notes, vault_dir_from_env
 
 logger = structlog.get_logger(__name__)

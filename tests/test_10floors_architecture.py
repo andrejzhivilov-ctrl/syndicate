@@ -471,7 +471,7 @@ async def run_10floors_sandbox_suite():
     # STEP 7: Floor 9 — Health & Energy (Doc)
     # ─────────────────────────────────────────────────────────────────────────
     print("\n[7/10] Testing Floor 9: Health & Energy (DocAgent, morning readiness, Mifflin-St Jeor TDEE, emergency card)...")
-    from src.agents.doc import DocAgent
+    from src.agents.alex.doc import DocAgent
 
     doc = DocAgent(memory=mem, llm=mock_llm)
 

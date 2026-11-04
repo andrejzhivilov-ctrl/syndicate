@@ -8,8 +8,8 @@ from __future__ import annotations
 import asyncio
 from typing import Any, Dict, List
 
-from src.agents.doc import DocAgent
-from src.agents.trainer import TrainerAgent
+from src.agents.alex.doc import DocAgent
+from src.agents.alex.trainer import TrainerAgent
 
 
 class MockMemory:

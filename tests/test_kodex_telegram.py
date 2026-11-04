@@ -6,9 +6,9 @@ from typing import Any, Dict, List
 
 import pytest
 
-from src.agents import kodex, kodex_buttons as kb
-from src.agents.kodex import KodexStore, sha256_of
-from src.agents.kodex_telegram import ENGINE_PENDING, KodexBot, Reply, parse_allowlist
+from src.agents import eva_kodex as kodex, eva_kodex_buttons as kb
+from src.agents.eva_kodex import KodexStore, sha256_of
+from src.agents.eva_kodex_telegram import ENGINE_PENDING, KodexBot, Reply, parse_allowlist
 
 OWNER_ID = "111"
 NOW = datetime(2026, 10, 10, 12, 0, 0)

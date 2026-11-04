@@ -944,14 +944,14 @@ class EvaOrchestrator:
         return state
 
     async def _director_handler(self, state: AgentState) -> AgentState:
-        from src.agents.oscar import OscarAgent
+        from src.agents.tyler.oscar import OscarAgent
         from src.agents.tyler import TylerAgent
-        from src.agents.jack import JackAgent
-        from src.agents.scout import ScoutAgent
-        from src.agents.dex import DexAgent
-        from src.agents.ray import RayAgent
-        from src.agents.atlas import AtlasAgent
-        from src.agents.sonar import SonarAgent
+        from src.agents.sam.jack import JackAgent
+        from src.agents.tyler.scout import ScoutAgent
+        from src.agents.tyler.dex import DexAgent
+        from src.agents.tyler.ray import RayAgent
+        from src.agents.eva_atlas import AtlasAgent
+        from src.agents.tyler.sonar import SonarAgent
 
         agent_id = state["current_agent"]
         classes = {"oscar": OscarAgent, "tyler": TylerAgent, "jack": JackAgent, "scout": ScoutAgent, "dex": DexAgent, "ray": RayAgent, "atlas": AtlasAgent, "sonar": SonarAgent}
@@ -1053,7 +1053,7 @@ class EvaOrchestrator:
     # ─── Floor 9 Handlers (Doc) ─────────────────────────────────────────────
 
     async def _doc_agent_handler(self, state: AgentState) -> AgentState:
-        from src.agents.doc import DocAgent
+        from src.agents.alex.doc import DocAgent
         agent = DocAgent(memory=self._memory, llm=self._llm_for("doc"), config=self._config.get("doc", self._config))
         payload = dict(state["payload"])
         # Task types routed here do not always match DocAgent's action names
@@ -1081,7 +1081,7 @@ class EvaOrchestrator:
         return state
 
     async def _trainer_agent_handler(self, state: AgentState) -> AgentState:
-        from src.agents.trainer import TrainerAgent
+        from src.agents.alex.trainer import TrainerAgent
 
         agent = TrainerAgent(
             memory=self._memory,
@@ -1419,7 +1419,7 @@ class EvaOrchestrator:
         return state
 
     async def _kodex_agent_handler(self, state: AgentState) -> AgentState:
-        from src.agents.kodex import KodexAgent
+        from src.agents.eva_kodex import KodexAgent
         from src.integrations.notebooklm_obsidian_bridge import NotebookLMObsidianBridge
 
         vault_root = Path(getattr(self._vault, "root", None) or getattr(self._vault, "_root", None) or "scratch")
@@ -1867,6 +1867,6 @@ class EvaOrchestrator:
 
     async def quick_perplexity_search(self, query: str) -> dict:
         """Fast Perplexity lookup directly in Eva for immediate 2-3s answers."""
-        from src.agents.sonar import SonarAgent
+        from src.agents.tyler.sonar import SonarAgent
         agent = SonarAgent(memory=self._memory, config=self._config.get("sonar", {}))
         return await agent.quick_search({"query": query})

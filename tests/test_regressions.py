@@ -228,7 +228,7 @@ class TestFinAgentHonesty:
 # ─────────────────────────────────────────────────────────────────────────────
 class TestDocScreeningCalendar:
     def _calendar(self, last_checkups: Dict[str, str]):
-        from src.agents.doc import DocAgent
+        from src.agents.alex.doc import DocAgent
 
         return _run(DocAgent(memory=None)._screening_calendar({"last_checkups": last_checkups}))
 
@@ -1022,7 +1022,7 @@ class TestFinPDFFonts:
 # ─────────────────────────────────────────────────────────────────────────────
 def _dispatch_agents():
     """Every agent whose ``execute()`` dispatches through ``_ACTION_MAP``."""
-    from src.agents.doc import DocAgent
+    from src.agents.alex.doc import DocAgent
     from src.agents.kira import KiraAgent
     from src.agents.marshal import MarshalAgent
     from src.agents.sam.agent import SamAgent
@@ -2236,7 +2236,7 @@ class TestDomainAgentMemoryLoops:
         assert result["skill_candidate"]["name"] == "Socratic dialogue for deliberate learning"
 
     def test_doc_uses_old_memory_as_historical_not_current_measurement(self):
-        from src.agents.doc import DocAgent
+        from src.agents.alex.doc import DocAgent
 
         memory = _StubMemory(self._block("HRV was once 42 ms"))
         llm = _CapturingLLM()
@@ -2967,7 +2967,7 @@ class TestDocNeverInventsMetrics:
     fact (AGENTS.md §1). Absence must survive the boundary."""
 
     def _doc(self):
-        from src.agents.doc import DocAgent
+        from src.agents.alex.doc import DocAgent
 
         return DocAgent(memory=None)
 
@@ -3154,7 +3154,7 @@ class TestEvaBriefingReportsAbsence:
     def test_reflection_reports_real_file_counts_from_kodex(self):
         from datetime import datetime
 
-        from src.agents.kodex import evening_section, KodexStore
+        from src.agents.eva_kodex import evening_section, KodexStore
 
         import tempfile
         from pathlib import Path
@@ -3179,7 +3179,7 @@ class TestEvaBriefingReportsAbsence:
     def test_evening_without_kodex_data_dir_is_absence_not_zero(self):
         from datetime import datetime
 
-        from src.agents.kodex import evening_section
+        from src.agents.eva_kodex import evening_section
 
         section = evening_section(None, datetime.now())
         assert section["status"] == "unavailable" and "report" not in section
@@ -3590,7 +3590,7 @@ class TestDirectorSafetyRegressions:
         assert calculate_margin(payload)["eligible"] is True
 
     def test_jack_accepts_exact_ev_threshold_without_float_roundoff(self):
-        from src.agents.jack.quant import evaluate
+        from src.agents.sam.jack.quant import evaluate
         from datetime import datetime, timezone
         result = evaluate({"probability": 0.5225, "decimal_odds": 2, "bankroll": 1000,
                            "observed_at": datetime.now(timezone.utc).isoformat(), "model_source": "regression"})
@@ -3614,7 +3614,7 @@ class TestDirectorSafetyRegressions:
         assert result["status"] == "unavailable" and result["reason"] == "no_rates_in_response"
 
     def test_jack_treats_implausible_ev_as_a_palpable_error_not_value(self):
-        from src.agents.jack.quant import evaluate
+        from src.agents.sam.jack.quant import evaluate
         from datetime import datetime, timezone
         base = {"decimal_odds": 2, "bankroll": 1000, "observed_at": datetime.now(timezone.utc).isoformat(),
                 "model_source": "regression"}
@@ -3623,7 +3623,7 @@ class TestDirectorSafetyRegressions:
             evaluate({**base, "probability": 0.6, "stake": 500})
 
     def test_jack_never_rounds_stake_above_event_cap(self):
-        from src.agents.jack.quant import evaluate
+        from src.agents.sam.jack.quant import evaluate
         from datetime import datetime, timezone
         result = evaluate({"probability": 0.6, "decimal_odds": 2, "bankroll": 0.55,
                            "observed_at": datetime.now(timezone.utc).isoformat(), "model_source": "regression"})
@@ -4902,3 +4902,28 @@ def test_runtime_service_is_syndicate_agent_and_the_old_name_still_resolves():
         text = (root / path).read_text(encoding="utf-8")
         assert "eva-agent" not in text and "syndicate-agent:8000" in text, path
     assert vault_policies.RUNTIME_POLICY_NAME == "eva-agent"
+
+
+def test_old_agent_modules_live_in_their_owners_packages():
+    # Stage 4a (04.11.2026): the code of the absorbed agents moved under its new owner.
+    # The agent ids, data/<id> stores and Vault paths did not change, only module paths.
+    import importlib
+    from pathlib import Path
+
+    agents = Path(__file__).resolve().parents[1] / "src" / "agents"
+    for gone in ("trainer.py", "doc.py", "doc_shopping.py", "atlas.py", "kodex.py", "kodex_buttons.py",
+                 "kodex_telegram.py", "scout.py", "sonar.py", "dex.py", "ray.py", "jack", "oscar"):
+        assert not (agents / gone).exists(), gone
+    moved = {
+        "src.agents.alex.trainer": "TrainerAgent", "src.agents.alex.doc": "DocAgent",
+        "src.agents.sam.jack": "JackAgent", "src.agents.tyler.oscar": "OscarAgent",
+        "src.agents.tyler.scout": "ScoutAgent", "src.agents.tyler.sonar": "SonarAgent",
+        "src.agents.tyler.dex": "DexAgent", "src.agents.tyler.ray": "RayAgent",
+        "src.agents.eva_atlas": "AtlasAgent", "src.agents.eva_kodex": "KodexAgent",
+    }
+    for module, cls in moved.items():
+        assert hasattr(importlib.import_module(module), cls), module
+    from src.agents.alex import doc_exercises
+
+    assert doc_exercises.DEFAULT_DB.parent.parent.name == "free-exercise-db"
+    assert doc_exercises.DEFAULT_DB.exists(), "the exercise database path broke when doc_exercises moved"
