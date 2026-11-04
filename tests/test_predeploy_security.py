@@ -398,12 +398,12 @@ def test_hitl_endpoints_decide_with_credential_identity_and_release_once(app):
     assert client.post(f"/hitl/release/{item}", headers=hdr).status_code == 409
 
 
-def test_directors_endpoint_lists_all_eighteen_without_invented_status(app):
+def test_directors_endpoint_lists_every_bot_without_invented_status(app):
     client, _state, _orch = app
     body = client.get("/directors", headers=_basic("device", MASTER)).json()
-    assert body["count"] == 18
+    assert body["count"] == 9  # seven agents + two bots without an agent (2026-11-04)
     ids = [d["id"] for d in body["directors"]]
-    assert len(set(ids)) == 18 and {"eva", "sonar", "kodex", "atlas", "kira"} <= set(ids)
+    assert len(set(ids)) == 9 and {"eva", "trainer", "kodex", "alice", "kira"} <= set(ids)
     eva = next(d for d in body["directors"] if d["id"] == "eva")
     fin = next(d for d in body["directors"] if d["id"] == "fin")
     assert eva["bot_configured"] is True and fin["bot_configured"] is False
@@ -420,7 +420,7 @@ def test_webhook_secrets_are_unique_per_bot_and_url_safe():
     from src.vault_paths import DIRECTOR_IDS
 
     secrets_ = {a: derive_webhook_secret(WEBHOOK_SECRET, a) for a in DIRECTOR_IDS}
-    assert len(set(secrets_.values())) == 18
+    assert len(set(secrets_.values())) == len(DIRECTOR_IDS)
     assert all(len(v) == 64 and all(c in "0123456789abcdef" for c in v) for v in secrets_.values())
     with pytest.raises(ValueError):
         derive_webhook_secret("", "eva")
@@ -473,13 +473,15 @@ def test_register_webhooks_uses_per_bot_secrets_and_reports_missing_tokens():
 # ─────────────────────────────────────────────────────────────────────────────
 def test_director_roster_matches_manifest_and_has_a_vault_policy_each():
     from src.directors_registry import roster
-    from src.vault_paths import AGENTS_IDS, DIRECTOR_IDS
+    from src.vault_paths import AGENT_ROSTER, AGENTS_IDS, BOT_ONLY_IDS, DIRECTOR_IDS
 
-    assert len(DIRECTOR_IDS) == 18 and set(DIRECTOR_IDS) <= set(AGENTS_IDS)
+    # Seven agents plus two bots without an agent (Andrii, 2026-11-04).
+    assert len(AGENT_ROSTER) == 7 and set(BOT_ONLY_IDS) == {"alice", "kodex"}
+    assert set(DIRECTOR_IDS) <= set(AGENTS_IDS) and not set(AGENT_ROSTER) & set(BOT_ONLY_IDS)
     ids = [d["id"] for d in roster()]
     assert ids == list(DIRECTOR_IDS)
     handles = {d["bot_handle"] for d in roster()}
-    assert len(handles) == 18 and "@SyndicateEvaBot" in handles
+    assert len(handles) == len(DIRECTOR_IDS) and "@SyndicateEvaBot" in handles
 
 
 def test_vault_tool_validates_bot_tokens_and_never_takes_secrets_from_argv(monkeypatch):

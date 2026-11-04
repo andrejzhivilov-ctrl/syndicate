@@ -41,7 +41,7 @@ def test_every_director_can_search_all_three_kinds(pools):
     assert pools.counts() == {"skill": 0, "prompt": 0, "mcp": 0}  # lazy until first use
     for agent in DIRECTOR_IDS:
         assert pools.search(agent, "маркетинг контент", kind="prompt")[0]["title"] == "Контент-план для блогу"
-    assert pools.search("dex", "seo marketing", kind="skill")[0]["title"] == "seo-audit"
+    assert pools.search("tyler", "seo marketing", kind="skill")[0]["title"] == "seo-audit"
     assert pools.search("eva", "telegram", kind="mcp")[0]["url"] == "https://github.com/acme/telegram-mcp"
     assert pools.counts() == {"skill": 1, "prompt": 1, "mcp": 1}
 
@@ -79,13 +79,13 @@ def test_inactive_policy_and_ungranted_kinds_are_enforced(pools, tmp_path):
 def test_pool_reference_is_pii_masked_before_the_model():
     from src.agent_chat import _context
 
-    system = _context("ray", "- [mcp] ap311036/ews-meeting-mcp (id m-1): meetings")[1][1]
+    system = _context("tyler", "- [mcp] ap311036/ews-meeting-mcp (id m-1): meetings")[1][1]
     assert "ap311036" not in system
 
 
 def test_reading_mcp_returns_catalog_metadata_never_an_install(pools):
-    item_id = pools.search("architect", "telegram", kind="mcp")[0]["id"]
-    item = pools.read("architect", item_id)
+    item_id = pools.search("marshal", "telegram", kind="mcp")[0]["id"]
+    item = pools.read("marshal", item_id)
     assert item["note"] == "catalog_entry_only_install_requires_operator_approval"
     assert "text" not in item and item["untrusted_reference"] is True
 
@@ -93,7 +93,7 @@ def test_reading_mcp_returns_catalog_metadata_never_an_install(pools):
 def test_reading_a_prompt_is_bounded_text(pools, tmp_path):
     _write(tmp_path / "knowledge_pools/prompts/long.md", "---\ntitle: Довгий\n---\n" + "слово " * 2000)
     lib = PoolLibrary(tmp_path)
-    item = lib.read("oscar", lib.search("oscar", "довгий", kind="prompt")[0]["id"])
+    item = lib.read("tyler", lib.search("tyler", "довгий", kind="prompt")[0]["id"])
     assert item["truncated"] is True and len(item["text"]) <= 3500
 
 
@@ -110,8 +110,8 @@ def test_telegram_pool_commands_answer_without_a_model(pools):
 
 
 def test_chat_gets_pool_reference_only_when_the_pools_are_mentioned(pools):
-    assert pool_reference("ray", "Привіт, як справи?", pools) is None
-    reference = pool_reference("ray", "Є скіл для seo аудиту?", pools)
+    assert pool_reference("tyler", "Привіт, як справи?", pools) is None
+    reference = pool_reference("tyler", "Є скіл для seo аудиту?", pools)
     assert "seo-audit" in reference and len(reference) <= 1200
 
     class LLM:
@@ -122,7 +122,7 @@ def test_chat_gets_pool_reference_only_when_the_pools_are_mentioned(pools):
             return SimpleNamespace(content="Так, є seo-audit.")
 
     llm = LLM()
-    asyncio.run(chat_reply("ray", "Є скіл для seo аудиту?", llm, reference=reference))
+    asyncio.run(chat_reply("tyler", "Є скіл для seo аудиту?", llm, reference=reference))
     system_notes = [text for role, text in llm.calls[0] if role == "system"]
     assert len(system_notes) == 2 and "недовірений довідковий матеріал" in system_notes[1]
 
