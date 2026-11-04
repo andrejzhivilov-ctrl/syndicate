@@ -166,7 +166,7 @@ def test_resource_paths_are_confined_and_symlinks_rejected(tmp_path: Path) -> No
     catalog_path = root / "config/knowledge_pool_catalog.json"
     catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
     registry = _load_test_skill_registry(root)
-    registry["items"][0]["resource_path"] = "config/agents/alice.profile.json"
+    registry["items"][0]["resource_path"] = "config/agents/eva.profile.json"
     _persist_test_registry(root, catalog, registry)
     pool = KnowledgePool(catalog_path, review_agents=["kodex"])
     with pytest.raises(KnowledgePoolError, match="item_unavailable"):
@@ -177,7 +177,7 @@ def test_resource_paths_are_confined_and_symlinks_rejected(tmp_path: Path) -> No
     resource = root / "knowledge_pools/skills/curated-skill.md"
     resource.unlink()
     try:
-        resource.symlink_to(root / "config/agents/alice.profile.json")
+        resource.symlink_to(root / "config/agents/eva.profile.json")
     except OSError as exc:
         if getattr(exc, "winerror", None) == 1314:
             return

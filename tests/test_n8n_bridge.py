@@ -75,7 +75,7 @@ def test_learning_sources_are_the_ones_andrii_listed():
 
 
 def test_workflow_templates_are_inactive_lint_clean_and_call_the_trainer_door():
-    from src.agents.architect.flowlint import lint_workflow
+    from src.n8n_flowlint import lint_workflow
 
     for name in ("trainer_reminders.json", "trainer_weekly_learning.json"):
         workflow = json.loads((ROOT / "config" / "n8n" / name).read_text(encoding="utf-8"))

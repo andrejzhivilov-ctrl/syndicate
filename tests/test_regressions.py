@@ -1022,7 +1022,6 @@ class TestFinPDFFonts:
 # ─────────────────────────────────────────────────────────────────────────────
 def _dispatch_agents():
     """Every agent whose ``execute()`` dispatches through ``_ACTION_MAP``."""
-    from src.agents.architect.agent import ArchitectAgent
     from src.agents.doc import DocAgent
     from src.agents.kira import KiraAgent
     from src.agents.marshal import MarshalAgent
@@ -1031,7 +1030,6 @@ def _dispatch_agents():
 
     built = []
     for factory in (
-        lambda: ArchitectAgent(memory=None),
         lambda: DocAgent(memory=None),
         lambda: KiraAgent(memory=None),
         lambda: MarshalAgent(),
@@ -2287,170 +2285,8 @@ class TestDomainAgentMemoryLoops:
         assert "Prior security audit summary" not in memory.saved[0]["content"]
 
 
-class TestN8NWorkflowApprovalGate:
-    """Generated n8n JSON stays inactive and GitOps fails closed until approval."""
-
-    @staticmethod
-    def _setup(tmp_path):
-        from src.change_requests import ChangeRequestStore
-        from src.vault_md import MarkdownVault
-        from src.agents.architect.agent import ArchitectAgent
-
-        vault = MarkdownVault(vault_root=tmp_path / "vault")
-        store = ChangeRequestStore(vault=vault)
-        return ArchitectAgent(memory=None, change_request_store=store), store
-
-    def test_orchestrator_surfaces_human_approval_requirement(self, tmp_path):
-        from src.change_requests import ChangeRequestStore
-        from src.orchestrator import EvaOrchestrator
-        from src.vault_md import MarkdownVault
-
-        class OrchestratorStub:
-            _memory = None
-            _llm = None
-            _llm_reasoning = None
-            _config = {}
-            _registry = None
-            # Real per-agent routing lookup; with no provider keys it returns _llm.
-            _llm_for = EvaOrchestrator._llm_for
-
-        store = ChangeRequestStore(vault=MarkdownVault(vault_root=tmp_path / "vault"))
-        orchestrator = OrchestratorStub()
-        orchestrator._change_requests = store
-        state = {
-            "task_type": "design_workflow",
-            "payload": {"name": "operator-gated flow", "trigger": "manual"},
-            "requires_hitl": False,
-            "hitl_reason": None,
-        }
-
-        _run(EvaOrchestrator._architect_agent_handler(orchestrator, state))
-
-        assert state["requires_hitl"] is True
-        assert "human approval" in state["hitl_reason"].lower()
-        assert state["result"]["approval_status"] == "pending"
-        assert store.get(state["result"]["approval_cr_id"])["status"] == "pending"
-
-        sync_state = {
-            "task_type": "gitops_sync",
-            "payload": {
-                "workflow_name": "operator-gated flow",
-                "workflow_json": state["result"]["workflow"],
-                "approval_cr_id": state["result"]["approval_cr_id"],
-            },
-            "requires_hitl": False,
-            "hitl_reason": None,
-        }
-        _run(EvaOrchestrator._architect_agent_handler(orchestrator, sync_state))
-        assert sync_state["result"]["status"] == "blocked_approval_pending"
-        assert sync_state["requires_hitl"] is True
-
-    def test_design_creates_pending_approval_and_never_activates(self, tmp_path):
-        agent, store = self._setup(tmp_path)
-        proposal = agent.design_workflow({"name": "daily report", "trigger": "manual"})
-
-        assert proposal["ready"] is True
-        assert proposal["requires_hitl"] is True
-        assert proposal["activation_blocked"] is True
-        assert proposal["approval_status"] == "pending"
-        assert proposal["workflow"]["active"] is False
-        cr = store.get(proposal["approval_cr_id"])
-        assert cr["status"] == "pending"
-        assert cr["author"] == "Architect"
-        assert cr["risk"] == "high"
-        assert "daily report" in cr["changes"][0]["content"]
-
-    def test_gitops_requires_applied_matching_cr(self, tmp_path):
-        agent, store = self._setup(tmp_path)
-        proposal = agent.design_workflow({"name": "weekly review", "trigger": "schedule"})
-        payload = {
-            "workflow_name": "weekly review",
-            "workflow_json": proposal["workflow"],
-            "adr": {"number": 9, "title": "Review"},
-            "approval_cr_id": proposal["approval_cr_id"],
-        }
-
-        missing_id = _run(agent.gitops_sync({"workflow_json": proposal["workflow"]}))
-        pending = _run(agent.gitops_sync(payload))
-        assert missing_id["status"] == "blocked_approval_required"
-        assert missing_id["requires_hitl"] is True
-        assert pending["status"] == "blocked_approval_pending"
-        assert pending["requires_hitl"] is True
-        assert "pr_bundle" not in pending
-
-        cr_id = proposal["approval_cr_id"]
-        store.review(cr_id, decision="approve", reviewer="operator", comment="Reviewed")
-        reviewed_only = _run(agent.gitops_sync(payload))
-        assert reviewed_only["status"] == "blocked_approval_not_applied"
-        assert reviewed_only["approval_status"] == "approved"
-        assert reviewed_only["requires_hitl"] is True
-        store.apply(cr_id, approver="operator")
-        released = _run(agent.gitops_sync(payload))
-
-        assert released["status"] == "pr_bundle_ready_pending_operator_activation"
-        assert released["approval_status"] == "approved"
-        assert released["activation_status"] == "inactive_until_operator_activates"
-        exported = json.loads(released["pr_bundle"]["files"][0]["content"])
-        assert exported["active"] is False
-
-    def test_missing_or_unavailable_approval_store_fails_closed(self, tmp_path):
-        from src.agents.architect.agent import ArchitectAgent
-
-        unavailable_agent = ArchitectAgent(memory=None, change_request_store=None)
-        unavailable = _run(unavailable_agent.gitops_sync({
-            "workflow_json": {"active": False},
-            "approval_cr_id": "CR-00000000",
-        }))
-        agent, _store = self._setup(tmp_path)
-        unknown = _run(agent.gitops_sync({
-            "workflow_json": {"active": False},
-            "approval_cr_id": "CR-00000000",
-        }))
-
-        assert unavailable["status"] == "blocked_approval_store_unavailable"
-        assert unknown["status"] == "blocked_approval_not_found"
-        assert "pr_bundle" not in unavailable and "pr_bundle" not in unknown
-
-    def test_rejected_cr_cannot_release_a_workflow(self, tmp_path):
-        agent, store = self._setup(tmp_path)
-        proposal = agent.design_workflow({"name": "rejected flow", "trigger": "manual"})
-        cr_id = proposal["approval_cr_id"]
-        store.review(cr_id, decision="reject", reviewer="operator", comment="Not approved")
-
-        result = _run(agent.gitops_sync({
-            "workflow_name": "rejected flow",
-            "workflow_json": proposal["workflow"],
-            "approval_cr_id": cr_id,
-        }))
-
-        assert result["status"] == "blocked_approval_rejected"
-        assert result["approval_status"] == "rejected"
-        assert result["requires_hitl"] is False
-        assert "pr_bundle" not in result
-
-    def test_approved_cr_cannot_release_a_modified_or_active_workflow(self, tmp_path):
-        agent, store = self._setup(tmp_path)
-        proposal = agent.design_workflow({"name": "guarded flow", "trigger": "manual"})
-        cr_id = proposal["approval_cr_id"]
-        store.review(cr_id, reviewer="operator")
-        store.apply(cr_id, approver="operator")
-
-        changed = dict(proposal["workflow"], name="different workflow")
-        mismatch = _run(agent.gitops_sync({
-            "workflow_name": "guarded flow",
-            "workflow_json": changed,
-            "approval_cr_id": cr_id,
-        }))
-        active = dict(proposal["workflow"], active=True)
-        enabled = _run(agent.gitops_sync({
-            "workflow_name": "guarded flow",
-            "workflow_json": active,
-            "approval_cr_id": cr_id,
-        }))
-
-        assert mismatch["status"] == "blocked_approval_payload_mismatch"
-        assert enabled["status"] == "blocked_workflow_must_remain_inactive"
-        assert "pr_bundle" not in mismatch and "pr_bundle" not in enabled
+# TestN8NWorkflowApprovalGate removed on 04.11.2026 together with the Architect agent:
+# its n8n workflow builder and GitOps release went with it (docs/MIGRATION_7_AGENTS.md, stage 3).
 
 
 class TestSkillStore:
