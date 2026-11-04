@@ -4990,3 +4990,30 @@ def test_curator_decision_is_not_held_for_review_because_of_its_own_id(tmp_path,
     # The owner's own words are still checked: a passport number in them is held for review.
     held = asyncio.run(curator.execute({"action": "record_decision", "decision": "Passport AB123456 renewed."}))
     assert held["memory_write"]["status"] == "review_required"
+
+
+def test_every_route_belongs_to_one_of_the_seven_agents():
+    # 04.11: 19 agents became 7. Old agents stay as parts of their new owner,
+    # and a new route without an owner must fail here, not fall to Eva silently.
+    from src.agent_owners import MERGED_INTO, owner_of
+    from src.orchestrator import EvaOrchestrator
+    from src.vault_paths import AGENT_ROSTER
+
+    targets = set(EvaOrchestrator.TASK_ROUTING.values())
+    unowned = sorted(t for t in targets if owner_of(t) not in AGENT_ROSTER)
+    assert not unowned, f"routes without an owner: {unowned}"
+    assert owner_of("jack") == "sam" and owner_of("doc") == "trainer" and owner_of("atlas") == "eva"
+    assert {owner_of(old) for old in ("scout", "sonar", "dex", "ray", "oscar")} == {"tyler"}
+    assert not set(MERGED_INTO) & set(AGENT_ROSTER) and owner_of("nobody") is None
+
+
+def test_evas_routing_hint_names_only_the_seven_agents():
+    from src.agents.eva import EvaAgent
+    from src.vault_paths import AGENT_ROSTER
+
+    eva = EvaAgent.__new__(EvaAgent)
+    eva._memory_policy = __import__("src.agents.eva_memory_policy", fromlist=["x"]).EvaMemoryPolicy()
+    for query, expected in (("поганий сон і пульс", "trainer"), ("зробити відео для тікток", "tyler"),
+                            ("ставки на футбол", "sam"), ("бюджет на місяць", "fin"), ("привіт", "eva")):
+        hint = asyncio.run(eva._delegate_intent({"query": query}))
+        assert hint["target_agent"] == expected and hint["target_agent"] in AGENT_ROSTER, query
