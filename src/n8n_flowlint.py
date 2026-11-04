@@ -1,5 +1,8 @@
 """FlowLint — static analysis for n8n workflow JSON.
 
+Moved out of the Architect agent when it was removed (04.11.2026): Alex's n8n
+templates are still linted with it. It leaves together with n8n (migration stage 6).
+
 Enforces the Architect's ANTI-CRUTCH rules (ARCHITECT_N8N_SPEC.md §3):
 
   1. Core nodes only — no community / unverified node types.

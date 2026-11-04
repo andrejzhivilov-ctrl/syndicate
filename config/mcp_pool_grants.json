@@ -12,7 +12,6 @@
   "deployment_templates": {
     "status": "prepared_not_applied",
     "paths": [
-      "config/integration_workers/architect.example.json",
       "config/integration_workers/kodex.example.json",
       "config/integration_workers/marshal.example.json"
     ],
@@ -29,17 +28,6 @@
         "kodex"
       ],
       "purpose": "MCP catalog discovery/intake only; no package installation, server launch, or mcp.call."
-    },
-    {
-      "agent_id": "architect",
-      "service_hub_operations": [
-        "mcp.pool.search",
-        "mcp.pool.read"
-      ],
-      "reader_agents": [
-        "architect"
-      ],
-      "purpose": "Pool stewardship and design review only; cannot admit servers or apply grants."
     },
     {
       "agent_id": "marshal",

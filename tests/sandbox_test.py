@@ -226,31 +226,20 @@ async def run_sandbox_suite():
     print(f"  ✅ Sentinel blocked injection & direct email; PIIRedactor masked {len(events)} items; Sam locked to HITL ({sam_eval.level.value}).")
 
     # -------------------------------------------------------------------------
-    # STEP 4: Architect Reasoning + AST/Signature Self-Healing Compiler Loop
+    # STEP 4: FlowLint over the real n8n templates (the Architect was removed on 04.11.2026)
     # -------------------------------------------------------------------------
-    print("\n[4/7] Testing ArchitectAgent Compiler-in-the-Loop & Self-Healing Generator...")
-    from src.agents.architect import ArchitectAgent
+    print("\n[4/7] Linting the shipped n8n templates with FlowLint...")
+    import json as _json
 
-    mock_llm = MockReasoningLLM()
-    architect = ArchitectAgent(memory=mem, llm=mock_llm)
+    from src.n8n_flowlint import lint_workflow
 
-    # 4a. Test n8n builder + FlowLint QA
-    wf_res = await architect.execute({
-        "action": "design_workflow",
-        "name": "Telegram Idempotent Alert",
-        "trigger_path": "tg-alert",
-    })
-    assert wf_res["flowlint"]["passed"] is True, f"FlowLint failed on generated workflow: {wf_res['flowlint']}"
-
-    # 4b. Test Self-Healing Code Generator (Attempt 1 has 2 bugs -> Compiler catches -> Attempt 2 heals!)
-    heal_res = await architect.execute({
-        "action": "self_healing_generate",
-        "specification": "Write an async helper function that calls llm and saves an episode to memory.",
-        "max_retries": 3,
-    })
-    assert heal_res["verified"] is True, f"Self-healing failed: {heal_res}"
-    assert heal_res["attempts"] == 2, f"Expected 2 attempts (1 fail -> 1 heal), got {heal_res['attempts']}"
-    print(f"  ✅ FlowLint QA passed (0 errors). Self-Healing Compiler caught Attempt #1 bugs & healed on Attempt #{heal_res['attempts']}!")
+    templates = sorted((REPO_PATH / "config" / "n8n").glob("*.json"))
+    assert templates, "no n8n templates found"
+    for template in templates:
+        report = lint_workflow(_json.loads(template.read_text(encoding="utf-8")))
+        assert report.passed, f"FlowLint failed on {template.name}: {report.to_dict()}"
+    print(f"  ✅ FlowLint passed on {len(templates)} n8n templates.")
+    mock_llm = MockReasoningLLM()  # step 5 runs the orchestrator on it
 
     # -------------------------------------------------------------------------
     # STEP 5: Full LangGraph Orchestrator Execution across All Specialist Agents

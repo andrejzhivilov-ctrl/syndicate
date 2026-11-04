@@ -44,13 +44,11 @@ _DEEPSEEK_FLASH: Sequence[Candidate] = (("openrouter", "OR_DEEPSEEK_FLASH"),)
 _GEMINI_FLASH: Sequence[Candidate] = (("openrouter", "OR_GEMINI_FLASH"), ("gemini", "GEMINI_FLASH_LATEST"))
 _GEMINI_ARGON: Sequence[Candidate] = (("openrouter", "OR_GEMINI_ARGON"),)
 
-#: agent_id -> {tier: candidates in order}. Covers all 18 directors plus the
+#: agent_id -> {tier: candidates in order}. Covers the seven agents, the old agents now part of them, plus the
 #: office copilot; tests assert the coverage.
 AGENT_PROFILES: Dict[str, Dict[str, Sequence[Candidate]]] = {
     # Core wing
     "eva": {BASE: _CLAUDE_HAIKU, HEAVY: _CLAUDE_SONNET},
-    "alice": {BASE: _CLAUDE_SONNET, HEAVY: _CLAUDE_SONNET},  # day-to-day runs on Antigravity, not this API
-    "architect": {BASE: _DEEPSEEK_FLASH, HEAVY: (("openrouter", "OR_QWEN_MAX"),) + tuple(_CLAUDE_SONNET)},
     "kodex": {BASE: _CLAUDE_HAIKU, HEAVY: tuple(_GEMINI_ARGON) + tuple(_CLAUDE_SONNET)},
     "marshal": {BASE: (("openrouter", "OR_GPT_LUNA"),), HEAVY: (("openrouter", "OR_GPT_SOL"),) + tuple(_CLAUDE_SONNET)},
     # Intelligence & finance wing

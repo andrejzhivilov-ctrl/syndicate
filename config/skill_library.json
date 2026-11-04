@@ -9,7 +9,6 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "architect",
         "eva"
       ],
       "resources": {
@@ -26,7 +25,6 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "architect",
         "eva",
         "kodex"
       ],
@@ -44,7 +42,6 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "architect",
         "eva"
       ],
       "resources": {
@@ -61,8 +58,6 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "alice",
-        "architect",
         "dex"
       ],
       "resources": {
@@ -84,10 +79,7 @@
       "source_path": "skills/debugging-and-error-recovery",
       "license": "MIT",
       "mode": "reference_only",
-      "agents": [
-        "alice",
-        "architect"
-      ],
+      "agents": [],
       "resources": {
         "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/debugging-and-error-recovery/SKILL.md",
         "../../references/accessibility-checklist.md": "skills/vendor/addyosmani/agent-skills/references/accessibility-checklist.md",
@@ -108,8 +100,6 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "alice",
-        "architect",
         "dex",
         "eva",
         "kodex",
@@ -135,8 +125,6 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "alice",
-        "architect",
         "dex",
         "kodex",
         "sonar"
@@ -161,8 +149,6 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "alice",
-        "architect",
         "sonar"
       ],
       "resources": {
@@ -184,10 +170,7 @@
       "source_path": "skills/test-driven-development",
       "license": "MIT",
       "mode": "reference_only",
-      "agents": [
-        "alice",
-        "architect"
-      ],
+      "agents": [],
       "resources": {
         "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/test-driven-development/SKILL.md",
         "../../references/accessibility-checklist.md": "skills/vendor/addyosmani/agent-skills/references/accessibility-checklist.md",
@@ -208,8 +191,6 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "alice",
-        "architect",
         "atlas",
         "eva"
       ],
@@ -232,9 +213,7 @@
       "source_path": "skills/ponytail",
       "license": "MIT",
       "mode": "reference_only",
-      "agents": [
-        "architect"
-      ],
+      "agents": [],
       "resources": {
         "SKILL.md": "skills/vendor/DietrichGebert/ponytail/skills/ponytail/SKILL.md"
       },
@@ -338,7 +317,6 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "architect",
         "tyler"
       ],
       "resources": {
@@ -414,8 +392,6 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "alice",
-        "architect",
         "marshal"
       ],
       "resources": {

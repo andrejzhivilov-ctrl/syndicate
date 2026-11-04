@@ -184,10 +184,6 @@ def build_runtime_config(env: Optional[Dict[str, str]] = None) -> Dict[str, Any]
                     "act_threshold": _to_float(get("FIN_ACT_THRESHOLD"), 0.85),
                     "ask_threshold": _to_float(get("FIN_ASK_THRESHOLD"), 0.50),
                 },
-                "architect": {
-                    "act_threshold": _to_float(get("ARCHITECT_ACT_THRESHOLD"), 0.75),
-                    "ask_threshold": _to_float(get("ARCHITECT_ASK_THRESHOLD"), 0.40),
-                },
                 "sentinel": {
                     "act_threshold": _to_float(get("SENTINEL_ACT_THRESHOLD"), 0.90),
                     "ask_threshold": _to_float(get("SENTINEL_ASK_THRESHOLD"), 0.60),
@@ -284,7 +280,7 @@ def build_runtime_config(env: Optional[Dict[str, str]] = None) -> Dict[str, Any]
             "model_reasoning": get("PERPLEXITY_MODEL_REASONING") or "sonar-reasoning-pro",
         },
     }
-    for agent_id in ("oscar", "tyler", "jack", "alice", "scout", "dex", "ray", "atlas", "sonar"):
+    for agent_id in ("oscar", "tyler", "jack", "scout", "dex", "ray", "atlas", "sonar"):
         prefix = agent_id.upper()
         config[agent_id] = {
             "enabled": _to_bool(get(f"{prefix}_WORKER_ENABLED")),

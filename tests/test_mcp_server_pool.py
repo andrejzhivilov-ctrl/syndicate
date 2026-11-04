@@ -119,10 +119,9 @@ def test_pool_grant_proposals_remain_separate_from_runtime_and_host_config() -> 
     assert not {"knowledge.search", "knowledge.read", "mcp.pool.search", "mcp.pool.read"} & set(example["grants"])
 
     proposals = {item["agent_id"]: item for item in plan["proposals"]}
-    assert set(proposals) == {"kodex", "architect", "marshal"}
+    assert set(proposals) == {"kodex", "marshal"}  # the Architect was removed on 04.11.2026
     expected_worker_grants = {
         "kodex": ["skills.list", "skills.read", "knowledge.search", "knowledge.read", "mcp.pool.search", "mcp.pool.read"],
-        "architect": ["skills.list", "skills.read", "mcp.pool.search", "mcp.pool.read"],
         "marshal": ["skills.list", "skills.read", "knowledge.search", "knowledge.read", "mcp.pool.search", "mcp.pool.read"],
     }
     for agent_id, proposal in proposals.items():

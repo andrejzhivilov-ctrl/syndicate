@@ -12,7 +12,6 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from src.agents.antigravity_worker import AntigravityDirectorAgent
 from src.agents.jack import JackAgent
 from src.agents.oscar import OscarAgent
 from src.agents.oscar.router import TriLLMRouter
@@ -242,16 +241,6 @@ def test_empty_report_has_no_invented_roi_or_winrate():
     assert report["roi"] is None and report["win_rate"] is None
 
 
-def test_retired_antigravity_placeholder_has_no_operational_actions():
-    result = run(AntigravityDirectorAgent(), "capabilities")
-    assert result["agent"] == "alice"
-    assert result["runtime"] == "antigravity_sdk"
-    assert result["available_actions"] == ["capabilities"]
-    assert result["grants_level"] == "none"
-    assert result["external_actions"] is False
-    assert run(AntigravityDirectorAgent(), "browser")["status"] == "error"
-
-
 def test_retired_antigravity_id_cannot_boot_as_standalone_worker(monkeypatch):
     assert "antigravity" not in AGENTS
     monkeypatch.setenv("SYNDICATE_DIRECTOR_ID", "antigravity")
@@ -387,23 +376,12 @@ def test_worker_bridge_uses_only_own_vault_auth_and_checks_response_agent():
     assert result["status"] == "unavailable"
 
 
-def test_alice_worker_bridge_uses_only_alice_auth_and_checks_response_agent():
+def test_alice_is_no_longer_a_worker():
+    # 04.11.2026: Alice was removed as an agent; her bot stays only as the alarm feed.
     from src.agent_platform.director_client import DirectorWorkerClient
 
-    class Vault:
-        async def get_secret(self, path):
-            assert path.endswith("agents/alice/auth")
-            return {"api_key": "synthetic-alice-worker-key"}
-
-    def respond(request):
-        assert request.url.host == "alice-agent"
-        assert request.url.path == "/execute"
-        assert request.headers["X-API-Key"] == "synthetic-alice-worker-key"
-        return httpx.Response(200, json={"agent": "alice", "status": "ok", "value": "review"})
-
-    client = DirectorWorkerClient("alice", "http://alice-agent:8000", Vault(), transport=httpx.MockTransport(respond))
-    result = asyncio.run(client.execute({"action": "review"}))
-    assert result == {"agent": "alice", "status": "ok", "value": "review"}
+    with pytest.raises(ValueError, match="unknown_agent"):
+        DirectorWorkerClient("alice", "http://alice-agent:8000", object())
 
 
 def test_worker_config_is_dormant_and_explicit():
@@ -411,16 +389,13 @@ def test_worker_config_is_dormant_and_explicit():
     config = build_runtime_config({})
     assert config["jack"]["enabled"] is False
     assert config["jack"]["allowed_actions"] == ["capabilities"]
-    assert config["alice"]["enabled"] is False
-    assert config["alice"]["allowed_actions"] == ["capabilities"]
+    assert "alice" not in config
     config = build_runtime_config({"JACK_WORKER_ENABLED": "true", "JACK_WORKER_URL": "http://jack-agent:8000",
                                    "JACK_COORDINATOR_ACTIONS": "evaluate,report",
                                    "ALICE_WORKER_ENABLED": "true", "ALICE_WORKER_URL": "http://alice-agent:8000",
                                    "ALICE_COORDINATOR_ACTIONS": "engineer,review"})
     assert config["jack"]["allowed_actions"] == ["evaluate", "report"]
-    assert config["alice"]["enabled"] is True
-    assert config["alice"]["worker_url"] == "http://alice-agent:8000"
-    assert config["alice"]["allowed_actions"] == ["engineer", "review"]
+    assert "alice" not in config  # her old switch turns nothing on
 
 
 def test_orchestrator_director_handler_respects_host_allowlist_and_remote_client():

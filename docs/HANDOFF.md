@@ -26,6 +26,45 @@
 
 ---
 
+## 2026-11-04 — Claude Code: перехід на 7 агентів, етап 3 (Аліса й Архітектор)
+
+**Гілка:** `refactor/seven-agents-stage3`  **Ворота:** див. PR
+
+### Зроблено
+- PR #77 (етап 2) злито.
+- Видалено як агентів:
+  - Алісу: `alice.py`, `alice_autonomous_daemon.py`, промпт, `deploy/runtime/alice_runner.py`,
+    `deploy/docker/Dockerfile.alice`, `config/agents/alice.profile.json`, `antigravity.live_profile.json`,
+    `antigravity_worker/`;
+  - Архітектора: пакет `architect/`, `architect_*.py`, промпт, `tools/architect_*.py`, профіль,
+    `config/integration_workers/architect.example.json`;
+  - шлюз Antigravity-підрядника: `src/integrations/antigravity_contractor_gateway.py`, `architect_n8n_builder.py`.
+- Типи задач, які їм належали (19 шт.), відповідають `{"status": "unavailable", "retired": true}` через
+  `_retired_handler`. Без цього вони мовчки падали б до Єви (пастка №3).
+- Бот Аліси на фото чи голосове відповідає як бот без агента, а не через знятий маршрут.
+- FlowLint перенесено в `src/n8n_flowlint.py`; крок 4 у `sandbox_test.py` тепер перевіряє ним справжні шаблони
+  `config/n8n/*.json`.
+- Прибрано Алісу й Архітектора з: `runtime_config`, `director_client`, `llm_router`, `confidence`, `floors`,
+  `skill_library.json` (списки `agents`), `mcp_pool_grants.json`. Матрицю прав перегенеровано.
+
+### Видалені тести (разом із можливістю, яку охороняли)
+- `test_alice*.py`, `test_architect_*.py`, `test_antigravity_bridge.py`, `test_antigravity_contractor_gateway.py`.
+- `TestN8NWorkflowApprovalGate` у `test_regressions.py`: GitOps-реліз n8n-флоу Архітектора видалено з ним.
+- `test_alice_autonomous_daemon_*`, `test_retired_antigravity_placeholder_*`, `test_architect_keeps_the_reasoning_model_*`.
+- Нові: `test_retired_task_types_answer_retired_and_never_reach_eva`, `test_n8n_templates_are_still_linted_after_the_architect_left`.
+
+### Не дороблено / свідомо залишено
+- `deploy/docker-compose.alice.yml` (захищений): вказує на видалений `alice_runner`. Видалити на етапі 4 з підтвердженням.
+- `vault_paths` (`AGENTS_IDS`, політики) ще знає alice й architect: етап 4.
+- Папки знань `architect_core/`, `antigravity_core/`, `antigravity_identity/`, їх `COPY` у `Dockerfile.agent` і
+  `pool_library`: лишились. Деякі реєстри хабів (`knowledge_*_registry.json`, `prompt_pool_registry.json`,
+  `skill_pool_registry.json`, `syndicate_command_hub.json`) ще згадують alice/architect. Прибрати під час
+  чищення, правки реєстрів — з дозволу Андрія.
+- 3 скіли в `skill_library.json` тепер без агентів (були лише в Аліси/Архітектора).
+- Antigravity Studio (`src/antigravity/`, `tools/antigravity_studio.py`) лишилась: це локальні макети, не агент.
+
+---
+
 ## 2026-11-04 — Claude Code: перехід на 7 агентів, етап 2 (власники)
 
 **Гілка:** `refactor/seven-agents-stage2`  **Ворота:** див. PR

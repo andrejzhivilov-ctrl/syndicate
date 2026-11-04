@@ -176,7 +176,7 @@ apps/shared/api-contract.yaml  ← генерується З БЕКЕНДУ. В�
 ## 7. Коротко про структуру
 
 ```
-src/agents/              агенти поверхів (eva, fin, sam, kira, doc, marshal, architect, office_copilot)
+src/agents/              7 агентів (eva, trainer=Алекс, kira, fin, sam, tyler, marshal) і частини старих (src/agent_owners.py)
 src/departments/         content_factory, operations, compliance, coordinator (Floor 2)
 src/integrations/        зовнішні сервіси (telegram, google_workspace, banking, mcp_gateway)
 src/verifier.py          Orc — адверсаріальний верифікатор тверджень

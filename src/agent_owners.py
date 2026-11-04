@@ -47,10 +47,9 @@ SUBSYSTEMS: Dict[str, str] = {
     "floor2_enhancer": "tyler",
     "kira_socratic": "kira",
     "sentinel": "marshal",
-    # Removed as agents in stage 3; engineering goes to Claude Code.
-    "alice": "eva",
-    "architect": "eva",
-    "antigravity_gateway": "eva",
+    # Task types of agents removed in stage 3 (Alice, the Architect, the Antigravity
+    # gateway) answer "retired"; Eva watches the system, so the notice is hers.
+    "retired": "eva",
 }
 
 
