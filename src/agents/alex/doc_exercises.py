@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-DEFAULT_DB = Path(__file__).resolve().parents[2] / "doc_core" / "vendor" / "free-exercise-db" / "dist" / "exercises.json"
+DEFAULT_DB = Path(__file__).resolve().parents[3] / "doc_core" / "vendor" / "free-exercise-db" / "dist" / "exercises.json"
 LEVELS = ("beginner", "intermediate", "expert")
 
 

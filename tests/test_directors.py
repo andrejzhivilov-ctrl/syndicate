@@ -11,14 +11,14 @@ import httpx
 import pytest
 from PIL import Image
 
-from src.agents.jack import JackAgent
-from src.agents.oscar import OscarAgent
-from src.agents.oscar.router import TriLLMRouter
+from src.agents.sam.jack import JackAgent
+from src.agents.tyler.oscar import OscarAgent
+from src.agents.tyler.oscar.router import TriLLMRouter
 from src.agents.tyler import TylerAgent
 from src.agents.tyler.finance import calculate_margin
-from src.agents.jack.engines import football, tennis, esports, icm, basketball, poker
-from src.agents.jack.quant import evaluate
-from src.agents.jack.tracker import anti_tilt
+from src.agents.sam.jack.engines import football, tennis, esports, icm, basketball, poker
+from src.agents.sam.jack.quant import evaluate
+from src.agents.sam.jack.tracker import anti_tilt
 from src.agents.director_providers import OddsScout, YouTubeComments, VaultLLM, build_provider
 
 

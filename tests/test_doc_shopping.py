@@ -1,7 +1,7 @@
 import asyncio
 from decimal import Decimal as D
 
-from src.agents import doc_shopping as S
+from src.agents.alex import doc_shopping as S
 
 
 def test_nutrition_owner_is_doc_and_eva_uses_same_criteria():
@@ -32,7 +32,7 @@ def test_shopping_list_rejects_bad_rows():
 
 
 def test_doc_agent_shopping_list_action():
-    from src.agents.doc import DocAgent
+    from src.agents.alex.doc import DocAgent
 
     agent = DocAgent(memory=None)
     out = asyncio.run(agent.execute({"action": "shopping_list",

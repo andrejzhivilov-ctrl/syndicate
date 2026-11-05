@@ -8,7 +8,7 @@ import json
 
 from src.agents.director_base import DirectorAgent, number, text, utc_now
 from .media import thumbnail, diagram
-from src.agents.oscar.router import ROUTES, TriLLMRouter
+from src.agents.tyler.oscar.router import ROUTES, TriLLMRouter
 from src.pii import PIIRedactor
 
 PERSONAS_DIR = Path(__file__).with_name("personas")

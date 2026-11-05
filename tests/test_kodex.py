@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from src.agents import kodex
-from src.agents.kodex import FORMATS, UNPROTECTED_WARNING, KodexStore, classify, sha256_of
+from src.agents import eva_kodex as kodex
+from src.agents.eva_kodex import FORMATS, UNPROTECTED_WARNING, KodexStore, classify, sha256_of
 
 
 @pytest.fixture
@@ -144,7 +144,7 @@ def test_report_counts_pending_permissions(store: KodexStore) -> None:
 
 
 def test_buttons_only_andrii_and_changes_need_confirm() -> None:
-    from src.agents.kodex_buttons import build_keyboard, handle_callback
+    from src.agents.eva_kodex_buttons import build_keyboard, handle_callback
 
     kb = build_keyboard("approve_change", "andrii", token="abcd1234")
     assert any(b["callback_data"] == "chg:yes:abcd1234" for row in kb["inline_keyboard"] for b in row)
@@ -157,7 +157,7 @@ def test_buttons_only_andrii_and_changes_need_confirm() -> None:
 
 def test_bare_change_callbacks_without_token_are_rejected() -> None:
     # Голий «chg:yes» не знає, на яку зміну він відповідає — відхиляється.
-    from src.agents.kodex_buttons import handle_callback
+    from src.agents.eva_kodex_buttons import handle_callback
 
     assert handle_callback("chg:yes", "andrii") is None
     assert handle_callback("chg:no", "andrii") is None

@@ -26,6 +26,31 @@
 
 ---
 
+## 2026-11-04 — Claude Code: перехід на 7 агентів, етап 4а (файли старих агентів у пакетах власників)
+
+**Гілка:** `refactor/seven-agents-stage4a`  **Ворота:** див. PR
+
+**Що зроблено** (`git mv`, історія збережена; логіка не змінювалась):
+- `src/agents/alex/`: `trainer.py`, `doc.py`, `doc_buttons.py`, `doc_exercises.py`, `doc_knowledge.py`, `doc_nutrition.py`,
+  `doc_reminders.py`, `doc_shopping.py` (+ `__init__.py` без імпортів);
+- `src/agents/sam/jack/` (пакет Джека); `src/agents/tyler/`: `scout.py`, `sonar.py`, `dex.py`, `ray.py`, `oscar/`;
+- Єва: `eva_atlas.py`, `eva_kodex.py`, `eva_kodex_buttons.py`, `eva_kodex_telegram.py` — префікс, бо пакет `eva/` не може
+  існувати поруч з `eva.py`;
+- імпорти в `src/`, `deploy/runtime/agent_runner.py`, `tools/kodex_bot.py` і тестах; лінивий реєстр `src/agents/__init__.py`;
+- `doc_exercises.DEFAULT_DB`: `parents[2]` → `parents[3]` (файл став на рівень глибше);
+- шляхи-рядки в `config/agents/doc.profile.json`, `kodex.profile.json`, `config/shared_skills/knowledge_base.json`,
+  `doc_core/vendor/free-exercise-db/SOURCES.lock.yaml`;
+- тест `test_old_agent_modules_live_in_their_owners_packages` (старих шляхів немає, класи імпортуються, база вправ на місці).
+
+**Не змінено:** id агентів (`doc`, `jack`, `kodex`…), сховища `data/<id>`, шляхи Vault, таблиці `agents.doc_*`, профілі
+`config/agents/*.profile.json` і промпти `*_runtime_prompt.md` старих ролей (лишились у `src/agents/`; прибрати — окремо, з Андрієм).
+
+**Розгортання:** серверу потрібні лише `git pull` і одразу `docker compose restart syndicate-agent`: `src` змонтовано, а між
+ними процес може ліниво імпортувати модуль, якого вже немає за старим шляхом. Окремих процесів зі старими шляхами
+(`kodex_bot`, cron, systemd) на сервері не знайдено.
+
+---
+
 ## 2026-11-04 — Андрій і Claude Code: етап 5 виконано на сервері
 
 **Гілка:** `docs/stage5-done` (лише документи)

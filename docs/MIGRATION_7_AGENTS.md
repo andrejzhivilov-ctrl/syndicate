@@ -73,6 +73,14 @@
 губляться. Фізичний перенос файлів у пакети `alex/`, `sam/`, `tyler/`, `eva/` — після етапу 4, коли
 контейнерів уже не буде (етап 4а).
 
+**Етап 4а зроблено** в гілці `refactor/seven-agents-stage4a` (`git mv`, історія файлів збережена):
+- Алекс: `src/agents/alex/` — `trainer.py`, `doc.py`, `doc_*.py`;
+- Сем: `src/agents/sam/jack/`;
+- Тайлер: `src/agents/tyler/` — `scout.py`, `sonar.py`, `dex.py`, `ray.py`, `oscar/`;
+- Єва: `eva_atlas.py`, `eva_kodex.py`, `eva_kodex_buttons.py`, `eva_kodex_telegram.py` (пакет `eva/` неможливий поруч з `eva.py`).
+
+Id агентів, сховища `data/<id>`, шляхи Vault і промпти `*_runtime_prompt.md` не змінено.
+
 | # | Що | Зачіпає сервер? |
 |---|---|---|
 | 1 | Реєстри й склад: `directors_registry.py`, `agent_chat.py`, `confidence.py`, `data_paths.py`, профілі `config/agents/`, документи. Нові профілі `alex`. | ні |

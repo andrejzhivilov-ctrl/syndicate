@@ -32,7 +32,7 @@ from src.agent_memory import (
     recall_agent_memory,
     save_agent_episode,
 )
-from src.agents import doc_exercises, doc_nutrition, doc_shopping
+from src.agents.alex import doc_exercises, doc_nutrition, doc_shopping
 
 logger = structlog.get_logger(__name__)
 

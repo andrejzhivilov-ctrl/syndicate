@@ -1516,7 +1516,7 @@ async def trigger_evening_reflection(state: AppState = Depends(require_auth)):
     """
     from datetime import datetime
 
-    from src.agents.kodex import evening_section
+    from src.agents.eva_kodex import evening_section
 
     evening = {"kodex": evening_section(os.getenv("KODEX_DATA_DIR"), datetime.now())}
     result = await state.orchestrator.proactive_evening_reflection(evening)

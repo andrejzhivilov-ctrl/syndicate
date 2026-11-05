@@ -59,7 +59,7 @@
     "status": "buttons_ready_bot_pending_token",
     "bot": "@doc_health_bot",
     "access": "andrii_only",
-    "module": "src/agents/doc_buttons.py"
+    "module": "src/agents/alex/doc_buttons.py"
   },
   "medical_card": {
     "status": "not_configured",
