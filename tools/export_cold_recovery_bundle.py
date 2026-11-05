@@ -8,11 +8,10 @@ portable offline bundle designed for export to physical media (USB Flash Drive, 
 Included Artefacts:
 1. PostgreSQL Database & pgvector Tables (pg_dump custom format).
 2. HashiCorp Vault Raft Snapshot (all secrets, tokens, and app roles).
-3. n8n Workflows & Webhook configs (JSON automation exports).
-4. Antigravity Identity & Cognitive Memory Snapshot (skills, rules, transcripts, artifacts).
-5. Shared Obsidian "Second Brain" Vault Snapshot (knowledge cards, notes).
-6. Environment Bootstrap Config & Docker Compose definitions.
-7. One-Command Restore Engine (restore_syndicate.py / .sh / .bat).
+3. Antigravity Identity & Cognitive Memory Snapshot (skills, rules, transcripts, artifacts).
+4. Shared Obsidian "Second Brain" Vault Snapshot (knowledge cards, notes).
+5. Environment Bootstrap Config & Docker Compose definitions.
+6. One-Command Restore Engine (restore_syndicate.py / .sh / .bat).
 
 Enables instant 3-minute resurrection of the entire Syndicate on any fresh PC,
 virtual machine (Proxmox, WSL2, VPS), or bare-metal server from the physical USB drive.
@@ -70,11 +69,10 @@ def main():
         print(f"🔒 Verifying manifest: {manifest.get('bundle_id')}")
         print(f"📅 Timestamp: {manifest.get('timestamp')}")
 
-    print("\\n[1/5] Unpacking database & pgvector dump...")
-    print("[2/5] Restoring HashiCorp Vault secrets & tokens...")
-    print("[3/5] Restoring n8n workflows...")
-    print("[4/5] Restoring Antigravity Identity, Rules, and Skills...")
-    print("[5/5] Re-indexing Obsidian Knowledge Vault...")
+    print("\\n[1/4] Unpacking database & pgvector dump...")
+    print("[2/4] Restoring HashiCorp Vault secrets & tokens...")
+    print("[3/4] Restoring Antigravity Identity, Rules, and Skills...")
+    print("[4/4] Re-indexing Obsidian Knowledge Vault...")
     print("\\n✅ All components verified. System is ready to run: docker compose up -d")
     print("=" * 60)
 
@@ -171,17 +169,6 @@ def create_cold_recovery_bundle(
                 json.dumps({"status": "ready", "roles": ["architect", "fin", "eva"]}, indent=2), encoding="utf-8"
             )
 
-        # 4. n8n Workflows
-        n8n_stage = temp_staging / "n8n"
-        n8n_stage.mkdir(parents=True, exist_ok=True)
-        n8n_data = REPO_ROOT / "data" / "n8n"
-        if n8n_data.exists():
-            shutil.copytree(n8n_data, n8n_stage / "data", dirs_exist_ok=True)
-        else:
-            (n8n_stage / "workflows_manifest.json").write_text(
-                json.dumps({"status": "ready", "workflows_exported": 18}, indent=2), encoding="utf-8"
-            )
-
         # 5. Antigravity Identity Snapshot
         ag_stage = temp_staging / "antigravity"
         ag_stage.mkdir(parents=True, exist_ok=True)
@@ -237,7 +224,6 @@ def create_cold_recovery_bundle(
         "included_components": [
             "PostgreSQL & pgvector",
             "HashiCorp Vault",
-            "n8n Workflows",
             "Antigravity Identity & Memory",
             "Obsidian Second Brain Vault",
             "One-Command Restore Scripts",

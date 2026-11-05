@@ -1,5 +1,5 @@
 {
-  "_comment": "RSS/Atom feeds the schedule reads for each agent's weekly learning (moved from the n8n workflow on 05.11.2026). A feed's links must also be on a host in src/n8n_learning_sources.json, or the items are refused.",
+  "_comment": "RSS/Atom feeds the schedule reads for each agent's weekly learning (moved from the n8n workflow on 05.11.2026). A feed's links must also be on a host in src/learning_sources.json, or the items are refused.",
   "trainer": [
     "https://pubmed.ncbi.nlm.nih.gov/rss/search/1DOWGEXM0L6N-g69sm5REljY8QCTlluV-ecIShwYU7vd_OAQAb/?limit=15&utm_campaign=pubmed-2&fc=20261103113328",
     "https://pubmed.ncbi.nlm.nih.gov/rss/search/1fYfMzmpBkCeYUrKpE1OmpkjbxBhHgXro-jbQnj45kFBadHYYc/?limit=15&utm_campaign=pubmed-2&fc=20261103113345",

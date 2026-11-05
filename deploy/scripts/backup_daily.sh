@@ -1,5 +1,5 @@
 #!/bin/bash
-# Daily backup set: both PostgreSQL databases, n8n home, agent data (confirmed memory, HITL queue),
+# Daily backup set: the PostgreSQL database, agent data (confirmed memory, HITL queue),
 # Obsidian, bootstrap .env, Vault snapshot.
 # Every step reports ok or unavailable; a skipped step is never reported as ok.
 # Each database dump is proven by restoring it into a throwaway container.
@@ -11,7 +11,6 @@ KEEP_DAYS="${EVA_BACKUP_KEEP_DAYS:-7}"
 REPO_DIR="${SYNDICATE_DIR:-/opt/syndicate}"
 OBSIDIAN_DIR="${OBSIDIAN_DIR:-/data/obsidian_vault}"
 POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-syndicate-postgres-1}"
-N8N_VOLUME="${N8N_VOLUME:-syndicate_n8n_data}"
 EVA_VOLUME="${EVA_VOLUME:-syndicate_eva_data}"
 RESTORE_IMAGE="${RESTORE_IMAGE:-pgvector/pgvector:pg16}"
 VAULT_TOKEN_FILE="${VAULT_BACKUP_TOKEN_FILE:-/root/.vault-backup-token}"
@@ -113,9 +112,6 @@ prune_old() {
 
 backup_database postgres "${POSTGRES_DB_NAME:-syndicate}"
 verify_restore postgres "${POSTGRES_DB_NAME:-syndicate}"
-backup_database n8n "${N8N_DB_NAME:-n8n}"
-verify_restore n8n "${N8N_DB_NAME:-n8n}"
-backup_volume n8n_home "$N8N_VOLUME"
 backup_volume eva_data "$EVA_VOLUME"
 backup_obsidian
 backup_env

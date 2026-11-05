@@ -1,7 +1,7 @@
 """Weekly learning from RSS/Atom feeds, read by the schedule (replaces the n8n RSS workflow).
 
 Each feed is fetched once, parsed with the standard library and reduced to the items of the
-last seven days. The items then pass ``n8n_bridge.accept_learning``, which keeps only links on
+last seven days. The items then pass ``agent_jobs.accept_learning``, which keeps only links on
 hosts Andrii connected. A feed that cannot be read is counted and named, never replaced with
 anything. Documents with a DOCTYPE are refused, so no entity is ever expanded.
 """

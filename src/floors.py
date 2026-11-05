@@ -114,7 +114,7 @@ FLOORS: Dict[int, Dict[str, Any]] = {
     1: {
         "name": "Сервер & сенсорика (Sensory & Ingestion)",
         "agents": [],
-        "services": ["sensory_router", "error_collector", "n8n_templates", "scheduler"],
+        "services": ["sensory_router", "error_collector", "scheduler"],
         "status": "active",
     },
 }

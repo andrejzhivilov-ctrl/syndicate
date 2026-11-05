@@ -56,7 +56,6 @@ from src.directors_registry import roster as directors_roster  # noqa: E402
 from src.lockdown import Lockdown  # noqa: E402
 from src.alert_watch import AlertWatch  # noqa: E402
 from src import hermes_gateway  # noqa: E402
-from src import n8n_bridge  # noqa: E402
 from src.agent_schedule import AgentSchedule, enabled_from_env  # noqa: E402
 from src.telegram_gateway import (  # noqa: E402
     TelegramGateway,
@@ -1215,10 +1214,9 @@ async def execute_task_stream(
 
 @app.post("/webhook/error")
 async def error_webhook(request: Request, state: AppState = Depends(require_auth)):
-    """Dead-letter error recording from n8n / subagents (Floor 1).
+    """Dead-letter error recording from subagents and scripts (Floor 1).
 
-    Authenticated: the n8n templates already send ``X-API-Key``. It used to be
-    open to anyone who could reach the port.
+    Authenticated with ``X-API-Key``. It used to be open to anyone who could reach the port.
     """
     body = await request.json()
     result = await state.orchestrator.execute("record_error", body)
@@ -1412,23 +1410,6 @@ async def ukrainealarm_webhook(
     return {"ok": True}
 
 
-@app.post("/webhook/n8n/{agent}")
-async def n8n_agent_webhook(
-    agent: str,
-    request: Request,
-    authorization: Optional[str] = Header(default=None, alias="Authorization"),
-    state: AppState = Depends(require_ready),
-):
-    """Reminders, check-ins and learning items from n8n for one agent (src/n8n_bridge.py)."""
-    if not n8n_bridge.token_ok(agent, authorization, state.api_key):
-        raise HTTPException(status_code=401, detail="unauthorized")
-    try:
-        payload = json.loads(await request.body())
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid JSON") from None
-    return await n8n_bridge.handle(agent, payload, state.telegram_gateway)
-
-
 @app.post("/hermes/{agent}/llm/{purpose}/v1/chat/completions", include_in_schema=False)
 async def hermes_llm(
     agent: str,
@@ -1472,7 +1453,7 @@ async def webhook_handler(
     x_webhook_signature: Optional[str] = Header(default=None, alias="X-Webhook-Signature"),
     state: AppState = Depends(require_ready),
 ):
-    """Generic signed webhook (n8n, CI, partners). HMAC-SHA256 over the raw body."""
+    """Generic signed webhook (CI, partners). HMAC-SHA256 over the raw body."""
     raw_bytes = await request.body()
     await _verify_generic_webhook(state, raw_bytes, source, x_hub_signature_256, x_webhook_signature)
     try:

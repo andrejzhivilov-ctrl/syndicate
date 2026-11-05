@@ -41,7 +41,6 @@ SUBSYSTEMS: Dict[str, str] = {
     "reserved_floor": "eva",
     "change_requests": "eva",
     "vault": "eva",
-    "n8n_templates": "eva",         # n8n leaves in stage 6
     "error_collector": "eva",       # Eva watches the system's state
     "floor2": "tyler",              # content factory
     "floor2_enhancer": "tyler",

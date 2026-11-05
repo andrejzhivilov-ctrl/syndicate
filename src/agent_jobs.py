@@ -1,16 +1,13 @@
-"""n8n -> agents: reminders and check-ins without a model, and a weekly learning inbox.
+"""Agent jobs the schedule runs: reminders and check-ins without a model, and a weekly learning inbox.
 
-n8n holds no agent rights. It posts to ``/webhook/n8n/<agent>`` with a per-agent token
-derived from the master key (``python -m src.n8n_token trainer``), so nothing new is stored
-in Vault. A reminder or check-in is fixed text sent by the agent's own bot to the owner;
-no model is called, so it costs no tokens. Learning items are accepted only from sources
-Andrii connected in ``src/n8n_learning_sources.json`` (src is mounted into syndicate-agent, the rest of config is baked into the image) and land in a per-week file the
-agent reads with its ``learning_inbox`` tool. Activating a workflow in n8n is Andrii's step.
+Called by ``src/agent_schedule.py`` (n8n used to call it until stage 6). A reminder or check-in is
+fixed text sent by the agent's own bot to the owner; no model is called, so it costs no tokens.
+Learning items are accepted only from sources Andrii connected in ``src/learning_sources.json``
+(src is mounted into syndicate-agent) and land in a per-week file the agent reads with its
+``learning_inbox`` tool.
 """
 from __future__ import annotations
 
-import hashlib
-import hmac
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -23,8 +20,8 @@ from src.data_paths import ensure_dir
 
 logger = structlog.get_logger(__name__)
 
-SOURCES_PATH = Path(__file__).with_name("n8n_learning_sources.json")
-#: Agents n8n may reach, and what each may receive.
+SOURCES_PATH = Path(__file__).with_name("learning_sources.json")
+#: Agents with scheduled jobs, and the kinds each may run.
 AGENT_KINDS: Dict[str, frozenset] = {
     "trainer": frozenset({"reminder", "checkin", "learning", "morning_brief", "reflection"}),
 }
@@ -45,18 +42,6 @@ MAX_ITEM_TEXT = 4000
 INBOX_LIMIT = 10
 
 
-def n8n_token(agent: str, master: Optional[str]) -> Optional[str]:
-    if not master:
-        return None
-    return hmac.new(master.encode("utf-8"), f"n8n:{agent}".encode("utf-8"), hashlib.sha256).hexdigest()
-
-
-def token_ok(agent: str, provided: Optional[str], master: Optional[str]) -> bool:
-    expected = n8n_token(agent, master)
-    bare = (provided or "").removeprefix("Bearer ").strip()
-    return bool(expected and bare and agent in AGENT_KINDS and hmac.compare_digest(bare, expected))
-
-
 def connected_sources(agent: str, path: Path = SOURCES_PATH) -> List[str]:
     """Hosts Andrii connected for this agent; an empty list accepts nothing."""
     try:
@@ -74,13 +59,6 @@ def _host_allowed(url: str, hosts: List[str]) -> bool:
 def _week_file(agent: str, now: datetime) -> Path:
     year, week, _ = now.isocalendar()
     return ensure_dir("learning") / agent / f"{year}-W{week:02d}.jsonl"
-
-
-def _log(agent: str, event: Dict[str, Any]) -> None:
-    path = ensure_dir("n8n_events") / f"{agent}.jsonl"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as stream:
-        stream.write(json.dumps(event, ensure_ascii=False) + "\n")
 
 
 def _clean_item(raw: Any, hosts: List[str]) -> Optional[Dict[str, str]]:
@@ -158,7 +136,7 @@ async def _reflection(agent: str, gateway: Any) -> Dict[str, Any]:
 
 
 async def handle(agent: str, payload: Any, gateway: Any) -> Dict[str, Any]:
-    """One n8n call: text to the owner, the day plan, the weekly review, or learning items."""
+    """One job run: text to the owner, the day plan, the weekly review, or learning items."""
     kind = payload.get("kind") if isinstance(payload, Mapping) else None
     if kind not in AGENT_KINDS.get(agent, frozenset()):
         return {"status": "error", "error": "unknown_kind", "available_kinds": sorted(AGENT_KINDS.get(agent, ()))}
@@ -170,6 +148,4 @@ async def handle(agent: str, payload: Any, gateway: Any) -> Dict[str, Any]:
         result = await _reflection(agent, gateway)
     else:
         result = await _deliver(agent, str(payload.get("text") or "").strip()[:MAX_TEXT], gateway, "empty_text")
-    _log(agent, {"kind": kind, "status": result["status"],
-                 "at": datetime.now(timezone.utc).isoformat(timespec="seconds")})
     return result

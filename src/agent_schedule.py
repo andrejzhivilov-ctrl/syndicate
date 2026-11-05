@@ -9,7 +9,7 @@ n8n workflows were off until he activated them. Each run is one call, never a lo
 - a result other than ``ok`` is written to the journal and sent once to Andrii through the
   alarm bot, with the reason; nothing is retried before the next scheduled time.
 
-Times are Kyiv time. The jobs reuse ``n8n_bridge.handle``, the code the n8n workflows called,
+Times are Kyiv time. The jobs run ``agent_jobs.handle``, the code the n8n workflows used to call,
 so a reminder costs no model call and the weekly review stays one Hermes turn.
 """
 from __future__ import annotations
@@ -24,7 +24,7 @@ from zoneinfo import ZoneInfo
 
 import structlog
 
-from src import learning_feeds, n8n_bridge
+from src import learning_feeds, agent_jobs
 from src.alert_watch import ALERT_BOT
 from src.data_paths import ensure_dir
 from src.proactive import cron_matches
@@ -72,13 +72,13 @@ def enabled_from_env(raw: Optional[str] = None) -> Tuple[List[str], List[str]]:
 async def run_job(job: Job, gateway: Any) -> Dict[str, Any]:
     """One run of one job; the result is honest about what did not happen."""
     if job.kind != "learning":
-        return await n8n_bridge.handle(job.agent, {"kind": job.kind, "text": job.text}, gateway)
+        return await agent_jobs.handle(job.agent, {"kind": job.kind, "text": job.text}, gateway)
     items, failed = await learning_feeds.collect(job.agent)
     feeds = learning_feeds.feeds_for(job.agent)
     if not feeds or len(failed) == len(feeds):
         return {"status": "unavailable", "kept": 0, "feeds_failed": len(failed),
                 "reason": "no_feeds_configured" if not feeds else "feeds_unreachable"}
-    result = await n8n_bridge.handle(job.agent, {"kind": "learning", "items": items}, gateway)
+    result = await agent_jobs.handle(job.agent, {"kind": "learning", "items": items}, gateway)
     return {**result, "feeds_failed": len(failed)}
 
 
