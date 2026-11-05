@@ -57,6 +57,7 @@ from src.lockdown import Lockdown  # noqa: E402
 from src.alert_watch import AlertWatch  # noqa: E402
 from src import hermes_gateway  # noqa: E402
 from src import n8n_bridge  # noqa: E402
+from src.agent_schedule import AgentSchedule, enabled_from_env  # noqa: E402
 from src.telegram_gateway import (  # noqa: E402
     TelegramGateway,
     extract_message,
@@ -130,6 +131,7 @@ class AppState:
     obsidian_webdav_task: Optional[Any] = None
     alert_watch: Optional[AlertWatch] = None
     alert_watch_task: Optional[Any] = None
+    schedule_task: Optional[Any] = None
 
 
 app_state = AppState()
@@ -370,6 +372,7 @@ async def lifespan(app: FastAPI):
         logger.info("HITL surface initialized", change_requests=store is not None)
         app_state.alert_watch = AlertWatch(app_state.telegram_gateway)
         app_state.alert_watch_task = asyncio.create_task(app_state.alert_watch.loop())
+        _start_schedule()
 
         app_state.ready = True
         logger.info("SYNDICATE agent ready", uptime=0)
@@ -412,8 +415,20 @@ def _start_obsidian_webdav() -> None:
         app_state.obsidian_webdav_task = asyncio.create_task(server.loop())
 
 
+def _start_schedule() -> None:
+    """The fixed schedule (src/agent_schedule.py): only the jobs Andrii named in SYNDICATE_SCHEDULE."""
+    enabled, unknown = enabled_from_env()
+    if unknown:
+        logger.warning("schedule_unknown_jobs_ignored", jobs=unknown)
+    if enabled:
+        schedule = AgentSchedule(app_state.telegram_gateway, enabled)
+        app_state.schedule_task = asyncio.create_task(schedule.loop())
+    else:
+        logger.info("schedule_off", hint="SYNDICATE_SCHEDULE is empty")
+
+
 async def _stop_background_loops() -> None:
-    for name in ("obsidian_webdav_task", "alert_watch_task"):
+    for name in ("obsidian_webdav_task", "alert_watch_task", "schedule_task"):
         task = getattr(app_state, name)
         if task is not None:
             task.cancel()
