@@ -271,6 +271,8 @@ services:
       EVA_HERMES_AGENTS: ${EVA_HERMES_AGENTS:-}
       # Monthly USD for Hermes learning across all agents; Andrii set 5 while the balance is low.
       HERMES_LEARNING_BUDGET_USD: ${HERMES_LEARNING_BUDGET_USD:-5}
+      # Jobs of the fixed schedule Andrii switched on (src/agent_schedule.py); empty runs none.
+      SYNDICATE_SCHEDULE: ${SYNDICATE_SCHEDULE:-}
       # Vector search. Unset EMBEDDINGS_URL disables semantic search cleanly —
       # episodic memory keeps working, which is a supported mode, not a failure.
       EMBEDDINGS_URL: ${EMBEDDINGS_URL:-http://embeddings:8000}

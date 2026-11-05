@@ -38,6 +38,7 @@ DIRS = {
     "hermes": "hermes",
     "learning": "learning",
     "n8n_events": "n8n_events",
+    "schedule": "schedule",
 }
 
 
