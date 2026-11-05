@@ -26,6 +26,23 @@
 
 ---
 
+## 2026-11-05 — Claude Code: етап 4а виконано на сервері
+
+**Гілка:** `docs/stage4a-done`  **Коміт:** після ff44b95 (PR #83)  **Ворота:** ✅ (лише документи)
+
+### Зроблено
+- PR #83 злито, Андрій виконав `git pull` і `docker compose restart syndicate-agent` (05.11.2026).
+- Перевірено на сервері: код на ff44b95, `syndicate-syndicate-agent-1` healthy, `SYNDICATE agent ready`,
+  жодного `Traceback`/`ImportError` після перезапуску; Hermes Алекса дає `POST /hermes/trainer/mcp 200`;
+  `https://syndicateholding.com/health` — 200.
+- У контейнері імпортуються всі перенесені модулі (`alex.*`, `sam.jack`, `tyler.*`, `eva_atlas`, `eva_kodex*`),
+  база вправ `DEFAULT_DB` знаходиться.
+
+### Наступне
+1. Етап 6: планувальник у `syndicate-agent` (розклад Алекса з n8n), потім видалення n8n і псевдоніма `eva-agent`.
+
+---
+
 ## 2026-11-04 — Claude Code: перехід на 7 агентів, етап 4а (файли старих агентів у пакетах власників)
 
 **Гілка:** `refactor/seven-agents-stage4a`  **Ворота:** див. PR

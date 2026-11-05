@@ -80,6 +80,7 @@
 - Єва: `eva_atlas.py`, `eva_kodex.py`, `eva_kodex_buttons.py`, `eva_kodex_telegram.py` (пакет `eva/` неможливий поруч з `eva.py`).
 
 Id агентів, сховища `data/<id>`, шляхи Vault і промпти `*_runtime_prompt.md` не змінено.
+**Виконано на сервері 05.11.2026** (PR #83): `git pull` і перезапуск `syndicate-agent`, усі модулі імпортуються, логи чисті.
 
 | # | Що | Зачіпає сервер? |
 |---|---|---|
