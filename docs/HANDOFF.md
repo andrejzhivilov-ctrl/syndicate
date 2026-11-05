@@ -26,6 +26,54 @@
 
 ---
 
+## 2026-11-05 — Claude Code: перехід на 7 агентів, етап 6б (n8n і псевдонім `eva-agent` прибрано з коду)
+
+**Гілка:** `refactor/seven-agents-stage6b`  **Ворота:** ✅ (чиста копія на сервері, ci-wt98)
+
+### Зроблено
+- Етап 6а на сервері перевірено 05.11: `syndicate-agent` healthy, `SYNDICATE_SCHEDULE` порожня, у лозі `schedule_off`.
+- Видалено: `src/n8n_templates.py`, `src/n8n_flowlint.py`, `src/n8n_token.py`, `config/n8n/`, маршрут
+  `/webhook/n8n/{agent}`, дію `generate_n8n_template` (тепер `retired`), сервіс і том `n8n` у compose,
+  блок `n8n.syndicateholding.com` і зону `n8n` у nginx, `CREATE DATABASE n8n` в `init.sql`, кроки n8n у
+  щоденному бекапі, ключ `n8n` у `scripts/syndicate_vault.py`, змінні `N8N_*` у прикладах `.env`,
+  крок n8n у `tools/export_cold_recovery_bundle.py` (він писав вигадане `"workflows_exported": 18`).
+- Перейменовано: `src/n8n_bridge.py` → `src/agent_jobs.py` (без токена n8n і журналу `n8n_events`; журнал
+  тепер веде розклад), `src/n8n_learning_sources.json` → `src/learning_sources.json`,
+  `tests/test_n8n_bridge.py` → `tests/test_agent_jobs.py`.
+- Псевдонім `eva-agent` прибрано з мереж `syndicate-agent`. Роль і політика Vault `eva-agent` лишаються.
+- Контракт API перегенеровано (`tools/export_openapi.py`): зник лише маршрут n8n.
+- Команди для сервера: `docs/STAGE6_RUNBOOK.md`.
+- `HERMES_ROLLOUT.md`: ранковий план, контроль і навчання Алекса тепер 🟡, а не ✅. Код є, але за
+  розкладом вони ніколи не запускались (у n8n були вимкнені), і зараз вимкнені до рішення Андрія.
+
+### Видалені тести (правило 2 плану)
+- `test_n8n_templates_do_not_read_env_and_keep_the_api_key_in_a_credential`, `test_n8n_templates_are_still_linted_after_the_architect_left`,
+  `test_token_is_per_agent_and_needs_the_master`, `test_workflow_templates_are_inactive_lint_clean_and_call_the_trainer_door`,
+  `test_the_n8n_route_checks_the_token_before_reading_the_body`, крок FlowLint у `sandbox_test.py`, крок шаблонів у
+  `test_10floors_architecture.py`: охороняли шаблони, токен і маршрут n8n, які видалено.
+- `test_rss_reader_reads_every_feed_in_the_list` охороняв читання всіх стрічок у n8n. Цю можливість перенесено:
+  її тепер охороняє `test_collect_names_the_feeds_that_failed` (кілька стрічок, збій однієї не губить інші).
+- Замість них: `test_n8n_is_gone_from_the_runtime`, `test_n8n_is_gone_from_nginx_and_the_login_zone_stays_strict`,
+  `test_runtime_service_is_syndicate_agent_without_the_old_alias`, `test_alex_keeps_the_times_and_feeds_he_had_in_n8n`,
+  крок 4 sandbox перевіряє розклад.
+
+### Не дороблено / свідомо залишено
+- Захищені `deploy/server_bootstrap.sh` і `deploy/scripts/server_bootstrap.sh` досі створюють `/data/n8n` і правило
+  UFW `deny 5678`. Нешкідливо, не чіпав без окремої згоди.
+- Згадки n8n у профілях і промптах старих ролей, у реєстрах знань і старих документах — у загальній чистці.
+- Ключ `n8n_api_key` у Vault і DNS `n8n.syndicateholding.com` — рішення Андрія (runbook, крок 5).
+
+### Наступне
+1. Після злиття: `docs/STAGE6_RUNBOOK.md` кроки 0–4. Спершу обов'язково крок 1: живий Hermes Алекса ще ходить на
+   `http://eva-agent:8000`, бо його конфіг примонтований окремим файлом.
+2. Етап 7: Hermes-профіль `trainer` → `alex`, новий бот Алекса.
+
+### Ризики й спостереження
+- Якщо пропустити крок 1 runbook, після кроку 3 Алекс перестане відповідати (Hermes не знайде `eva-agent`).
+  Виправлення: перезапустити Hermes.
+
+---
+
 ## 2026-11-05 — Claude Code: перехід на 7 агентів, етап 6а (розклад у syndicate-agent)
 
 **Гілка:** `refactor/seven-agents-stage6a`  **Ворота:** ✅ (чиста копія на сервері, ci-wt97)

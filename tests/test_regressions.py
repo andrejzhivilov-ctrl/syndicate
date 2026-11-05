@@ -4132,7 +4132,7 @@ def test_n8n_is_gone_from_nginx_and_the_login_zone_stays_strict():
     # The strict login zone (20r/m) is still there for the remaining logins.
     text = (REPO_ROOT / "config" / "nginx" / "nginx.conf").read_text(encoding="utf-8")
     assert "n8n" not in text
-    assert re.search(r"zone=login:d+m rate=20r/m", text)
+    assert re.search(r"zone=login:\d+m rate=20r/m", text)
 
 
 def test_obsidian_notes_reach_the_chat_of_eva_and_report_an_absent_vault_honestly(tmp_path):

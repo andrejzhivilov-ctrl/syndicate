@@ -5,7 +5,7 @@ Codex, Claude Code тощо). Якщо ти агент — почни звідс
 
 **Проєкт:** SYNDICATE — автономний AI-холдинг, 10 поверхів (Floor 1 інфраструктура →
 Floor 10 Marshal/безпека). Python 3.11, FastAPI, LangGraph, PostgreSQL+pgvector, Redis,
-HashiCorp Vault, n8n. Оператор-людина — Andrii.
+HashiCorp Vault. Оператор-людина — Andrii.
 
 ---
 
