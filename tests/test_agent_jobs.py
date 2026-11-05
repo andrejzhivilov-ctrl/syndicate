@@ -1,10 +1,10 @@
-"""n8n -> agents: token per agent, no model for reminders, learning only from connected sources."""
+"""Scheduled agent jobs: no model for reminders, learning only from connected sources."""
 import asyncio
 import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from src import n8n_bridge as bridge
+from src import agent_jobs as bridge
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -21,17 +21,6 @@ class _Gateway:
         return self.accept
 
 
-def test_token_is_per_agent_and_needs_the_master():
-    token = bridge.n8n_token("trainer", "master")
-    assert bridge.token_ok("trainer", f"Bearer {token}", "master")
-    assert not bridge.token_ok("trainer", "Bearer wrong", "master")
-    assert not bridge.token_ok("sam", f"Bearer {bridge.n8n_token('sam', 'master')}", "master")  # not wired yet
-    assert not bridge.token_ok("trainer", f"Bearer {token}", None)
-    from src.hermes_gateway import agent_token
-
-    assert token != agent_token("trainer", "master")  # n8n never gets the Hermes credential
-
-
 def test_reminder_goes_to_the_owner_through_the_agents_bot(tmp_path, monkeypatch):
     monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
     gateway = _Gateway()
@@ -46,8 +35,6 @@ def test_reminder_goes_to_the_owner_through_the_agents_bot(tmp_path, monkeypatch
 
     wrong = asyncio.run(bridge.handle("trainer", {"kind": "order_food"}, gateway))
     assert wrong["error"] == "unknown_kind" and wrong["available_kinds"] == sorted(bridge.AGENT_KINDS["trainer"])
-    events = (tmp_path / "n8n_events" / "trainer.jsonl").read_text(encoding="utf-8").splitlines()
-    assert [json.loads(line)["status"] for line in events] == ["ok", "unavailable", "unavailable"]
 
 
 def test_learning_keeps_only_connected_sources_and_the_inbox_reads_them(tmp_path, monkeypatch):
@@ -74,31 +61,13 @@ def test_learning_sources_are_the_ones_andrii_listed():
     assert all("/" not in host and host == host.lower() for host in hosts)
 
 
-def test_workflow_templates_are_inactive_lint_clean_and_call_the_trainer_door():
-    from src.n8n_flowlint import lint_workflow
-
-    for name in ("trainer_reminders.json", "trainer_weekly_learning.json"):
-        workflow = json.loads((ROOT / "config" / "n8n" / name).read_text(encoding="utf-8"))
-        report = lint_workflow(workflow)
-        assert report.passed, report.to_dict()
-        assert workflow["active"] is False and workflow["settings"]["timezone"] == "Europe/Kyiv"
-        calls = [node for node in workflow["nodes"] if node["type"] == "n8n-nodes-base.httpRequest"]
-        assert calls and all(node["parameters"]["url"] == "http://syndicate-agent:8000/webhook/n8n/trainer"
-                             and node["parameters"]["genericAuthType"] == "httpHeaderAuth" for node in calls)
-
-
-def test_rss_reader_reads_every_feed_in_the_list():
-    # rssFeedRead below 1.1 reads only the first input item, so three of four feeds were silently skipped.
-    workflow = json.loads((ROOT / "config" / "n8n" / "trainer_weekly_learning.json").read_text(encoding="utf-8"))
-    readers = [node for node in workflow["nodes"] if node["type"] == "n8n-nodes-base.rssFeedRead"]
-    assert readers and all(node["typeVersion"] >= 1.1 for node in readers)
-
-
-def test_the_n8n_route_checks_the_token_before_reading_the_body():
+def test_n8n_is_gone_from_the_runtime():
+    """Stage 6 (05.11.2026): the schedule calls the jobs in-process; no n8n door or token is left."""
     source = (ROOT / "deploy" / "runtime" / "agent_runner.py").read_text(encoding="utf-8")
-    route = source[source.index('@app.post("/webhook/n8n/{agent}")'):]
-    route = route[:route.index("\n\n\n")]
-    assert route.index("n8n_bridge.token_ok") < route.index("await request.body()")
+    assert "/webhook/n8n" not in source and "n8n_bridge" not in source
+    assert not hasattr(bridge, "token_ok") and not hasattr(bridge, "n8n_token")
+    for gone in ("src/n8n_bridge.py", "src/n8n_token.py", "src/n8n_templates.py", "src/n8n_flowlint.py", "config/n8n"):
+        assert not (ROOT / gone).exists(), gone
 
 
 def test_morning_brief_is_andriis_own_plan_note_and_never_invented(tmp_path, monkeypatch):
@@ -138,8 +107,11 @@ def test_weekly_reflection_needs_hermes_and_says_so(tmp_path, monkeypatch):
     assert gateway.sent == [("trainer", "1", "Нового з джерел немає.")]
 
 
-def test_files_the_bridge_reads_at_runtime_are_inside_the_mounted_src():
+def test_files_the_jobs_read_at_runtime_are_inside_the_mounted_src():
     """syndicate-agent mounts src/ but bakes config/ into the image: a list in config/ was invisible (2026-11-03)."""
     compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
     assert "./src:/app/src" in compose
     assert bridge.SOURCES_PATH.parent == ROOT / "src" and bridge.SOURCES_PATH.is_file()
+    from src import learning_feeds
+
+    assert learning_feeds.FEEDS_PATH.parent == ROOT / "src" and learning_feeds.FEEDS_PATH.is_file()

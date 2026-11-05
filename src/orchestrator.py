@@ -138,14 +138,14 @@ class EvaOrchestrator:
         "alice_engineer": "retired",
         "alice_code_review": "retired",
         "alice_status": "retired",
-        # ─── Floor 1: Server & n8n ──────────────────────────────────────────
+        # ─── Floor 1: Server ──────────────────────────────────────────
         "sensory_split_audio": "sensory",
         "sensory_extract_doc": "sensory",
         "sensory_chunk_text": "sensory",
         "sensory_route_telegram": "sensory",
         "record_error": "error_collector",
         "get_recent_errors": "error_collector",
-        "generate_n8n_template": "n8n_templates",
+        "generate_n8n_template": "retired",  # n8n removed in stage 6 (05.11.2026)
         "proactive_morning": "proactive",
         "proactive_evening": "proactive",
 
@@ -552,10 +552,9 @@ class EvaOrchestrator:
         builder.add_node("router", self._route_task)
         builder.add_node("lessons_check", self._lessons_check)
 
-        # Floor 1: Server & n8n
+        # Floor 1: Server
         builder.add_node("sensory", self._sensory_handler)
         builder.add_node("error_collector", self._error_collector_handler)
-        builder.add_node("n8n_templates", self._n8n_templates_handler)
         builder.add_node("proactive", self._proactive_handler)
 
         # Floor 2: Content Factory
@@ -614,7 +613,6 @@ class EvaOrchestrator:
             "sonar": "sonar_agent",
             "sensory": "sensory",
             "error_collector": "error_collector",
-            "n8n_templates": "n8n_templates",
             "proactive": "proactive",
             "floor2": "floor2",
             "floor2_enhancer": "floor2_enhancer",
@@ -860,28 +858,6 @@ class EvaOrchestrator:
             state["result"] = {"status": "ok", "errors": res}
         else:
             state["result"] = {"status": "error", "error": f"Unknown error_collector task: {task_type}"}
-        state["status"] = "completed"
-        return state
-
-    async def _n8n_templates_handler(self, state: AgentState) -> AgentState:
-        from src.n8n_templates import (
-            build_sensory_switch_workflow,
-            build_error_handler_workflow,
-            build_cron_briefing_workflow,
-            build_evening_reflection_workflow,
-        )
-        template_name = state["payload"].get("template", "sensory_switch")
-        if template_name == "sensory_switch":
-            wf = build_sensory_switch_workflow()
-        elif template_name == "error_handler":
-            wf = build_error_handler_workflow()
-        elif template_name == "cron_briefing":
-            wf = build_cron_briefing_workflow()
-        elif template_name == "evening_reflection":
-            wf = build_evening_reflection_workflow()
-        else:
-            wf = build_sensory_switch_workflow()
-        state["result"] = {"status": "ok", "template": template_name, "workflow": wf}
         state["status"] = "completed"
         return state
 
@@ -1683,7 +1659,6 @@ class EvaOrchestrator:
             "sonar": self._director_handler,
             "sensory": self._sensory_handler,
             "error_collector": self._error_collector_handler,
-            "n8n_templates": self._n8n_templates_handler,
             "proactive": self._proactive_handler,
             "floor2": self._floor2_handler,
             "floor2_enhancer": self._floor2_enhancer_handler,
@@ -1853,7 +1828,7 @@ class EvaOrchestrator:
         }
 
     async def weekly_life_review(self) -> Dict[str, Any]:
-        """Called by n8n cron on Sunday at 20:00."""
+        """Weekly life review on request (no scheduled job runs it)."""
         return await self.execute("weekly_review", {"action": "weekly_review"})
 
     def get_floors_registry(self) -> Dict[str, Any]:

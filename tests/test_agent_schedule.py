@@ -1,7 +1,6 @@
 """The fixed schedule in syndicate-agent (stage 6): off by default, one call per run, honest failures."""
 import asyncio
 import json
-import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -10,7 +9,7 @@ import pytest
 
 from src import agent_schedule as sched
 from src import learning_feeds as feeds
-from src.n8n_bridge import connected_sources
+from src.agent_jobs import connected_sources
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -198,28 +197,20 @@ def test_learning_job_keeps_items_through_the_connected_sources(tmp_path, monkey
     assert result["feeds_failed"] == 1
 
 
-def _n8n(name):
-    return json.loads((ROOT / "config" / "n8n" / name).read_text(encoding="utf-8"))
-
-
-def test_the_schedule_carries_over_every_n8n_trigger_of_alex():
-    """Same times, same texts, same feeds as the two n8n workflows it replaces."""
-    crons, texts = set(), set()
-    for name in ("trainer_reminders.json", "trainer_weekly_learning.json"):
-        for node in _n8n(name)["nodes"]:
-            params = node["parameters"]
-            if node["type"].endswith("scheduleTrigger"):
-                crons.add(params["rule"]["interval"][0]["expression"])
-            body = params.get("jsonBody", "")
-            if body.startswith("{"):
-                texts.add(json.loads(body).get("text", ""))
-            if node["type"].endswith(".code") and "rss" in params["jsCode"]:
-                n8n_feeds = re.findall(r'"(https://[^"]+)"', params["jsCode"])
-    assert {job.cron for job in sched.JOBS.values()} == crons
-    assert {job.text for job in sched.JOBS.values()} == texts
-    assert feeds.feeds_for("trainer") == n8n_feeds
+def test_alex_keeps_the_times_and_feeds_he_had_in_n8n():
+    """Pinned when n8n was removed (stage 6, 05.11.2026): the same times and the same four feeds."""
+    assert {name: (job.cron, job.kind) for name, job in sched.JOBS.items()} == {
+        "alex_morning_plan": ("0 8 * * *", "morning_brief"),
+        "alex_checkin": ("30 21 * * *", "checkin"),
+        "alex_measurements": ("30 7 * * 1", "reminder"),
+        "alex_learning": ("0 4 * * 1", "learning"),
+        "alex_reflection": ("0 5 * * 1", "reflection"),
+    }
+    assert all(job.text for job in sched.JOBS.values() if job.kind in ("checkin", "reminder"))
+    urls = feeds.feeds_for("trainer")
+    assert len(urls) == 4
     connected = connected_sources("trainer")
-    for url in n8n_feeds:
+    for url in urls:
         host = httpx.URL(url).host
         assert any(host == h or host.endswith("." + h) for h in connected), url
 

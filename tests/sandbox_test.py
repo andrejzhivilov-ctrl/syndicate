@@ -226,19 +226,22 @@ async def run_sandbox_suite():
     print(f"  ✅ Sentinel blocked injection & direct email; PIIRedactor masked {len(events)} items; Sam locked to HITL ({sam_eval.level.value}).")
 
     # -------------------------------------------------------------------------
-    # STEP 4: FlowLint over the real n8n templates (the Architect was removed on 04.11.2026)
+    # STEP 4: The fixed schedule that replaced n8n (stage 6, 05.11.2026)
     # -------------------------------------------------------------------------
-    print("\n[4/7] Linting the shipped n8n templates with FlowLint...")
-    import json as _json
+    print("\n[4/7] Checking the fixed schedule: every job valid and off by default...")
+    from datetime import datetime as _dt, timedelta as _td, timezone as _tz
 
-    from src.n8n_flowlint import lint_workflow
+    from src.agent_schedule import JOBS, AgentSchedule, enabled_from_env
+    from src.proactive import cron_matches
 
-    templates = sorted((REPO_PATH / "config" / "n8n").glob("*.json"))
-    assert templates, "no n8n templates found"
-    for template in templates:
-        report = lint_workflow(_json.loads(template.read_text(encoding="utf-8")))
-        assert report.passed, f"FlowLint failed on {template.name}: {report.to_dict()}"
-    print(f"  ✅ FlowLint passed on {len(templates)} n8n templates.")
+    start = _dt(2026, 11, 2, tzinfo=_tz.utc)  # a Monday
+    minutes = [start + _td(minutes=m) for m in range(7 * 24 * 60)]
+    for job in JOBS.values():
+        assert any(cron_matches(job.cron, m) for m in minutes), f"{job.name} never fires"
+    assert enabled_from_env("") == ([], [])
+    off = AgentSchedule(None, [])
+    assert not any(off.due(m) for m in minutes[::30]), "a job ran although none was switched on"
+    print(f"  ✅ {len(JOBS)} scheduled jobs are valid and stay off until named in SYNDICATE_SCHEDULE.")
     mock_llm = MockReasoningLLM()  # step 5 runs the orchestrator on it
 
     # -------------------------------------------------------------------------

@@ -4127,35 +4127,12 @@ def test_operator_token_renewal_fails_loudly_when_vault_refuses(monkeypatch, cap
     assert "HTTP 403" in capsys.readouterr().err
 
 
-def test_n8n_templates_do_not_read_env_and_keep_the_api_key_in_a_credential():
-    # n8n 2.x blocks $env inside nodes, and the Eva API key must never be inlined in a workflow.
-    import json as _json
-
-    from src.n8n_templates import EVA_CREDENTIAL_NAME, all_templates, bind_credential
-
-    for name in ("error_handler", "cron_briefing", "cron_evening"):
-        workflow = all_templates()[name]
-        text = _json.dumps(workflow)
-        assert "$env" not in text, name
-        assert "X-API-Key" not in text, name
-        assert "http://syndicate-agent:8000" in text, name
-        http_nodes = [n for n in workflow["nodes"] if n["type"] == "n8n-nodes-base.httpRequest"]
-        assert http_nodes and all(n["credentials"]["httpHeaderAuth"]["name"] == EVA_CREDENTIAL_NAME for n in http_nodes)
-        bind_credential(workflow, "cred-7")
-        assert all(n["credentials"]["httpHeaderAuth"]["id"] == "cred-7" for n in http_nodes)
-
-
-def test_n8n_editor_is_not_throttled_by_the_login_zone_but_login_stays_strict():
-    # The n8n editor loads dozens of requests per page; the 20r/m login zone answered 429 and the
-    # workflow list stayed empty. Password guessing must still be slow, on /rest/login only.
+def test_n8n_is_gone_from_nginx_and_the_login_zone_stays_strict():
+    # Stage 6 (05.11.2026): n8n was removed with its subdomain and its 600r/m zone.
+    # The strict login zone (20r/m) is still there for the remaining logins.
     text = (REPO_ROOT / "config" / "nginx" / "nginx.conf").read_text(encoding="utf-8")
-    start = text.index("server_name n8n.syndicateholding.com;")
-    block = text[start:text.index("# 2. LiveKit", start)]
-    root = block[block.index("location / {"):]
-    assert "zone=n8n " in root and "zone=login" not in root
-    login = block[block.index("location = /rest/login"):block.index("location / {")]
-    assert "zone=login" in login
-    assert re.search(r"zone=n8n:\d+m rate=(\d+)r/m", text) and int(re.search(r"zone=n8n:\d+m rate=(\d+)r/m", text).group(1)) >= 300
+    assert "n8n" not in text
+    assert re.search(r"zone=login:\d+m rate=20r/m", text)
 
 
 def test_obsidian_notes_reach_the_chat_of_eva_and_report_an_absent_vault_honestly(tmp_path):
@@ -4431,11 +4408,10 @@ def test_eva_remembers_the_masked_conversation():
     assert asyncio.run(history.load("eva", "2")) == []
 
 
-def test_daily_backup_covers_both_databases_and_proves_each_dump_by_restoring_it():
+def test_daily_backup_covers_the_database_and_proves_the_dump_by_restoring_it():
     script = (REPO_ROOT / "deploy" / "scripts" / "backup_daily.sh").read_text(encoding="utf-8")
 
-    assert 'backup_database n8n "${N8N_DB_NAME:-n8n}"' in script
-    assert 'verify_restore n8n "${N8N_DB_NAME:-n8n}"' in script
+    assert "n8n" not in script and "N8N" not in script  # n8n removed in stage 6 (05.11.2026)
     assert 'verify_restore postgres "${POSTGRES_DB_NAME:-syndicate}"' in script
     assert 'record vault unavailable' in script
     assert "--network none" in script
@@ -4617,7 +4593,6 @@ def test_daily_backup_covers_agent_data_volume_with_confirmed_memory():
 
     assert 'EVA_VOLUME="${EVA_VOLUME:-syndicate_eva_data}"' in script
     assert 'backup_volume eva_data "$EVA_VOLUME"' in script
-    assert 'backup_volume n8n_home "$N8N_VOLUME"' in script
 
 
 def test_ukrainealarm_public_key_ships_with_the_code():
@@ -4846,15 +4821,6 @@ def test_retired_task_types_answer_retired_and_never_reach_eva():
         assert "Claude Code" in result["reason"]
 
 
-def test_n8n_templates_are_still_linted_after_the_architect_left():
-    from src.n8n_flowlint import lint_workflow
-
-    leaky = {"nodes": [{"name": "Call", "type": "n8n-nodes-base.httpRequest",
-                        "parameters": {"headerParameters": {"api_key": "sk-live-abcdefghijklmnopqrstuvwxyz123456"}}}],
-             "connections": {}}
-    assert not lint_workflow(leaky).passed
-
-
 def test_old_worker_containers_are_gone_from_compose_and_vault():
     # Stage 4 (04.11.2026): the nine idle worker containers, Alice's compose file and
     # the AppRole policies of removed agents are gone; Eva's own policy is untouched.
@@ -4875,10 +4841,10 @@ def test_old_worker_containers_are_gone_from_compose_and_vault():
         assert "ALICE_WORKER" not in line and "alice-agent" not in line
 
 
-def test_runtime_service_is_syndicate_agent_and_the_old_name_still_resolves():
-    # Stage 5 (04.11.2026): the compose service is syndicate-agent. Workflows already
-    # imported into n8n still call http://eva-agent:8000, so the old name stays a network
-    # alias until n8n is removed (stage 6). The Vault role keeps its name on purpose.
+def test_runtime_service_is_syndicate_agent_without_the_old_alias():
+    # Stage 5 (04.11.2026): the compose service is syndicate-agent. Stage 6 (05.11.2026)
+    # removed n8n, the last caller of http://eva-agent:8000, and with it the network alias.
+    # The Vault role keeps its name on purpose.
     from pathlib import Path
 
     import yaml
@@ -4889,18 +4855,15 @@ def test_runtime_service_is_syndicate_agent_and_the_old_name_still_resolves():
     main = (root / "docker-compose.yml").read_text(encoding="utf-8")
     assert main == (root / "deploy" / "docker-compose.yml").read_text(encoding="utf-8")
     services = yaml.safe_load(main)["services"]
-    assert "eva-agent" not in services and "syndicate-agent" in services
-    networks = services["syndicate-agent"]["networks"]
-    assert set(networks) == {"db_net", "backend", "hermes_net"}
-    for net in ("backend", "hermes_net"):
-        assert "eva-agent" in networks[net]["aliases"], net
+    assert "eva-agent" not in services and "syndicate-agent" in services and "n8n" not in services
+    assert "n8n_data" not in yaml.safe_load(main)["volumes"]
+    assert set(services["syndicate-agent"]["networks"]) == {"db_net", "backend", "hermes_net"}
+    assert "eva-agent" not in main and "n8n" not in main.lower()
     assert "syndicate-agent" in services["nginx"]["depends_on"]
     nginx = (root / "config" / "nginx" / "nginx.conf").read_text(encoding="utf-8")
     assert "server syndicate-agent:8000;" in nginx and "eva-agent" not in nginx and "eva_agent" not in nginx
-    for path in ("deploy/hermes/trainer/config.yaml", "config/n8n/trainer_reminders.json",
-                 "config/n8n/trainer_weekly_learning.json", "src/n8n_templates.py"):
-        text = (root / path).read_text(encoding="utf-8")
-        assert "eva-agent" not in text and "syndicate-agent:8000" in text, path
+    hermes = (root / "deploy" / "hermes" / "trainer" / "config.yaml").read_text(encoding="utf-8")
+    assert "eva-agent" not in hermes and "syndicate-agent:8000" in hermes
     assert vault_policies.RUNTIME_POLICY_NAME == "eva-agent"
 
 
