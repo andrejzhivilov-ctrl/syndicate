@@ -30,11 +30,14 @@ from src.agent_memory import (
     memory_session_id,
     memory_status,
     recall_agent_memory,
-    save_agent_episode,
+    save_agent_episode_in_background,
 )
 from src.agents.alex import doc_exercises, doc_nutrition, doc_shopping
 
 logger = structlog.get_logger(__name__)
+
+#: Longest episode text kept in memory; recall reads at most ~1800 chars anyway.
+MEMORY_EPISODE_CHARS = 2000
 
 
 def _opt_float(payload: Dict[str, Any], key: str) -> Optional[float]:
@@ -117,16 +120,19 @@ class TrainerAgent:
         data: Dict[str, Any],
         extra_meta: Optional[Dict[str, Any]] = None,
     ) -> None:
+        # 06.11.2026: a reply waited 49 s for this write. The embedding runs on the
+        # CPU and grows with text length, so the write goes to the background and
+        # keeps only what recall can use (memory_context_chars, 1800 by default).
         meta = {"category": category}
         if extra_meta:
             meta.update(extra_meta)
-        await save_agent_episode(
+        save_agent_episode_in_background(
             self._memory,
             agent_id=self.AGENT_ID,
             session_id=memory_session_id(payload, "trainer-default-session"),
             action=category,
             role="assistant",
-            content=json.dumps(data, ensure_ascii=False, default=str)[:8000],
+            content=json.dumps(data, ensure_ascii=False, default=str)[:MEMORY_EPISODE_CHARS],
             metadata=meta,
         )
 
@@ -324,40 +330,22 @@ class TrainerAgent:
         return calc_result
 
     async def _recipe_plan(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate high-protein recipe recommendations matching macro target."""
-        target_calories = _opt_float(payload, "target_calories")
-        protein_g = _opt_float(payload, "protein_g")
-        meal_type = payload.get("meal_type", "lunch")
+        """Recipes come from Andrii's recipe base; until it is connected, say so.
 
-        recipes = [
-            {
-                "name": "Куряче філе на грилі з кіноа та шпинатом",
-                "calories": 520,
-                "protein_g": 48,
-                "fat_g": 12,
-                "carbs_g": 55,
-                "ingredients": ["Куряче філе 200г", "Кіноа 70г", "Шпинат свіжий 50г", "Оливкова олія 1 ч.л."],
-            },
-            {
-                "name": "Омлет із 3 яєць з авокадо та лососем",
-                "calories": 480,
-                "protein_g": 36,
-                "fat_g": 28,
-                "carbs_g": 10,
-                "ingredients": ["Яйця курячі 3 шт", "Слабосолений лосось 70г", "Авокадо 1/2 шт", "Зелень"],
-            },
-        ]
-
-        res = {
-            "agent": self.AGENT_ID,
-            "status": "ok",
-            "target_calories": target_calories,
-            "target_protein_g": protein_g,
-            "meal_type": meal_type,
-            "recipes": recipes,
+        06.11.2026: this returned the same two hard-coded recipes as ``ok`` for
+        any request (AGENTS.md §1). No base means structured absence, not a menu.
+        """
+        return {
+            **self._unavailable(
+                "recipe_plan",
+                "recipe base is not connected yet; compose the dish from the products "
+                "Andrii named and mark nutrition figures as estimates",
+            ),
+            "target_calories": _opt_float(payload, "target_calories"),
+            "target_protein_g": _opt_float(payload, "protein_g"),
+            "meal_type": payload.get("meal_type"),
+            "recipes": [],
         }
-        await self._save(payload, "recipe_plan", res)
-        return res
 
     async def _shopping_list(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Generate grocery ingredients list for Eva's basket coordination."""
