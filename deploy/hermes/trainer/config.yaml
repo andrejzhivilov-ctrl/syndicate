@@ -8,6 +8,7 @@ model:
 
 # Only memory, own skills, session search and our MCP gateway. Terminal, files, web and
 # code execution stay off, so the rights checked by the gateway cannot be bypassed.
+# Internet, Eva's archive, notes and colleagues come as gateway tools (src/hermes_tools.py).
 platform_toolsets:
   api_server: [memory, skills, session_search, mcp-syndicate]
 agent:

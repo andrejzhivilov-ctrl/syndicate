@@ -4890,3 +4890,14 @@ def test_old_agent_modules_live_in_their_owners_packages():
 
     assert doc_exercises.DEFAULT_DB.parent.parent.name == "free-exercise-db"
     assert doc_exercises.DEFAULT_DB.exists(), "the exercise database path broke when doc_exercises moved"
+
+
+def test_alex_gets_the_internet_only_through_the_gateway():
+    """06.11.2026: web, archive, notes and colleagues are gateway tools; the Hermes container stays closed."""
+    from src import hermes_tools
+
+    assert hermes_tools.check_url("http://169.254.169.254/latest/meta-data/") == "address_not_public"
+    assert hermes_tools.check_url("http://10.0.0.1/") == "address_not_public"
+    assert "ask_agent" in hermes_tools.granted("trainer") and hermes_tools.granted("sam") == ()
+    compose = (REPO_ROOT / "deploy" / "docker-compose.hermes.yml").read_text(encoding="utf-8")
+    assert "hermes_net" in compose and "ports:" not in compose and "docker.sock" not in compose
