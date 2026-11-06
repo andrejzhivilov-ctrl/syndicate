@@ -108,7 +108,9 @@
     "context-engineering",
     "planning-breakdown",
     "internal-comms",
-    "market-research"
+    "market-research",
+    "dual-axis-skill-reviewer",
+    "skill-integration-tester"
   ],
   "n8n": {
     "status": "not_configured",

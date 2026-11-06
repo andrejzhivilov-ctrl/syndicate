@@ -13,7 +13,20 @@
 ## Призначено агентам зараз
 
 - **Тренер:** `evidence-based-fitness-coach`, `hypertrophy-training`, `rep-max`, `i-have-adhd` (усі чотири прочитано повністю, довідкові файли перевірено автоматично), `scientific-critical-thinking`.
+- **Сем:** 43 трейдерські скіли (імпорт 06.11.2026, розділ «Трейдинг» нижче).
+- **Кіра:** `thesis-validation`, `evidence-gap-check`, `scenario-analyzer`.
+- **Тайлер:** `data-quality-checker`. **Єва:** `dual-axis-skill-reviewer`, `skill-integration-tester`. **Маршал:** `dual-axis-skill-reviewer`.
 - Решта профілів без змін, перелік у `docs/PERMISSIONS_MATRIX.md`.
+
+## Трейдинг (46, імпорт 06.11.2026)
+
+Розбір десяти репозиторіїв Андрія, що взято й чому: `knowledge_pools/notebooklm_second_brain/08_Хаб_Скілів_Промтів_та_MCP/04_Огляд_репозиторіїв_2026-11-06.md`.
+Реєстр усіх посилань Андрія: `05_Реєстр_посилань_Андрія.md` у тій самій теці. Скрипти не скопійовано, лише `SKILL.md` і `references/*.md`. Скіли, що ставлять ордери (`trader-broker`, `etoro`), не взято.
+
+- marian2js/trading-skills (16): `catalyst-map`, `watchlist-review`, `macro-event-analysis`, `market-regime-analysis`, `position-management`, `journal-pattern-analyzer`, `post-trade-review`, `evidence-gap-check`, `thesis-validation`, `execution-plan-check`, `portfolio-concentration`, `position-sizing`, `risk-reward-sanity-check`, `portfolio-risk-review`, `post-trade-debrief`, `pre-trade-check`
+- tradermonty/claude-trading-skills (22): `backtest-expert`, `crypto-regime-analyzer`, `cot-contrarian-detector`, `news-reaction-failure-analyzer`, `contrarian-setup-gate`, `macro-regime-detector`, `drawdown-circuit-breaker`, `pre-trade-discipline-gate`, `trader-memory-core`, `signal-postmortem`, `weekly-performance-digest`, `trade-performance-coach`, `futures-position-sizer`, `strategy-pivot-designer`, `scenario-analyzer`, `technical-analyst`, `market-news-analyst`, `mt5-robot-tester`, `us-market-bubble-detector`, `data-quality-checker`, `dual-axis-skill-reviewer`, `skill-integration-tester`
+- Jakeschincariol/day-trader-skill (4): `trader-timemachine`, `trader-risk`, `trader-budget`, `trader-exit`
+- Shubhamkumartrichy/claude-trading-skills-india (4): `fibonacci-trading`, `multi-timeframe-analysis`, `rsi-divergence`, `trailing-stops`
 
 ## Власні скіли холдингу (local)
 

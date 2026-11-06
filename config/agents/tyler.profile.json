@@ -44,7 +44,8 @@
     "tyler-price-compare",
     "tyler-supplier-research",
     "tyler-store-legitimacy-review",
-    "tyler-listing-draft"
+    "tyler-listing-draft",
+    "data-quality-checker"
   ],
   "n8n": {
     "status": "not_configured",
