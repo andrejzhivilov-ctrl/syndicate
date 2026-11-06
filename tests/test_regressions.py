@@ -4913,3 +4913,21 @@ def test_a_photo_to_a_bot_is_never_dropped_silently():
     assert media_vision.refusal("eva", {"mime": "image/jpeg"}) == media_vision.NO_MEDIA
     runner = (REPO_ROOT / "deploy" / "runtime" / "agent_runner.py").read_text(encoding="utf-8")
     assert '"media"' in runner and "_telegram_media" in runner
+
+
+def test_trading_skills_teach_sam_but_never_trade_for_him():
+    """06.11.2026: 46 trading skills joined the hub; a skill is a method to read, never a script or a grant."""
+    import json
+
+    catalog = json.loads((REPO_ROOT / "config" / "skill_library.json").read_text(encoding="utf-8"))
+    sam = json.loads((REPO_ROOT / "config" / "agents" / "sam.profile.json").read_text(encoding="utf-8"))
+    by_id = {item["id"]: item for item in catalog["skills"]}
+    assert {"pre-trade-check", "drawdown-circuit-breaker", "trader-timemachine"} <= set(sam["reference_skills"])
+    assert all(by_id[skill]["mode"] == "reference_only" for skill in sam["reference_skills"])
+    assert sam["capabilities"] == [] and sam["services_enabled"] == []
+    # Order-placing skills stay out: orders go only through Andrii's HITL button.
+    assert not {"trader-broker", "etoro", "portfolio-manager"} & set(by_id)
+    sources = ("tradermonty", "marian2js", "Jakeschincariol/day-trader-skill", "Shubhamkumartrichy")
+    vendored = [path for source in sources
+                for path in (REPO_ROOT / "skills" / "vendor" / source).rglob("*") if path.is_file()]
+    assert vendored and all(path.suffix in {".md", ""} or path.name == "LICENSE" for path in vendored)

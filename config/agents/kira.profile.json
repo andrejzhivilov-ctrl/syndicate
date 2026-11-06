@@ -44,7 +44,10 @@
     }
   ],
   "reference_skills": [
-    "scientific-critical-thinking"
+    "scientific-critical-thinking",
+    "thesis-validation",
+    "evidence-gap-check",
+    "scenario-analyzer"
   ],
   "n8n": {
     "status": "not_configured",
