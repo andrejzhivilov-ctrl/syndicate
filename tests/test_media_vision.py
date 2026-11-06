@@ -4,6 +4,8 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 import httpx
@@ -13,6 +15,9 @@ from src.hermes_tools import DailyLimit
 from src.telegram_gateway import extract_message
 
 OWNER = "523"
+RUNTIME = str(Path(__file__).resolve().parent.parent / "deploy" / "runtime")
+if RUNTIME not in sys.path:
+    sys.path.insert(0, RUNTIME)  # agent_runner lives there; do not rely on another test module's import
 
 
 def _update(**media):
