@@ -56,6 +56,7 @@ from src.directors_registry import roster as directors_roster  # noqa: E402
 from src.lockdown import Lockdown  # noqa: E402
 from src.alert_watch import AlertWatch  # noqa: E402
 from src import hermes_gateway  # noqa: E402
+from src import media_vision  # noqa: E402
 from src.agent_schedule import AgentSchedule, enabled_from_env  # noqa: E402
 from src.telegram_gateway import (  # noqa: E402
     TelegramGateway,
@@ -1274,10 +1275,11 @@ async def telegram_webhook(
         logger.warning("telegram_non_owner_dropped", agent_id=agent_id)
         return {"ok": True}
 
-    if message["kind"] == "voice":
-        # Download + speech-to-text + reply can outlast Telegram's webhook wait;
-        # answer 200 now so Telegram does not redeliver the note.
-        task = asyncio.create_task(_telegram_voice(state, agent_id, message))
+    if message["kind"] in ("voice", "media"):
+        # Download + speech-to-text or vision + reply can outlast Telegram's webhook wait;
+        # answer 200 now so Telegram does not redeliver the file.
+        handler = _telegram_voice if message["kind"] == "voice" else _telegram_media
+        task = asyncio.create_task(handler(state, agent_id, message))
         _VOICE_TASKS.add(task)
         task.add_done_callback(_VOICE_TASKS.discard)
         return {"ok": True}
@@ -1350,6 +1352,33 @@ async def _telegram_voice(state: AppState, agent_id: str, message: Dict[str, Any
     except Exception as exc:  # noqa: BLE001 - a background task must not die silently
         logger.error("telegram_voice_failed", agent_id=agent_id, error_type=type(exc).__name__)
         await gateway.send(agent_id, chat_id, f"⛔ [{agent_id}] не вдалося обробити голосове.")
+
+
+async def _telegram_media(state: AppState, agent_id: str, message: Dict[str, Any]) -> None:
+    """Owner's photo or video: the vision model describes it, the agent answers description and caption."""
+    gateway, chat_id = state.telegram_gateway, message["chat_id"]
+    try:
+        refused = media_vision.refusal(agent_id, message)
+        if refused:
+            await gateway.send(agent_id, chat_id, refused)
+            return
+        data = await gateway.download_file(agent_id, message["file_id"], media_vision.max_bytes(message["mime"]))
+        if data is None:
+            await gateway.send(agent_id, chat_id, "⚠️ Не вдалося отримати файл з Telegram.")
+            return
+        seen = await media_vision.describe(agent_id, data, message["mime"], message["text"],
+                                           state.orchestrator.openrouter_key())
+        if seen["status"] != "ok":
+            logger.warning("telegram_media_not_seen", agent_id=agent_id, reason=seen.get("reason"))
+            limit = seen.get("reason") == "daily_limit_reached"
+            await gateway.send(agent_id, chat_id, "⚠️ На сьогодні ліміт фото й відео вичерпано." if limit
+                               else media_vision.NOT_SEEN)
+            return
+        turn = media_vision.turn_text(message["mime"], seen["description"], message["text"])
+        await gateway.send(agent_id, chat_id, await _telegram_reply(state, agent_id, message, turn))
+    except Exception as exc:  # noqa: BLE001 - a background task must not die silently
+        logger.error("telegram_media_failed", agent_id=agent_id, error_type=type(exc).__name__)
+        await gateway.send(agent_id, chat_id, f"⛔ [{agent_id}] не вдалося обробити файл.")
 
 
 async def _voice_on_request(state: AppState, agent_id: str, chat_id: str, asked: str, reply: str) -> None:

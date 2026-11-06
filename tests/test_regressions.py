@@ -4901,3 +4901,15 @@ def test_alex_gets_the_internet_only_through_the_gateway():
     assert "ask_agent" in hermes_tools.granted("trainer") and hermes_tools.granted("sam") == ()
     compose = (REPO_ROOT / "deploy" / "docker-compose.hermes.yml").read_text(encoding="utf-8")
     assert "hermes_net" in compose and "ports:" not in compose and "docker.sock" not in compose
+
+
+def test_a_photo_to_a_bot_is_never_dropped_silently():
+    """06.11.2026: Alex stayed silent on a photo; media now has a kind, a handler and an honest refusal."""
+    from src import media_vision
+    from src.telegram_gateway import extract_message
+
+    update = {"message": {"from": {"id": 1}, "chat": {"id": 1, "type": "private"}, "photo": [{"file_id": "p"}]}}
+    assert extract_message(update)["kind"] == "media"
+    assert media_vision.refusal("eva", {"mime": "image/jpeg"}) == media_vision.NO_MEDIA
+    runner = (REPO_ROOT / "deploy" / "runtime" / "agent_runner.py").read_text(encoding="utf-8")
+    assert '"media"' in runner and "_telegram_media" in runner

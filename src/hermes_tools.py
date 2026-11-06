@@ -47,7 +47,9 @@ TOOL_GRANTS: Dict[str, Tuple[str, ...]] = {
 }
 #: Calls per agent per UTC day. Sonar costs about $0.006 a search (06.11.2026).
 DAILY_LIMITS: Dict[str, int] = {WEB_SEARCH: 30, WEB_FETCH: 60, ARCHIVE_SEARCH: 100, ARCHIVE_READ: 100,
-                                NOTE_WRITE: 30, ASK_AGENT: 20}
+                                NOTE_WRITE: 30, ASK_AGENT: 20,
+                                # Photos and videos sent to the bot (src/media_vision.py), ~1-2 cents a minute of video.
+                                "media_view": 40}
 #: The agent's own Obsidian folder, the only place ``note_write`` writes.
 NOTE_DIRS: Dict[str, str] = {"trainer": "Health_Coach"}
 
