@@ -44,6 +44,7 @@ class Job:
     kind: str
     description: str
     text: str = ""
+    timeout_s: int = 0  # 0: JOB_TIMEOUT_S
 
 
 #: Alex still runs under the id ``trainer`` until stage 7.
@@ -61,6 +62,9 @@ JOBS: Dict[str, Job] = {job.name: job for job in (
         "Алекс: тижнева саморефлексія (один виклик Hermes)"),
     Job("alex_drive_mirror", "*/10 * * * *", "trainer", "drive_mirror",
         "Алекс: нові матеріали з Google Drive у Obsidian"),
+    # One lecture a run: ffmpeg cuts the audio, Deepgram transcribes it; an hour of video needs minutes.
+    Job("alex_transcribe", "5,35 * * * *", "trainer", "transcribe",
+        "Алекс: розшифровка лекцій і аудіо з матеріалів", timeout_s=1800),
 )}
 
 
@@ -77,6 +81,10 @@ async def run_job(job: Job, gateway: Any) -> Dict[str, Any]:
         from src import drive_mirror
 
         return await drive_mirror.run(getattr(gateway, "vault", None))
+    if job.kind == "transcribe":
+        from src import lecture_transcriber
+
+        return await lecture_transcriber.run(getattr(gateway, "vault", None))
     if job.kind != "learning":
         return await agent_jobs.handle(job.agent, {"kind": job.kind, "text": job.text}, gateway)
     items, failed = await learning_feeds.collect(job.agent)
@@ -137,7 +145,7 @@ class AgentSchedule:
     async def run(self, job: Job, started: Optional[datetime] = None) -> Dict[str, Any]:
         moment = started or datetime.now(timezone.utc)
         try:
-            result = await asyncio.wait_for(run_job(job, self.gateway), JOB_TIMEOUT_S)
+            result = await asyncio.wait_for(run_job(job, self.gateway), job.timeout_s or JOB_TIMEOUT_S)
         except asyncio.TimeoutError:
             result = {"status": "error", "error": "timeout"}
         except Exception as exc:  # noqa: BLE001 - one failed job never stops the schedule

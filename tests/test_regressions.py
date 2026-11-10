@@ -5001,3 +5001,11 @@ def test_drive_mirror_reads_drive_and_never_deletes_from_the_vault():
     source = inspect.getsource(drive_mirror)
     assert "unlink(missing_ok=True)" in source  # only the half-downloaded .part file
     assert ".delete(" not in source and "rmtree" not in source
+
+
+def test_lecture_audio_goes_to_deepgram_only_with_training_opt_out():
+    """10.11.2026: Deepgram transcribes course lectures; mip_opt_out keeps the audio out of its training."""
+    from src import lecture_transcriber as lt
+
+    assert lt.PARAMS["mip_opt_out"] == "true" and lt.PARAMS["language"] == "uk"
+    assert lt.MONTHLY_MINUTES_CAP > 0 and lt.MAX_PER_RUN == 1
