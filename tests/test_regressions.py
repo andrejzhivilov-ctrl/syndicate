@@ -5061,3 +5061,15 @@ def test_google_service_account_key_enters_vault_from_a_private_file_only(tmp_pa
     from src import drive_mirror
 
     assert drive_mirror.KEY_PATH == tool.google_key_path("trainer")
+
+
+def test_eva_sorting_never_deletes_and_only_trusts_listed_topics():
+    """10.11.2026: Andrii drops everything unsorted; Eva shelves it, a wrong topic goes to review."""
+    import inspect
+
+    from src import material_sorter as ms
+
+    assert ms.parse_verdict('{"topic": "Криптовалюта"}', ms.SHELVES["trainer"][1])["topic"] == ms.UNSURE
+    source = inspect.getsource(ms)
+    assert "unlink" not in source and "rmtree" not in source and ".remove(" not in source
+    assert ms.MAX_PER_RUN > 0 and ms.DAILY_MODEL_CALLS > 0

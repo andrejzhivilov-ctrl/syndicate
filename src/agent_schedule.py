@@ -71,14 +71,18 @@ JOBS: Dict[str, Job] = {job.name: job for job in (
         "виконай (заміни E: на літеру SSD):\n"
         "scp root@169.58.178.154:/data/backups/offsite/latest.tar.gpg E:\\syndicate-backup.tar.gpg\n"
         "Розшифрувати можна лише твоїм приватним ключем GPG. Не тримай ключ на тому самому SSD."),
+    # Three minutes after each mirror run: Eva shelves what arrived and rewrites the catalog.
+    Job("eva_sort_materials", "3,13,23,33,43,53 * * * *", "eva", "sort_materials",
+        "Єва: розбір нових матеріалів Алекса і каталог"),
 )}
 
 
 async def _owner_reminder(job: Job, gateway: Any) -> Dict[str, Any]:
+    """A reminder in the job agent's own chat (Andrii, 10.11.2026: the SSD one comes from Eva)."""
     owner = await gateway.owner_user_id() if gateway else None
     if not owner:
         return {"status": "unavailable", "reason": "no_owner_configured"}
-    sent = await gateway.send(ALERT_BOT, owner, job.text)
+    sent = await gateway.send(job.agent or ALERT_BOT, owner, job.text)
     return {"status": "ok"} if sent else {"status": "unavailable", "reason": "telegram_send_failed"}
 
 
@@ -94,8 +98,15 @@ async def _transcribe(job: Job, gateway: Any) -> Dict[str, Any]:
     return await lecture_transcriber.run(getattr(gateway, "vault", None))
 
 
+async def _sort_materials(job: Job, gateway: Any) -> Dict[str, Any]:
+    from src import material_sorter
+
+    return await material_sorter.run(gateway, "trainer")
+
+
 #: Jobs that run local code instead of an agent.
-LOCAL_JOBS = {"drive_mirror": _drive_mirror, "transcribe": _transcribe, "owner_reminder": _owner_reminder}
+LOCAL_JOBS = {"drive_mirror": _drive_mirror, "transcribe": _transcribe, "owner_reminder": _owner_reminder,
+              "sort_materials": _sort_materials}
 
 
 def enabled_from_env(raw: Optional[str] = None) -> Tuple[List[str], List[str]]:
