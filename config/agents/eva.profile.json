@@ -110,7 +110,10 @@
     "internal-comms",
     "market-research",
     "dual-axis-skill-reviewer",
-    "skill-integration-tester"
+    "skill-integration-tester",
+    "obsidian-markdown",
+    "obsidian-bases",
+    "json-canvas"
   ],
   "n8n": {
     "status": "not_configured",
