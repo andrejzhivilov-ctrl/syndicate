@@ -156,4 +156,8 @@ def test_the_original_track_wins_over_a_machine_translation(tmp_path):
     (tmp_path / "media.uk.vtt").write_text(VTT.replace("Білок важливий", "переклад"), encoding="utf-8")
     (tmp_path / "media.ru-orig.vtt").write_text(VTT.replace("Білок важливий", "оригинал"), encoding="utf-8")
     assert "оригинал" in vd.captions(tmp_path)
-    assert vd._ydl_options(tmp_path, audio=False)["ignoreerrors"] == "only_download"
+    auto = {"uk": [{}], "ru-orig": [{}], "en": [{}]}
+    assert vd.pick_track({"automatic_captions": auto}) == ("ru-orig", True)  # not the uk translation
+    assert vd.pick_track({"subtitles": {"en": [{}]}, "automatic_captions": auto}) == ("en", False)
+    assert vd.pick_track({}) is None
+    assert vd._ydl_options(tmp_path, audio=False, track=("ru-orig", True))["subtitleslangs"] == ["ru-orig"]

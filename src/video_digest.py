@@ -90,19 +90,43 @@ def public_url(url: str) -> str:
 # ── step 1 and 2: text of the video ───────────────────────────────────────────────────────
 
 
-def _ydl_options(work: Path, *, audio: bool) -> Dict[str, Any]:
-    base = {"quiet": True, "no_warnings": True, "noplaylist": True, "cachedir": False,
+def _ydl_options(work: Path, *, audio: bool, track: Optional[Tuple[str, bool]] = None) -> Dict[str, Any]:
+    base = {"quiet": True, "no_warnings": True, "noprogress": True, "noplaylist": True, "cachedir": False,
             "outtmpl": str(work / "media.%(ext)s"), "socket_timeout": 30}
     if audio:
         return {**base, "format": "bestaudio[ext=m4a]/bestaudio/best"}
-    return {**base, "skip_download": True, "writesubtitles": True, "writeautomaticsub": True,
-            "subtitleslangs": SUB_LANGS, "subtitlesformat": "vtt",
-            # A failed extra subtitle track must not discard the ones already saved.
-            "ignoreerrors": "only_download"}
+    if track is None:
+        return {**base, "skip_download": True}
+    lang, automatic = track
+    return {**base, "skip_download": True, "writesubtitles": not automatic, "writeautomaticsub": automatic,
+            "subtitleslangs": [lang], "subtitlesformat": "vtt"}
+
+
+def pick_track(info: Dict[str, Any]) -> Optional[Tuple[str, bool]]:
+    """One subtitle track: a human one first, then the automatic original, then a translation.
+
+    10.11.2026: asking for every language at once got HTTP 429 on the machine translations,
+    so exactly one track is requested.
+    """
+    manual = info.get("subtitles") or {}
+    automatic = info.get("automatic_captions") or {}
+    for lang in ("uk", "ru", "en"):
+        if lang in manual:
+            return lang, False
+    for lang in SUB_LANGS:
+        if lang in automatic:
+            return lang, True
+    return None
+
+
+def _blocked(exc: Exception) -> DigestError:
+    text = str(exc).lower()
+    blocked = any(word in text for word in ("sign in", "bot", "429", "confirm you"))
+    return DigestError("source_blocked" if blocked else "download_failed")
 
 
 def fetch(url: str, work: Path, *, audio: bool) -> Dict[str, Any]:
-    """yt-dlp run: metadata always; captions or audio into ``work``."""
+    """yt-dlp: metadata, then either one subtitle track or the audio, into ``work``."""
     try:
         from yt_dlp import YoutubeDL
         from yt_dlp.utils import DownloadError
@@ -110,11 +134,13 @@ def fetch(url: str, work: Path, *, audio: bool) -> Dict[str, Any]:
         raise DigestError("yt_dlp_not_installed") from exc
     try:
         with YoutubeDL(_ydl_options(work, audio=audio)) as ydl:
-            info = ydl.extract_info(url, download=True)
+            info = ydl.extract_info(url, download=audio)
+        track = None if audio else pick_track(info)
+        if track is not None:
+            with YoutubeDL(_ydl_options(work, audio=False, track=track)) as ydl:
+                ydl.process_ie_result(info, download=True)
     except DownloadError as exc:
-        text = str(exc).lower()
-        blocked = any(word in text for word in ("sign in", "bot", "429", "confirm you"))
-        raise DigestError("source_blocked" if blocked else "download_failed") from exc
+        raise _blocked(exc) from exc
     return {"title": info.get("title") or "", "channel": info.get("uploader") or info.get("channel") or "",
             "duration": info.get("duration"), "webpage_url": info.get("webpage_url") or url}
 
