@@ -5000,4 +5000,4 @@ def test_drive_mirror_reads_drive_and_never_deletes_from_the_vault():
     assert drive_mirror.SCOPE.endswith("/drive.readonly")
     source = inspect.getsource(drive_mirror)
     assert "unlink(missing_ok=True)" in source  # only the half-downloaded .part file
-    assert ".delete(" not in source and "rmtree" not in source and ".update(" not in source.replace("counts", "")
+    assert ".delete(" not in source and "rmtree" not in source

@@ -26,6 +26,35 @@
 
 ---
 
+## 2026-11-10 — Claude Code: тека Google Drive «SYNDICATE Алекс» → Obsidian кожні 10 хвилин
+
+**Гілка:** `feat/drive-materials`  **Ворота:** ✅ (ci-wt107)
+
+**Рішення Андрія (10.11):**
+- Файли він закидає в теку Google Drive.
+- Сховища: Drive, Obsidian на сервері, Hetzner Storage Box, локальний SSD (нагадування).
+- Розшифровка лекцій: Deepgram з кредиту $200.
+
+**Що зроблено:**
+- `src/drive_mirror.py`: одностороннє дзеркало Drive → `Health_Coach/Матеріали`.
+  - Scope `drive.readonly`. Тека шукається за назвою серед елементів, якими поділилися з сервісним акаунтом, тож id ніде не налаштовується.
+  - Google Docs експортуються в DOCX, інші нативні файли пропускаються з лічильником.
+  - До 10 файлів за прохід, до 2 ГБ на файл. Недокачаний `.part` прибирається.
+  - Видалене в Drive лишається у сховищі й лише рахується. Стан у `EVA_DATA_DIR/drive_mirror/state.json`.
+- `agent_schedule`: задача `alex_drive_mirror` (`*/10 * * * *`). Одна й та сама причина збою тепер шле тривогу один раз, а не кожен прогін.
+- `TelegramGateway.vault`: Vault-клієнт для задач розкладу.
+- Ключ: наявний `google_workspace.service_account_json`. Нового шляху Vault немає, політики не змінено.
+
+**Що має зробити Андрій:**
+1. Створити сервісний акаунт у Google Cloud, увімкнути Drive API, завантажити JSON-ключ.
+2. Внести ключ у Vault через `scripts/syndicate_vault.py` (сервіс `google_workspace`, ключ `service_account_json`).
+3. Створити на Drive теку `SYNDICATE Алекс` і поділитися нею з email сервісного акаунта як «Переглядач».
+4. Додати `alex_drive_mirror` у `SYNDICATE_SCHEDULE` в `.env` і перезапустити `syndicate-agent`.
+
+**Не зроблено:** живий прогін зі справжнім Drive (немає ключа). Розшифровка відео й бекап на Hetzner підуть окремими PR.
+
+---
+
 ## 2026-11-10 — Claude Code: Алекс читає книги й курси зі сховища частинами
 
 **Гілка:** `feat/alex-reads-materials`  **Ворота:** ✅ (ci-wt106)
