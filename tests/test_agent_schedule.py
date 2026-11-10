@@ -207,6 +207,7 @@ def test_alex_keeps_the_times_and_feeds_he_had_in_n8n():
         "alex_reflection": ("0 5 * * 1", "reflection"),
         # 10.11.2026: materials from Andrii's Google Drive folder, not an n8n job.
         "alex_drive_mirror": ("*/10 * * * *", "drive_mirror"),
+        "alex_transcribe": ("5,35 * * * *", "transcribe"),
     }
     assert all(job.text for job in sched.JOBS.values() if job.kind in ("checkin", "reminder"))
     urls = feeds.feeds_for("trainer")
