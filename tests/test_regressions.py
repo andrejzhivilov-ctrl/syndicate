@@ -5034,7 +5034,7 @@ def test_google_service_account_key_enters_vault_from_a_private_file_only(tmp_pa
     import syndicate_vault as tool
 
     stored = {}
-    monkeypatch.setattr(tool, "get_secret", lambda path: {"oauth_client_id": "kept"})
+    monkeypatch.setattr(tool, "get_secret", lambda path: {"other": "kept"})
     monkeypatch.setattr(tool, "put_secret", lambda path, data: stored.update({path: data}))
     key = tmp_path / "sa.json"
     key.write_text(json.dumps({"type": "service_account", "client_email": "a@p.iam.gserviceaccount.com",
@@ -5042,11 +5042,11 @@ def test_google_service_account_key_enters_vault_from_a_private_file_only(tmp_pa
     if os.name != "nt":
         key.chmod(0o644)
         with pytest.raises(SystemExit):
-            tool.cmd_set_google_sa(str(key), shred=False)
+            tool.cmd_set_google_sa("trainer", str(key), shred=False)
         key.chmod(0o600)
-    tool.cmd_set_google_sa(str(key), shred=True)
-    saved = stored["google_workspace"]
-    assert saved["oauth_client_id"] == "kept"
+    tool.cmd_set_google_sa("trainer", str(key), shred=True)
+    saved = stored["agents/trainer/google"]
+    assert saved["other"] == "kept" and list(stored) == ["agents/trainer/google"]
     assert json.loads(saved["service_account_json"])["client_email"] == "a@p.iam.gserviceaccount.com"
     assert not key.exists()
     bad = tmp_path / "bad.json"
@@ -5054,4 +5054,10 @@ def test_google_service_account_key_enters_vault_from_a_private_file_only(tmp_pa
     if os.name != "nt":
         bad.chmod(0o600)
     with pytest.raises(SystemExit):
-        tool.cmd_set_google_sa(str(bad), shred=False)
+        tool.cmd_set_google_sa("trainer", str(bad), shred=False)
+    # One service account per agent: no shared key, no unknown agent.
+    with pytest.raises(SystemExit):
+        tool.cmd_set_google_sa("nobody", str(bad), shred=False)
+    from src import drive_mirror
+
+    assert drive_mirror.KEY_PATH == tool.google_key_path("trainer")

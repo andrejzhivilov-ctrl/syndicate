@@ -4,7 +4,8 @@ Andrii drops books, courses and lectures into one Google Drive folder from any d
 this job copies what is new or changed into ``Health_Coach/Матеріали`` in the vault,
 where Alex reads it locally (src/material_reader.py) and the nightly backup takes it.
 
-- The folder is found by name among the items shared with the service account, so no
+- Alex has his own service account (Vault agents/trainer/google). The folder is found by
+  name among the items shared with it, so no
   folder id is configured anywhere. Share it with that account as a Viewer.
 - Drive is read with the ``drive.readonly`` scope only; nothing is written to Drive.
 - Nothing is deleted from the vault. A file removed in Drive stays and is only counted.
@@ -35,6 +36,8 @@ DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.docu
 MAX_FILE_BYTES = 2 * 1024 ** 3  # a long lecture video; bigger is reported, not fetched
 MAX_FILES_PER_RUN = 10  # the rest arrives on the next run
 MAX_DEPTH = 5
+#: Alex's own service account (scripts/syndicate_vault.py set-google-sa trainer <file>).
+KEY_PATH = "agents/trainer/google"
 
 
 class DriveClient(Protocol):
@@ -208,7 +211,7 @@ async def run(vault_client: Any) -> Dict[str, Any]:
     if root is None:
         return {"status": "unavailable", "reason": "obsidian_vault_not_mounted"}
     try:
-        secret = await vault_client.get_secret(secret_path("google_workspace")) if vault_client else None
+        secret = await vault_client.get_secret(secret_path(KEY_PATH)) if vault_client else None
     except Exception as exc:  # noqa: BLE001
         return {"status": "unavailable", "reason": f"vault_read_failed: {type(exc).__name__}"}
     raw = (secret or {}).get("service_account_json")

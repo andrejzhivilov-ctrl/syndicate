@@ -17,7 +17,7 @@ Usage:
     scripts/syndicate_vault.py set-key <provider>            # prompts for the key
     scripts/syndicate_vault.py set-bot <agent_id>            # prompts for the token
     scripts/syndicate_vault.py bulk-bots <file> [--shred]    # file lines: agent_id:token
-    scripts/syndicate_vault.py set-google-sa <file> [--shred] # Google service-account JSON (0600 file)
+    scripts/syndicate_vault.py set-google-sa <agent> <file> [--shred]  # agent's Google service account (0600 file)
     scripts/syndicate_vault.py distribute-keys                # pool -> each worker's own subtree
     scripts/syndicate_vault.py verify-bots                   # Telegram getMe per bot
     scripts/syndicate_vault.py set-owner <telegram_user_id>  # who may talk to the bots
@@ -43,7 +43,7 @@ from typing import Any, Dict, Optional
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-from src.vault_paths import DIRECTOR_IDS  # noqa: E402
+from src.vault_paths import AGENT_ROSTER, DIRECTOR_IDS  # noqa: E402
 
 VAULT_ADDR = os.getenv("VAULT_ADDR", "http://127.0.0.1:8200")
 OPERATOR_TOKEN_FILE = Path(os.getenv("VAULT_OPERATOR_TOKEN_FILE", "/opt/eva/vault-secrets/operator.token"))
@@ -255,12 +255,21 @@ def _private_file(path: str) -> Path:
     return file
 
 
-def cmd_set_google_sa(path: str, shred: bool) -> None:
-    """Google service-account JSON key -> google_workspace.service_account_json (10.11.2026).
+def google_key_path(agent_id: str) -> str:
+    """Each agent's own Google service account lives in its own subtree (10.11.2026)."""
+    return f"agents/{agent_id}/google"
 
-    Read from a 0600 file, never argv; only the account's email is printed, because Andrii
-    shares the Drive folder with it. Other keys under google_workspace are kept.
+
+def cmd_set_google_sa(agent_id: str, path: str, shred: bool) -> None:
+    """An agent's Google service-account JSON key -> agents/<id>/google.service_account_json.
+
+    One service account per agent, so each sees only what Andrii shared with it. Read from
+    a 0600 file, never argv; only the account's email is printed, because Andrii shares
+    folders and calendars with it.
     """
+    agent_id = agent_id.strip().lower()
+    if agent_id not in AGENT_ROSTER:
+        raise SystemExit(f"unknown agent '{agent_id}'; one of: {', '.join(AGENT_ROSTER)}")
     file = _private_file(path)
     try:
         info = json.loads(file.read_text(encoding="utf-8"))
@@ -268,11 +277,12 @@ def cmd_set_google_sa(path: str, shred: bool) -> None:
         raise SystemExit(f"{path} is not JSON")
     if info.get("type") != "service_account" or not info.get("client_email") or not info.get("private_key"):
         raise SystemExit("not a service-account key: expected type=service_account, client_email, private_key")
-    current = get_secret("google_workspace")
+    target = google_key_path(agent_id)
+    current = get_secret(target)
     current["service_account_json"] = json.dumps(info)
-    put_secret("google_workspace", current)
-    print(f"[OK] stored service_account_json for {info['client_email']}")
-    print("     Share the Drive folder 'SYNDICATE Алекс' with this email as Viewer.")
+    put_secret(target, current)
+    print(f"[OK] {agent_id}: stored service_account_json for {info['client_email']}")
+    print("     Share with this email only what this agent should see.")
     if shred:
         size = file.stat().st_size
         try:
@@ -401,8 +411,8 @@ def main(argv: list[str]) -> int:  # noqa: C901
         cmd_set_bot(args[0])
     elif cmd == "bulk-bots" and args:
         cmd_bulk_bots(args[0], "--shred" in flags)
-    elif cmd == "set-google-sa" and args:
-        cmd_set_google_sa(args[0], "--shred" in flags)
+    elif cmd == "set-google-sa" and len(args) >= 2:
+        cmd_set_google_sa(args[0], args[1], "--shred" in flags)
     elif cmd == "distribute-keys":
         cmd_distribute_keys()
     elif cmd == "verify-bots":
