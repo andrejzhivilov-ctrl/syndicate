@@ -1,6 +1,7 @@
 """Google Drive folder -> Obsidian vault, one way, for Alex's materials (10.11.2026).
 
-Andrii drops books, courses and lectures into one Google Drive folder from any device;
+Andrii drops books, courses and lectures into the "Вхідні" folder (inside "SYNDICATE Алекс")
+on Google Drive from any device;
 this job copies what is new or changed into ``Health_Coach/Матеріали`` in the vault,
 where Alex reads it locally (src/material_reader.py) and the nightly backup takes it.
 
@@ -27,7 +28,9 @@ from src.vault_paths import secret_path
 
 logger = structlog.get_logger(__name__)
 
-FOLDER_NAME = "SYNDICATE Алекс"
+#: Each agent sees only what was shared with its own service account, so the same name
+#: per agent is unambiguous: "Вхідні" (Andrii writes, agent reads), "Вихідні" (agent edits).
+FOLDER_NAME = "Вхідні"
 TARGET_DIR = ("Health_Coach", "Матеріали")
 SCOPE = "https://www.googleapis.com/auth/drive.readonly"
 FOLDER_MIME = "application/vnd.google-apps.folder"
