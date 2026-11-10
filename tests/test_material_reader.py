@@ -148,3 +148,23 @@ def test_the_gateway_masks_material_text_and_counts_parts(vault, tmp_path, monke
     assert result["status"] == "ok" and "671234" not in result["text"]
     assert tools.material_read("card.txt", "two")["error"] == "part_not_a_number"
     assert Path(tmp_path / "data" / "materials_text_cache").is_dir()
+
+
+def _encrypted(data, user_password):
+    from pypdf import PdfReader, PdfWriter
+
+    writer = PdfWriter(clone_from=PdfReader(io.BytesIO(data)))
+    writer.encrypt(user_password=user_password, owner_password="owner-secret", algorithm="AES-128")
+    out = io.BytesIO()
+    writer.write(out)
+    return out.getvalue()
+
+
+def test_a_copy_protected_pdf_opens_but_a_password_protected_one_does_not(vault, tmp_path):
+    """10.11.2026: Andrii's first book was encrypted against copying with an empty open password."""
+    text = _pdf_with_text(["Protein first", "Sleep second"])
+    (vault / "copy_protected.pdf").write_bytes(_encrypted(text, ""))
+    (vault / "locked.pdf").write_bytes(_encrypted(text, "open-me"))
+    opened = reader.read_material(vault, "copy_protected.pdf", cache_dir=tmp_path / "c")
+    assert opened["status"] == "ok" and "Sleep second" in opened["text"]
+    assert reader.read_material(vault, "locked.pdf", cache_dir=tmp_path / "c")["reason"] == "encrypted_pdf"
