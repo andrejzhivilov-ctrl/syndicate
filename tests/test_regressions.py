@@ -5061,3 +5061,18 @@ def test_google_service_account_key_enters_vault_from_a_private_file_only(tmp_pa
     from src import drive_mirror
 
     assert drive_mirror.KEY_PATH == tool.google_key_path("trainer")
+
+
+def test_alex_drive_writes_use_only_drive_file_and_have_no_delete():
+    """10.11.2026: a service account cannot create files in My Drive; Alex writes via OAuth drive.file."""
+    import inspect
+    import sys
+
+    from src import drive_writer
+
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    import syndicate_vault as tool
+
+    assert tool.DRIVE_FILE_SCOPE == "https://www.googleapis.com/auth/drive.file"
+    source = inspect.getsource(drive_writer)
+    assert ".delete(" not in source and '"DELETE"' not in source and "trash" not in source.replace("trashed", "")
