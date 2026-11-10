@@ -36,7 +36,8 @@ logger = structlog.get_logger(__name__)
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 #: agent id -> actions Hermes may call through ``agent_action``. Mirrors the worker's allowlist.
 AGENT_ACTIONS: Dict[str, Tuple[str, ...]] = {
-    "trainer": ("training_protocol", "workout_plan", "exercise_search", "nutrition_plan", "recipe_plan",
+    # recipe_plan stays out until Andrii's recipe base is connected: it has no data.
+    "trainer": ("training_protocol", "workout_plan", "exercise_search", "nutrition_plan",
                 "shopping_list", "supplement_protocol", "habit_tracker", "active_recovery"),
 }
 CHAT = "chat"

@@ -4931,3 +4931,50 @@ def test_trading_skills_teach_sam_but_never_trade_for_him():
     vendored = [path for source in sources
                 for path in (REPO_ROOT / "skills" / "vendor" / source).rglob("*") if path.is_file()]
     assert vendored and all(path.suffix in {".md", ""} or path.name == "LICENSE" for path in vendored)
+
+
+def test_alex_reply_never_waits_for_the_memory_embedding():
+    """06.11.2026: a breakfast question took 62 s, 49 s of it a memory write embedding on the CPU."""
+    import asyncio
+
+    from src.agents.alex.trainer import MEMORY_EPISODE_CHARS, TrainerAgent
+
+    class _SlowMemory:
+        def __init__(self):
+            self.saved = []
+            self.release = asyncio.Event()
+
+        async def save_episode(self, **kwargs):
+            await self.release.wait()  # an embedding that has not finished
+            self.saved.append(kwargs)
+
+    async def scenario():
+        memory = _SlowMemory()
+        agent = TrainerAgent(memory=memory)
+        result = await asyncio.wait_for(
+            agent.execute({"action": "nutrition_plan", "weight_kg": 80, "height_cm": 180, "age": 30,
+                           "sex": "male", "activity_level": "moderate", "goal": "maintenance"}),
+            timeout=2,
+        )
+        assert result["status"] == "ok" and memory.saved == []  # answered before the write ended
+        memory.release.set()
+        for _ in range(20):
+            await asyncio.sleep(0)
+        assert len(memory.saved) == 1  # the episode is still written
+        assert len(memory.saved[0]["content"]) <= MEMORY_EPISODE_CHARS
+
+    asyncio.run(scenario())
+
+
+def test_alex_has_no_recipe_tool_until_the_recipe_base_exists():
+    """06.11.2026: recipe_plan answered any request with the same two hard-coded recipes as ok."""
+    import asyncio
+
+    from src.agents.alex.trainer import TrainerAgent
+    from src.hermes_gateway import AGENT_ACTIONS
+
+    assert "recipe_plan" not in AGENT_ACTIONS["trainer"]
+    res = asyncio.run(TrainerAgent().execute({"action": "recipe_plan", "protein_g": 40}))
+    assert res["status"] == "unavailable" and res["recipes"] == []
+    source = (REPO_ROOT / "src" / "agents" / "alex" / "trainer.py").read_text(encoding="utf-8")
+    assert "Кіноа" not in source and "лосось" not in source
