@@ -90,7 +90,7 @@ def test_tools_refuse_what_was_not_granted_and_mask_results():
     names = {tool["name"] for tool in listed["result"]["tools"]}
     assert names == {"agent_action", "hub_search", "hub_read", "obsidian_search", "obsidian_read", "learning_inbox",
                      "web_search", "web_fetch", "archive_search", "archive_read", "note_write", "ask_agent",
-                     "material_list", "material_read"}
+                     "material_list", "material_read", "drive_save"}
 
     denied = asyncio.run(gateway.mcp_reply("trainer", _call("agent_action", action="place_trade"), orchestrator))
     text = denied["result"]["content"][0]["text"]
