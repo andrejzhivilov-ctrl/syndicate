@@ -65,7 +65,37 @@ JOBS: Dict[str, Job] = {job.name: job for job in (
     # One lecture a run: ffmpeg cuts the audio, Deepgram transcribes it; an hour of video needs minutes.
     Job("alex_transcribe", "5,35 * * * *", "trainer", "transcribe",
         "Алекс: розшифровка лекцій і аудіо з матеріалів", timeout_s=1800),
+    # The server cannot reach Andrii's SSD: a weekly nudge after the 20:00 backup.
+    Job("andrii_ssd_backup", "30 20 * * 0", "eva", "owner_reminder", "Нагадування: бекап на SSD",
+        "Неділя, бекап на SSD. Свіжа зашифрована копія холдингу лежить на сервері. На ПК з підключеним SSD "
+        "виконай (заміни E: на літеру SSD):\n"
+        "scp root@169.58.178.154:/data/backups/offsite/latest.tar.gpg E:\\syndicate-backup.tar.gpg\n"
+        "Розшифрувати можна лише твоїм приватним ключем GPG. Не тримай ключ на тому самому SSD."),
 )}
+
+
+async def _owner_reminder(job: Job, gateway: Any) -> Dict[str, Any]:
+    owner = await gateway.owner_user_id() if gateway else None
+    if not owner:
+        return {"status": "unavailable", "reason": "no_owner_configured"}
+    sent = await gateway.send(ALERT_BOT, owner, job.text)
+    return {"status": "ok"} if sent else {"status": "unavailable", "reason": "telegram_send_failed"}
+
+
+async def _drive_mirror(job: Job, gateway: Any) -> Dict[str, Any]:
+    from src import drive_mirror
+
+    return await drive_mirror.run(getattr(gateway, "vault", None))
+
+
+async def _transcribe(job: Job, gateway: Any) -> Dict[str, Any]:
+    from src import lecture_transcriber
+
+    return await lecture_transcriber.run(getattr(gateway, "vault", None))
+
+
+#: Jobs that run local code instead of an agent.
+LOCAL_JOBS = {"drive_mirror": _drive_mirror, "transcribe": _transcribe, "owner_reminder": _owner_reminder}
 
 
 def enabled_from_env(raw: Optional[str] = None) -> Tuple[List[str], List[str]]:
@@ -77,14 +107,8 @@ def enabled_from_env(raw: Optional[str] = None) -> Tuple[List[str], List[str]]:
 
 async def run_job(job: Job, gateway: Any) -> Dict[str, Any]:
     """One run of one job; the result is honest about what did not happen."""
-    if job.kind == "drive_mirror":
-        from src import drive_mirror
-
-        return await drive_mirror.run(getattr(gateway, "vault", None))
-    if job.kind == "transcribe":
-        from src import lecture_transcriber
-
-        return await lecture_transcriber.run(getattr(gateway, "vault", None))
+    if job.kind in LOCAL_JOBS:
+        return await LOCAL_JOBS[job.kind](job, gateway)
     if job.kind != "learning":
         return await agent_jobs.handle(job.agent, {"kind": job.kind, "text": job.text}, gateway)
     items, failed = await learning_feeds.collect(job.agent)
