@@ -8,6 +8,8 @@ use is counted:
 - ``web_fetch``: one public http(s) page as plain text; private and internal addresses refused.
 - ``archive_search`` / ``archive_read``: Eva's Kodex archive, read only.
 - ``note_write``: a Markdown note in the agent's own Obsidian folder; never overwrites or deletes.
+- ``material_list`` / ``material_read``: PDF, EPUB, DOCX and text materials in the Obsidian
+  vault, read only and one part at a time (src/material_reader.py).
 - ``ask_agent``: one question to another of the seven, answered on its direct chat path
   (no tools, no Hermes), so a question can never start a chain of agents.
 
@@ -40,14 +42,18 @@ SEARCH_MODEL_KEY = "OR_SONAR"
 WEB_SEARCH, WEB_FETCH = "web_search", "web_fetch"
 ARCHIVE_SEARCH, ARCHIVE_READ = "archive_search", "archive_read"
 NOTE_WRITE, ASK_AGENT = "note_write", "ask_agent"
+MATERIAL_LIST, MATERIAL_READ = "material_list", "material_read"
 
 #: agent id -> gateway tools it may call. Default deny.
 TOOL_GRANTS: Dict[str, Tuple[str, ...]] = {
-    "trainer": (WEB_SEARCH, WEB_FETCH, ARCHIVE_SEARCH, ARCHIVE_READ, NOTE_WRITE, ASK_AGENT),
+    "trainer": (WEB_SEARCH, WEB_FETCH, ARCHIVE_SEARCH, ARCHIVE_READ, NOTE_WRITE, ASK_AGENT,
+                MATERIAL_LIST, MATERIAL_READ),
 }
 #: Calls per agent per UTC day. Sonar costs about $0.006 a search (06.11.2026).
 DAILY_LIMITS: Dict[str, int] = {WEB_SEARCH: 30, WEB_FETCH: 60, ARCHIVE_SEARCH: 100, ARCHIVE_READ: 100,
                                 NOTE_WRITE: 30, ASK_AGENT: 20,
+                                # A 300-page book is about 75 parts; reading is local and free.
+                                MATERIAL_LIST: 100, MATERIAL_READ: 300,
                                 # Photos and videos sent to the bot (src/media_vision.py), ~1-2 cents a minute of video.
                                 "media_view": 40}
 #: The agent's own Obsidian folder, the only place ``note_write`` writes.
@@ -299,6 +305,34 @@ def archive_read(record_id: str) -> Dict[str, Any]:
         return {"status": "unavailable", "reason": "file_missing", **_card(record)}
     text = data.decode("utf-8", errors="replace")
     return {"status": "ok", **_card(record), "text": text[:MAX_PAGE_CHARS], "truncated": len(text) > MAX_PAGE_CHARS}
+
+
+# ── Books and course materials in the vault, read only ─────────────────────────────────
+
+
+def material_list(query: str) -> Dict[str, Any]:
+    from src.material_reader import list_materials
+    from src.obsidian_notes import vault_dir_from_env
+
+    root = vault_dir_from_env()
+    return _unavailable("vault_unavailable") if root is None else list_materials(root, query)
+
+
+def material_read(path: str, part: Any) -> Dict[str, Any]:
+    from src.material_reader import read_material
+    from src.obsidian_notes import vault_dir_from_env
+
+    root = vault_dir_from_env()
+    if root is None:
+        return _unavailable("vault_unavailable")
+    try:
+        number = int(part or 1)
+    except (TypeError, ValueError):
+        return {"status": "error", "error": "part_not_a_number"}
+    result = read_material(root, path, number)
+    if result.get("status") == "ok":
+        result["text"] = _mask(result["text"])  # leaves for an external LLM
+    return result
 
 
 # ── note_write: own Obsidian folder only ───────────────────────────────────────────────
