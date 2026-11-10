@@ -5073,3 +5073,18 @@ def test_eva_sorting_never_deletes_and_only_trusts_listed_topics():
     source = inspect.getsource(ms)
     assert "unlink" not in source and "rmtree" not in source and ".remove(" not in source
     assert ms.MAX_PER_RUN > 0 and ms.DAILY_MODEL_CALLS > 0
+
+
+def test_alex_drive_writes_use_only_drive_file_and_have_no_delete():
+    """10.11.2026: a service account cannot create files in My Drive; Alex writes via OAuth drive.file."""
+    import inspect
+    import sys
+
+    from src import drive_writer
+
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    import syndicate_vault as tool
+
+    assert tool.DRIVE_FILE_SCOPE == "https://www.googleapis.com/auth/drive.file"
+    source = inspect.getsource(drive_writer)
+    assert ".delete(" not in source and '"DELETE"' not in source and "trash" not in source.replace("trashed", "")
