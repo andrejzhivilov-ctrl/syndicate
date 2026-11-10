@@ -39,6 +39,7 @@ DIRS = {
     "learning": "learning",
     "schedule": "schedule",
     "materials": "materials_text_cache",
+    "drive_mirror": "drive_mirror",
 }
 
 

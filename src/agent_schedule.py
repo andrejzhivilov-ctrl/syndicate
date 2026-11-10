@@ -59,6 +59,8 @@ JOBS: Dict[str, Job] = {job.name: job for job in (
         "Алекс: нове з підключених джерел за тиждень"),
     Job("alex_reflection", "0 5 * * 1", "trainer", "reflection",
         "Алекс: тижнева саморефлексія (один виклик Hermes)"),
+    Job("alex_drive_mirror", "*/10 * * * *", "trainer", "drive_mirror",
+        "Алекс: нові матеріали з Google Drive у Obsidian"),
 )}
 
 
@@ -71,6 +73,10 @@ def enabled_from_env(raw: Optional[str] = None) -> Tuple[List[str], List[str]]:
 
 async def run_job(job: Job, gateway: Any) -> Dict[str, Any]:
     """One run of one job; the result is honest about what did not happen."""
+    if job.kind == "drive_mirror":
+        from src import drive_mirror
+
+        return await drive_mirror.run(getattr(gateway, "vault", None))
     if job.kind != "learning":
         return await agent_jobs.handle(job.agent, {"kind": job.kind, "text": job.text}, gateway)
     items, failed = await learning_feeds.collect(job.agent)
@@ -101,6 +107,8 @@ class AgentSchedule:
         self._last: Dict[str, str] = {}
         self._running: Dict[str, asyncio.Task] = {}
         self._tasks: Set[asyncio.Task] = set()
+        #: Last reason reported per job: a job every 10 minutes must not repeat the same alarm.
+        self._reported: Dict[str, str] = {}
 
     def due(self, now: datetime) -> List[Job]:
         local = now.astimezone(TIMEZONE)
@@ -139,7 +147,10 @@ class AgentSchedule:
             _journal(job, result, moment)
         except OSError as exc:
             logger.warning("schedule_journal_failed", job=job.name, error=type(exc).__name__)
-        if result.get("status") != "ok":
+        if result.get("status") == "ok":
+            self._reported.pop(job.name, None)
+        elif self._reported.get(job.name) != _reason(result):
+            self._reported[job.name] = _reason(result)
             await self._report(job, result)
         return result
 
