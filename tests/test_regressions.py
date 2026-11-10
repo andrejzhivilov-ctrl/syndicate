@@ -4989,3 +4989,15 @@ def test_alex_can_read_a_book_from_the_vault_in_parts():
     assert {tools.MATERIAL_LIST, tools.MATERIAL_READ} <= {tool["name"] for tool in _tools("trainer")}
     assert tools.granted("sam") == ()
     assert not any(hasattr(tools, name) for name in ("material_write", "material_delete"))
+
+
+def test_drive_mirror_reads_drive_and_never_deletes_from_the_vault():
+    """10.11.2026: materials arrive from Andrii's Google Drive folder; read-only scope, no deletion path."""
+    import inspect
+
+    from src import drive_mirror
+
+    assert drive_mirror.SCOPE.endswith("/drive.readonly")
+    source = inspect.getsource(drive_mirror)
+    assert "unlink(missing_ok=True)" in source  # only the half-downloaded .part file
+    assert ".delete(" not in source and "rmtree" not in source

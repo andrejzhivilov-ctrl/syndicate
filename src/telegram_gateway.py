@@ -165,6 +165,11 @@ class TelegramGateway:
         self._owner = owner_user_id
         self._transport = transport
 
+    @property
+    def vault(self) -> Any:
+        """The Vault client, for scheduled jobs that read their own secret (src/drive_mirror.py)."""
+        return self._vault
+
     async def owner_user_id(self) -> Optional[str]:
         if self._owner:
             return str(self._owner)
