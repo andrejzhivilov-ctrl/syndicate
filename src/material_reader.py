@@ -124,7 +124,9 @@ def _pdf(data: bytes) -> str:
 
     try:
         reader = PdfReader(io.BytesIO(data))
-        if reader.is_encrypted:
+        # 10.11.2026: many bought books are encrypted only against copying, with an empty
+        # open password; any viewer opens them, so do we. A real open password stays a refusal.
+        if reader.is_encrypted and not reader.decrypt(""):
             raise MaterialError("encrypted_pdf")
         pages = [f"[стор. {number}]\n{page.extract_text() or ''}" for number, page in enumerate(reader.pages, 1)]
     except PdfReadError as exc:
