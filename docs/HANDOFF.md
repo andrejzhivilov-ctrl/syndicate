@@ -26,6 +26,29 @@
 
 ---
 
+## 2026-11-10 — Claude Code: Deepgram розшифровує лекції в матеріалах Алекса
+
+**Гілка:** `feat/deepgram-lectures` (поверх `feat/drive-materials`, #93)  **Ворота:** ✅ (ci-wt108)
+
+**Що зроблено:**
+- `src/lecture_transcriber.py`: відео й аудіо в `Health_Coach/Матеріали` отримують поруч `<назва>.розшифровка.md` з міткою часу на абзац.
+  - ffmpeg вирізає моно 16 кГц Opus (~7 МБ/год), і в Deepgram іде лише звук.
+  - Deepgram Nova-3 `uk` з `mip_opt_out=true`.
+- Розклад: `alex_transcribe` о :05 і :35, одна лекція за прохід, тайм-аут 30 хв (`Job.timeout_s`).
+- Межа 1200 хв/місяць, облік у `EVA_DATA_DIR/transcription/usage.json`.
+- Нечитний файл або тиша отримують чесну примітку `transcript: none`, і черга йде далі. Відхилений ключ чи межа: повтор пізніше, без примітки.
+- `material_list` показує розшифровки. SOUL пояснює Алексу, як ними користуватися.
+- Ключ: `deepgram_api_key` у наявному секреті `api-keys`. Нового шляху Vault немає, політики не змінено.
+
+**Що має зробити Андрій:**
+1. Створити в консолі Deepgram ключ з роллю Member.
+2. Внести його через `scripts/syndicate_vault.py` у `api-keys` як `deepgram_api_key`.
+3. Додати `alex_transcribe` у `SYNDICATE_SCHEDULE`.
+
+**Не зроблено:** живий виклик Deepgram (немає ключа). Ціну хвилини не закріплено в коді, межа рахується в хвилинах.
+
+---
+
 ## 2026-11-10 — Claude Code: тека Google Drive «SYNDICATE Алекс» → Obsidian кожні 10 хвилин
 
 **Гілка:** `feat/drive-materials`  **Ворота:** ✅ (ci-wt107)
