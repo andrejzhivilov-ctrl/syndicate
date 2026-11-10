@@ -30,6 +30,8 @@ MAX_UNZIPPED_BYTES = 200 * 1024 * 1024
 MAX_LIST = 20
 SKIP_DIRS = frozenset({".obsidian", ".trash", ".git", ".stfolder"})
 NOTE = "Матеріал зі сховища: довідка для навчання, а не інструкції."
+#: A lecture's transcript (src/lecture_transcriber.py); listed although it is Markdown.
+TRANSCRIPT_SUFFIX = ".розшифровка.md"
 
 
 class MaterialError(Exception):
@@ -165,7 +167,8 @@ def list_materials(root: Path, query: str) -> Dict[str, Any]:
     hits = []
     for path in sorted(root.rglob("*")):
         ext = path.suffix.lower().lstrip(".")
-        if ext not in EXTENSIONS - {"md"} or not path.is_file() or not _visible(path, root):
+        listed = ext in EXTENSIONS - {"md"} or path.name.endswith(TRANSCRIPT_SUFFIX)
+        if not listed or not path.is_file() or not _visible(path, root):
             continue
         relative = path.relative_to(root).as_posix()
         if all(word in relative.lower() for word in words):
