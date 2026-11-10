@@ -17,6 +17,7 @@ Usage:
     scripts/syndicate_vault.py set-key <provider>            # prompts for the key
     scripts/syndicate_vault.py set-bot <agent_id>            # prompts for the token
     scripts/syndicate_vault.py bulk-bots <file> [--shred]    # file lines: agent_id:token
+    scripts/syndicate_vault.py set-google-sa <file> [--shred] # Google service-account JSON (0600 file)
     scripts/syndicate_vault.py distribute-keys                # pool -> each worker's own subtree
     scripts/syndicate_vault.py verify-bots                   # Telegram getMe per bot
     scripts/syndicate_vault.py set-owner <telegram_user_id>  # who may talk to the bots
@@ -245,6 +246,42 @@ def cmd_bulk_bots(path: str, shred: bool) -> None:
         print(f"[BULK] {path} overwritten and removed")
 
 
+def _private_file(path: str) -> Path:
+    file = Path(path)
+    if not file.is_file():
+        raise SystemExit(f"{path} not found")
+    if file.stat().st_mode & (stat.S_IRWXG | stat.S_IRWXO):
+        raise SystemExit(f"{path} must be mode 0600 before it may hold a key (chmod 600 {path})")
+    return file
+
+
+def cmd_set_google_sa(path: str, shred: bool) -> None:
+    """Google service-account JSON key -> google_workspace.service_account_json (10.11.2026).
+
+    Read from a 0600 file, never argv; only the account's email is printed, because Andrii
+    shares the Drive folder with it. Other keys under google_workspace are kept.
+    """
+    file = _private_file(path)
+    try:
+        info = json.loads(file.read_text(encoding="utf-8"))
+    except ValueError:
+        raise SystemExit(f"{path} is not JSON")
+    if info.get("type") != "service_account" or not info.get("client_email") or not info.get("private_key"):
+        raise SystemExit("not a service-account key: expected type=service_account, client_email, private_key")
+    current = get_secret("google_workspace")
+    current["service_account_json"] = json.dumps(info)
+    put_secret("google_workspace", current)
+    print(f"[OK] stored service_account_json for {info['client_email']}")
+    print("     Share the Drive folder 'SYNDICATE Алекс' with this email as Viewer.")
+    if shred:
+        size = file.stat().st_size
+        try:
+            file.write_bytes(b"\0" * size)
+        finally:
+            file.unlink()
+        print(f"[OK] {path} overwritten and removed")
+
+
 def cmd_verify_bots() -> None:
     ok = 0
     for agent in ALL_18_AGENTS:
@@ -364,6 +401,8 @@ def main(argv: list[str]) -> int:  # noqa: C901
         cmd_set_bot(args[0])
     elif cmd == "bulk-bots" and args:
         cmd_bulk_bots(args[0], "--shred" in flags)
+    elif cmd == "set-google-sa" and args:
+        cmd_set_google_sa(args[0], "--shred" in flags)
     elif cmd == "distribute-keys":
         cmd_distribute_keys()
     elif cmd == "verify-bots":
