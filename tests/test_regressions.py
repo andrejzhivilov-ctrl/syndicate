@@ -4978,3 +4978,14 @@ def test_alex_has_no_recipe_tool_until_the_recipe_base_exists():
     assert res["status"] == "unavailable" and res["recipes"] == []
     source = (REPO_ROOT / "src" / "agents" / "alex" / "trainer.py").read_text(encoding="utf-8")
     assert "Кіноа" not in source and "лосось" not in source
+
+
+def test_alex_can_read_a_book_from_the_vault_in_parts():
+    """10.11.2026: Alex read only .md notes; a PDF or EPUB course was out of reach."""
+    from src import hermes_tools as tools
+    from src.hermes_gateway import _tools
+
+    assert {tools.MATERIAL_LIST, tools.MATERIAL_READ} <= set(tools.granted("trainer"))
+    assert {tools.MATERIAL_LIST, tools.MATERIAL_READ} <= {tool["name"] for tool in _tools("trainer")}
+    assert tools.granted("sam") == ()
+    assert not any(hasattr(tools, name) for name in ("material_write", "material_delete"))
