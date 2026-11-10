@@ -96,6 +96,7 @@ def test_an_unshared_folder_or_missing_key_is_unavailable(tmp_path, monkeypatch)
 
     class _Vault:
         async def get_secret(self, path):
+            assert path == "secret/data/syndicate/agents/trainer/google"  # Alex's own key
             return {}
 
     monkeypatch.setenv("OBSIDIAN_VAULT_DIR", str(vault))

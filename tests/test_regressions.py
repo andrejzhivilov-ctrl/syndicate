@@ -5020,3 +5020,44 @@ def test_offsite_backup_is_encrypted_before_it_leaves_and_never_deletes_remotely
     assert "record offsite unavailable" in offsite and "\nbackup_offsite\n" in script.replace("\r", "")
     timer = (REPO_ROOT / "deploy" / "systemd" / "syndicate-backup.timer").read_text(encoding="utf-8")
     assert "20:00:00 Europe/Kyiv" in timer
+
+
+def test_google_service_account_key_enters_vault_from_a_private_file_only(tmp_path, monkeypatch):
+    """10.11.2026: the Drive mirror needs service_account_json; the key never goes through argv."""
+    import json
+    import os
+    import sys
+
+    import pytest
+
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    import syndicate_vault as tool
+
+    stored = {}
+    monkeypatch.setattr(tool, "get_secret", lambda path: {"other": "kept"})
+    monkeypatch.setattr(tool, "put_secret", lambda path, data: stored.update({path: data}))
+    key = tmp_path / "sa.json"
+    key.write_text(json.dumps({"type": "service_account", "client_email": "a@p.iam.gserviceaccount.com",
+                               "private_key": "-----BEGIN PRIVATE KEY-----x"}), encoding="utf-8")
+    if os.name != "nt":
+        key.chmod(0o644)
+        with pytest.raises(SystemExit):
+            tool.cmd_set_google_sa("trainer", str(key), shred=False)
+        key.chmod(0o600)
+    tool.cmd_set_google_sa("trainer", str(key), shred=True)
+    saved = stored["agents/trainer/google"]
+    assert saved["other"] == "kept" and list(stored) == ["agents/trainer/google"]
+    assert json.loads(saved["service_account_json"])["client_email"] == "a@p.iam.gserviceaccount.com"
+    assert not key.exists()
+    bad = tmp_path / "bad.json"
+    bad.write_text(json.dumps({"type": "authorized_user"}), encoding="utf-8")
+    if os.name != "nt":
+        bad.chmod(0o600)
+    with pytest.raises(SystemExit):
+        tool.cmd_set_google_sa("trainer", str(bad), shred=False)
+    # One service account per agent: no shared key, no unknown agent.
+    with pytest.raises(SystemExit):
+        tool.cmd_set_google_sa("nobody", str(bad), shred=False)
+    from src import drive_mirror
+
+    assert drive_mirror.KEY_PATH == tool.google_key_path("trainer")
