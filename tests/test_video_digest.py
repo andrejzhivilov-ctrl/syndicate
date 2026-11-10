@@ -149,3 +149,11 @@ def test_defuddle_cleans_a_fetched_page_and_falls_back_without_node(monkeypatch)
     monkeypatch.setattr(subprocess, "run", fake_run)
     assert hermes_tools.page_text(html, "text/html").startswith("# Стаття")
     assert seen[0][0] == ["defuddle", "parse", "--md"] and seen[0][1] == html  # stdin, never a URL
+
+
+def test_the_original_track_wins_over_a_machine_translation(tmp_path):
+    """10.11.2026: on a Russian Short, "uk" was YouTube's translation and "ru-orig" the original."""
+    (tmp_path / "media.uk.vtt").write_text(VTT.replace("Білок важливий", "переклад"), encoding="utf-8")
+    (tmp_path / "media.ru-orig.vtt").write_text(VTT.replace("Білок важливий", "оригинал"), encoding="utf-8")
+    assert "оригинал" in vd.captions(tmp_path)
+    assert vd._ydl_options(tmp_path, audio=False)["ignoreerrors"] == "only_download"

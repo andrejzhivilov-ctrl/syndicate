@@ -44,7 +44,9 @@ MAX_MINUTES = 180
 GROQ_MAX_BYTES = 24 * 1024 * 1024
 SEGMENT_SECONDS = 1200
 TRANSCRIPT_CHARS_FOR_SUMMARY = 60_000
-SUB_LANGS = ["uk", "uk-orig", "ru", "ru-orig", "en", "en-orig", "uk.*", "ru.*", "en.*"]
+#: Original tracks first; "uk" on a Russian video is a machine translation (10.11.2026: a
+#: request for it got HTTP 429 while the original was already saved).
+SUB_LANGS = ["uk-orig", "ru-orig", "en-orig", "uk", "ru", "en"]
 #: Agent -> its notes folder for video digests.
 NOTES = {"trainer": ("Health_Coach", "Конспекти", "Відео")}
 TEMPLATE = """Ти робиш конспект відео для другого мозку агента «{agent}». Прибери воду, рекламу,
@@ -94,7 +96,9 @@ def _ydl_options(work: Path, *, audio: bool) -> Dict[str, Any]:
     if audio:
         return {**base, "format": "bestaudio[ext=m4a]/bestaudio/best"}
     return {**base, "skip_download": True, "writesubtitles": True, "writeautomaticsub": True,
-            "subtitleslangs": SUB_LANGS, "subtitlesformat": "vtt"}
+            "subtitleslangs": SUB_LANGS, "subtitlesformat": "vtt",
+            # A failed extra subtitle track must not discard the ones already saved.
+            "ignoreerrors": "only_download"}
 
 
 def fetch(url: str, work: Path, *, audio: bool) -> Dict[str, Any]:
@@ -145,8 +149,11 @@ def stamp(seconds: float) -> str:
 
 
 def captions(work: Path) -> Optional[str]:
-    for lang in ("uk", "ru", "en"):
-        for path in sorted(work.glob(f"media.{lang}*.vtt")):
+    """The original-language track first, then a translation, in uk → ru → en order."""
+    order = [f"{lang}-orig" for lang in ("uk", "ru", "en")] + ["uk", "ru", "en"]
+    for track in order:
+        path = work / f"media.{track}.vtt"
+        if path.is_file():
             text = vtt_text(path.read_text(encoding="utf-8", errors="replace"))
             if text:
                 return text
