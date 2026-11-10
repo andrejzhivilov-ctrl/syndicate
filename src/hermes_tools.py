@@ -43,17 +43,20 @@ WEB_SEARCH, WEB_FETCH = "web_search", "web_fetch"
 ARCHIVE_SEARCH, ARCHIVE_READ = "archive_search", "archive_read"
 NOTE_WRITE, ASK_AGENT = "note_write", "ask_agent"
 MATERIAL_LIST, MATERIAL_READ = "material_list", "material_read"
+VIDEO_DIGEST = "video_digest"
 
 #: agent id -> gateway tools it may call. Default deny.
 TOOL_GRANTS: Dict[str, Tuple[str, ...]] = {
     "trainer": (WEB_SEARCH, WEB_FETCH, ARCHIVE_SEARCH, ARCHIVE_READ, NOTE_WRITE, ASK_AGENT,
-                MATERIAL_LIST, MATERIAL_READ),
+                MATERIAL_LIST, MATERIAL_READ, VIDEO_DIGEST),
 }
 #: Calls per agent per UTC day. Sonar costs about $0.006 a search (06.11.2026).
 DAILY_LIMITS: Dict[str, int] = {WEB_SEARCH: 30, WEB_FETCH: 60, ARCHIVE_SEARCH: 100, ARCHIVE_READ: 100,
                                 NOTE_WRITE: 30, ASK_AGENT: 20,
                                 # A 300-page book is about 75 parts; reading is local and free.
                                 MATERIAL_LIST: 100, MATERIAL_READ: 300,
+                                # Captions are free; Groq is ~$0.04 an hour of audio (10.11.2026).
+                                VIDEO_DIGEST: 30,
                                 # Photos and videos sent to the bot (src/media_vision.py), ~1-2 cents a minute of video.
                                 "media_view": 40}
 #: The agent's own Obsidian folder, the only place ``note_write`` writes.
@@ -212,9 +215,36 @@ class _Text(HTMLParser):
             self.parts.append(data.strip())
 
 
+DEFUDDLE_TIMEOUT_S = 20
+
+
+def defuddle_markdown(raw: str) -> Optional[str]:
+    """Clean Markdown of a fetched page via Defuddle over stdin; None when it is unavailable.
+
+    Defuddle never fetches anything here: it reads the HTML web_fetch already checked and
+    downloaded (10.11.2026). Missing Node, a crash or a timeout fall back to the plain parser.
+    """
+    import shutil
+    import subprocess
+
+    if not shutil.which("defuddle"):
+        return None
+    try:
+        done = subprocess.run(["defuddle", "parse", "--md"], input=raw, capture_output=True, text=True,
+                              timeout=DEFUDDLE_TIMEOUT_S, check=True)
+    except (OSError, subprocess.SubprocessError) as exc:
+        logger.warning("defuddle_failed", error_type=type(exc).__name__)
+        return None
+    text = done.stdout.strip()
+    return text or None
+
+
 def page_text(raw: str, content_type: str) -> str:
     if "html" not in content_type:
         return raw.strip()
+    cleaned = defuddle_markdown(raw)
+    if cleaned:
+        return cleaned
     parser = _Text()
     parser.feed(raw)
     return "\n".join(parser.parts)
