@@ -92,6 +92,8 @@ def public_url(url: str) -> str:
 
 def _ydl_options(work: Path, *, audio: bool, track: Optional[Tuple[str, bool]] = None) -> Dict[str, Any]:
     base = {"quiet": True, "no_warnings": True, "noprogress": True, "noplaylist": True, "cachedir": False,
+            # yt-dlp needs a JS runtime for YouTube; Node is in the image for Defuddle anyway.
+            "js_runtimes": {"node": {}},
             "outtmpl": str(work / "media.%(ext)s"), "socket_timeout": 30}
     if audio:
         return {**base, "format": "bestaudio[ext=m4a]/bestaudio/best"}
