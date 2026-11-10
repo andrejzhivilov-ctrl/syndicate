@@ -26,6 +26,32 @@
 
 ---
 
+## 2026-11-10 — Claude Code: зашифрований бекап на Hetzner Storage Box о 20:00, нагадування про SSD
+
+**Гілка:** `feat/offsite-backup` (поверх #93 і #94)  **Ворота:** ✅ (ci-wt109)
+
+**Що зроблено:**
+- `backup_daily.sh` отримав крок `backup_offsite`.
+  - tar набору шифрується публічним ключем GPG Андрія (`--recipient-file`, приватний ключ на сервер не потрапляє) і через rsync/ssh іде на Storage Box (`syndicate/`).
+  - Не налаштовано або збій: `offsite unavailable` з причиною.
+  - На Storage Box нічого не видаляється. Локально лишається лише найновіша зашифрована копія (`/data/backups/offsite/latest.tar.gpg`) для SSD.
+- Таймер: `20:00:00 Europe/Kyiv` (було 03:30).
+- Розклад: `andrii_ssd_backup` щонеділі о 20:30 надсилає ботом тривог команду scp для копіювання на SSD.
+- Локальні задачі розкладу диспетчеризуються таблицею `LOCAL_JOBS`.
+- Пробний запуск на сервері з тимчасовим ключем: без налаштувань `unavailable`; недоступний Storage Box → `unavailable`, а копія лишається. У копії немає відкритого тексту, приватним ключем розшифровується в набір.
+
+**Не перевірено:** справжнє завантаження на Storage Box (його ще не куплено). `StrictHostKeyChecking=accept-new` довіряє ключу хоста з першого підключення.
+
+**Що має зробити Андрій:**
+1. Купити Storage Box (BX11, 1 ТБ) і ввімкнути SSH.
+2. На сервері: `ssh-keygen -t ed25519 -f /root/.ssh/storagebox_ed25519 -N ""`, додати `.pub` у Storage Box.
+3. Створити `/etc/syndicate/backup-offsite.env` (`STORAGE_BOX_USER`, `STORAGE_BOX_HOST`), chmod 600.
+4. На своєму ПК створити ключ GPG, публічний покласти в `/root/backup-offsite-public.asc`. Приватний зберігати поза сервером і не на тому SSD, де бекап.
+5. Скопіювати таймер у `/etc/systemd/system/`, виконати `daemon-reload`, `restart syndicate-backup.timer`.
+6. Додати `andrii_ssd_backup` у `SYNDICATE_SCHEDULE`.
+
+---
+
 ## 2026-11-10 — Claude Code: Deepgram розшифровує лекції в матеріалах Алекса
 
 **Гілка:** `feat/deepgram-lectures` (поверх `feat/drive-materials`, #93)  **Ворота:** ✅ (ci-wt108)

@@ -5009,3 +5009,14 @@ def test_lecture_audio_goes_to_deepgram_only_with_training_opt_out():
 
     assert lt.PARAMS["mip_opt_out"] == "true" and lt.PARAMS["language"] == "uk"
     assert lt.MONTHLY_MINUTES_CAP > 0 and lt.MAX_PER_RUN == 1
+
+
+def test_offsite_backup_is_encrypted_before_it_leaves_and_never_deletes_remotely():
+    """10.11.2026: the off-site copy carries the Vault snapshot and .env; only Andrii's key opens it."""
+    script = (REPO_ROOT / "deploy" / "scripts" / "backup_daily.sh").read_text(encoding="utf-8")
+    offsite = script[script.index("backup_offsite() {"):script.index("prune_old() {")]
+    assert offsite.index("--encrypt") < offsite.index("rsync")
+    assert "--delete" not in offsite and "--recipient-file" in offsite
+    assert "record offsite unavailable" in offsite and "\nbackup_offsite\n" in script.replace("\r", "")
+    timer = (REPO_ROOT / "deploy" / "systemd" / "syndicate-backup.timer").read_text(encoding="utf-8")
+    assert "20:00:00 Europe/Kyiv" in timer

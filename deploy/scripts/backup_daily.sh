@@ -105,6 +105,45 @@ backup_vault() {
     checked vault "$target"
 }
 
+# Off-site copy (10.11.2026): the whole set, encrypted to Andrii's public GPG key, to the
+# Hetzner Storage Box. The private key never touches the server, so the copy (Vault snapshot
+# and .env included) is unreadable there. Configured in /etc/syndicate/backup-offsite.env:
+#   STORAGE_BOX_USER=u123456  STORAGE_BOX_HOST=u123456.your-storagebox.de  [STORAGE_BOX_PORT=23]
+# Nothing is deleted on the Storage Box; locally only the newest encrypted copy is kept, for the SSD.
+OFFSITE_ENV="${OFFSITE_ENV:-/etc/syndicate/backup-offsite.env}"
+OFFSITE_KEY="${OFFSITE_SSH_KEY:-/root/.ssh/storagebox_ed25519}"
+OFFSITE_RECIPIENT="${OFFSITE_RECIPIENT:-/root/backup-offsite-public.asc}"
+
+backup_offsite() {
+    # shellcheck disable=SC1090
+    [ -f "$OFFSITE_ENV" ] && . "$OFFSITE_ENV"
+    local missing=""
+    [ -n "${STORAGE_BOX_USER:-}" ] && [ -n "${STORAGE_BOX_HOST:-}" ] || missing="$missing storage_box_env"
+    [ -s "$OFFSITE_KEY" ] || missing="$missing ssh_key"
+    [ -s "$OFFSITE_RECIPIENT" ] || missing="$missing gpg_public_key"
+    if [ -n "$missing" ]; then
+        record offsite unavailable "not configured:$missing"
+        return
+    fi
+    local dir="$BACKUP_ROOT/offsite" archive
+    archive="$dir/syndicate-$STAMP.tar.gpg"
+    mkdir -p "$dir"
+    if ! tar -cf - -C "$BACKUP_ROOT" "$STAMP" | gpg --batch --yes --trust-model always \
+            --recipient-file "$OFFSITE_RECIPIENT" --encrypt -o "$archive"; then
+        rm -f "$archive"
+        record offsite unavailable "encryption failed"
+        return
+    fi
+    if ! rsync --mkpath --timeout=600 -e "ssh -p ${STORAGE_BOX_PORT:-23} -i $OFFSITE_KEY -o BatchMode=yes -o StrictHostKeyChecking=accept-new" \
+            "$archive" "$STORAGE_BOX_USER@$STORAGE_BOX_HOST:syndicate/"; then
+        record offsite unavailable "upload to the Storage Box failed; encrypted copy kept at $archive"
+        return
+    fi
+    find "$dir" -maxdepth 1 -name 'syndicate-*.tar.gpg' ! -name "$(basename "$archive")" -delete
+    ln -sfn "$(basename "$archive")" "$dir/latest.tar.gpg"
+    record offsite ok "$(stat -c %s "$archive") bytes encrypted -> $STORAGE_BOX_HOST:syndicate/"
+}
+
 prune_old() {
     [ "$KEEP_DAYS" -gt 0 ] || return 0
     find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -type d -name '20*Z' -mtime "+$KEEP_DAYS" -exec rm -rf {} +
@@ -116,6 +155,7 @@ backup_volume eva_data "$EVA_VOLUME"
 backup_obsidian
 backup_env
 backup_vault
+backup_offsite
 if [ "$FAILED" -eq 0 ]; then
     prune_old
 fi
