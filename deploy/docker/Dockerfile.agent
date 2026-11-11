@@ -32,6 +32,21 @@ RUN wget -q -O /tmp/rclone.zip "https://downloads.rclone.org/${RCLONE_VERSION}/r
     && rm /tmp/rclone.zip \
     && rclone version | head -1
 
+# Node.js runs only Defuddle (kepano/defuddle), which turns a page already fetched by
+# web_fetch into clean Markdown over stdin; it never opens a URL itself (10.11.2026).
+# Pinned release, verified against nodejs.org SHASUMS256.
+ARG NODE_VERSION=v22.23.4
+ARG NODE_SHA256=1805bcd35e6815559bd2eb97db438d3fdb0eb3a5e6a977b7c1badca76337e9ce
+ARG DEFUDDLE_VERSION=0.19.6
+RUN apt-get update && apt-get install -y --no-install-recommends xz-utils && rm -rf /var/lib/apt/lists/* \
+    && wget -q -O /tmp/node.tar.xz "https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-linux-x64.tar.xz" \
+    && echo "${NODE_SHA256}  /tmp/node.tar.xz" | sha256sum -c - \
+    && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 --no-same-owner \
+    && rm /tmp/node.tar.xz \
+    && npm install -g --no-fund --no-audit "defuddle@${DEFUDDLE_VERSION}" \
+    && npm cache clean --force \
+    && node --version && echo "<html><body><article><p>ok</p></article></body></html>" | defuddle parse --md
+
 WORKDIR /app
 
 # Install dependencies first so the layer is cached across source changes.

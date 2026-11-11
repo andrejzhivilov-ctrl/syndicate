@@ -24,7 +24,7 @@ def _resolver(host):
 
 def test_only_granted_agents_get_the_tools_and_the_hermes_toolsets_stay_off():
     assert set(tools.granted("trainer")) == {"web_search", "web_fetch", "archive_search", "archive_read",
-                                             "note_write", "ask_agent", "material_list", "material_read", "drive_save"}
+                                             "note_write", "ask_agent", "material_list", "material_read", "video_digest", "drive_save"}
     assert tools.granted("sam") == () and tools.granted("nobody") == ()
     config = (ROOT / "deploy" / "hermes" / "trainer" / "config.yaml").read_text(encoding="utf-8")
     off = re.search(r"disabled_toolsets: \[([^\]]*)\]", config)

@@ -1774,6 +1774,14 @@ class EvaOrchestrator:
     def openrouter_key(self) -> str:
         return self._llm_config.get("openrouter_api_key") or self._llm_config.get("openrouter", "")
 
+    def media_keys(self) -> Dict[str, str]:
+        """Keys the video digest needs (src/video_digest.py); absent ones stay absent."""
+        names = ("groq_api_key", "deepgram_api_key")
+        keys = {name: str(self._llm_config[name]) for name in names if self._llm_config.get(name)}
+        if self.openrouter_key():
+            keys["openrouter_api_key"] = self.openrouter_key()
+        return keys
+
     async def _operator_lessons(self, agent_id: str) -> Optional[List[Dict[str, str]]]:
         store = getattr(self, "_lessons", None)
         return await store.operator_lessons(agent_id) if store else None

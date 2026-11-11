@@ -5063,6 +5063,19 @@ def test_google_service_account_key_enters_vault_from_a_private_file_only(tmp_pa
     assert drive_mirror.KEY_PATH == tool.google_key_path("trainer")
 
 
+def test_video_digest_never_bypasses_bot_checks_and_defuddle_never_fetches():
+    """10.11.2026: video links go through captions or Groq; a blocked source is reported, not evaded."""
+    import inspect
+
+    from src import hermes_tools, video_digest
+
+    source = inspect.getsource(video_digest).lower()
+    for evasion in ("cookiesfrombrowser", "impersonate", "proxy", "user_agent", "cookiefile"):
+        assert evasion not in source, evasion
+    assert "source_blocked" in source
+    assert '["defuddle", "parse", "--md"]' in inspect.getsource(hermes_tools.defuddle_markdown)
+    assert hermes_tools.VIDEO_DIGEST in hermes_tools.granted("trainer")
+
 def test_eva_sorting_never_deletes_and_only_trusts_listed_topics():
     """10.11.2026: Andrii drops everything unsorted; Eva shelves it, a wrong topic goes to review."""
     import inspect

@@ -47,6 +47,8 @@ openpyxl>=3.1.5
 python-docx>=1.1.2
 python-pptx>=1.0.2
 pypdf>=4.3.1
+# Video links: captions or audio for the video digest (src/video_digest.py), never re-uploaded.
+yt-dlp==2026.10.26
 reportlab>=4.2.2
 
 # Google Workspace & Integrations
