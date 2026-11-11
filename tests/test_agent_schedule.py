@@ -209,6 +209,7 @@ def test_alex_keeps_the_times_and_feeds_he_had_in_n8n():
         "alex_drive_mirror": ("*/10 * * * *", "drive_mirror"),
         "alex_transcribe": ("5,35 * * * *", "transcribe"),
         "andrii_ssd_backup": ("30 20 * * 0", "owner_reminder"),
+        "eva_sort_materials": ("3,13,23,33,43,53 * * * *", "sort_materials"),
     }
     assert all(job.text for job in sched.JOBS.values() if job.kind in ("checkin", "reminder", "owner_reminder"))
     urls = feeds.feeds_for("trainer")
@@ -226,11 +227,11 @@ def test_the_runtime_starts_the_schedule_only_from_the_env():
     assert "_start_schedule()" in runner and '"schedule_task"' in runner
 
 
-def test_the_ssd_reminder_reaches_andrii_through_the_alarm_bot(tmp_path, monkeypatch):
+def test_the_ssd_reminder_reaches_andrii_from_eva(tmp_path, monkeypatch):
     """10.11.2026: the server cannot reach the SSD, so Andrii gets the copy command on Sunday evening."""
     monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
     gateway = _Gateway()
     result = asyncio.run(sched.AgentSchedule(gateway, []).run(sched.JOBS["andrii_ssd_backup"]))
     assert result == {"status": "ok"}
     bot, chat, text = gateway.sent[0]
-    assert (bot, chat) == ("alice", "1") and "latest.tar.gpg" in text
+    assert (bot, chat) == ("eva", "1") and "latest.tar.gpg" in text  # Andrii: Eva sends it

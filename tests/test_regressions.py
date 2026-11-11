@@ -5076,6 +5076,18 @@ def test_video_digest_never_bypasses_bot_checks_and_defuddle_never_fetches():
     assert '["defuddle", "parse", "--md"]' in inspect.getsource(hermes_tools.defuddle_markdown)
     assert hermes_tools.VIDEO_DIGEST in hermes_tools.granted("trainer")
 
+def test_eva_sorting_never_deletes_and_only_trusts_listed_topics():
+    """10.11.2026: Andrii drops everything unsorted; Eva shelves it, a wrong topic goes to review."""
+    import inspect
+
+    from src import material_sorter as ms
+
+    assert ms.parse_verdict('{"topic": "Криптовалюта"}', ms.SHELVES["trainer"][1])["topic"] == ms.UNSURE
+    source = inspect.getsource(ms)
+    assert "unlink" not in source and "rmtree" not in source and ".remove(" not in source
+    assert ms.MAX_PER_RUN > 0 and ms.DAILY_MODEL_CALLS > 0
+
+
 def test_alex_drive_writes_use_only_drive_file_and_have_no_delete():
     """10.11.2026: a service account cannot create files in My Drive; Alex writes via OAuth drive.file."""
     import inspect

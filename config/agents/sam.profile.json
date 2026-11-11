@@ -427,6 +427,9 @@
     "fibonacci-trading",
     "multi-timeframe-analysis",
     "rsi-divergence",
-    "trailing-stops"
+    "trailing-stops",
+    "obsidian-markdown",
+    "obsidian-bases",
+    "json-canvas"
   ]
 }

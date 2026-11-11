@@ -43,6 +43,7 @@ DIRS = {
     "video_work": "video_work",
     "drive_writer": "drive_writer",
     "transcription": "transcription",
+    "material_sorter": "material_sorter",
 }
 
 
