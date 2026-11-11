@@ -5075,3 +5075,17 @@ def test_video_digest_never_bypasses_bot_checks_and_defuddle_never_fetches():
     assert "source_blocked" in source
     assert '["defuddle", "parse", "--md"]' in inspect.getsource(hermes_tools.defuddle_markdown)
     assert hermes_tools.VIDEO_DIGEST in hermes_tools.granted("trainer")
+
+def test_alex_drive_writes_use_only_drive_file_and_have_no_delete():
+    """10.11.2026: a service account cannot create files in My Drive; Alex writes via OAuth drive.file."""
+    import inspect
+    import sys
+
+    from src import drive_writer
+
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    import syndicate_vault as tool
+
+    assert tool.DRIVE_FILE_SCOPE == "https://www.googleapis.com/auth/drive.file"
+    source = inspect.getsource(drive_writer)
+    assert ".delete(" not in source and '"DELETE"' not in source and "trash" not in source.replace("trashed", "")

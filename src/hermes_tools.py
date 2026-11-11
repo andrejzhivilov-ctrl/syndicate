@@ -44,11 +44,12 @@ ARCHIVE_SEARCH, ARCHIVE_READ = "archive_search", "archive_read"
 NOTE_WRITE, ASK_AGENT = "note_write", "ask_agent"
 MATERIAL_LIST, MATERIAL_READ = "material_list", "material_read"
 VIDEO_DIGEST = "video_digest"
+DRIVE_SAVE = "drive_save"
 
 #: agent id -> gateway tools it may call. Default deny.
 TOOL_GRANTS: Dict[str, Tuple[str, ...]] = {
     "trainer": (WEB_SEARCH, WEB_FETCH, ARCHIVE_SEARCH, ARCHIVE_READ, NOTE_WRITE, ASK_AGENT,
-                MATERIAL_LIST, MATERIAL_READ, VIDEO_DIGEST),
+                MATERIAL_LIST, MATERIAL_READ, VIDEO_DIGEST, DRIVE_SAVE),
 }
 #: Calls per agent per UTC day. Sonar costs about $0.006 a search (06.11.2026).
 DAILY_LIMITS: Dict[str, int] = {WEB_SEARCH: 30, WEB_FETCH: 60, ARCHIVE_SEARCH: 100, ARCHIVE_READ: 100,
@@ -57,6 +58,8 @@ DAILY_LIMITS: Dict[str, int] = {WEB_SEARCH: 30, WEB_FETCH: 60, ARCHIVE_SEARCH: 1
                                 MATERIAL_LIST: 100, MATERIAL_READ: 300,
                                 # Captions are free; Groq is ~$0.04 an hour of audio (10.11.2026).
                                 VIDEO_DIGEST: 30,
+                                # Own files in Andrii's Drive (drive.file), free within Google quotas.
+                                DRIVE_SAVE: 50,
                                 # Photos and videos sent to the bot (src/media_vision.py), ~1-2 cents a minute of video.
                                 "media_view": 40}
 #: The agent's own Obsidian folder, the only place ``note_write`` writes.

@@ -41,6 +41,7 @@ DIRS = {
     "materials": "materials_text_cache",
     "drive_mirror": "drive_mirror",
     "video_work": "video_work",
+    "drive_writer": "drive_writer",
     "transcription": "transcription",
 }
 
