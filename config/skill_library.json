@@ -7335,6 +7335,119 @@
       },
       "summary": "Trailing-stop plans that lock in profit on NSE/BSE positions: the R-multiple ladder (hold → breakeven at 1R → ATR trail at 2R → structure trail at 3R+), plus ATR, structure, moving-average and chandelier trails, with GTT/SL execution realities for Indian brokers. risk.py trail computes the recommend",
       "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "defuddle",
+      "source": "https://github.com/kepano/obsidian-skills",
+      "commit": "3ccff5338ea700537839b21900aa5358a0402c98",
+      "source_path": "skills/defuddle",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/kepano/obsidian-skills/skills/defuddle/SKILL.md"
+      },
+      "summary": "Extract clean Markdown from HTML pages with Defuddle CLI.",
+      "review": "Automated screen 2026-11-10: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "json-canvas",
+      "source": "https://github.com/kepano/obsidian-skills",
+      "commit": "3ccff5338ea700537839b21900aa5358a0402c98",
+      "source_path": "skills/json-canvas",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "eva",
+        "fin",
+        "kira",
+        "marshal",
+        "sam",
+        "trainer",
+        "tyler"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/kepano/obsidian-skills/skills/json-canvas/SKILL.md",
+        "references/EXAMPLES.md": "skills/vendor/kepano/obsidian-skills/skills/json-canvas/references/EXAMPLES.md"
+      },
+      "summary": "Create and edit JSON Canvas files (.canvas) with nodes, edges, groups, and connections. Use when working with .canvas files, creating visual canvases, mind maps, flowcharts, or when the user mentions Canvas files in Obsidian.",
+      "review": "Automated screen 2026-11-10: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "knap",
+      "source": "https://github.com/kepano/obsidian-skills",
+      "commit": "3ccff5338ea700537839b21900aa5358a0402c98",
+      "source_path": "skills/knap",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/kepano/obsidian-skills/skills/knap/SKILL.md"
+      },
+      "summary": "Render Markdown from templates and structured data using Knap CLI. Use when the user asks to apply a Knap template, turn JSON or CSV data into notes, batch-generate Markdown files, or format Defuddle output into a note.",
+      "review": "Automated screen 2026-11-10: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "obsidian-bases",
+      "source": "https://github.com/kepano/obsidian-skills",
+      "commit": "3ccff5338ea700537839b21900aa5358a0402c98",
+      "source_path": "skills/obsidian-bases",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "eva",
+        "fin",
+        "kira",
+        "marshal",
+        "sam",
+        "trainer",
+        "tyler"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/kepano/obsidian-skills/skills/obsidian-bases/SKILL.md",
+        "references/FUNCTIONS_REFERENCE.md": "skills/vendor/kepano/obsidian-skills/skills/obsidian-bases/references/FUNCTIONS_REFERENCE.md"
+      },
+      "summary": "Create and edit Obsidian Bases (.base files) with views, filters, formulas, and summaries. Use when working with .base files, creating database-like views of notes, or when the user mentions Bases, table views, card views, filters, or formulas in Obsidian.",
+      "review": "Automated screen 2026-11-10: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "obsidian-cli",
+      "source": "https://github.com/kepano/obsidian-skills",
+      "commit": "3ccff5338ea700537839b21900aa5358a0402c98",
+      "source_path": "skills/obsidian-cli",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/kepano/obsidian-skills/skills/obsidian-cli/SKILL.md"
+      },
+      "summary": "Interact with Obsidian vaults using the Obsidian CLI to read, create, search, and manage notes, tasks, properties, and more. Also supports plugin and theme development with commands to reload plugins, run JavaScript, capture errors, take screenshots, and inspect the DOM. Use when the user asks to in",
+      "review": "Automated screen 2026-11-10: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "obsidian-markdown",
+      "source": "https://github.com/kepano/obsidian-skills",
+      "commit": "3ccff5338ea700537839b21900aa5358a0402c98",
+      "source_path": "skills/obsidian-markdown",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "eva",
+        "fin",
+        "kira",
+        "marshal",
+        "sam",
+        "trainer",
+        "tyler"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/kepano/obsidian-skills/skills/obsidian-markdown/SKILL.md",
+        "references/CALLOUTS.md": "skills/vendor/kepano/obsidian-skills/skills/obsidian-markdown/references/CALLOUTS.md",
+        "references/EMBEDS.md": "skills/vendor/kepano/obsidian-skills/skills/obsidian-markdown/references/EMBEDS.md",
+        "references/PROPERTIES.md": "skills/vendor/kepano/obsidian-skills/skills/obsidian-markdown/references/PROPERTIES.md"
+      },
+      "summary": "Create and edit Obsidian Flavored Markdown with wikilinks, embeds, callouts, properties, and other Obsidian-specific syntax. Use when working with .md files in Obsidian, or when the user mentions wikilinks, callouts, frontmatter, tags, embeds, or Obsidian notes.",
+      "review": "Automated screen 2026-11-10: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
     }
   ],
   "files": {
@@ -7901,6 +8014,18 @@
     "skills/vendor/edamam-llc/edamam-skills/skills/edamam-barcode-lookup/SKILL.md": "de4a2ea27ac6746042cf052e432fe4e7d60fcd3f0a6c7cd901a9002ec23902da",
     "skills/vendor/flaviusapop/personal-trainer-hypertrophy-programme-designer/LICENSE": "b69a8be80a10da41537993b7398bec792d59ae83bd407229bfbefc5e8c01530a",
     "skills/vendor/flaviusapop/personal-trainer-hypertrophy-programme-designer/SKILL.md": "1deb56ba9c29313cc0ef39e32e9401936c713c2731602e260dd72f8adf291331",
+    "skills/vendor/kepano/obsidian-skills/LICENSE": "64c64d48361edfe8610016441bf593256ea9b67f133b00f47c55aa29ee878567",
+    "skills/vendor/kepano/obsidian-skills/skills/defuddle/SKILL.md": "8669cdcc9f7b4679a49753d2d7f8ee4d90c3119305d866d6c439aa1cbacb83f3",
+    "skills/vendor/kepano/obsidian-skills/skills/json-canvas/SKILL.md": "97d1ae0728955c4203922753d5656890e5e4dd371b8306ea11884f9b510f1b85",
+    "skills/vendor/kepano/obsidian-skills/skills/json-canvas/references/EXAMPLES.md": "f5ce15a4b74643122396265e8c37c828874a4005794de2aee7030662968768eb",
+    "skills/vendor/kepano/obsidian-skills/skills/knap/SKILL.md": "ef5666573358cd7d18e04195f3e7c473b88d3e3140c41ab59bbee01c81e9989f",
+    "skills/vendor/kepano/obsidian-skills/skills/obsidian-bases/SKILL.md": "c0037f20926c7d8591cdd040365e4c0e4c0c4146386a506f28f241faee9a27d9",
+    "skills/vendor/kepano/obsidian-skills/skills/obsidian-bases/references/FUNCTIONS_REFERENCE.md": "208fd63aead9bca1975626fea52605e6ab9434dc0529d923feb36b18b8877d3b",
+    "skills/vendor/kepano/obsidian-skills/skills/obsidian-cli/SKILL.md": "b54257cdc0e5d04488b35b0c797bfe427b24359f0848d3c73924dcacf8da6358",
+    "skills/vendor/kepano/obsidian-skills/skills/obsidian-markdown/SKILL.md": "7ad72e1f0a9081ed325e76b6402ad5de50a00e63e2341fd403a92f147234a007",
+    "skills/vendor/kepano/obsidian-skills/skills/obsidian-markdown/references/CALLOUTS.md": "9912ec2e3f8711f65b8ceb82cc19cbffc5e6f8ccf2ab627e18926c522c383d8b",
+    "skills/vendor/kepano/obsidian-skills/skills/obsidian-markdown/references/EMBEDS.md": "63b6205507e28fb58cf200bc348a2b139e50ae739743e2e6316732148973cb7a",
+    "skills/vendor/kepano/obsidian-skills/skills/obsidian-markdown/references/PROPERTIES.md": "392953b5838c3ab3df135b5a914f100ae7b95e4501b6a2e5c8dc63da3ac7558b",
     "skills/vendor/marian2js/trading-skills/LICENSE": "1126322e2cc8d165adc4c792eeb195717de2bcc7b39be1ce77959d78e87ef685",
     "skills/vendor/marian2js/trading-skills/skills/idea-discovery/catalyst-map/SKILL.md": "07142928a8f31d0855a32ec8b6f49ec6520f8f1a45639a7911e9103a268f5d53",
     "skills/vendor/marian2js/trading-skills/skills/idea-discovery/catalyst-map/references/catalyst-framework.md": "2afd17993bcab5eb0e0c5bd410466f0942dd7749620d12f7f7f101640c4d3fd5",

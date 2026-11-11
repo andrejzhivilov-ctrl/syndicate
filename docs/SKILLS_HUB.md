@@ -16,7 +16,21 @@
 - **Сем:** 43 трейдерські скіли (імпорт 06.11.2026, розділ «Трейдинг» нижче).
 - **Кіра:** `thesis-validation`, `evidence-gap-check`, `scenario-analyzer`.
 - **Тайлер:** `data-quality-checker`. **Єва:** `dual-axis-skill-reviewer`, `skill-integration-tester`. **Маршал:** `dual-axis-skill-reviewer`.
+- **Усі семеро:** `obsidian-markdown`, `obsidian-bases`, `json-canvas` (формат Obsidian, 10.11.2026).
 - Решта профілів без змін, перелік у `docs/PERMISSIONS_MATRIX.md`.
+
+## Obsidian Skills від Kepano (6, імпорт 10.11.2026)
+
+Джерело: `kepano/obsidian-skills@3ccff53`, MIT, автор — CEO Obsidian. Перевірка: усі 6 чисті.
+
+| Скіл | Кому | Чому |
+|---|---|---|
+| `obsidian-markdown` (+3 довідки) | усім сімом | властивості, [[посилання]], callout, вбудовування: нотатки не ламаються й знаходяться |
+| `obsidian-bases` (+1) | усім сімом | таблиці й картки з властивостей нотаток (`.base`) |
+| `json-canvas` (+1) | усім сімом | полотна й майндмапи (`.canvas`) |
+| `defuddle` | нікому | CLI на Node.js; кандидат для `web_fetch` пізніше |
+| `knap` | нікому | шаблони Markdown, потрібен Node.js |
+| `obsidian-cli` | нікому | потрібен запущений настільний Obsidian; уміє запускати JavaScript у плагінах |
 
 ## Трейдинг (46, імпорт 06.11.2026)
 
