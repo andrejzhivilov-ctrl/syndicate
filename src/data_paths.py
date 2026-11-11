@@ -42,6 +42,7 @@ DIRS = {
     "drive_mirror": "drive_mirror",
     "drive_writer": "drive_writer",
     "transcription": "transcription",
+    "material_sorter": "material_sorter",
 }
 
 
