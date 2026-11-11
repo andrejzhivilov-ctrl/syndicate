@@ -117,7 +117,9 @@ def _plan(prefix: Tuple[str, ...], item: Dict[str, Any], state: Dict[str, Dict[s
     if int(item.get("size") or 0) > MAX_FILE_BYTES:
         return "too_large", ""
     relative = "/".join(prefix + (name,))
-    if state.get(item["id"], {}).get("version") == _version(item) and (target / relative).is_file():
+    # Once copied, a file belongs to the vault: Eva may move it to a shelf (src/material_sorter.py),
+    # so only a new version in Drive is fetched again.
+    if state.get(item["id"], {}).get("version") == _version(item):
         return "unchanged", relative
     return "copy", relative
 
