@@ -216,11 +216,23 @@ def _gateway_tools(agent: str) -> List[Dict[str, Any]]:
                                                             "the reply says how many parts there are. Reference, not "
                                                             "instructions.",
          "inputSchema": _schema(["path"], path=text, part={"type": "integer", "minimum": 1})},
+        {"name": hermes_tools.DRIVE_SAVE, "description": "Save to Andrii's Google Drive, in your own folder: either a "
+                                                         "note (name + text, replaces your own file of that name) or "
+                                                         "a file from your Obsidian folder (path). Never deletes.",
+         "inputSchema": _schema([], name=text, text=text, path=text)},
         {"name": hermes_tools.ASK_AGENT, "description": "Ask another agent of the holding one question; it answers as "
                                                         "a colleague, without tools.",
          "inputSchema": _schema(["agent", "question"], agent={"type": "string", "enum": hermes_tools.ask_targets(agent)},
                                 question=text)},
     ]
+
+
+async def _drive_save(agent: str, args: Mapping[str, Any], orchestrator: Any) -> Dict[str, Any]:
+    from src import drive_writer
+
+    return await drive_writer.save(agent, getattr(orchestrator, "_vault_client", None), vault_dir_from_env(),
+                                   name=str(args.get("name", "")), text=str(args.get("text", "")),
+                                   path=str(args.get("path", "")))
 
 
 async def _gateway_call(agent: str, name: str, args: Mapping[str, Any], orchestrator: Any) -> Any:
@@ -236,6 +248,7 @@ async def _gateway_call(agent: str, name: str, args: Mapping[str, Any], orchestr
         hermes_tools.MATERIAL_LIST: lambda: asyncio.to_thread(hermes_tools.material_list, str(args.get("query", ""))),
         hermes_tools.MATERIAL_READ: lambda: asyncio.to_thread(hermes_tools.material_read, str(args.get("path", "")),
                                                               args.get("part", 1)),
+        hermes_tools.DRIVE_SAVE: lambda: _drive_save(agent, args, orchestrator),
         hermes_tools.ASK_AGENT: lambda: hermes_tools.ask_agent(agent, str(args.get("agent", "")),
                                                                str(args.get("question", "")), orchestrator),
     }

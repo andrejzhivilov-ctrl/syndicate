@@ -48,6 +48,32 @@
 
 ---
 
+## 2026-11-10 — Claude Code: Алекс пише у свою теку на Google Drive (OAuth drive.file)
+
+**Гілка:** `feat/alex-drive-write`  **Ворота:** ✅ (ci-wt120)
+
+**Чому OAuth:** у сервісного акаунта немає квоти Drive, тож новий файл у My Drive Андрія він не створить. Тому запис іде від імені Андрія з `drive.file`: агент бачить лише файли, які створив сам.
+
+**Що зроблено:**
+- `src/drive_writer.py`, інструмент Алекса `drive_save` (50/день):
+  - нотатка (`name` + `text`): файл з тією самою назвою оновлюється;
+  - файл з `Health_Coach/` (`path`): md, txt, csv, pdf, docx, xlsx, png, jpg, canvas, до 50 МБ;
+  - тека «SYNDICATE Алекс — від Алекса» створюється один раз, її id зберігається в `EVA_DATA_DIR/drive_writer/`;
+  - виклику видалення немає.
+- `scripts/syndicate_vault.py`:
+  - `set-google-oauth <agent> <файл> [--shred]`;
+  - `google-device-login <agent>`: код на google.com/device, refresh token іде в `agents/<id>/google_oauth` і ніколи не друкується. Запис від оператора (агент має лише читання).
+- SOUL Алекса: коли й як зберігати в Drive.
+
+**Стан Google Cloud (перевірено 10.11):**
+- клієнт `syndicate-alex-drive` (TV and Limited Input) створено;
+- `drive.file` серед нечутливих прав;
+- **публікація: Testing.** Google не дає опублікувати, поки не збережено Branding. У Testing refresh token живе 7 днів.
+
+**Також:** NotebookLM Андрій вирішив ставити на свій акаунт (а не на окремий), на сервері, з доступом для Єви. Це наступний крок, ще не зроблено.
+
+---
+
 ## 2026-11-10 — Claude Code: окремий сервісний акаунт Google на кожного агента
 
 **Гілка:** `feat/vault-google-sa` (PR #98)  **Ворота:** див. PR
