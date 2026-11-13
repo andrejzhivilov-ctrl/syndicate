@@ -5165,3 +5165,15 @@ def test_alex_drive_writes_use_only_drive_file_and_have_no_delete():
     assert tool.DRIVE_FILE_SCOPE == "https://www.googleapis.com/auth/drive.file"
     source = inspect.getsource(drive_writer)
     assert ".delete(" not in source and '"DELETE"' not in source and "trash" not in source.replace("trashed", "")
+
+
+def test_alerts_come_from_the_keyless_mirror_and_never_use_the_viber_key():
+    """13.11.2026: Ukraine Alarm gives the server 403 and its key belongs to the Viber bot."""
+    import inspect
+
+    from src import alert_poll
+
+    assert alert_poll.SOURCE_URL.startswith("https://siren.pp.ua/")
+    assert alert_poll.INTERVAL_S >= 60
+    source = inspect.getsource(alert_poll)
+    assert "Authorization" not in source and "api_key" not in source.lower()
