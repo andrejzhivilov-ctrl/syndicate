@@ -373,10 +373,7 @@ async def lifespan(app: FastAPI):
         app_state.change_request_notifier = notifier
         app_state.telegram_gateway = TelegramGateway(app_state.vault_client)
         logger.info("HITL surface initialized", change_requests=store is not None)
-        app_state.alert_watch = AlertWatch(app_state.telegram_gateway)
-        app_state.alert_watch_task = asyncio.create_task(app_state.alert_watch.loop())
-        if alert_poll.enabled():  # all of Ukraine from the keyless mirror (src/alert_poll.py)
-            app_state.alert_poll_task = asyncio.create_task(alert_poll.loop(app_state.alert_watch))
+        _start_alerts()
         _start_schedule()
 
         app_state.ready = True
@@ -418,6 +415,14 @@ def _start_obsidian_webdav() -> None:
     server = obsidian_webdav_from_env(app_state.vault_client)
     if server is not None:
         app_state.obsidian_webdav_task = asyncio.create_task(server.loop())
+
+
+def _start_alerts() -> None:
+    """Alice's alert watch, fed once a minute from the keyless mirror (src/alert_poll.py)."""
+    app_state.alert_watch = AlertWatch(app_state.telegram_gateway)
+    app_state.alert_watch_task = asyncio.create_task(app_state.alert_watch.loop())
+    if alert_poll.enabled():
+        app_state.alert_poll_task = asyncio.create_task(alert_poll.loop(app_state.alert_watch))
 
 
 def _start_schedule() -> None:
