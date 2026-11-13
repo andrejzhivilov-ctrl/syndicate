@@ -56,7 +56,8 @@ from src.directors_registry import roster as directors_roster  # noqa: E402
 from src.lockdown import Lockdown  # noqa: E402
 from src.alert_watch import AlertWatch  # noqa: E402
 from src import hermes_gateway  # noqa: E402
-from src import n8n_bridge  # noqa: E402
+from src import media_vision  # noqa: E402
+from src.agent_schedule import AgentSchedule, enabled_from_env  # noqa: E402
 from src.telegram_gateway import (  # noqa: E402
     TelegramGateway,
     extract_message,
@@ -75,7 +76,6 @@ from src.voice_reply import (  # noqa: E402
     wants_voice,
     wav_to_ogg_opus,
 )
-from src.agent_platform.director_client import build_director_clients  # noqa: E402
 from src.pii import PIIRedactor  # noqa: E402
 from src.runtime_config import build_runtime_config  # noqa: E402
 from src.vault_client import VaultClient, is_placeholder_secret  # noqa: E402
@@ -131,6 +131,7 @@ class AppState:
     obsidian_webdav_task: Optional[Any] = None
     alert_watch: Optional[AlertWatch] = None
     alert_watch_task: Optional[Any] = None
+    schedule_task: Optional[Any] = None
 
 
 app_state = AppState()
@@ -334,7 +335,6 @@ async def lifespan(app: FastAPI):
             memory_manager=app_state.memory_manager,
             sentinel=app_state.sentinel,
             llm_config=llm_secrets,
-            director_clients=build_director_clients(runtime_config, app_state.vault_client),
             vault_client=app_state.vault_client,
             config=runtime_config,
             registry=app_state.registry,
@@ -372,6 +372,7 @@ async def lifespan(app: FastAPI):
         logger.info("HITL surface initialized", change_requests=store is not None)
         app_state.alert_watch = AlertWatch(app_state.telegram_gateway)
         app_state.alert_watch_task = asyncio.create_task(app_state.alert_watch.loop())
+        _start_schedule()
 
         app_state.ready = True
         logger.info("SYNDICATE agent ready", uptime=0)
@@ -414,8 +415,20 @@ def _start_obsidian_webdav() -> None:
         app_state.obsidian_webdav_task = asyncio.create_task(server.loop())
 
 
+def _start_schedule() -> None:
+    """The fixed schedule (src/agent_schedule.py): only the jobs Andrii named in SYNDICATE_SCHEDULE."""
+    enabled, unknown = enabled_from_env()
+    if unknown:
+        logger.warning("schedule_unknown_jobs_ignored", jobs=unknown)
+    if enabled:
+        schedule = AgentSchedule(app_state.telegram_gateway, enabled)
+        app_state.schedule_task = asyncio.create_task(schedule.loop())
+    else:
+        logger.info("schedule_off", hint="SYNDICATE_SCHEDULE is empty")
+
+
 async def _stop_background_loops() -> None:
-    for name in ("obsidian_webdav_task", "alert_watch_task"):
+    for name in ("obsidian_webdav_task", "alert_watch_task", "schedule_task"):
         task = getattr(app_state, name)
         if task is not None:
             task.cancel()
@@ -548,6 +561,8 @@ class ExecuteResponse(BaseModel):
     # non-JSON-serialisable payloads at the edge instead of failing the request.
     result: Optional[Any] = None
     message: Optional[str] = None
+    #: Which of the seven agents owns this work (src/agent_owners.py).
+    owner: Optional[str] = None
 
 
 class HealthResponse(BaseModel):
@@ -1074,6 +1089,7 @@ async def execute_task(
             task_id=result["task_id"],
             status=result["status"],
             result=_json_safe(result.get("result")),
+            owner=result.get("owner"),
         )
 
     except HTTPException:
@@ -1199,10 +1215,9 @@ async def execute_task_stream(
 
 @app.post("/webhook/error")
 async def error_webhook(request: Request, state: AppState = Depends(require_auth)):
-    """Dead-letter error recording from n8n / subagents (Floor 1).
+    """Dead-letter error recording from subagents and scripts (Floor 1).
 
-    Authenticated: the n8n templates already send ``X-API-Key``. It used to be
-    open to anyone who could reach the port.
+    Authenticated with ``X-API-Key``. It used to be open to anyone who could reach the port.
     """
     body = await request.json()
     result = await state.orchestrator.execute("record_error", body)
@@ -1260,10 +1275,11 @@ async def telegram_webhook(
         logger.warning("telegram_non_owner_dropped", agent_id=agent_id)
         return {"ok": True}
 
-    if message["kind"] == "voice":
-        # Download + speech-to-text + reply can outlast Telegram's webhook wait;
-        # answer 200 now so Telegram does not redeliver the note.
-        task = asyncio.create_task(_telegram_voice(state, agent_id, message))
+    if message["kind"] in ("voice", "media"):
+        # Download + speech-to-text or vision + reply can outlast Telegram's webhook wait;
+        # answer 200 now so Telegram does not redeliver the file.
+        handler = _telegram_voice if message["kind"] == "voice" else _telegram_media
+        task = asyncio.create_task(handler(state, agent_id, message))
         _VOICE_TASKS.add(task)
         task.add_done_callback(_VOICE_TASKS.discard)
         return {"ok": True}
@@ -1338,6 +1354,33 @@ async def _telegram_voice(state: AppState, agent_id: str, message: Dict[str, Any
         await gateway.send(agent_id, chat_id, f"⛔ [{agent_id}] не вдалося обробити голосове.")
 
 
+async def _telegram_media(state: AppState, agent_id: str, message: Dict[str, Any]) -> None:
+    """Owner's photo or video: the vision model describes it, the agent answers description and caption."""
+    gateway, chat_id = state.telegram_gateway, message["chat_id"]
+    try:
+        refused = media_vision.refusal(agent_id, message)
+        if refused:
+            await gateway.send(agent_id, chat_id, refused)
+            return
+        data = await gateway.download_file(agent_id, message["file_id"], media_vision.max_bytes(message["mime"]))
+        if data is None:
+            await gateway.send(agent_id, chat_id, "⚠️ Не вдалося отримати файл з Telegram.")
+            return
+        seen = await media_vision.describe(agent_id, data, message["mime"], message["text"],
+                                           state.orchestrator.openrouter_key())
+        if seen["status"] != "ok":
+            logger.warning("telegram_media_not_seen", agent_id=agent_id, reason=seen.get("reason"))
+            limit = seen.get("reason") == "daily_limit_reached"
+            await gateway.send(agent_id, chat_id, "⚠️ На сьогодні ліміт фото й відео вичерпано." if limit
+                               else media_vision.NOT_SEEN)
+            return
+        turn = media_vision.turn_text(message["mime"], seen["description"], message["text"])
+        await gateway.send(agent_id, chat_id, await _telegram_reply(state, agent_id, message, turn))
+    except Exception as exc:  # noqa: BLE001 - a background task must not die silently
+        logger.error("telegram_media_failed", agent_id=agent_id, error_type=type(exc).__name__)
+        await gateway.send(agent_id, chat_id, f"⛔ [{agent_id}] не вдалося обробити файл.")
+
+
 async def _voice_on_request(state: AppState, agent_id: str, chat_id: str, asked: str, reply: str) -> None:
     """A typed message asked for a spoken answer: voice the reply already sent as text."""
     try:
@@ -1396,23 +1439,6 @@ async def ukrainealarm_webhook(
     return {"ok": True}
 
 
-@app.post("/webhook/n8n/{agent}")
-async def n8n_agent_webhook(
-    agent: str,
-    request: Request,
-    authorization: Optional[str] = Header(default=None, alias="Authorization"),
-    state: AppState = Depends(require_ready),
-):
-    """Reminders, check-ins and learning items from n8n for one agent (src/n8n_bridge.py)."""
-    if not n8n_bridge.token_ok(agent, authorization, state.api_key):
-        raise HTTPException(status_code=401, detail="unauthorized")
-    try:
-        payload = json.loads(await request.body())
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid JSON") from None
-    return await n8n_bridge.handle(agent, payload, state.telegram_gateway)
-
-
 @app.post("/hermes/{agent}/llm/{purpose}/v1/chat/completions", include_in_schema=False)
 async def hermes_llm(
     agent: str,
@@ -1456,7 +1482,7 @@ async def webhook_handler(
     x_webhook_signature: Optional[str] = Header(default=None, alias="X-Webhook-Signature"),
     state: AppState = Depends(require_ready),
 ):
-    """Generic signed webhook (n8n, CI, partners). HMAC-SHA256 over the raw body."""
+    """Generic signed webhook (CI, partners). HMAC-SHA256 over the raw body."""
     raw_bytes = await request.body()
     await _verify_generic_webhook(state, raw_bytes, source, x_hub_signature_256, x_webhook_signature)
     try:
@@ -1515,7 +1541,7 @@ async def trigger_evening_reflection(state: AppState = Depends(require_auth)):
     """
     from datetime import datetime
 
-    from src.agents.kodex import evening_section
+    from src.agents.eva_kodex import evening_section
 
     evening = {"kodex": evening_section(os.getenv("KODEX_DATA_DIR"), datetime.now())}
     result = await state.orchestrator.proactive_evening_reflection(evening)

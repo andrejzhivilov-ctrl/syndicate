@@ -9,7 +9,6 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "architect",
         "eva"
       ],
       "resources": {
@@ -26,7 +25,6 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "architect",
         "eva",
         "kodex"
       ],
@@ -44,7 +42,6 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "architect",
         "eva"
       ],
       "resources": {
@@ -61,8 +58,6 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "alice",
-        "architect",
         "dex"
       ],
       "resources": {
@@ -84,10 +79,7 @@
       "source_path": "skills/debugging-and-error-recovery",
       "license": "MIT",
       "mode": "reference_only",
-      "agents": [
-        "alice",
-        "architect"
-      ],
+      "agents": [],
       "resources": {
         "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/debugging-and-error-recovery/SKILL.md",
         "../../references/accessibility-checklist.md": "skills/vendor/addyosmani/agent-skills/references/accessibility-checklist.md",
@@ -108,8 +100,6 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "alice",
-        "architect",
         "dex",
         "eva",
         "kodex",
@@ -135,8 +125,6 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "alice",
-        "architect",
         "dex",
         "kodex",
         "sonar"
@@ -161,8 +149,6 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "alice",
-        "architect",
         "sonar"
       ],
       "resources": {
@@ -184,10 +170,7 @@
       "source_path": "skills/test-driven-development",
       "license": "MIT",
       "mode": "reference_only",
-      "agents": [
-        "alice",
-        "architect"
-      ],
+      "agents": [],
       "resources": {
         "SKILL.md": "skills/vendor/addyosmani/agent-skills/skills/test-driven-development/SKILL.md",
         "../../references/accessibility-checklist.md": "skills/vendor/addyosmani/agent-skills/references/accessibility-checklist.md",
@@ -208,8 +191,6 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "alice",
-        "architect",
         "atlas",
         "eva"
       ],
@@ -232,9 +213,7 @@
       "source_path": "skills/ponytail",
       "license": "MIT",
       "mode": "reference_only",
-      "agents": [
-        "architect"
-      ],
+      "agents": [],
       "resources": {
         "SKILL.md": "skills/vendor/DietrichGebert/ponytail/skills/ponytail/SKILL.md"
       },
@@ -338,7 +317,6 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "architect",
         "tyler"
       ],
       "resources": {
@@ -414,8 +392,6 @@
       "license": "MIT",
       "mode": "reference_only",
       "agents": [
-        "alice",
-        "architect",
         "marshal"
       ],
       "resources": {
@@ -6543,6 +6519,935 @@
       },
       "summary": "Technical assistant for personal trainers — strength training and nutrition prescription, with deterministic calculations. Use when intaking a new client, screening for red flags, building a training block, choosing a split or weekly volume, analyzing a training log, running a weekly check-in, setti",
       "review": "Automated screen 2026-11-03: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "catalyst-map",
+      "source": "https://github.com/marian2js/trading-skills",
+      "commit": "f1ae7d481154b49192681187cb08d39d7e2d4524",
+      "source_path": "skills/idea-discovery/catalyst-map",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/marian2js/trading-skills/skills/idea-discovery/catalyst-map/SKILL.md",
+        "references/catalyst-framework.md": "skills/vendor/marian2js/trading-skills/skills/idea-discovery/catalyst-map/references/catalyst-framework.md"
+      },
+      "summary": "Build a ranked map of the catalysts that could move a watchlist, theme, or portfolio by showing what matters, when it matters, and how those events could transmit across related names or exposures.",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "watchlist-review",
+      "source": "https://github.com/marian2js/trading-skills",
+      "commit": "f1ae7d481154b49192681187cb08d39d7e2d4524",
+      "source_path": "skills/idea-discovery/watchlist-review",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/marian2js/trading-skills/skills/idea-discovery/watchlist-review/SKILL.md",
+        "references/review-framework.md": "skills/vendor/marian2js/trading-skills/skills/idea-discovery/watchlist-review/references/review-framework.md"
+      },
+      "summary": "Review a watchlist and rank which names deserve active attention, background monitoring, or removal based on catalysts, tradability, redundancy, and evidence quality for the user's style and timeframe.",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "macro-event-analysis",
+      "source": "https://github.com/marian2js/trading-skills",
+      "commit": "f1ae7d481154b49192681187cb08d39d7e2d4524",
+      "source_path": "skills/market-context/macro-event-analysis",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/marian2js/trading-skills/skills/market-context/macro-event-analysis/SKILL.md",
+        "references/data-providers.md": "skills/vendor/marian2js/trading-skills/skills/market-context/macro-event-analysis/references/data-providers.md",
+        "references/interpretation-guide.md": "skills/vendor/marian2js/trading-skills/skills/market-context/macro-event-analysis/references/interpretation-guide.md",
+        "references/providers/fmp.md": "skills/vendor/marian2js/trading-skills/skills/market-context/macro-event-analysis/references/providers/fmp.md",
+        "references/providers/tradingeconomics.md": "skills/vendor/marian2js/trading-skills/skills/market-context/macro-event-analysis/references/providers/tradingeconomics.md"
+      },
+      "summary": "Prepare for upcoming macro catalysts by identifying the events that matter, mapping the likely transmission channels, and surfacing timing risk for the user's markets or positions.",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "market-regime-analysis",
+      "source": "https://github.com/marian2js/trading-skills",
+      "commit": "f1ae7d481154b49192681187cb08d39d7e2d4524",
+      "source_path": "skills/market-context/market-regime-analysis",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/marian2js/trading-skills/skills/market-context/market-regime-analysis/SKILL.md",
+        "references/data-providers.md": "skills/vendor/marian2js/trading-skills/skills/market-context/market-regime-analysis/references/data-providers.md",
+        "references/providers/fmp.md": "skills/vendor/marian2js/trading-skills/skills/market-context/market-regime-analysis/references/providers/fmp.md",
+        "references/providers/polygon.md": "skills/vendor/marian2js/trading-skills/skills/market-context/market-regime-analysis/references/providers/polygon.md",
+        "references/providers/tradingeconomics.md": "skills/vendor/marian2js/trading-skills/skills/market-context/market-regime-analysis/references/providers/tradingeconomics.md",
+        "references/regime-framework.md": "skills/vendor/marian2js/trading-skills/skills/market-context/market-regime-analysis/references/regime-framework.md"
+      },
+      "summary": "Analyze current market context through trend, volatility, breadth, and event backdrop so the user can choose tactics that fit the environment without relying on black-box regime claims.",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "position-management",
+      "source": "https://github.com/marian2js/trading-skills",
+      "commit": "f1ae7d481154b49192681187cb08d39d7e2d4524",
+      "source_path": "skills/position-oversight/position-management",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/marian2js/trading-skills/skills/position-oversight/position-management/SKILL.md",
+        "references/management-framework.md": "skills/vendor/marian2js/trading-skills/skills/position-oversight/position-management/references/management-framework.md"
+      },
+      "summary": "Review an open position and decide whether to hold, trim, tighten risk, close, or wait by comparing current behavior against the original thesis, invalidation logic, catalyst calendar, and execution constraints.",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "journal-pattern-analyzer",
+      "source": "https://github.com/marian2js/trading-skills",
+      "commit": "f1ae7d481154b49192681187cb08d39d7e2d4524",
+      "source_path": "skills/review-learning/journal-pattern-analyzer",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/marian2js/trading-skills/skills/review-learning/journal-pattern-analyzer/SKILL.md",
+        "references/calculation-helpers.md": "skills/vendor/marian2js/trading-skills/skills/review-learning/journal-pattern-analyzer/references/calculation-helpers.md",
+        "references/pattern-framework.md": "skills/vendor/marian2js/trading-skills/skills/review-learning/journal-pattern-analyzer/references/pattern-framework.md"
+      },
+      "summary": "Use when the user has a trade journal or trade log and wants repeated strengths, mistakes, environment-dependent patterns, and process changes without turning the review into hindsight theater.",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "post-trade-review",
+      "source": "https://github.com/marian2js/trading-skills",
+      "commit": "f1ae7d481154b49192681187cb08d39d7e2d4524",
+      "source_path": "skills/review-learning/post-trade-review",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/marian2js/trading-skills/skills/review-learning/post-trade-review/SKILL.md",
+        "references/review-rubric.md": "skills/vendor/marian2js/trading-skills/skills/review-learning/post-trade-review/references/review-rubric.md"
+      },
+      "summary": "Guide a disciplined post-trade review across thesis quality, setup quality, execution, adherence, mistakes, and lessons without turning the result into hindsight theater.",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "evidence-gap-check",
+      "source": "https://github.com/marian2js/trading-skills",
+      "commit": "f1ae7d481154b49192681187cb08d39d7e2d4524",
+      "source_path": "skills/thesis-validation/evidence-gap-check",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "kira",
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/marian2js/trading-skills/skills/thesis-validation/evidence-gap-check/SKILL.md",
+        "references/gap-framework.md": "skills/vendor/marian2js/trading-skills/skills/thesis-validation/evidence-gap-check/references/gap-framework.md"
+      },
+      "summary": "Identify the most important missing facts, assumptions, and unresolved questions that should be answered before a trade or investment idea is trusted, sized, or acted on.",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "thesis-validation",
+      "source": "https://github.com/marian2js/trading-skills",
+      "commit": "f1ae7d481154b49192681187cb08d39d7e2d4524",
+      "source_path": "skills/thesis-validation/thesis-validation",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "kira",
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/marian2js/trading-skills/skills/thesis-validation/thesis-validation/SKILL.md",
+        "references/thesis-checklist.md": "skills/vendor/marian2js/trading-skills/skills/thesis-validation/thesis-validation/references/thesis-checklist.md"
+      },
+      "summary": "Pressure-test a trade or investment thesis by clarifying the core claim, evidence, invalidation, timeframe, and dependency chain before the user turns it into an entry, stop, or size.",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "execution-plan-check",
+      "source": "https://github.com/marian2js/trading-skills",
+      "commit": "f1ae7d481154b49192681187cb08d39d7e2d4524",
+      "source_path": "skills/trade-construction/execution-plan-check",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/marian2js/trading-skills/skills/trade-construction/execution-plan-check/SKILL.md",
+        "references/execution-checklist.md": "skills/vendor/marian2js/trading-skills/skills/trade-construction/execution-plan-check/references/execution-checklist.md"
+      },
+      "summary": "Review whether a trade plan is operationally executable by checking order type logic, liquidity and spread risk, event timing, stop realism, and whether the user can actually implement the plan cleanly.",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "portfolio-concentration",
+      "source": "https://github.com/marian2js/trading-skills",
+      "commit": "f1ae7d481154b49192681187cb08d39d7e2d4524",
+      "source_path": "skills/trade-construction/portfolio-concentration",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/marian2js/trading-skills/skills/trade-construction/portfolio-concentration/SKILL.md",
+        "references/concentration-framework.md": "skills/vendor/marian2js/trading-skills/skills/trade-construction/portfolio-concentration/references/concentration-framework.md"
+      },
+      "summary": "Evaluate whether a portfolio, account, or planned position is too dependent on a small number of issuers, sectors, themes, or correlated exposures before the user adds or holds more risk.",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "position-sizing",
+      "source": "https://github.com/marian2js/trading-skills",
+      "commit": "f1ae7d481154b49192681187cb08d39d7e2d4524",
+      "source_path": "skills/trade-construction/position-sizing",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/marian2js/trading-skills/skills/trade-construction/position-sizing/SKILL.md",
+        "references/calculation-helpers.md": "skills/vendor/marian2js/trading-skills/skills/trade-construction/position-sizing/references/calculation-helpers.md",
+        "references/methodology.md": "skills/vendor/marian2js/trading-skills/skills/trade-construction/position-sizing/references/methodology.md"
+      },
+      "summary": "Use when the user needs a conservative position size from account equity, risk budget, entry, stop, and trading friction before entering a trade.",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "risk-reward-sanity-check",
+      "source": "https://github.com/marian2js/trading-skills",
+      "commit": "f1ae7d481154b49192681187cb08d39d7e2d4524",
+      "source_path": "skills/trade-construction/risk-reward-sanity-check",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/marian2js/trading-skills/skills/trade-construction/risk-reward-sanity-check/SKILL.md",
+        "references/calculation-helpers.md": "skills/vendor/marian2js/trading-skills/skills/trade-construction/risk-reward-sanity-check/references/calculation-helpers.md",
+        "references/failure-modes.md": "skills/vendor/marian2js/trading-skills/skills/trade-construction/risk-reward-sanity-check/references/failure-modes.md"
+      },
+      "summary": "Use when the user wants to test whether a proposed entry, stop, and target structure is coherent, asymmetric enough, and vulnerable to obvious failure modes before the trade is placed.",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "portfolio-risk-review",
+      "source": "https://github.com/marian2js/trading-skills",
+      "commit": "f1ae7d481154b49192681187cb08d39d7e2d4524",
+      "source_path": "skills/workflows/portfolio-risk-review",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/marian2js/trading-skills/skills/workflows/portfolio-risk-review/SKILL.md",
+        "references/workflow-framework.md": "skills/vendor/marian2js/trading-skills/skills/workflows/portfolio-risk-review/references/workflow-framework.md"
+      },
+      "summary": "Orchestrate a whole-book risk review by checking concentration, correlated exposure, catalyst clustering, market-context sensitivity, and live-position fragility before the user adds, holds, or reduces portfolio risk.",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "post-trade-debrief",
+      "source": "https://github.com/marian2js/trading-skills",
+      "commit": "f1ae7d481154b49192681187cb08d39d7e2d4524",
+      "source_path": "skills/workflows/post-trade-debrief",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/marian2js/trading-skills/skills/workflows/post-trade-debrief/SKILL.md",
+        "references/workflow-framework.md": "skills/vendor/marian2js/trading-skills/skills/workflows/post-trade-debrief/references/workflow-framework.md"
+      },
+      "summary": "Orchestrate a disciplined post-trade workflow by reconstructing the original plan, reviewing execution and rule adherence, and deciding whether the lesson is trade-specific or part of a larger repeatable pattern.",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "pre-trade-check",
+      "source": "https://github.com/marian2js/trading-skills",
+      "commit": "f1ae7d481154b49192681187cb08d39d7e2d4524",
+      "source_path": "skills/workflows/pre-trade-check",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/marian2js/trading-skills/skills/workflows/pre-trade-check/SKILL.md",
+        "references/workflow-framework.md": "skills/vendor/marian2js/trading-skills/skills/workflows/pre-trade-check/references/workflow-framework.md"
+      },
+      "summary": "Orchestrate a disciplined pre-trade workflow by routing a watchlist or trade idea through the minimum set of underlying skills needed to decide whether the trade is ready, not ready, or should be resized or reworked first.",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "backtest-expert",
+      "source": "https://github.com/tradermonty/claude-trading-skills",
+      "commit": "d8e71ce2f0b069eb5b6fca352857c168c35e6c46",
+      "source_path": "skills/backtest-expert",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/tradermonty/claude-trading-skills/skills/backtest-expert/SKILL.md",
+        "references/failed_tests.md": "skills/vendor/tradermonty/claude-trading-skills/skills/backtest-expert/references/failed_tests.md",
+        "references/methodology.md": "skills/vendor/tradermonty/claude-trading-skills/skills/backtest-expert/references/methodology.md"
+      },
+      "summary": "Expert guidance for systematic backtesting of trading strategies. Use when developing, testing, stress-testing, or validating quantitative trading strategies. Covers \"beating ideas to death\" methodology, parameter robustness testing, slippage modeling, bias prevention, and interpreting backtest resu",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "crypto-regime-analyzer",
+      "source": "https://github.com/tradermonty/claude-trading-skills",
+      "commit": "d8e71ce2f0b069eb5b6fca352857c168c35e6c46",
+      "source_path": "skills/crypto-regime-analyzer",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/tradermonty/claude-trading-skills/skills/crypto-regime-analyzer/SKILL.md",
+        "references/VALIDATION.md": "skills/vendor/tradermonty/claude-trading-skills/skills/crypto-regime-analyzer/references/VALIDATION.md",
+        "references/crypto_regime_methodology.md": "skills/vendor/tradermonty/claude-trading-skills/skills/crypto-regime-analyzer/references/crypto_regime_methodology.md"
+      },
+      "summary": "Quantifies crypto market regime health using free, keyless public data (CoinGecko + Binance funding). Generates a 0-100 composite score across 6 components (100 = risk-on) with a posture recommendation. No API key required. Use when user asks about crypto market conditions, whether it's alt season, ",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "cot-contrarian-detector",
+      "source": "https://github.com/tradermonty/claude-trading-skills",
+      "commit": "d8e71ce2f0b069eb5b6fca352857c168c35e6c46",
+      "source_path": "skills/cot-contrarian-detector",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/tradermonty/claude-trading-skills/skills/cot-contrarian-detector/SKILL.md",
+        "references/cot-index-calculation.md": "skills/vendor/tradermonty/claude-trading-skills/skills/cot-contrarian-detector/references/cot-index-calculation.md",
+        "references/shapiro-methodology.md": "skills/vendor/tradermonty/claude-trading-skills/skills/cot-contrarian-detector/references/shapiro-methodology.md"
+      },
+      "summary": "Detect crowded speculative positioning in CFTC futures markets (COT report analysis) to find contrarian setups using Jason Shapiro's methodology. Screens large-speculator (\"non-commercial\") net positioning across 65 futures markets (indices, rates, FX, metals, energy, crypto) via the FMP Commitment ",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "news-reaction-failure-analyzer",
+      "source": "https://github.com/tradermonty/claude-trading-skills",
+      "commit": "d8e71ce2f0b069eb5b6fca352857c168c35e6c46",
+      "source_path": "skills/news-reaction-failure-analyzer",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/tradermonty/claude-trading-skills/skills/news-reaction-failure-analyzer/SKILL.md",
+        "references/news-failure-patterns.md": "skills/vendor/tradermonty/claude-trading-skills/skills/news-reaction-failure-analyzer/references/news-failure-patterns.md",
+        "references/price-source-map.md": "skills/vendor/tradermonty/claude-trading-skills/skills/news-reaction-failure-analyzer/references/price-source-map.md"
+      },
+      "summary": "Judge whether a market FAILED to react to news favorable to a crowded speculative position — step 2 of Jason Shapiro's COT contrarian process. Consumes a cot-contrarian-detector report (or an explicit direction) plus a Claude-curated events JSON, fetches the underlying price series with a documented",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "contrarian-setup-gate",
+      "source": "https://github.com/tradermonty/claude-trading-skills",
+      "commit": "d8e71ce2f0b069eb5b6fca352857c168c35e6c46",
+      "source_path": "skills/contrarian-setup-gate",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/tradermonty/claude-trading-skills/skills/contrarian-setup-gate/SKILL.md",
+        "references/gate-decision-table.md": "skills/vendor/tradermonty/claude-trading-skills/skills/contrarian-setup-gate/references/gate-decision-table.md"
+      },
+      "summary": "Synthesize the three Jason Shapiro contrarian-pipeline verdicts (COT crowding, news-reaction failure, weekly price-action confirmation) into one actionable setup_status via a fail-closed precedence state machine. Pure, offline synthesis -- no network, no API keys, no computation beyond validation an",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "macro-regime-detector",
+      "source": "https://github.com/tradermonty/claude-trading-skills",
+      "commit": "d8e71ce2f0b069eb5b6fca352857c168c35e6c46",
+      "source_path": "skills/macro-regime-detector",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/tradermonty/claude-trading-skills/skills/macro-regime-detector/SKILL.md",
+        "references/historical_regimes.md": "skills/vendor/tradermonty/claude-trading-skills/skills/macro-regime-detector/references/historical_regimes.md",
+        "references/indicator_interpretation_guide.md": "skills/vendor/tradermonty/claude-trading-skills/skills/macro-regime-detector/references/indicator_interpretation_guide.md",
+        "references/regime_detection_methodology.md": "skills/vendor/tradermonty/claude-trading-skills/skills/macro-regime-detector/references/regime_detection_methodology.md"
+      },
+      "summary": "Detect structural macro regime transitions (1-2 year horizon) using cross-asset ratio analysis. Analyze RSP/SPY concentration, yield curve, credit conditions, size factor, equity-bond relationship, and sector rotation to identify regime shifts between Concentration, Broadening, Contraction, Inflatio",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "drawdown-circuit-breaker",
+      "source": "https://github.com/tradermonty/claude-trading-skills",
+      "commit": "d8e71ce2f0b069eb5b6fca352857c168c35e6c46",
+      "source_path": "skills/drawdown-circuit-breaker",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/tradermonty/claude-trading-skills/skills/drawdown-circuit-breaker/SKILL.md",
+        "references/circuit_breaker_framework.md": "skills/vendor/tradermonty/claude-trading-skills/skills/drawdown-circuit-breaker/references/circuit_breaker_framework.md"
+      },
+      "summary": "Evaluate account-level drawdown circuit breaker rules from trader-memory-core state and decide whether new trade risk is allowed today. Uses realized P&L, losing-streak cooldowns, and weekly/monthly drawdown limits without any external API.",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "pre-trade-discipline-gate",
+      "source": "https://github.com/tradermonty/claude-trading-skills",
+      "commit": "d8e71ce2f0b069eb5b6fca352857c168c35e6c46",
+      "source_path": "skills/pre-trade-discipline-gate",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/tradermonty/claude-trading-skills/skills/pre-trade-discipline-gate/SKILL.md",
+        "references/discipline_gate_framework.md": "skills/vendor/tradermonty/claude-trading-skills/skills/pre-trade-discipline-gate/references/discipline_gate_framework.md"
+      },
+      "summary": "Evaluate a local pre-trade checklist before manual order entry, blocking planless, oversized, revenge-risk, market-regime-blocked, or circuit-breaker-blocked entries while journaling the decision for trader-memory-core review.",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "trader-memory-core",
+      "source": "https://github.com/tradermonty/claude-trading-skills",
+      "commit": "d8e71ce2f0b069eb5b6fca352857c168c35e6c46",
+      "source_path": "skills/trader-memory-core",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/tradermonty/claude-trading-skills/skills/trader-memory-core/SKILL.md",
+        "references/field_mapping.md": "skills/vendor/tradermonty/claude-trading-skills/skills/trader-memory-core/references/field_mapping.md",
+        "references/thesis_lifecycle.md": "skills/vendor/tradermonty/claude-trading-skills/skills/trader-memory-core/references/thesis_lifecycle.md"
+      },
+      "summary": "Track investment theses across their lifecycle — from screening idea to closed position with postmortem. Register theses from screener outputs, manage state transitions, attach position sizing, review due dates, and generate postmortem reports with P&L and MAE/MFE analysis. Trigger when user says \"r",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "signal-postmortem",
+      "source": "https://github.com/tradermonty/claude-trading-skills",
+      "commit": "d8e71ce2f0b069eb5b6fca352857c168c35e6c46",
+      "source_path": "skills/signal-postmortem",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/tradermonty/claude-trading-skills/skills/signal-postmortem/SKILL.md",
+        "references/feedback-integration.md": "skills/vendor/tradermonty/claude-trading-skills/skills/signal-postmortem/references/feedback-integration.md",
+        "references/outcome-classification.md": "skills/vendor/tradermonty/claude-trading-skills/skills/signal-postmortem/references/outcome-classification.md"
+      },
+      "summary": "Record and analyze post-trade outcomes for signals generated by edge pipeline and other skills. Track false positives, missed opportunities, and regime mismatches. Feed results back to edge-signal-aggregator weights and skill improvement backlog.",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "weekly-performance-digest",
+      "source": "https://github.com/tradermonty/claude-trading-skills",
+      "commit": "d8e71ce2f0b069eb5b6fca352857c168c35e6c46",
+      "source_path": "skills/weekly-performance-digest",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/tradermonty/claude-trading-skills/skills/weekly-performance-digest/SKILL.md",
+        "references/weekly-digest-metrics.md": "skills/vendor/tradermonty/claude-trading-skills/skills/weekly-performance-digest/references/weekly-digest-metrics.md"
+      },
+      "summary": "Generate a weekly performance summary from closed trader-memory-core theses — win rate, expectancy, profit factor, R-multiple, MAE/MFE, and win/loss pattern analysis by source skill, exit reason, thesis type, sector, and mechanism. No API required; pure local calculation.",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "trade-performance-coach",
+      "source": "https://github.com/tradermonty/claude-trading-skills",
+      "commit": "d8e71ce2f0b069eb5b6fca352857c168c35e6c46",
+      "source_path": "skills/trade-performance-coach",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/tradermonty/claude-trading-skills/skills/trade-performance-coach/SKILL.md",
+        "references/behavior-tags.md": "skills/vendor/tradermonty/claude-trading-skills/skills/trade-performance-coach/references/behavior-tags.md",
+        "references/hermes-integration.md": "skills/vendor/tradermonty/claude-trading-skills/skills/trade-performance-coach/references/hermes-integration.md",
+        "references/output-contract.md": "skills/vendor/tradermonty/claude-trading-skills/skills/trade-performance-coach/references/output-contract.md",
+        "references/review-framework.md": "skills/vendor/tradermonty/claude-trading-skills/skills/trade-performance-coach/references/review-framework.md",
+        "references/risk-review-checklist.md": "skills/vendor/tradermonty/claude-trading-skills/skills/trade-performance-coach/references/risk-review-checklist.md"
+      },
+      "summary": "Review closed trades, partial exits, and monthly trade aggregates for process adherence, risk discipline, execution quality, and evidence-based trading behavior patterns. Use after trader-memory-core and signal-postmortem have produced records, or when the user asks for a post-trade coach, risk-mana",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "futures-position-sizer",
+      "source": "https://github.com/tradermonty/claude-trading-skills",
+      "commit": "d8e71ce2f0b069eb5b6fca352857c168c35e6c46",
+      "source_path": "skills/futures-position-sizer",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/tradermonty/claude-trading-skills/skills/futures-position-sizer/SKILL.md",
+        "references/futures-contract-specs.md": "skills/vendor/tradermonty/claude-trading-skills/skills/futures-position-sizer/references/futures-contract-specs.md",
+        "references/sizing-methodology.md": "skills/vendor/tradermonty/claude-trading-skills/skills/futures-position-sizer/references/sizing-methodology.md"
+      },
+      "summary": "Calculate contract-based futures position sizes from a direction, entry, and stop-loss, using verified per-symbol contract specs (multiplier, tick size, tick value). Use when the user asks how many futures contracts to trade, wants to size a futures position (ES, NQ, ZB, GC, CL, 6E/E6, VX, BT, ...),",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "strategy-pivot-designer",
+      "source": "https://github.com/tradermonty/claude-trading-skills",
+      "commit": "d8e71ce2f0b069eb5b6fca352857c168c35e6c46",
+      "source_path": "skills/strategy-pivot-designer",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/tradermonty/claude-trading-skills/skills/strategy-pivot-designer/SKILL.md",
+        "references/pivot_proposal_schema.md": "skills/vendor/tradermonty/claude-trading-skills/skills/strategy-pivot-designer/references/pivot_proposal_schema.md",
+        "references/pivot_techniques.md": "skills/vendor/tradermonty/claude-trading-skills/skills/strategy-pivot-designer/references/pivot_techniques.md",
+        "references/stagnation_triggers.md": "skills/vendor/tradermonty/claude-trading-skills/skills/strategy-pivot-designer/references/stagnation_triggers.md",
+        "references/strategy_archetypes.md": "skills/vendor/tradermonty/claude-trading-skills/skills/strategy-pivot-designer/references/strategy_archetypes.md"
+      },
+      "summary": "Detect backtest iteration stagnation and generate structurally different strategy pivot proposals when parameter tuning reaches a local optimum.",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "scenario-analyzer",
+      "source": "https://github.com/tradermonty/claude-trading-skills",
+      "commit": "d8e71ce2f0b069eb5b6fca352857c168c35e6c46",
+      "source_path": "skills/scenario-analyzer",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "kira",
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/tradermonty/claude-trading-skills/skills/scenario-analyzer/SKILL.md",
+        "references/headline_event_patterns.md": "skills/vendor/tradermonty/claude-trading-skills/skills/scenario-analyzer/references/headline_event_patterns.md",
+        "references/scenario_playbooks.md": "skills/vendor/tradermonty/claude-trading-skills/skills/scenario-analyzer/references/scenario_playbooks.md",
+        "references/sector_sensitivity_matrix.md": "skills/vendor/tradermonty/claude-trading-skills/skills/scenario-analyzer/references/sector_sensitivity_matrix.md"
+      },
+      "summary": "Skill that analyzes 18-month scenarios from a news headline. Runs the primary analysis with the scenario-analyst agent and obtains a second opinion with the strategy-reviewer agent. Generates a comprehensive English report covering 1st/2nd/3rd-order impacts, recommended stocks, and a critical review",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "technical-analyst",
+      "source": "https://github.com/tradermonty/claude-trading-skills",
+      "commit": "d8e71ce2f0b069eb5b6fca352857c168c35e6c46",
+      "source_path": "skills/technical-analyst",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/tradermonty/claude-trading-skills/skills/technical-analyst/SKILL.md",
+        "references/contrarian-confirmation-checklist.md": "skills/vendor/tradermonty/claude-trading-skills/skills/technical-analyst/references/contrarian-confirmation-checklist.md",
+        "references/technical_analysis_framework.md": "skills/vendor/tradermonty/claude-trading-skills/skills/technical-analyst/references/technical_analysis_framework.md"
+      },
+      "summary": "This skill should be used when analyzing weekly price charts for stocks, stock indices, cryptocurrencies, or forex pairs. Use this skill when the user provides chart images and requests technical analysis, trend identification, support/resistance levels, scenario planning, or probability assessments",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "market-news-analyst",
+      "source": "https://github.com/tradermonty/claude-trading-skills",
+      "commit": "d8e71ce2f0b069eb5b6fca352857c168c35e6c46",
+      "source_path": "skills/market-news-analyst",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/tradermonty/claude-trading-skills/skills/market-news-analyst/SKILL.md",
+        "references/corporate_news_impact.md": "skills/vendor/tradermonty/claude-trading-skills/skills/market-news-analyst/references/corporate_news_impact.md",
+        "references/geopolitical_commodity_correlations.md": "skills/vendor/tradermonty/claude-trading-skills/skills/market-news-analyst/references/geopolitical_commodity_correlations.md",
+        "references/market_event_patterns.md": "skills/vendor/tradermonty/claude-trading-skills/skills/market-news-analyst/references/market_event_patterns.md",
+        "references/trusted_news_sources.md": "skills/vendor/tradermonty/claude-trading-skills/skills/market-news-analyst/references/trusted_news_sources.md"
+      },
+      "summary": "This skill should be used when analyzing recent market-moving news events and their impact on equity markets and commodities. Use this skill when the user requests analysis of major financial news from the past 10 days, wants to understand market reactions to monetary policy decisions (FOMC, ECB, BO",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "mt5-robot-tester",
+      "source": "https://github.com/tradermonty/claude-trading-skills",
+      "commit": "d8e71ce2f0b069eb5b6fca352857c168c35e6c46",
+      "source_path": "skills/mt5-robot-tester",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/tradermonty/claude-trading-skills/skills/mt5-robot-tester/SKILL.md",
+        "references/mt5-cli-reference.md": "skills/vendor/tradermonty/claude-trading-skills/skills/mt5-robot-tester/references/mt5-cli-reference.md"
+      },
+      "summary": "Select the best MetaTrader 5 trading robots (Expert Advisors) that have not been backtested yet, by running the MT5 Strategy Tester from the command line through a 3-round pipeline. Use when the user wants to batch-test MT5 bots/EAs, screen robots across all symbols, optimize EA parameters, or move ",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "us-market-bubble-detector",
+      "source": "https://github.com/tradermonty/claude-trading-skills",
+      "commit": "d8e71ce2f0b069eb5b6fca352857c168c35e6c46",
+      "source_path": "skills/us-market-bubble-detector",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/tradermonty/claude-trading-skills/skills/us-market-bubble-detector/SKILL.md",
+        "references/bubble_framework.md": "skills/vendor/tradermonty/claude-trading-skills/skills/us-market-bubble-detector/references/bubble_framework.md",
+        "references/historical_cases.md": "skills/vendor/tradermonty/claude-trading-skills/skills/us-market-bubble-detector/references/historical_cases.md",
+        "references/implementation_guide.md": "skills/vendor/tradermonty/claude-trading-skills/skills/us-market-bubble-detector/references/implementation_guide.md",
+        "references/quick_reference.md": "skills/vendor/tradermonty/claude-trading-skills/skills/us-market-bubble-detector/references/quick_reference.md",
+        "references/quick_reference_en.md": "skills/vendor/tradermonty/claude-trading-skills/skills/us-market-bubble-detector/references/quick_reference_en.md"
+      },
+      "summary": "Evaluates market bubble risk through quantitative data-driven analysis using the revised Minsky/Kindleberger framework v2.1. Prioritizes objective metrics (Put/Call, VIX, margin debt, breadth, IPO data) over subjective impressions. Features strict qualitative adjustment criteria with confirmation bi",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "data-quality-checker",
+      "source": "https://github.com/tradermonty/claude-trading-skills",
+      "commit": "d8e71ce2f0b069eb5b6fca352857c168c35e6c46",
+      "source_path": "skills/data-quality-checker",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "tyler"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/tradermonty/claude-trading-skills/skills/data-quality-checker/SKILL.md",
+        "references/common_data_errors.md": "skills/vendor/tradermonty/claude-trading-skills/skills/data-quality-checker/references/common_data_errors.md",
+        "references/instrument_notation_standard.md": "skills/vendor/tradermonty/claude-trading-skills/skills/data-quality-checker/references/instrument_notation_standard.md"
+      },
+      "summary": "Validate data quality in market analysis documents and blog articles before publication. Use when checking for price scale inconsistencies (ETF vs futures), instrument notation errors, date/day-of-week mismatches, allocation total errors, and unit mismatches. Supports English and Japanese content. A",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "dual-axis-skill-reviewer",
+      "source": "https://github.com/tradermonty/claude-trading-skills",
+      "commit": "d8e71ce2f0b069eb5b6fca352857c168c35e6c46",
+      "source_path": "skills/dual-axis-skill-reviewer",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "eva",
+        "marshal"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/tradermonty/claude-trading-skills/skills/dual-axis-skill-reviewer/SKILL.md",
+        "references/llm_review_schema.md": "skills/vendor/tradermonty/claude-trading-skills/skills/dual-axis-skill-reviewer/references/llm_review_schema.md",
+        "references/scoring_rubric.md": "skills/vendor/tradermonty/claude-trading-skills/skills/dual-axis-skill-reviewer/references/scoring_rubric.md"
+      },
+      "summary": "Review skills in any project using a dual-axis method: (1) deterministic code-based checks (structure, scripts, tests, execution safety) and (2) LLM deep review findings. Use when you need reproducible quality scoring for `skills/*/SKILL.md`, want to gate merges with a score threshold (for example 9",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "skill-integration-tester",
+      "source": "https://github.com/tradermonty/claude-trading-skills",
+      "commit": "d8e71ce2f0b069eb5b6fca352857c168c35e6c46",
+      "source_path": "skills/skill-integration-tester",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "eva"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/tradermonty/claude-trading-skills/skills/skill-integration-tester/SKILL.md",
+        "references/workflow_contracts.md": "skills/vendor/tradermonty/claude-trading-skills/skills/skill-integration-tester/references/workflow_contracts.md"
+      },
+      "summary": "Validate multi-skill workflows defined in CLAUDE.md by checking skill existence, inter-skill data contracts (JSON schema compatibility), file naming conventions, and handoff integrity. Use when adding new workflows, modifying skill outputs, or verifying pipeline health before release.",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "trader-timemachine",
+      "source": "https://github.com/Jakeschincariol/day-trader-skill",
+      "commit": "3d0f4ef6986f4984b7c6bd46f7ff4f87744c3abd",
+      "source_path": "trader-timemachine",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/Jakeschincariol/day-trader-skill/trader-timemachine/SKILL.md"
+      },
+      "summary": "Time Machine. Replays every possible outcome of a trade before you risk a dollar: 10,000 simulated sessions plus every past time the setup fired. Takes the plan from trader-exit (entry, stop, target), rebuilds the rest of the day 10,000 times from the stock's own 5-minute bars over the last 60 days,",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "trader-risk",
+      "source": "https://github.com/Jakeschincariol/day-trader-skill",
+      "commit": "3d0f4ef6986f4984b7c6bd46f7ff4f87744c3abd",
+      "source_path": "trader-risk",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/Jakeschincariol/day-trader-skill/trader-risk/SKILL.md"
+      },
+      "summary": "Risk Manager. Checks every trade against your limits and stops anything over them, before it can reach the broker. For a day trade: a stop is required, the loss at the stop must fit your max loss per trade (measured from the higher of the plan's entry and a fresh price), reward:risk must meet your m",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "trader-budget",
+      "source": "https://github.com/Jakeschincariol/day-trader-skill",
+      "commit": "3d0f4ef6986f4984b7c6bd46f7ff4f87744c3abd",
+      "source_path": "trader-budget",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/Jakeschincariol/day-trader-skill/trader-budget/SKILL.md"
+      },
+      "summary": "Budget Manager. Sizes every position to your budget and your max loss per trade. Reads the trade plan from trader-exit (entry, stop, target), finds the whole shares that fit inside four limits (max loss per trade, position cap, max order, cash after your buffer), says which limit decided it, and wri",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "trader-exit",
+      "source": "https://github.com/Jakeschincariol/day-trader-skill",
+      "commit": "3d0f4ef6986f4984b7c6bd46f7ff4f87744c3abd",
+      "source_path": "trader-exit",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/Jakeschincariol/day-trader-skill/trader-exit/SKILL.md"
+      },
+      "summary": "Exit Planner. Sets your stop and your target before you enter, so you know when to get out. Reads the entry from trader-entry (or a price you give), puts the stop at the opening-range midpoint by default (or the range low, your price, a percent, or a multiple of the ATR), rounds it down to the cent,",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "fibonacci-trading",
+      "source": "https://github.com/Shubhamkumartrichy/claude-trading-skills-india",
+      "commit": "ef36e754d0d634b4f7f3df532f16e4506ee79a4d",
+      "source_path": "skills/fibonacci-trading",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/Shubhamkumartrichy/claude-trading-skills-india/skills/fibonacci-trading/SKILL.md"
+      },
+      "summary": "Fibonacci retracement entry zones and extension targets for NSE/BSE stocks and indices, with automatic swing detection (ta.py fib), trend-based extensions from the pullback point, and confluence with moving averages, support/resistance, round numbers and option OI strikes.",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "multi-timeframe-analysis",
+      "source": "https://github.com/Shubhamkumartrichy/claude-trading-skills-india",
+      "commit": "ef36e754d0d634b4f7f3df532f16e4506ee79a4d",
+      "source_path": "skills/multi-timeframe-analysis",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/Shubhamkumartrichy/claude-trading-skills-india/skills/multi-timeframe-analysis/SKILL.md"
+      },
+      "summary": "Three-screen multi-timeframe analysis for NSE/BSE stocks and indices: weekly (or monthly) sets the bias, daily finds the setup, and 75-minute / 15-minute bars time the entry, with a 6-factor confluence score that sets position size. Uses ta.py mtf to resample daily data into weekly and monthly views",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "rsi-divergence",
+      "source": "https://github.com/Shubhamkumartrichy/claude-trading-skills-india",
+      "commit": "ef36e754d0d634b4f7f3df532f16e4506ee79a4d",
+      "source_path": "skills/rsi-divergence",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/Shubhamkumartrichy/claude-trading-skills-india/skills/rsi-divergence/SKILL.md"
+      },
+      "summary": "Detect and trade RSI(14) divergences on NSE/BSE stocks and indices: regular divergence (reversal warning) and hidden divergence (trend continuation), with strength grading, confirmation rules, entries, stops and Fibonacci targets. ta.py divergence finds them automatically from swing points.",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "trailing-stops",
+      "source": "https://github.com/Shubhamkumartrichy/claude-trading-skills-india",
+      "commit": "ef36e754d0d634b4f7f3df532f16e4506ee79a4d",
+      "source_path": "skills/trailing-stops",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "sam"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/Shubhamkumartrichy/claude-trading-skills-india/skills/trailing-stops/SKILL.md"
+      },
+      "summary": "Trailing-stop plans that lock in profit on NSE/BSE positions: the R-multiple ladder (hold → breakeven at 1R → ATR trail at 2R → structure trail at 3R+), plus ATR, structure, moving-average and chandelier trails, with GTT/SL execution realities for Indian brokers. risk.py trail computes the recommend",
+      "review": "Automated screen 2026-11-06: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "defuddle",
+      "source": "https://github.com/kepano/obsidian-skills",
+      "commit": "3ccff5338ea700537839b21900aa5358a0402c98",
+      "source_path": "skills/defuddle",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/kepano/obsidian-skills/skills/defuddle/SKILL.md"
+      },
+      "summary": "Extract clean Markdown from HTML pages with Defuddle CLI.",
+      "review": "Automated screen 2026-11-10: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "json-canvas",
+      "source": "https://github.com/kepano/obsidian-skills",
+      "commit": "3ccff5338ea700537839b21900aa5358a0402c98",
+      "source_path": "skills/json-canvas",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "eva",
+        "fin",
+        "kira",
+        "marshal",
+        "sam",
+        "trainer",
+        "tyler"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/kepano/obsidian-skills/skills/json-canvas/SKILL.md",
+        "references/EXAMPLES.md": "skills/vendor/kepano/obsidian-skills/skills/json-canvas/references/EXAMPLES.md"
+      },
+      "summary": "Create and edit JSON Canvas files (.canvas) with nodes, edges, groups, and connections. Use when working with .canvas files, creating visual canvases, mind maps, flowcharts, or when the user mentions Canvas files in Obsidian.",
+      "review": "Automated screen 2026-11-10: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "knap",
+      "source": "https://github.com/kepano/obsidian-skills",
+      "commit": "3ccff5338ea700537839b21900aa5358a0402c98",
+      "source_path": "skills/knap",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/kepano/obsidian-skills/skills/knap/SKILL.md"
+      },
+      "summary": "Render Markdown from templates and structured data using Knap CLI. Use when the user asks to apply a Knap template, turn JSON or CSV data into notes, batch-generate Markdown files, or format Defuddle output into a note.",
+      "review": "Automated screen 2026-11-10: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "obsidian-bases",
+      "source": "https://github.com/kepano/obsidian-skills",
+      "commit": "3ccff5338ea700537839b21900aa5358a0402c98",
+      "source_path": "skills/obsidian-bases",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "eva",
+        "fin",
+        "kira",
+        "marshal",
+        "sam",
+        "trainer",
+        "tyler"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/kepano/obsidian-skills/skills/obsidian-bases/SKILL.md",
+        "references/FUNCTIONS_REFERENCE.md": "skills/vendor/kepano/obsidian-skills/skills/obsidian-bases/references/FUNCTIONS_REFERENCE.md"
+      },
+      "summary": "Create and edit Obsidian Bases (.base files) with views, filters, formulas, and summaries. Use when working with .base files, creating database-like views of notes, or when the user mentions Bases, table views, card views, filters, or formulas in Obsidian.",
+      "review": "Automated screen 2026-11-10: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "obsidian-cli",
+      "source": "https://github.com/kepano/obsidian-skills",
+      "commit": "3ccff5338ea700537839b21900aa5358a0402c98",
+      "source_path": "skills/obsidian-cli",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [],
+      "resources": {
+        "SKILL.md": "skills/vendor/kepano/obsidian-skills/skills/obsidian-cli/SKILL.md"
+      },
+      "summary": "Interact with Obsidian vaults using the Obsidian CLI to read, create, search, and manage notes, tasks, properties, and more. Also supports plugin and theme development with commands to reload plugins, run JavaScript, capture errors, take screenshots, and inspect the DOM. Use when the user asks to in",
+      "review": "Automated screen 2026-11-10: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
+    },
+    {
+      "id": "obsidian-markdown",
+      "source": "https://github.com/kepano/obsidian-skills",
+      "commit": "3ccff5338ea700537839b21900aa5358a0402c98",
+      "source_path": "skills/obsidian-markdown",
+      "license": "MIT",
+      "mode": "reference_only",
+      "agents": [
+        "eva",
+        "fin",
+        "kira",
+        "marshal",
+        "sam",
+        "trainer",
+        "tyler"
+      ],
+      "resources": {
+        "SKILL.md": "skills/vendor/kepano/obsidian-skills/skills/obsidian-markdown/SKILL.md",
+        "references/CALLOUTS.md": "skills/vendor/kepano/obsidian-skills/skills/obsidian-markdown/references/CALLOUTS.md",
+        "references/EMBEDS.md": "skills/vendor/kepano/obsidian-skills/skills/obsidian-markdown/references/EMBEDS.md",
+        "references/PROPERTIES.md": "skills/vendor/kepano/obsidian-skills/skills/obsidian-markdown/references/PROPERTIES.md"
+      },
+      "summary": "Create and edit Obsidian Flavored Markdown with wikilinks, embeds, callouts, properties, and other Obsidian-specific syntax. Use when working with .md files in Obsidian, or when the user mentions wikilinks, callouts, frontmatter, tags, embeds, or Obsidian notes.",
+      "review": "Automated screen 2026-11-10: prompt injection, hidden characters, remote execution, detection evasion. Not a human review and not a permission grant."
     }
   ],
   "files": {
@@ -6567,6 +7472,11 @@
     "skills/vendor/HinkoK/agent-skills/skills/online-store-legitimacy-checks/README.md": "94a78e8b834f7ea02bd09a36f88825711a12829e08d628667fcc09b2d6109054",
     "skills/vendor/HinkoK/agent-skills/skills/online-store-legitimacy-checks/SKILL.md": "98eb7f9ee865cf2465673243a78a3399bb88dde6d0f73314658bee467eb843e5",
     "skills/vendor/HinkoK/agent-skills/skills/online-store-legitimacy-checks/references/spelexperten-example.md": "be01759830da64a0268c94b2ba62bc951f929fa2777b859191e082927e1b1701",
+    "skills/vendor/Jakeschincariol/day-trader-skill/LICENSE": "857c8d5276809c8196b3cd7cb3300324768bfc562b2b6281b06d6865058e186c",
+    "skills/vendor/Jakeschincariol/day-trader-skill/trader-budget/SKILL.md": "ce404e7877013eccbcc757c9db6926a4974d40ed3471696b929e253a27b81112",
+    "skills/vendor/Jakeschincariol/day-trader-skill/trader-exit/SKILL.md": "4bccdfff09c8414eee3a486e239bff9602b219d8439e9b0f8bce4743a5999841",
+    "skills/vendor/Jakeschincariol/day-trader-skill/trader-risk/SKILL.md": "e3671889e6b658ed769f3ccc2f117436ff54080c1378d5bfbbe29463da6c16d5",
+    "skills/vendor/Jakeschincariol/day-trader-skill/trader-timemachine/SKILL.md": "394e025b2584fee9e485c1c3ff5255ff8efefc816cad72c2a1b97e30107701dc",
     "skills/vendor/Jakeschincariol/replica-skill/LICENSE": "857c8d5276809c8196b3cd7cb3300324768bfc562b2b6281b06d6865058e186c",
     "skills/vendor/Jakeschincariol/replica-skill/replica-recon/SKILL.md": "b1fd6a60cf0bcd481f6828453da24b9d9f0935ec6e883741e5f620259f13ff40",
     "skills/vendor/Jakeschincariol/replica-skill/replica-recon/features.csv": "7903cc4887fc8f8a3b5d47de5d038b3fd05e79f2d990527b9d3b6123c3985ab0",
@@ -6656,6 +7566,11 @@
     "skills/vendor/PangenomeAI/academic-skills-food-nutrition/food-research/SKILL.md": "e47b95973b28ea6488b709403e80cc676999138e846417c1455a1a7a0801e2c6",
     "skills/vendor/PangenomeAI/academic-skills-food-nutrition/food-review/SKILL.md": "b2fb1314e6939c088f86ccdd0f5522f0868d4b6ce9a383d2cef4603ac31709f6",
     "skills/vendor/PangenomeAI/academic-skills-food-nutrition/journal-selector/SKILL.md": "3cc2632aedffacfd7d6dbb0f25a15f58d957f39c84e903fa04f3e970fb169b4c",
+    "skills/vendor/Shubhamkumartrichy/claude-trading-skills-india/LICENSE": "a87ed6af4ea0f00ed9b318b062e1f8c7897f58531503ab12db53504b2db566ae",
+    "skills/vendor/Shubhamkumartrichy/claude-trading-skills-india/skills/fibonacci-trading/SKILL.md": "32a8d2e3ac87d374c99a432b7c7189e70002d5ca369aec0f0152c772a3368af4",
+    "skills/vendor/Shubhamkumartrichy/claude-trading-skills-india/skills/multi-timeframe-analysis/SKILL.md": "a46cdf70a90ca461c6f30cf7f22fd0eb2684dd653df2e6fc5339d24b21086817",
+    "skills/vendor/Shubhamkumartrichy/claude-trading-skills-india/skills/rsi-divergence/SKILL.md": "f4ecc5785e7319891ee898d76cdb96a29319dae7aaaeecdf2845e85963b69eec",
+    "skills/vendor/Shubhamkumartrichy/claude-trading-skills-india/skills/trailing-stops/SKILL.md": "750b167ecdf7999acaf63124ccde118195297657a1a4271082ecb32cab4f5e5e",
     "skills/vendor/Varnan-Tech/OpenDirectory/LICENSE": "14c562ebbaab1db479665cc884db539bd8554079e5cdbc08a7deb328616abc6e",
     "skills/vendor/Varnan-Tech/OpenDirectory/skills/app-store-review-arbitrage/SKILL.md": "94d400d861eef9d48865d97e73d0164f6bab8d04fa1f8597cf6692eb62aea985",
     "skills/vendor/Varnan-Tech/OpenDirectory/skills/blog-cover-image-cli/SKILL.md": "9cb3165d4f5611a703a5f793f5a416c853712e933e93c5290365c3d215e00eb7",
@@ -7099,6 +8014,61 @@
     "skills/vendor/edamam-llc/edamam-skills/skills/edamam-barcode-lookup/SKILL.md": "de4a2ea27ac6746042cf052e432fe4e7d60fcd3f0a6c7cd901a9002ec23902da",
     "skills/vendor/flaviusapop/personal-trainer-hypertrophy-programme-designer/LICENSE": "b69a8be80a10da41537993b7398bec792d59ae83bd407229bfbefc5e8c01530a",
     "skills/vendor/flaviusapop/personal-trainer-hypertrophy-programme-designer/SKILL.md": "1deb56ba9c29313cc0ef39e32e9401936c713c2731602e260dd72f8adf291331",
+    "skills/vendor/kepano/obsidian-skills/LICENSE": "64c64d48361edfe8610016441bf593256ea9b67f133b00f47c55aa29ee878567",
+    "skills/vendor/kepano/obsidian-skills/skills/defuddle/SKILL.md": "8669cdcc9f7b4679a49753d2d7f8ee4d90c3119305d866d6c439aa1cbacb83f3",
+    "skills/vendor/kepano/obsidian-skills/skills/json-canvas/SKILL.md": "97d1ae0728955c4203922753d5656890e5e4dd371b8306ea11884f9b510f1b85",
+    "skills/vendor/kepano/obsidian-skills/skills/json-canvas/references/EXAMPLES.md": "f5ce15a4b74643122396265e8c37c828874a4005794de2aee7030662968768eb",
+    "skills/vendor/kepano/obsidian-skills/skills/knap/SKILL.md": "ef5666573358cd7d18e04195f3e7c473b88d3e3140c41ab59bbee01c81e9989f",
+    "skills/vendor/kepano/obsidian-skills/skills/obsidian-bases/SKILL.md": "c0037f20926c7d8591cdd040365e4c0e4c0c4146386a506f28f241faee9a27d9",
+    "skills/vendor/kepano/obsidian-skills/skills/obsidian-bases/references/FUNCTIONS_REFERENCE.md": "208fd63aead9bca1975626fea52605e6ab9434dc0529d923feb36b18b8877d3b",
+    "skills/vendor/kepano/obsidian-skills/skills/obsidian-cli/SKILL.md": "b54257cdc0e5d04488b35b0c797bfe427b24359f0848d3c73924dcacf8da6358",
+    "skills/vendor/kepano/obsidian-skills/skills/obsidian-markdown/SKILL.md": "7ad72e1f0a9081ed325e76b6402ad5de50a00e63e2341fd403a92f147234a007",
+    "skills/vendor/kepano/obsidian-skills/skills/obsidian-markdown/references/CALLOUTS.md": "9912ec2e3f8711f65b8ceb82cc19cbffc5e6f8ccf2ab627e18926c522c383d8b",
+    "skills/vendor/kepano/obsidian-skills/skills/obsidian-markdown/references/EMBEDS.md": "63b6205507e28fb58cf200bc348a2b139e50ae739743e2e6316732148973cb7a",
+    "skills/vendor/kepano/obsidian-skills/skills/obsidian-markdown/references/PROPERTIES.md": "392953b5838c3ab3df135b5a914f100ae7b95e4501b6a2e5c8dc63da3ac7558b",
+    "skills/vendor/marian2js/trading-skills/LICENSE": "1126322e2cc8d165adc4c792eeb195717de2bcc7b39be1ce77959d78e87ef685",
+    "skills/vendor/marian2js/trading-skills/skills/idea-discovery/catalyst-map/SKILL.md": "07142928a8f31d0855a32ec8b6f49ec6520f8f1a45639a7911e9103a268f5d53",
+    "skills/vendor/marian2js/trading-skills/skills/idea-discovery/catalyst-map/references/catalyst-framework.md": "2afd17993bcab5eb0e0c5bd410466f0942dd7749620d12f7f7f101640c4d3fd5",
+    "skills/vendor/marian2js/trading-skills/skills/idea-discovery/watchlist-review/SKILL.md": "a2b00a3f63f4304a9d314c10c1bfc3a86a749871bcc2abd5c5fd463145e6ad98",
+    "skills/vendor/marian2js/trading-skills/skills/idea-discovery/watchlist-review/references/review-framework.md": "e8491076fbe52abe9ca53be34608d88e1500ef4b59dba0d4ed1a8bc056f13d7b",
+    "skills/vendor/marian2js/trading-skills/skills/market-context/macro-event-analysis/SKILL.md": "79ee1fc38c3c1f5207cbeb4eb84697fda5885473f55f52074218d29f5300ad18",
+    "skills/vendor/marian2js/trading-skills/skills/market-context/macro-event-analysis/references/data-providers.md": "c44c074df2708b968cb965176b5dc3cffaad6c4788092ff5ed5ff2dd057ec11b",
+    "skills/vendor/marian2js/trading-skills/skills/market-context/macro-event-analysis/references/interpretation-guide.md": "e09ef7547346285afbf67e4d73e657fc864da40994f918fef5f546026ea96182",
+    "skills/vendor/marian2js/trading-skills/skills/market-context/macro-event-analysis/references/providers/fmp.md": "2926ff3eea86ea85370fa55a80dffe4fe25e14a8b64e5e520311110e309c346a",
+    "skills/vendor/marian2js/trading-skills/skills/market-context/macro-event-analysis/references/providers/tradingeconomics.md": "23cc70d604a6eaaf4870cf0d3c611a8ca482be6780c6b25af50a0ad054d8fa7b",
+    "skills/vendor/marian2js/trading-skills/skills/market-context/market-regime-analysis/SKILL.md": "a96a248159774900351edaa205d9a631d626056f85d8a65a600b7b37a4aca6bf",
+    "skills/vendor/marian2js/trading-skills/skills/market-context/market-regime-analysis/references/data-providers.md": "185ac738b6c5598588c82f374a1c5d09889c95d1a308ff3d2efdbfeef9cc75e2",
+    "skills/vendor/marian2js/trading-skills/skills/market-context/market-regime-analysis/references/providers/fmp.md": "2adfb4ff3918acaaf88d66f83dc3a5bc9ab56650f07707673fdaa3a29d991098",
+    "skills/vendor/marian2js/trading-skills/skills/market-context/market-regime-analysis/references/providers/polygon.md": "7d40fabe98269328d451d6b42d7d4e4cc898107d5534ac071fc415f2465013fd",
+    "skills/vendor/marian2js/trading-skills/skills/market-context/market-regime-analysis/references/providers/tradingeconomics.md": "f85b78efd172343c90c54bd26302d73bc357c0f4e4439a25cfa2d79283dbda3f",
+    "skills/vendor/marian2js/trading-skills/skills/market-context/market-regime-analysis/references/regime-framework.md": "c2407febf7c15dea7719beeac21d2d227c95edf065f368f8b32134298e9ffb97",
+    "skills/vendor/marian2js/trading-skills/skills/position-oversight/position-management/SKILL.md": "986dc544154101e4a1d30592f1966fd348650849c1f8c042664a72df02d57aff",
+    "skills/vendor/marian2js/trading-skills/skills/position-oversight/position-management/references/management-framework.md": "5a497405bb3f6d0ad5f94c4facd317e2ec03424f663244e13fe44fdddb76fbfc",
+    "skills/vendor/marian2js/trading-skills/skills/review-learning/journal-pattern-analyzer/SKILL.md": "9b169543ec9caedbd3f585010a6b6b647e527ef86f12c5551a5e707eef75f80f",
+    "skills/vendor/marian2js/trading-skills/skills/review-learning/journal-pattern-analyzer/references/calculation-helpers.md": "8514df9a0312810cfb8e6e555cbea5d59b4f7a56fdb3213fcf1780183f18ff48",
+    "skills/vendor/marian2js/trading-skills/skills/review-learning/journal-pattern-analyzer/references/pattern-framework.md": "f3d14eeb7abcf6956023a6d3d50faf8f77e54f641aef3405613c6f95e47b0fa4",
+    "skills/vendor/marian2js/trading-skills/skills/review-learning/post-trade-review/SKILL.md": "1a2702bc00b74e011900acd3df399e76c36572cfe094a09d4d3654c15360bfce",
+    "skills/vendor/marian2js/trading-skills/skills/review-learning/post-trade-review/references/review-rubric.md": "7f01ee6d765d40146863140901a3c1932b45aa4d29bc5f08fe5c1266f4691765",
+    "skills/vendor/marian2js/trading-skills/skills/thesis-validation/evidence-gap-check/SKILL.md": "75e144f4a7cf21eee61095a7a6e9ea729ea2a7c09379b8c8ec1efabf9a13f7c6",
+    "skills/vendor/marian2js/trading-skills/skills/thesis-validation/evidence-gap-check/references/gap-framework.md": "8d7824e7cf7f129e01134bc23f384bd2ed740805db5ab7c4e5435cd72030611e",
+    "skills/vendor/marian2js/trading-skills/skills/thesis-validation/thesis-validation/SKILL.md": "bded1de3ea0a90f2b9eb983bfe22245f9e9b32cecb9e8994d34fa259a9210450",
+    "skills/vendor/marian2js/trading-skills/skills/thesis-validation/thesis-validation/references/thesis-checklist.md": "1ee0205182f8cef3899377c406b1eb75db6a5ba386b6bdec38d52ce39ee98aa2",
+    "skills/vendor/marian2js/trading-skills/skills/trade-construction/execution-plan-check/SKILL.md": "7fb32d3307b6a95104175f3538f8097afb30f1a1e69f3b60098e308ef71bf7bb",
+    "skills/vendor/marian2js/trading-skills/skills/trade-construction/execution-plan-check/references/execution-checklist.md": "861f15e93561d32868935aee8f3e6e653a120057faef7d27ad9fae2d13a53001",
+    "skills/vendor/marian2js/trading-skills/skills/trade-construction/portfolio-concentration/SKILL.md": "e397753a53afdd3e03a2e3d51ab63b4c7f98823c6827a3cde012a848a4dcee98",
+    "skills/vendor/marian2js/trading-skills/skills/trade-construction/portfolio-concentration/references/concentration-framework.md": "a725b341f49ebcf10f6705511fd09abd33b69f058533a7d61bbd8f1d3d009ce5",
+    "skills/vendor/marian2js/trading-skills/skills/trade-construction/position-sizing/SKILL.md": "90f3d6bec35061e1361c16276aeb65f583c90ec1609e9e4b19e88ed9bada7c8c",
+    "skills/vendor/marian2js/trading-skills/skills/trade-construction/position-sizing/references/calculation-helpers.md": "963839ecbb08676ebd027821282019f6aaabefe7fd1be73e3cf739aaca83ffe7",
+    "skills/vendor/marian2js/trading-skills/skills/trade-construction/position-sizing/references/methodology.md": "21747a92fbe9164d99009e14b2d5ddf89eac148bab408ba3f8be90bdb72fd293",
+    "skills/vendor/marian2js/trading-skills/skills/trade-construction/risk-reward-sanity-check/SKILL.md": "d1a25e8f08fefdc891762614bd286c138164197f5c07ef85f350bdca294e60d0",
+    "skills/vendor/marian2js/trading-skills/skills/trade-construction/risk-reward-sanity-check/references/calculation-helpers.md": "1a48f8e9cd58f9ee74183c7f9beb6ee2a45adf374fafaf585c114c74536c3fbb",
+    "skills/vendor/marian2js/trading-skills/skills/trade-construction/risk-reward-sanity-check/references/failure-modes.md": "e4cd3beca82b157b098c3b0c3d8a0aaaa1eead28ee621480a94ec9acf4ab888a",
+    "skills/vendor/marian2js/trading-skills/skills/workflows/portfolio-risk-review/SKILL.md": "20196f369cf36881c5e2417cae2d8102a0d0cb53e4a6346bb2628d362469286e",
+    "skills/vendor/marian2js/trading-skills/skills/workflows/portfolio-risk-review/references/workflow-framework.md": "b4cd7c445aacc524a41a7dbadf285d659bc4bafb06e4d916ed2dda2844a7065f",
+    "skills/vendor/marian2js/trading-skills/skills/workflows/post-trade-debrief/SKILL.md": "dd934f0945216c75cf4e5994e5f98cd23f8d6f5c392e24fdb4698eed170af485",
+    "skills/vendor/marian2js/trading-skills/skills/workflows/post-trade-debrief/references/workflow-framework.md": "53ca4366251e227c3ba3bca0f7b40117837dc30e6a58c1c86e428b70cd1ffa5c",
+    "skills/vendor/marian2js/trading-skills/skills/workflows/pre-trade-check/SKILL.md": "540e40d969fce70c3016c2d1bfbef8fe3e90d74daef2e42158a44d857081cf74",
+    "skills/vendor/marian2js/trading-skills/skills/workflows/pre-trade-check/references/workflow-framework.md": "43e6a0626963b067154d384cbf511d4ea7225f2673011a5cd293b9255fae3e75",
     "skills/vendor/marklavine-mlv/weekly-meal-planner/LICENSE": "cbc95f95efd254f470b21e22f1899469b5d244031171381d81f077358e30f5b4",
     "skills/vendor/marklavine-mlv/weekly-meal-planner/SKILL.md": "c82626ceeaf165fa9c13c8329a5306b4f2710f2d74e169748147b00febd025c1",
     "skills/vendor/mattpocock/skills/LICENSE": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
@@ -7112,6 +8082,79 @@
     "skills/vendor/mprecilio20/adaptive-endurance-coach/skills/adaptive-endurance-coach/SKILL.md": "c9935c8c8b598f5a1752f5fb8b4a50d726254093001ffbe3ea6c1dce624b20db",
     "skills/vendor/neilberget/fitness-skill/LICENSE": "7252e01597caabe07d1a481bbdcb194297f6e9bd1085d6a27f0c63cc78bd0d64",
     "skills/vendor/neilberget/fitness-skill/fitness-coach/SKILL.md": "1c86e3b1ead4d39543e92811335566029201eb40d60c9982460e085e52705a58",
+    "skills/vendor/tradermonty/claude-trading-skills/LICENSE": "87c93cde8c3a000c19b0c790cd4f7a4e4cb8da5bc6b11e0939bf6df99e245d15",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/backtest-expert/SKILL.md": "f2c9ce6501b574cdf1cc35b757b5dfc3cb5e234222af84e67ce07775dfdc689d",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/backtest-expert/references/failed_tests.md": "84fe35cd098a2d2fdc000d68f2277d9474aa7cdcd5a0f1b6566b78e7a77ef34e",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/backtest-expert/references/methodology.md": "eb2a73ca5cab78c19572c23ad102e414983f513db89d4fcce9ff59735fde8ac6",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/contrarian-setup-gate/SKILL.md": "7ef14d9fcd01b92de85a2365764b682ef4699c16bd4cbea0826ccb06f39702e2",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/contrarian-setup-gate/references/gate-decision-table.md": "bfd8d2716f241575aa94f7f7f75a5b180124c9c8a6587d9448c7d32800e3e2fe",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/cot-contrarian-detector/SKILL.md": "58df17a493e0b3af52a31ad4b47f5e5aac1090d5e152166e446fe73c40d7f703",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/cot-contrarian-detector/references/cot-index-calculation.md": "96d0e7996d485a674a0079b2b95eb3903e1f48ce3bf906fa287b65cca2435a0a",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/cot-contrarian-detector/references/shapiro-methodology.md": "1a825e085f46dd1741dfbcfe39bef46488b49cf0c682884c37217ed6d4b7e182",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/crypto-regime-analyzer/SKILL.md": "e6d9c9da283bcee152f10d5999d6966cce4e8761e832c75162b204db9a65c064",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/crypto-regime-analyzer/references/VALIDATION.md": "7fa5ebbd141cf7f907e7b2caf8ca6d2cd87c7fe61eaabd4051bcd685f5f91dcc",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/crypto-regime-analyzer/references/crypto_regime_methodology.md": "6f60954e41f9a9b261486170348b1aaf9f36b67d821a5eb6b867495080feea81",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/data-quality-checker/SKILL.md": "d9473d7f8980aa2b58b8877c9b6724cee1a32ec1ff42869e8a7e92724ae96773",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/data-quality-checker/references/common_data_errors.md": "ac598277c9664379e0f683de063653a8f72abd0995e40f75fddafe0da9141344",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/data-quality-checker/references/instrument_notation_standard.md": "b025ff7437291a6ef2142241099d2c1919ad5fd9aad5980bc95d67cf8a6c24c8",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/drawdown-circuit-breaker/SKILL.md": "4a2a9302a0837ee8a24f074a107df6e5cb70948c0d106a2f02ca9e18777067d2",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/drawdown-circuit-breaker/references/circuit_breaker_framework.md": "9860d671331754079c1c5e1d866e3bf67a6a5ee036277db4c5b02fcc16a59fd3",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/dual-axis-skill-reviewer/SKILL.md": "6e5a375fe35f4903698bf836587801c931fad1a767bcd092c1aeaab088158109",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/dual-axis-skill-reviewer/references/llm_review_schema.md": "66d4e7f66295dfaea3fdacc17339c401c70b1cee0ff9d1d197d1f86024fce329",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/dual-axis-skill-reviewer/references/scoring_rubric.md": "b77a92d59187e8a143fe1d73285e31bf48d7d3b37f4310eed38559da82d338af",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/futures-position-sizer/SKILL.md": "4ffecedcbe629b6381c0521f6ef6cac020c8d63403dd3edc022b2324b9b6ad13",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/futures-position-sizer/references/futures-contract-specs.md": "597a34fd45346de55796157b12648685b4d77a9b2c34994f11cbe293f89131e6",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/futures-position-sizer/references/sizing-methodology.md": "c08775ba2f04e47e80d02c85a8999c4b357c6e56e75e716d51dfdbd72e6676b4",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/macro-regime-detector/SKILL.md": "a60479b156049b91316757729e25669459f3f7ac83710a17e6dd401a36090108",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/macro-regime-detector/references/historical_regimes.md": "2ae2139002f042e365641f99abfc4eae803c47cac499e678adecc447ca54a4fc",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/macro-regime-detector/references/indicator_interpretation_guide.md": "bbf0e06f6e31442765d2f315d68e82af8536e6d32297accdf5ca51e706249dfe",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/macro-regime-detector/references/regime_detection_methodology.md": "c8fa6cc47e3726f0da565034fc51e9b9acaad5782cdfc9291a2f7f63dfce3905",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/market-news-analyst/SKILL.md": "1429967e2dd26f8e44bce06978460ce02d917bec565b711a294e0d019ea77848",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/market-news-analyst/references/corporate_news_impact.md": "e2d0c3727c7072efeebb68e20b7968b58a54419c6d189cef49b59f9aa6c8e569",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/market-news-analyst/references/geopolitical_commodity_correlations.md": "b404fb71fffec998a1df04aa5dedd9e88d7e5cbebc44766fb43207f45ec16d67",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/market-news-analyst/references/market_event_patterns.md": "9b835e76407cbd847c96c6744a65f2a1e7836094e74e95f15d2f0a8b29cccbb6",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/market-news-analyst/references/trusted_news_sources.md": "49e1cc93c8f7c2d2a6eb14a1f8797a88b7f790724cadf872a856ddc9737a03af",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/mt5-robot-tester/SKILL.md": "8048035bb29937276e2af7b3a039bc99019dd5c130b308ca96ce63fa58d3c8ff",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/mt5-robot-tester/references/mt5-cli-reference.md": "8335067ce3b844ab3ee710fc21d2a4278e157238803b555260c38eac6a26bf86",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/news-reaction-failure-analyzer/SKILL.md": "c1059fe863db786fa1ecb7eac952309a6256cd4c9e443655da0da462acdaee3b",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/news-reaction-failure-analyzer/references/news-failure-patterns.md": "098ff3e56ea9ad374cfb7a62ace64b5970e0f5a1b3c472f3586a704fc5788ec9",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/news-reaction-failure-analyzer/references/price-source-map.md": "c810bc372379cfe508bf7a541cfd29d770d228f680a48fdea99a361a2ce11c17",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/pre-trade-discipline-gate/SKILL.md": "cd33ad056ae3a612e1bff3b46c5c4366c6f73ba15f33127283f4579890c84962",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/pre-trade-discipline-gate/references/discipline_gate_framework.md": "24c767eca9da4b797cdcb64b8f4ac5171acd6d772edaa4d90075a8fc7492239b",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/scenario-analyzer/SKILL.md": "d5d970761233ad2b0b93742f86b08565d2515f5675e05343ef8facb569987ba4",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/scenario-analyzer/references/headline_event_patterns.md": "3dd12e6bfabfccee429185085bfc5aba3aa8e6f84734bc3c085fe9385cf0ccff",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/scenario-analyzer/references/scenario_playbooks.md": "46ddbf0ccb6b6b6fba4474e4119a861d4ceb41b6a3a0cbadd055c22891534171",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/scenario-analyzer/references/sector_sensitivity_matrix.md": "ac3f3d11bb3b34f3914236d373d8de275a1847d05927bc801869830a97ef25fa",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/signal-postmortem/SKILL.md": "719ed5ee385d6a859ad3e147d5517ef1388fc9e5eb7fff2e8ff8cd32cef82acf",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/signal-postmortem/references/feedback-integration.md": "740974884c9bcb51f62480e4f5a58f3b84abc0ae9920fbda873db415a2b23c7f",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/signal-postmortem/references/outcome-classification.md": "2e82dca7d2a847f2c3560227778e298f15f3a4da581b8e6b137f297c468d9f1a",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/skill-integration-tester/SKILL.md": "ca63232cffe8462bdea7dd2fa28707d1fb0f61c0e3fb8a52a50f2106f154d1c8",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/skill-integration-tester/references/workflow_contracts.md": "01be06ae83a0c9791e27ef0b7c5bbe49ef6ac20540dc4ba19f6da5e205025c22",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/strategy-pivot-designer/SKILL.md": "782aaf829ac0939733ae2652567a26004485a40e2cf18e8a5f1b1b5e8861395f",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/strategy-pivot-designer/references/pivot_proposal_schema.md": "82998607c4f688b56a500acdf584b4dcfcdda225d25f34330402e0c7c6e8d735",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/strategy-pivot-designer/references/pivot_techniques.md": "67ee48dd42d3271665ccffc1e2e6c82890a4d7995acdbb5e5c7c3df9c2e81407",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/strategy-pivot-designer/references/stagnation_triggers.md": "6bac4f0c47b2f52b4aba9594e5a1937a89460619894153f6bf2806553112fb57",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/strategy-pivot-designer/references/strategy_archetypes.md": "b495998fbca083715ff7a7fe080e6b7e9ffbad24b29688a7fb8729075931c54e",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/technical-analyst/SKILL.md": "7d9c894bf222f8fdcedc649896fcaf719c5d66a741e0dfb422c7e6da021e1e69",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/technical-analyst/references/contrarian-confirmation-checklist.md": "3106beeb118e33421a8ae4ace420e5520d84f328ee72d4d91fd39a436c73fb10",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/technical-analyst/references/technical_analysis_framework.md": "a530ffebf10c04f28e6e2696ce1f6b0068a74ffc532e67caf7afd0fa28b31465",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/trade-performance-coach/SKILL.md": "f4f3bfd12d4aa28f370a4a9947228ca9909d8fdcdc0a061420744c7585308d60",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/trade-performance-coach/references/behavior-tags.md": "fe0726119693118803822e643840119056bf9f48f6265229d04b785d55bb0872",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/trade-performance-coach/references/hermes-integration.md": "5c01d37f6a8ed476dd022f846915ee2932a4f3736260d115a0937bad089214fc",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/trade-performance-coach/references/output-contract.md": "496ded65ce78f6e360a0039f2977af6fd08771be1c6a7a7db85dcc5ca764b22b",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/trade-performance-coach/references/review-framework.md": "54007a6937d1881d377825495992c62bcd5261f4a149f4059ff45b3312ea86c9",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/trade-performance-coach/references/risk-review-checklist.md": "8f217812f39a5015eb732783a3b835a7c1af45ca5b4c904d2a277b84bdbbaac7",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/trader-memory-core/SKILL.md": "0708e12b2134f18e6ceeedc2e3520a2929b3144e0d64fe118ac64f9c23dad1f5",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/trader-memory-core/references/field_mapping.md": "207a1720c9490600d94cc383bff0559b139989b9bf0bc33ee4e70a8c4b74d145",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/trader-memory-core/references/thesis_lifecycle.md": "2c59601a0a03bbe3b47569af487109596c1f8a3c74dc96c7cdd03db29b29d3c8",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/us-market-bubble-detector/SKILL.md": "0c16de0524dc3da4f40dd6cae7a4c19a33aacbaeec6d217ea8ed1e5a4a0de95f",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/us-market-bubble-detector/references/bubble_framework.md": "abdbca1c2d46d5433493fd4ac9a168aa6fa084209633f260008adfe9332265b0",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/us-market-bubble-detector/references/historical_cases.md": "051c8e87d5377f0050a201a51a4edb68accd775b8c508878f96f58796765d67c",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/us-market-bubble-detector/references/implementation_guide.md": "63f23980670d567468dcdaf38af62d267b7b533ccca6c6e23f468830b05578ba",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/us-market-bubble-detector/references/quick_reference.md": "70682b2ac5a9172e016ab306b748a9baf64e69cf996ba0c7adbc8a65cccd1f6c",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/us-market-bubble-detector/references/quick_reference_en.md": "fc27e0f94184a32d30294fe717a49d14280c554fd58db6f931f58c0e64bf34b3",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/weekly-performance-digest/SKILL.md": "11c98674c88a8ed25529cba06ef7899198cc3e1d33d1d8d2da33f79ea9657149",
+    "skills/vendor/tradermonty/claude-trading-skills/skills/weekly-performance-digest/references/weekly-digest-metrics.md": "7e8d724190560092b89737742814264d224e4f69c7351789acec56ebee076e2c",
     "tyler_core/skills/tyler-listing-draft/SKILL.md": "ffd9ebed744be62616f7513e799832f4def4ca1ff5ceba3d276ce248f486660d",
     "tyler_core/skills/tyler-price-compare/SKILL.md": "af70b581339de19b5ddff016e3482a2d88329f688b36ff0ac25915552dc2c3c5",
     "tyler_core/skills/tyler-store-legitimacy-review/SKILL.md": "b01a25640d35771505d85d6a1c5e86f1f3dce6b95a9627704c4627e7545be1db",

@@ -68,7 +68,6 @@ class ConfidenceBudget:
             "sam": ConfidenceConfig(act_threshold=1.0, ask_threshold=0.0, risk_penalties=self.default_config.risk_penalties),
             "doc": ConfidenceConfig(act_threshold=0.85, ask_threshold=0.50, risk_penalties=self.default_config.risk_penalties),
             "fin": ConfidenceConfig(act_threshold=0.85, ask_threshold=0.50, risk_penalties=self.default_config.risk_penalties),
-            "architect": ConfidenceConfig(act_threshold=0.75, ask_threshold=0.40, risk_penalties=self.default_config.risk_penalties),
             "sentinel": ConfidenceConfig(act_threshold=0.90, ask_threshold=0.60, risk_penalties=self.default_config.risk_penalties),
             "eva": ConfidenceConfig(act_threshold=0.80, ask_threshold=0.45, risk_penalties=self.default_config.risk_penalties),
         }

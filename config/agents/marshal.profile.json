@@ -68,7 +68,11 @@
     "replica-test",
     "agent-security-hardening",
     "marshal-skill-scout",
-    "marshal-mcp-connector-review"
+    "marshal-mcp-connector-review",
+    "dual-axis-skill-reviewer",
+    "obsidian-markdown",
+    "obsidian-bases",
+    "json-canvas"
   ],
   "proposed_grants": [
     {

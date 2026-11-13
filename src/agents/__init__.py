@@ -2,8 +2,7 @@
 from importlib import import_module
 
 _EXPORTS = {
-    "ArchitectAgent": "src.agents.architect.agent",
-    "DocAgent": "src.agents.doc",
+    "DocAgent": "src.agents.alex.doc",
     "EvaAgent": "src.agents.eva",
     "EvaCurator": "src.agents.eva_curator",
     "FinAgent": "src.agents.fin",
@@ -13,11 +12,11 @@ _EXPORTS = {
     "OfficeKnowledgeBase": "src.agents.office_copilot",
     "MarshalAgent": "src.agents.marshal",
     "KiraAgent": "src.agents.kira",
-    "OscarAgent": "src.agents.oscar",
+    "OscarAgent": "src.agents.tyler.oscar",
     "TylerAgent": "src.agents.tyler",
-    "JackAgent": "src.agents.jack",
-    "TrainerAgent": "src.agents.trainer",
-    "KodexAgent": "src.agents.kodex",
+    "JackAgent": "src.agents.sam.jack",
+    "TrainerAgent": "src.agents.alex.trainer",
+    "KodexAgent": "src.agents.eva_kodex",
 }
 __all__ = list(_EXPORTS)
 

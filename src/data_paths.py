@@ -37,7 +37,13 @@ DIRS = {
     "alerts": "alerts",
     "hermes": "hermes",
     "learning": "learning",
-    "n8n_events": "n8n_events",
+    "schedule": "schedule",
+    "materials": "materials_text_cache",
+    "drive_mirror": "drive_mirror",
+    "video_work": "video_work",
+    "drive_writer": "drive_writer",
+    "transcription": "transcription",
+    "material_sorter": "material_sorter",
 }
 
 

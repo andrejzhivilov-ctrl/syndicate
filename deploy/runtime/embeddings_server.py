@@ -45,8 +45,8 @@ logger = structlog.get_logger(__name__)
 MODEL_NAME = os.getenv("EMBEDDINGS_MODEL", "BAAI/bge-m3")
 EXPECTED_DIM = int(os.getenv("EMBEDDINGS_EXPECTED_DIM", "1024"))
 MAX_BATCH = int(os.getenv("EMBEDDINGS_MAX_BATCH", "64"))
-# Optional shared secret. The service sits on the internal network, but n8n shares
-# that network, so a defence-in-depth token is cheap.
+# Optional shared secret. The service sits on the internal network, but other services
+# share that network, so a defence-in-depth token is cheap.
 REQUIRED_TOKEN = (os.getenv("EMBEDDINGS_TOKEN") or "").strip()
 # CPU cost grows with sequence length; BGE-M3 accepts 8192 tokens and one long
 # memory text kept 12 cores busy for minutes while every other call timed out.

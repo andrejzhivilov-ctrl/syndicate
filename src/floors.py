@@ -22,11 +22,6 @@ BOARDROOM_DIRECTORS: Dict[str, Dict[str, Any]] = {
         "department": "Strategy & Core Command",
         "role": "Strategic coordination, daily briefing, operator interface",
     },
-    "architect": {
-        "title": "Chief Technology Officer",
-        "department": "Systems & Engineering",
-        "role": "System architecture, n8n design, code synthesis, Antigravity Bridge",
-    },
     "marshal": {
         "title": "Chief Security Officer",
         "department": "Security & Sentinel Protocol",
@@ -77,11 +72,6 @@ BOARDROOM_DIRECTORS: Dict[str, Dict[str, Any]] = {
         "department": "Knowledge Base, Archives & Media Pipeline",
         "role": "Big data ingestion, cloud and Telegram storage gateway, Obsidian sync, NotebookLM purge",
     },
-    "antigravity": {
-        "title": "Chief External Super-Agent & R&D Contractor (Alice)",
-        "department": "External High-Cognitive 24/7 VM Bridge",
-        "role": "High-complexity reasoning, app cloning, fullstack engineering, reverse engineering, dedicated agent channels",
-    },
 }
 
 # ─── Legacy Compatibility Mapping (Preserved for existing imports) ───────────
@@ -89,7 +79,7 @@ BOARDROOM_DIRECTORS: Dict[str, Dict[str, Any]] = {
 FLOORS: Dict[int, Dict[str, Any]] = {
     10: {
         "name": "Командний центр (Command & Governance)",
-        "agents": ["eva", "fin", "marshal", "architect"],
+        "agents": ["eva", "fin", "marshal"],
         "services": ["council", "orc_verifier", "change_requests", "sentinel"],
         "status": "active",
     },
@@ -124,7 +114,7 @@ FLOORS: Dict[int, Dict[str, Any]] = {
     1: {
         "name": "Сервер & сенсорика (Sensory & Ingestion)",
         "agents": [],
-        "services": ["sensory_router", "error_collector", "n8n_templates", "scheduler"],
+        "services": ["sensory_router", "error_collector", "scheduler"],
         "status": "active",
     },
 }

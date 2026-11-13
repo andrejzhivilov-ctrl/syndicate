@@ -8,8 +8,8 @@ from __future__ import annotations
 import asyncio
 from typing import Any, Dict, List
 
-from src.agents.doc import DocAgent
-from src.agents.trainer import TrainerAgent
+from src.agents.alex.doc import DocAgent
+from src.agents.alex.trainer import TrainerAgent
 
 
 class MockMemory:
@@ -155,7 +155,9 @@ def test_trainer_nutrition_plan_missing_metrics_returns_unavailable():
     assert "height_cm" in res["missing_inputs"]
 
 
-def test_trainer_recipe_plan():
+def test_trainer_recipe_plan_without_a_recipe_base_is_unavailable():
+    # 06.11.2026: this test used to require the two hard-coded recipes as "ok"
+    # for any request, which is fabricated data (AGENTS.md §1).
     memory = MockMemory()
     agent = TrainerAgent(memory=memory)
 
@@ -165,9 +167,9 @@ def test_trainer_recipe_plan():
         "protein_g": 160,
     }))
 
-    assert res["status"] == "ok"
-    assert len(res["recipes"]) > 0
-    assert "ingredients" in res["recipes"][0]
+    assert res["status"] == "unavailable"
+    assert res["recipes"] == []
+    assert "recipe base" in res["warning"]
 
 
 def test_trainer_shopping_list_normalization():

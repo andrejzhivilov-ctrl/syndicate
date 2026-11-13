@@ -80,7 +80,6 @@ AGENT_VOICES: Dict[str, str] = {
     "kira": "mariia-audiobook",
     "sam": "yevhen-audiobook",
     "trainer": "ihoreo-conversation",
-    "jack": "oleksandr-commercial",
 }
 DEFAULT_VOICE = "yevhen-commercial"
 

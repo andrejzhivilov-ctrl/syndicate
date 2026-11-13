@@ -228,7 +228,7 @@ class TestFinAgentHonesty:
 # ─────────────────────────────────────────────────────────────────────────────
 class TestDocScreeningCalendar:
     def _calendar(self, last_checkups: Dict[str, str]):
-        from src.agents.doc import DocAgent
+        from src.agents.alex.doc import DocAgent
 
         return _run(DocAgent(memory=None)._screening_calendar({"last_checkups": last_checkups}))
 
@@ -1022,8 +1022,7 @@ class TestFinPDFFonts:
 # ─────────────────────────────────────────────────────────────────────────────
 def _dispatch_agents():
     """Every agent whose ``execute()`` dispatches through ``_ACTION_MAP``."""
-    from src.agents.architect.agent import ArchitectAgent
-    from src.agents.doc import DocAgent
+    from src.agents.alex.doc import DocAgent
     from src.agents.kira import KiraAgent
     from src.agents.marshal import MarshalAgent
     from src.agents.sam.agent import SamAgent
@@ -1031,7 +1030,6 @@ def _dispatch_agents():
 
     built = []
     for factory in (
-        lambda: ArchitectAgent(memory=None),
         lambda: DocAgent(memory=None),
         lambda: KiraAgent(memory=None),
         lambda: MarshalAgent(),
@@ -1366,7 +1364,7 @@ class TestEmbeddingContract:
         compose = yaml.safe_load(
             (REPO_ROOT / "deploy" / "docker-compose.yml").read_text(encoding="utf-8")
         )
-        env = compose["services"]["eva-agent"]["environment"]
+        env = compose["services"]["syndicate-agent"]["environment"]
         assert "embeddings:8000" in env["EMBEDDINGS_URL"]
         assert env["EMBEDDINGS_DIM"] == str(EMBEDDING_DIM)
 
@@ -1374,7 +1372,7 @@ class TestEmbeddingContract:
         assert service.get("ports") in (None, []), "the embeddings service must stay internal"
         assert service["networks"] == ["backend"]
         assert service["volumes"], "model weights need a volume or every restart re-downloads them"
-        assert not compose["services"]["eva-agent"]["depends_on"].get("embeddings"), (
+        assert not compose["services"]["syndicate-agent"]["depends_on"].get("embeddings"), (
             "a cold model must never block the agent from starting"
         )
 
@@ -1560,7 +1558,7 @@ class TestRepositoryHygiene:
 
     def test_no_duplicate_top_level_yaml_keys(self):
         """A repeated key silently drops the first block — this is how the
-        source mounts vanished from the eva-agent service."""
+        source mounts vanished from the syndicate-agent service."""
         import yaml
 
         compose = yaml.safe_load((REPO_ROOT / "deploy" / "docker-compose.yml").read_text(encoding="utf-8"))
@@ -1573,7 +1571,7 @@ class TestRepositoryHygiene:
         import yaml
 
         compose = yaml.safe_load((REPO_ROOT / "deploy" / "docker-compose.yml").read_text(encoding="utf-8"))
-        svc = compose["services"]["eva-agent"]
+        svc = compose["services"]["syndicate-agent"]
         mounts = "\n".join(svc.get("volumes", []))
         assert "/app/src" in mounts
         assert "/app/runtime" in mounts
@@ -2238,7 +2236,7 @@ class TestDomainAgentMemoryLoops:
         assert result["skill_candidate"]["name"] == "Socratic dialogue for deliberate learning"
 
     def test_doc_uses_old_memory_as_historical_not_current_measurement(self):
-        from src.agents.doc import DocAgent
+        from src.agents.alex.doc import DocAgent
 
         memory = _StubMemory(self._block("HRV was once 42 ms"))
         llm = _CapturingLLM()
@@ -2287,170 +2285,8 @@ class TestDomainAgentMemoryLoops:
         assert "Prior security audit summary" not in memory.saved[0]["content"]
 
 
-class TestN8NWorkflowApprovalGate:
-    """Generated n8n JSON stays inactive and GitOps fails closed until approval."""
-
-    @staticmethod
-    def _setup(tmp_path):
-        from src.change_requests import ChangeRequestStore
-        from src.vault_md import MarkdownVault
-        from src.agents.architect.agent import ArchitectAgent
-
-        vault = MarkdownVault(vault_root=tmp_path / "vault")
-        store = ChangeRequestStore(vault=vault)
-        return ArchitectAgent(memory=None, change_request_store=store), store
-
-    def test_orchestrator_surfaces_human_approval_requirement(self, tmp_path):
-        from src.change_requests import ChangeRequestStore
-        from src.orchestrator import EvaOrchestrator
-        from src.vault_md import MarkdownVault
-
-        class OrchestratorStub:
-            _memory = None
-            _llm = None
-            _llm_reasoning = None
-            _config = {}
-            _registry = None
-            # Real per-agent routing lookup; with no provider keys it returns _llm.
-            _llm_for = EvaOrchestrator._llm_for
-
-        store = ChangeRequestStore(vault=MarkdownVault(vault_root=tmp_path / "vault"))
-        orchestrator = OrchestratorStub()
-        orchestrator._change_requests = store
-        state = {
-            "task_type": "design_workflow",
-            "payload": {"name": "operator-gated flow", "trigger": "manual"},
-            "requires_hitl": False,
-            "hitl_reason": None,
-        }
-
-        _run(EvaOrchestrator._architect_agent_handler(orchestrator, state))
-
-        assert state["requires_hitl"] is True
-        assert "human approval" in state["hitl_reason"].lower()
-        assert state["result"]["approval_status"] == "pending"
-        assert store.get(state["result"]["approval_cr_id"])["status"] == "pending"
-
-        sync_state = {
-            "task_type": "gitops_sync",
-            "payload": {
-                "workflow_name": "operator-gated flow",
-                "workflow_json": state["result"]["workflow"],
-                "approval_cr_id": state["result"]["approval_cr_id"],
-            },
-            "requires_hitl": False,
-            "hitl_reason": None,
-        }
-        _run(EvaOrchestrator._architect_agent_handler(orchestrator, sync_state))
-        assert sync_state["result"]["status"] == "blocked_approval_pending"
-        assert sync_state["requires_hitl"] is True
-
-    def test_design_creates_pending_approval_and_never_activates(self, tmp_path):
-        agent, store = self._setup(tmp_path)
-        proposal = agent.design_workflow({"name": "daily report", "trigger": "manual"})
-
-        assert proposal["ready"] is True
-        assert proposal["requires_hitl"] is True
-        assert proposal["activation_blocked"] is True
-        assert proposal["approval_status"] == "pending"
-        assert proposal["workflow"]["active"] is False
-        cr = store.get(proposal["approval_cr_id"])
-        assert cr["status"] == "pending"
-        assert cr["author"] == "Architect"
-        assert cr["risk"] == "high"
-        assert "daily report" in cr["changes"][0]["content"]
-
-    def test_gitops_requires_applied_matching_cr(self, tmp_path):
-        agent, store = self._setup(tmp_path)
-        proposal = agent.design_workflow({"name": "weekly review", "trigger": "schedule"})
-        payload = {
-            "workflow_name": "weekly review",
-            "workflow_json": proposal["workflow"],
-            "adr": {"number": 9, "title": "Review"},
-            "approval_cr_id": proposal["approval_cr_id"],
-        }
-
-        missing_id = _run(agent.gitops_sync({"workflow_json": proposal["workflow"]}))
-        pending = _run(agent.gitops_sync(payload))
-        assert missing_id["status"] == "blocked_approval_required"
-        assert missing_id["requires_hitl"] is True
-        assert pending["status"] == "blocked_approval_pending"
-        assert pending["requires_hitl"] is True
-        assert "pr_bundle" not in pending
-
-        cr_id = proposal["approval_cr_id"]
-        store.review(cr_id, decision="approve", reviewer="operator", comment="Reviewed")
-        reviewed_only = _run(agent.gitops_sync(payload))
-        assert reviewed_only["status"] == "blocked_approval_not_applied"
-        assert reviewed_only["approval_status"] == "approved"
-        assert reviewed_only["requires_hitl"] is True
-        store.apply(cr_id, approver="operator")
-        released = _run(agent.gitops_sync(payload))
-
-        assert released["status"] == "pr_bundle_ready_pending_operator_activation"
-        assert released["approval_status"] == "approved"
-        assert released["activation_status"] == "inactive_until_operator_activates"
-        exported = json.loads(released["pr_bundle"]["files"][0]["content"])
-        assert exported["active"] is False
-
-    def test_missing_or_unavailable_approval_store_fails_closed(self, tmp_path):
-        from src.agents.architect.agent import ArchitectAgent
-
-        unavailable_agent = ArchitectAgent(memory=None, change_request_store=None)
-        unavailable = _run(unavailable_agent.gitops_sync({
-            "workflow_json": {"active": False},
-            "approval_cr_id": "CR-00000000",
-        }))
-        agent, _store = self._setup(tmp_path)
-        unknown = _run(agent.gitops_sync({
-            "workflow_json": {"active": False},
-            "approval_cr_id": "CR-00000000",
-        }))
-
-        assert unavailable["status"] == "blocked_approval_store_unavailable"
-        assert unknown["status"] == "blocked_approval_not_found"
-        assert "pr_bundle" not in unavailable and "pr_bundle" not in unknown
-
-    def test_rejected_cr_cannot_release_a_workflow(self, tmp_path):
-        agent, store = self._setup(tmp_path)
-        proposal = agent.design_workflow({"name": "rejected flow", "trigger": "manual"})
-        cr_id = proposal["approval_cr_id"]
-        store.review(cr_id, decision="reject", reviewer="operator", comment="Not approved")
-
-        result = _run(agent.gitops_sync({
-            "workflow_name": "rejected flow",
-            "workflow_json": proposal["workflow"],
-            "approval_cr_id": cr_id,
-        }))
-
-        assert result["status"] == "blocked_approval_rejected"
-        assert result["approval_status"] == "rejected"
-        assert result["requires_hitl"] is False
-        assert "pr_bundle" not in result
-
-    def test_approved_cr_cannot_release_a_modified_or_active_workflow(self, tmp_path):
-        agent, store = self._setup(tmp_path)
-        proposal = agent.design_workflow({"name": "guarded flow", "trigger": "manual"})
-        cr_id = proposal["approval_cr_id"]
-        store.review(cr_id, reviewer="operator")
-        store.apply(cr_id, approver="operator")
-
-        changed = dict(proposal["workflow"], name="different workflow")
-        mismatch = _run(agent.gitops_sync({
-            "workflow_name": "guarded flow",
-            "workflow_json": changed,
-            "approval_cr_id": cr_id,
-        }))
-        active = dict(proposal["workflow"], active=True)
-        enabled = _run(agent.gitops_sync({
-            "workflow_name": "guarded flow",
-            "workflow_json": active,
-            "approval_cr_id": cr_id,
-        }))
-
-        assert mismatch["status"] == "blocked_approval_payload_mismatch"
-        assert enabled["status"] == "blocked_workflow_must_remain_inactive"
-        assert "pr_bundle" not in mismatch and "pr_bundle" not in enabled
+# TestN8NWorkflowApprovalGate removed on 04.11.2026 together with the Architect agent:
+# its n8n workflow builder and GitOps release went with it (docs/MIGRATION_7_AGENTS.md, stage 3).
 
 
 class TestSkillStore:
@@ -3131,7 +2967,7 @@ class TestDocNeverInventsMetrics:
     fact (AGENTS.md §1). Absence must survive the boundary."""
 
     def _doc(self):
-        from src.agents.doc import DocAgent
+        from src.agents.alex.doc import DocAgent
 
         return DocAgent(memory=None)
 
@@ -3318,7 +3154,7 @@ class TestEvaBriefingReportsAbsence:
     def test_reflection_reports_real_file_counts_from_kodex(self):
         from datetime import datetime
 
-        from src.agents.kodex import evening_section, KodexStore
+        from src.agents.eva_kodex import evening_section, KodexStore
 
         import tempfile
         from pathlib import Path
@@ -3343,7 +3179,7 @@ class TestEvaBriefingReportsAbsence:
     def test_evening_without_kodex_data_dir_is_absence_not_zero(self):
         from datetime import datetime
 
-        from src.agents.kodex import evening_section
+        from src.agents.eva_kodex import evening_section
 
         section = evening_section(None, datetime.now())
         assert section["status"] == "unavailable" and "report" not in section
@@ -3427,19 +3263,6 @@ class TestVaultPolicyGeneration:
                 if other == agent_id:
                     continue
                 assert f"{mod.vault_paths.AGENTS}/{other}/" not in text
-
-    def test_retired_antigravity_profile_has_no_vault_data_grants(self):
-        """Antigravity is runtime technology, not an agent identity or secret reader."""
-        mod = self._policies()
-        policy = mod.build_policies()["eva-antigravity"]
-        assert mod.vault_paths.AGENT_SERVICES["antigravity"] == ()
-        assert mod.vault_paths.agent_policy_paths("antigravity") == []
-        policy_paths = {
-            line.split('"')[1]
-            for line in policy.splitlines()
-            if line.startswith('path "')
-        }
-        assert policy_paths == {"auth/token/renew-self", "auth/token/lookup-self"}
 
     def test_agent_policies_cannot_read_the_server_api_key(self):
         """`auth` holds the server's API key + webhook HMAC. A floor container
@@ -3767,7 +3590,7 @@ class TestDirectorSafetyRegressions:
         assert calculate_margin(payload)["eligible"] is True
 
     def test_jack_accepts_exact_ev_threshold_without_float_roundoff(self):
-        from src.agents.jack.quant import evaluate
+        from src.agents.sam.jack.quant import evaluate
         from datetime import datetime, timezone
         result = evaluate({"probability": 0.5225, "decimal_odds": 2, "bankroll": 1000,
                            "observed_at": datetime.now(timezone.utc).isoformat(), "model_source": "regression"})
@@ -3791,7 +3614,7 @@ class TestDirectorSafetyRegressions:
         assert result["status"] == "unavailable" and result["reason"] == "no_rates_in_response"
 
     def test_jack_treats_implausible_ev_as_a_palpable_error_not_value(self):
-        from src.agents.jack.quant import evaluate
+        from src.agents.sam.jack.quant import evaluate
         from datetime import datetime, timezone
         base = {"decimal_odds": 2, "bankroll": 1000, "observed_at": datetime.now(timezone.utc).isoformat(),
                 "model_source": "regression"}
@@ -3800,32 +3623,21 @@ class TestDirectorSafetyRegressions:
             evaluate({**base, "probability": 0.6, "stake": 500})
 
     def test_jack_never_rounds_stake_above_event_cap(self):
-        from src.agents.jack.quant import evaluate
+        from src.agents.sam.jack.quant import evaluate
         from datetime import datetime, timezone
         result = evaluate({"probability": 0.6, "decimal_odds": 2, "bankroll": 0.55,
                            "observed_at": datetime.now(timezone.utc).isoformat(), "model_source": "regression"})
         assert result["stake"] <= result["bankroll"] * result["event_risk_cap"]
 
     def test_agent_vault_policies_cannot_read_shared_llm_keys(self):
-        from src.vault_paths import (
-            API_KEYS,
-            agent_policy_paths,
-            agent_secret_path,
-            legacy_agent_secret_path,
-            secret_path,
-        )
-        for agent_id in ("oscar", "tyler", "jack", "alice", "antigravity"):
+        from src.vault_paths import API_KEYS, ISOLATED_WORKERS, agent_policy_paths, secret_path
+
+        assert ISOLATED_WORKERS == ("tyler",)
+        # Only Tyler stays an isolated worker since the old containers left (04.11.2026).
+        for agent_id in ISOLATED_WORKERS:
             paths = agent_policy_paths(agent_id)
             assert secret_path(API_KEYS) not in paths
             assert all(f"/agents/{agent_id}/" in path for path in paths)
-        alice_paths = set(agent_policy_paths("alice"))
-        expected = set()
-        for path_builder in (agent_secret_path, legacy_agent_secret_path):
-            for secret_name in ("auth", "gemini"):
-                data_path = path_builder("alice", secret_name)
-                expected.add(data_path)
-                expected.add(data_path.replace("/data/", "/metadata/", 1))
-        assert alice_paths == expected
 
 
 def test_vault_policy_generator_does_not_double_quote_capability_tokens():
@@ -4190,7 +4002,7 @@ def test_obsidian_vault_is_served_over_webdav_not_through_a_bucket():
 
     main = yaml.safe_load((REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
     voice = yaml.safe_load((REPO_ROOT / "deploy" / "docker-compose.voice.yml").read_text(encoding="utf-8"))
-    eva = main["services"]["eva-agent"]
+    eva = main["services"]["syndicate-agent"]
     assert eva["user"] == "1001:1001"
     assert "/data/obsidian_vault:/data/obsidian" in eva["volumes"]
     assert eva["environment"]["OBSIDIAN_VAULT_DIR"] == "/data/obsidian"
@@ -4202,7 +4014,7 @@ def test_obsidian_vault_is_served_over_webdav_not_through_a_bucket():
     assert args[:4] == ["rclone", "serve", "webdav", "/v"] and REMOTE_BASE_DIR in args
     assert serve_env(creds, Path("/w"))["RCLONE_PASS"] == "SECRET"
     nginx = (REPO_ROOT / "config" / "nginx" / "nginx.conf").read_text(encoding="utf-8")
-    assert f"proxy_pass http://eva-agent:{WEBDAV_PORT};" in nginx
+    assert f"proxy_pass http://syndicate-agent:{WEBDAV_PORT};" in nginx
 
 
 def test_obsidian_webdav_without_a_login_stays_down_and_says_so(tmp_path):
@@ -4315,35 +4127,12 @@ def test_operator_token_renewal_fails_loudly_when_vault_refuses(monkeypatch, cap
     assert "HTTP 403" in capsys.readouterr().err
 
 
-def test_n8n_templates_do_not_read_env_and_keep_the_api_key_in_a_credential():
-    # n8n 2.x blocks $env inside nodes, and the Eva API key must never be inlined in a workflow.
-    import json as _json
-
-    from src.n8n_templates import EVA_CREDENTIAL_NAME, all_templates, bind_credential
-
-    for name in ("error_handler", "cron_briefing", "cron_evening"):
-        workflow = all_templates()[name]
-        text = _json.dumps(workflow)
-        assert "$env" not in text, name
-        assert "X-API-Key" not in text, name
-        assert "http://eva-agent:8000" in text, name
-        http_nodes = [n for n in workflow["nodes"] if n["type"] == "n8n-nodes-base.httpRequest"]
-        assert http_nodes and all(n["credentials"]["httpHeaderAuth"]["name"] == EVA_CREDENTIAL_NAME for n in http_nodes)
-        bind_credential(workflow, "cred-7")
-        assert all(n["credentials"]["httpHeaderAuth"]["id"] == "cred-7" for n in http_nodes)
-
-
-def test_n8n_editor_is_not_throttled_by_the_login_zone_but_login_stays_strict():
-    # The n8n editor loads dozens of requests per page; the 20r/m login zone answered 429 and the
-    # workflow list stayed empty. Password guessing must still be slow, on /rest/login only.
+def test_n8n_is_gone_from_nginx_and_the_login_zone_stays_strict():
+    # Stage 6 (05.11.2026): n8n was removed with its subdomain and its 600r/m zone.
+    # The strict login zone (20r/m) is still there for the remaining logins.
     text = (REPO_ROOT / "config" / "nginx" / "nginx.conf").read_text(encoding="utf-8")
-    start = text.index("server_name n8n.syndicateholding.com;")
-    block = text[start:text.index("# 2. LiveKit", start)]
-    root = block[block.index("location / {"):]
-    assert "zone=n8n " in root and "zone=login" not in root
-    login = block[block.index("location = /rest/login"):block.index("location / {")]
-    assert "zone=login" in login
-    assert re.search(r"zone=n8n:\d+m rate=(\d+)r/m", text) and int(re.search(r"zone=n8n:\d+m rate=(\d+)r/m", text).group(1)) >= 300
+    assert "n8n" not in text
+    assert re.search(r"zone=login:\d+m rate=20r/m", text)
 
 
 def test_obsidian_notes_reach_the_chat_of_eva_and_report_an_absent_vault_honestly(tmp_path):
@@ -4619,11 +4408,10 @@ def test_eva_remembers_the_masked_conversation():
     assert asyncio.run(history.load("eva", "2")) == []
 
 
-def test_daily_backup_covers_both_databases_and_proves_each_dump_by_restoring_it():
+def test_daily_backup_covers_the_database_and_proves_the_dump_by_restoring_it():
     script = (REPO_ROOT / "deploy" / "scripts" / "backup_daily.sh").read_text(encoding="utf-8")
 
-    assert 'backup_database n8n "${N8N_DB_NAME:-n8n}"' in script
-    assert 'verify_restore n8n "${N8N_DB_NAME:-n8n}"' in script
+    assert "n8n" not in script and "N8N" not in script  # n8n removed in stage 6 (05.11.2026)
     assert 'verify_restore postgres "${POSTGRES_DB_NAME:-syndicate}"' in script
     assert 'record vault unavailable' in script
     assert "--network none" in script
@@ -4805,7 +4593,6 @@ def test_daily_backup_covers_agent_data_volume_with_confirmed_memory():
 
     assert 'EVA_VOLUME="${EVA_VOLUME:-syndicate_eva_data}"' in script
     assert 'backup_volume eva_data "$EVA_VOLUME"' in script
-    assert 'backup_volume n8n_home "$N8N_VOLUME"' in script
 
 
 def test_ukrainealarm_public_key_ships_with_the_code():
@@ -4971,3 +4758,346 @@ def test_learning_budget_finds_its_file_under_the_data_dir(tmp_path, monkeypatch
     monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
     budget = hermes_gateway.LearningBudget(limit=1.0)
     assert budget.allowed() and (tmp_path / "hermes").is_dir()
+
+
+def test_curator_decision_is_not_held_for_review_because_of_its_own_id(tmp_path, monkeypatch):
+    # CI 04.11: a random decision_id "…ec872490…" matched the passport pattern, so about
+    # 1 in 85 ordinary decisions went to manual review instead of Eva's memory.
+    import uuid as uuid_mod
+
+    from src.agents import eva_curator
+    from src.vault_md import MarkdownVault
+
+    monkeypatch.setattr(eva_curator.uuid, "uuid4",
+                        lambda: uuid_mod.UUID("ec872490-1111-4111-8111-111111111111"))
+    curator = eva_curator.EvaCurator(memory=None, llm=None, vault=MarkdownVault(vault_root=tmp_path / "vault"))
+    record = asyncio.run(curator.execute({"action": "record_decision",
+                                          "decision": "Use Obsidian for the project archive."}))
+    assert record["memory_write"]["status"] == "created"
+    # The owner's own words are still checked: a passport number in them is held for review.
+    held = asyncio.run(curator.execute({"action": "record_decision", "decision": "Passport AB123456 renewed."}))
+    assert held["memory_write"]["status"] == "review_required"
+
+
+def test_every_route_belongs_to_one_of_the_seven_agents():
+    # 04.11: 19 agents became 7. Old agents stay as parts of their new owner,
+    # and a new route without an owner must fail here, not fall to Eva silently.
+    from src.agent_owners import MERGED_INTO, owner_of
+    from src.orchestrator import EvaOrchestrator
+    from src.vault_paths import AGENT_ROSTER
+
+    targets = set(EvaOrchestrator.TASK_ROUTING.values())
+    unowned = sorted(t for t in targets if owner_of(t) not in AGENT_ROSTER)
+    assert not unowned, f"routes without an owner: {unowned}"
+    assert owner_of("jack") == "sam" and owner_of("doc") == "trainer" and owner_of("atlas") == "eva"
+    assert {owner_of(old) for old in ("scout", "sonar", "dex", "ray", "oscar")} == {"tyler"}
+    assert not set(MERGED_INTO) & set(AGENT_ROSTER) and owner_of("nobody") is None
+
+
+def test_evas_routing_hint_names_only_the_seven_agents():
+    from src.agents.eva import EvaAgent
+    from src.vault_paths import AGENT_ROSTER
+
+    eva = EvaAgent.__new__(EvaAgent)
+    eva._memory_policy = __import__("src.agents.eva_memory_policy", fromlist=["x"]).EvaMemoryPolicy()
+    for query, expected in (("поганий сон і пульс", "trainer"), ("зробити відео для тікток", "tyler"),
+                            ("ставки на футбол", "sam"), ("бюджет на місяць", "fin"), ("привіт", "eva")):
+        hint = asyncio.run(eva._delegate_intent({"query": query}))
+        assert hint["target_agent"] == expected and hint["target_agent"] in AGENT_ROSTER, query
+
+
+def test_retired_task_types_answer_retired_and_never_reach_eva():
+    # 04.11.2026: Alice, the Architect and the Antigravity gateway were removed. Unknown
+    # task types fall to Eva, so their old names must answer "retired" explicitly instead.
+    from src.orchestrator import EvaOrchestrator
+
+    retired = sorted(t for t, target in EvaOrchestrator.TASK_ROUTING.items() if target == "retired")
+    assert {"review_code", "alice_engineer", "antigravity_contractor_dispatch", "gitops_sync"} <= set(retired)
+    orchestrator = object.__new__(EvaOrchestrator)
+    for task_type in retired:
+        state = asyncio.run(orchestrator._retired_handler({"task_type": task_type, "payload": {}}))
+        result = state["result"]
+        assert result["status"] == "unavailable" and result["retired"] is True and result["value"] is None
+        assert "Claude Code" in result["reason"]
+
+
+def test_old_worker_containers_are_gone_from_compose_and_vault():
+    # Stage 4 (04.11.2026): the nine idle worker containers, Alice's compose file and
+    # the AppRole policies of removed agents are gone; Eva's own policy is untouched.
+    from pathlib import Path
+
+    from src import vault_paths
+    from tools import vault_policies
+
+    root = Path(__file__).resolve().parents[1]
+    for gone in ("deploy/docker-compose.directors.yml", "deploy/docker-compose.alice.yml",
+                 "deploy/docker/Dockerfile.director", "deploy/runtime/director_runner.py"):
+        assert not (root / gone).exists(), gone
+    assert set(vault_paths.AGENT_ROSTER) <= set(vault_paths.AGENTS_IDS)
+    removed = {"alice", "architect", "antigravity", "doc", "oscar", "jack", "sonar", "scout", "dex", "ray", "atlas"}
+    assert not removed & set(vault_paths.AGENTS_IDS)
+    assert not any(f"eva-{agent}" in vault_policies.build_policies() for agent in removed)
+    for line in (root / "docker-compose.yml").read_text(encoding="utf-8").splitlines():
+        assert "ALICE_WORKER" not in line and "alice-agent" not in line
+
+
+def test_runtime_service_is_syndicate_agent_without_the_old_alias():
+    # Stage 5 (04.11.2026): the compose service is syndicate-agent. Stage 6 (05.11.2026)
+    # removed n8n, the last caller of http://eva-agent:8000, and with it the network alias.
+    # The Vault role keeps its name on purpose.
+    from pathlib import Path
+
+    import yaml
+
+    from tools import vault_policies
+
+    root = Path(__file__).resolve().parents[1]
+    main = (root / "docker-compose.yml").read_text(encoding="utf-8")
+    assert main == (root / "deploy" / "docker-compose.yml").read_text(encoding="utf-8")
+    services = yaml.safe_load(main)["services"]
+    assert "eva-agent" not in services and "syndicate-agent" in services and "n8n" not in services
+    assert "n8n_data" not in yaml.safe_load(main)["volumes"]
+    assert set(services["syndicate-agent"]["networks"]) == {"db_net", "backend", "hermes_net"}
+    assert "eva-agent" not in main and "n8n" not in main.lower()
+    assert "syndicate-agent" in services["nginx"]["depends_on"]
+    nginx = (root / "config" / "nginx" / "nginx.conf").read_text(encoding="utf-8")
+    assert "server syndicate-agent:8000;" in nginx and "eva-agent" not in nginx and "eva_agent" not in nginx
+    hermes = (root / "deploy" / "hermes" / "trainer" / "config.yaml").read_text(encoding="utf-8")
+    assert "eva-agent" not in hermes and "syndicate-agent:8000" in hermes
+    assert vault_policies.RUNTIME_POLICY_NAME == "eva-agent"
+
+
+def test_old_agent_modules_live_in_their_owners_packages():
+    # Stage 4a (04.11.2026): the code of the absorbed agents moved under its new owner.
+    # The agent ids, data/<id> stores and Vault paths did not change, only module paths.
+    import importlib
+    from pathlib import Path
+
+    agents = Path(__file__).resolve().parents[1] / "src" / "agents"
+    for gone in ("trainer.py", "doc.py", "doc_shopping.py", "atlas.py", "kodex.py", "kodex_buttons.py",
+                 "kodex_telegram.py", "scout.py", "sonar.py", "dex.py", "ray.py", "jack", "oscar"):
+        assert not (agents / gone).exists(), gone
+    moved = {
+        "src.agents.alex.trainer": "TrainerAgent", "src.agents.alex.doc": "DocAgent",
+        "src.agents.sam.jack": "JackAgent", "src.agents.tyler.oscar": "OscarAgent",
+        "src.agents.tyler.scout": "ScoutAgent", "src.agents.tyler.sonar": "SonarAgent",
+        "src.agents.tyler.dex": "DexAgent", "src.agents.tyler.ray": "RayAgent",
+        "src.agents.eva_atlas": "AtlasAgent", "src.agents.eva_kodex": "KodexAgent",
+    }
+    for module, cls in moved.items():
+        assert hasattr(importlib.import_module(module), cls), module
+    from src.agents.alex import doc_exercises
+
+    assert doc_exercises.DEFAULT_DB.parent.parent.name == "free-exercise-db"
+    assert doc_exercises.DEFAULT_DB.exists(), "the exercise database path broke when doc_exercises moved"
+
+
+def test_alex_gets_the_internet_only_through_the_gateway():
+    """06.11.2026: web, archive, notes and colleagues are gateway tools; the Hermes container stays closed."""
+    from src import hermes_tools
+
+    assert hermes_tools.check_url("http://169.254.169.254/latest/meta-data/") == "address_not_public"
+    assert hermes_tools.check_url("http://10.0.0.1/") == "address_not_public"
+    assert "ask_agent" in hermes_tools.granted("trainer") and hermes_tools.granted("sam") == ()
+    compose = (REPO_ROOT / "deploy" / "docker-compose.hermes.yml").read_text(encoding="utf-8")
+    assert "hermes_net" in compose and "ports:" not in compose and "docker.sock" not in compose
+
+
+def test_a_photo_to_a_bot_is_never_dropped_silently():
+    """06.11.2026: Alex stayed silent on a photo; media now has a kind, a handler and an honest refusal."""
+    from src import media_vision
+    from src.telegram_gateway import extract_message
+
+    update = {"message": {"from": {"id": 1}, "chat": {"id": 1, "type": "private"}, "photo": [{"file_id": "p"}]}}
+    assert extract_message(update)["kind"] == "media"
+    assert media_vision.refusal("eva", {"mime": "image/jpeg"}) == media_vision.NO_MEDIA
+    runner = (REPO_ROOT / "deploy" / "runtime" / "agent_runner.py").read_text(encoding="utf-8")
+    assert '"media"' in runner and "_telegram_media" in runner
+
+
+def test_trading_skills_teach_sam_but_never_trade_for_him():
+    """06.11.2026: 46 trading skills joined the hub; a skill is a method to read, never a script or a grant."""
+    import json
+
+    catalog = json.loads((REPO_ROOT / "config" / "skill_library.json").read_text(encoding="utf-8"))
+    sam = json.loads((REPO_ROOT / "config" / "agents" / "sam.profile.json").read_text(encoding="utf-8"))
+    by_id = {item["id"]: item for item in catalog["skills"]}
+    assert {"pre-trade-check", "drawdown-circuit-breaker", "trader-timemachine"} <= set(sam["reference_skills"])
+    assert all(by_id[skill]["mode"] == "reference_only" for skill in sam["reference_skills"])
+    assert sam["capabilities"] == [] and sam["services_enabled"] == []
+    # Order-placing skills stay out: orders go only through Andrii's HITL button.
+    assert not {"trader-broker", "etoro", "portfolio-manager"} & set(by_id)
+    sources = ("tradermonty", "marian2js", "Jakeschincariol/day-trader-skill", "Shubhamkumartrichy")
+    vendored = [path for source in sources
+                for path in (REPO_ROOT / "skills" / "vendor" / source).rglob("*") if path.is_file()]
+    assert vendored and all(path.suffix in {".md", ""} or path.name == "LICENSE" for path in vendored)
+
+
+def test_alex_reply_never_waits_for_the_memory_embedding():
+    """06.11.2026: a breakfast question took 62 s, 49 s of it a memory write embedding on the CPU."""
+    import asyncio
+
+    from src.agents.alex.trainer import MEMORY_EPISODE_CHARS, TrainerAgent
+
+    class _SlowMemory:
+        def __init__(self):
+            self.saved = []
+            self.release = asyncio.Event()
+
+        async def save_episode(self, **kwargs):
+            await self.release.wait()  # an embedding that has not finished
+            self.saved.append(kwargs)
+
+    async def scenario():
+        memory = _SlowMemory()
+        agent = TrainerAgent(memory=memory)
+        result = await asyncio.wait_for(
+            agent.execute({"action": "nutrition_plan", "weight_kg": 80, "height_cm": 180, "age": 30,
+                           "sex": "male", "activity_level": "moderate", "goal": "maintenance"}),
+            timeout=2,
+        )
+        assert result["status"] == "ok" and memory.saved == []  # answered before the write ended
+        memory.release.set()
+        for _ in range(20):
+            await asyncio.sleep(0)
+        assert len(memory.saved) == 1  # the episode is still written
+        assert len(memory.saved[0]["content"]) <= MEMORY_EPISODE_CHARS
+
+    asyncio.run(scenario())
+
+
+def test_alex_has_no_recipe_tool_until_the_recipe_base_exists():
+    """06.11.2026: recipe_plan answered any request with the same two hard-coded recipes as ok."""
+    import asyncio
+
+    from src.agents.alex.trainer import TrainerAgent
+    from src.hermes_gateway import AGENT_ACTIONS
+
+    assert "recipe_plan" not in AGENT_ACTIONS["trainer"]
+    res = asyncio.run(TrainerAgent().execute({"action": "recipe_plan", "protein_g": 40}))
+    assert res["status"] == "unavailable" and res["recipes"] == []
+    source = (REPO_ROOT / "src" / "agents" / "alex" / "trainer.py").read_text(encoding="utf-8")
+    assert "Кіноа" not in source and "лосось" not in source
+
+
+def test_alex_can_read_a_book_from_the_vault_in_parts():
+    """10.11.2026: Alex read only .md notes; a PDF or EPUB course was out of reach."""
+    from src import hermes_tools as tools
+    from src.hermes_gateway import _tools
+
+    assert {tools.MATERIAL_LIST, tools.MATERIAL_READ} <= set(tools.granted("trainer"))
+    assert {tools.MATERIAL_LIST, tools.MATERIAL_READ} <= {tool["name"] for tool in _tools("trainer")}
+    assert tools.granted("sam") == ()
+    assert not any(hasattr(tools, name) for name in ("material_write", "material_delete"))
+
+
+def test_drive_mirror_reads_drive_and_never_deletes_from_the_vault():
+    """10.11.2026: materials arrive from Andrii's Google Drive folder; read-only scope, no deletion path."""
+    import inspect
+
+    from src import drive_mirror
+
+    assert drive_mirror.SCOPE.endswith("/drive.readonly")
+    source = inspect.getsource(drive_mirror)
+    assert "unlink(missing_ok=True)" in source  # only the half-downloaded .part file
+    assert ".delete(" not in source and "rmtree" not in source
+
+
+def test_lecture_audio_goes_to_deepgram_only_with_training_opt_out():
+    """10.11.2026: Deepgram transcribes course lectures; mip_opt_out keeps the audio out of its training."""
+    from src import lecture_transcriber as lt
+
+    assert lt.PARAMS["mip_opt_out"] == "true" and lt.PARAMS["language"] == "uk"
+    assert lt.MONTHLY_MINUTES_CAP > 0 and lt.MAX_PER_RUN == 1
+
+
+def test_offsite_backup_is_encrypted_before_it_leaves_and_never_deletes_remotely():
+    """10.11.2026: the off-site copy carries the Vault snapshot and .env; only Andrii's key opens it."""
+    script = (REPO_ROOT / "deploy" / "scripts" / "backup_daily.sh").read_text(encoding="utf-8")
+    offsite = script[script.index("backup_offsite() {"):script.index("prune_old() {")]
+    assert offsite.index("--encrypt") < offsite.index("rsync")
+    assert "--delete" not in offsite and "--recipient-file" in offsite
+    assert "record offsite unavailable" in offsite and "\nbackup_offsite\n" in script.replace("\r", "")
+    timer = (REPO_ROOT / "deploy" / "systemd" / "syndicate-backup.timer").read_text(encoding="utf-8")
+    assert "20:00:00 Europe/Kyiv" in timer
+
+
+def test_google_service_account_key_enters_vault_from_a_private_file_only(tmp_path, monkeypatch):
+    """10.11.2026: the Drive mirror needs service_account_json; the key never goes through argv."""
+    import json
+    import os
+    import sys
+
+    import pytest
+
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    import syndicate_vault as tool
+
+    stored = {}
+    monkeypatch.setattr(tool, "get_secret", lambda path: {"other": "kept"})
+    monkeypatch.setattr(tool, "put_secret", lambda path, data: stored.update({path: data}))
+    key = tmp_path / "sa.json"
+    key.write_text(json.dumps({"type": "service_account", "client_email": "a@p.iam.gserviceaccount.com",
+                               "private_key": "-----BEGIN PRIVATE KEY-----x"}), encoding="utf-8")
+    if os.name != "nt":
+        key.chmod(0o644)
+        with pytest.raises(SystemExit):
+            tool.cmd_set_google_sa("trainer", str(key), shred=False)
+        key.chmod(0o600)
+    tool.cmd_set_google_sa("trainer", str(key), shred=True)
+    saved = stored["agents/trainer/google"]
+    assert saved["other"] == "kept" and list(stored) == ["agents/trainer/google"]
+    assert json.loads(saved["service_account_json"])["client_email"] == "a@p.iam.gserviceaccount.com"
+    assert not key.exists()
+    bad = tmp_path / "bad.json"
+    bad.write_text(json.dumps({"type": "authorized_user"}), encoding="utf-8")
+    if os.name != "nt":
+        bad.chmod(0o600)
+    with pytest.raises(SystemExit):
+        tool.cmd_set_google_sa("trainer", str(bad), shred=False)
+    # One service account per agent: no shared key, no unknown agent.
+    with pytest.raises(SystemExit):
+        tool.cmd_set_google_sa("nobody", str(bad), shred=False)
+    from src import drive_mirror
+
+    assert drive_mirror.KEY_PATH == tool.google_key_path("trainer")
+
+
+def test_video_digest_never_bypasses_bot_checks_and_defuddle_never_fetches():
+    """10.11.2026: video links go through captions or Groq; a blocked source is reported, not evaded."""
+    import inspect
+
+    from src import hermes_tools, video_digest
+
+    source = inspect.getsource(video_digest).lower()
+    for evasion in ("cookiesfrombrowser", "impersonate", "proxy", "user_agent", "cookiefile"):
+        assert evasion not in source, evasion
+    assert "source_blocked" in source
+    assert '["defuddle", "parse", "--md"]' in inspect.getsource(hermes_tools.defuddle_markdown)
+    assert hermes_tools.VIDEO_DIGEST in hermes_tools.granted("trainer")
+
+def test_eva_sorting_never_deletes_and_only_trusts_listed_topics():
+    """10.11.2026: Andrii drops everything unsorted; Eva shelves it, a wrong topic goes to review."""
+    import inspect
+
+    from src import material_sorter as ms
+
+    assert ms.parse_verdict('{"topic": "Криптовалюта"}', ms.SHELVES["trainer"][1])["topic"] == ms.UNSURE
+    source = inspect.getsource(ms)
+    assert "unlink" not in source and "rmtree" not in source and ".remove(" not in source
+    assert ms.MAX_PER_RUN > 0 and ms.DAILY_MODEL_CALLS > 0
+
+
+def test_alex_drive_writes_use_only_drive_file_and_have_no_delete():
+    """10.11.2026: a service account cannot create files in My Drive; Alex writes via OAuth drive.file."""
+    import inspect
+    import sys
+
+    from src import drive_writer
+
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    import syndicate_vault as tool
+
+    assert tool.DRIVE_FILE_SCOPE == "https://www.googleapis.com/auth/drive.file"
+    source = inspect.getsource(drive_writer)
+    assert ".delete(" not in source and '"DELETE"' not in source and "trash" not in source.replace("trashed", "")

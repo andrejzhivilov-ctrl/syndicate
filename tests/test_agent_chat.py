@@ -5,7 +5,7 @@ import asyncio
 from types import SimpleNamespace
 
 from src.agent_chat import PERSONAS, SECRET_REFUSAL, chat_reply, chat_text, system_prompt
-from src.vault_paths import DIRECTOR_IDS
+from src.vault_paths import AGENT_ROSTER
 
 OWNER = "523"
 
@@ -43,8 +43,8 @@ def _payload(text, chat=OWNER):
 
 
 def test_every_director_has_a_ukrainian_persona_with_the_no_action_rule():
-    assert set(DIRECTOR_IDS) <= set(PERSONAS)
-    for agent_id in DIRECTOR_IDS:
+    assert set(AGENT_ROSTER) == set(PERSONAS)
+    for agent_id in AGENT_ROSTER:
         prompt = system_prompt(agent_id)
         assert PERSONAS[agent_id][0] in prompt
         assert "українською" in prompt and "не вигадуй" in prompt.lower()
@@ -68,7 +68,7 @@ def test_sam_chat_is_a_conversation_not_a_trade_or_hitl_item():
 
 
 def test_prepared_director_can_talk_without_gaining_actions():
-    out = asyncio.run(_orch(FakeLLM("Я Оскар.")).handle_webhook(source="telegram_oscar", payload=_payload("Привіт")))
+    out = asyncio.run(_orch(FakeLLM("Я Тайлер.")).handle_webhook(source="telegram_tyler", payload=_payload("Привіт")))
     assert out["result"]["status"] == "completed" and out["result"]["mode"] == "chat"
 
 
@@ -91,8 +91,8 @@ def test_secret_like_text_never_reaches_the_model():
 
 
 def test_model_failure_is_unavailable_not_an_invented_reply():
-    out = asyncio.run(chat_reply("dex", "Привіт", FakeLLM(fail=True)))
-    assert out == {"agent": "dex", "status": "unavailable", "mode": "chat", "reason": "llm_unavailable"}
+    out = asyncio.run(chat_reply("tyler", "Привіт", FakeLLM(fail=True)))
+    assert out == {"agent": "tyler", "status": "unavailable", "mode": "chat", "reason": "llm_unavailable"}
 
 
 def test_eva_and_commands_still_use_task_routing():
@@ -154,7 +154,7 @@ def test_history_is_bounded_so_the_prompt_cannot_grow():
     redis, llm = FakeRedis(), FakeLLM("x" * 5000)
     history = ChatHistory(lambda: redis)
     for i in range(HISTORY_TURNS + 4):
-        asyncio.run(chat_reply("dex", f"питання {i} " + "я" * 3000, llm, history, OWNER))
+        asyncio.run(chat_reply("tyler", f"питання {i} " + "я" * 3000, llm, history, OWNER))
     prior = llm.calls[-1][1:-1]
     assert len(prior) == 2 * HISTORY_TURNS
     assert all(len(text) <= HISTORY_CHARS for _, text in prior)
@@ -167,7 +167,7 @@ def test_secrets_and_crisis_disclosures_are_never_stored():
     history = ChatHistory(lambda: redis)
     asyncio.run(chat_reply("fin", "ключ sk-ant-api03-" + "x" * 40, FakeLLM(), history, OWNER))
     asyncio.run(chat_reply("kira", "я не хочу жити", FakeLLM(), history, OWNER))
-    asyncio.run(chat_reply("dex", "Привіт", FakeLLM(fail=True), history, OWNER))
+    asyncio.run(chat_reply("tyler", "Привіт", FakeLLM(fail=True), history, OWNER))
     assert redis.lists == {}
 
 
@@ -176,8 +176,8 @@ def test_redis_outage_degrades_to_process_memory_not_a_failed_reply():
 
     llm = FakeLLM("Так.")
     history = ChatHistory(lambda: FakeRedis(fail=True))
-    first = asyncio.run(chat_reply("ray", "Перше", llm, history, OWNER))
-    asyncio.run(chat_reply("ray", "Друге", llm, history, OWNER))
+    first = asyncio.run(chat_reply("tyler", "Перше", llm, history, OWNER))
+    asyncio.run(chat_reply("tyler", "Друге", llm, history, OWNER))
     assert first["status"] == "completed"
     assert llm.calls[1][1] == ("human", "Перше")
 
@@ -192,8 +192,8 @@ def test_webhook_chat_keeps_history_per_owner_chat():
 
 def test_feminine_personas_are_told_their_grammatical_gender():
     assert "жіночому роді" in system_prompt("kira")
-    assert "жіночому роді" in system_prompt("alice")
-    assert "чоловічому роді" in system_prompt("oscar")
+    assert "жіночому роді" in system_prompt("kira")
+    assert "чоловічому роді" in system_prompt("tyler")
 
 
 class _Lessons:
@@ -244,12 +244,14 @@ def test_lessons_reach_the_model_masked():
     assert all(text != "" for _, text in _context("fin", None))
 
 
-def test_alice_knows_the_alarm_feed_is_hers_only_when_asked():
-    from src.agent_chat import ALERT_NOTE, _context
+def test_alices_bot_explains_the_alarm_feed_without_an_agent():
+    # Since 2026-11-04 Alice is a bot without an agent: the alarm hint is a fixed reply, not a model turn.
+    from src.agent_chat import ALERT_REPLY, BOT_ONLY_REPLY, bot_only_reply
 
-    assert ("system", ALERT_NOTE) in _context("alice", None, text="Чому не попередила про тривогу?")
-    assert ("system", ALERT_NOTE) not in _context("alice", None, text="Як справи?")
-    assert ("system", ALERT_NOTE) not in _context("fin", None, text="Була тривога?")
+    assert bot_only_reply("alice", "Чому не попередила про тривогу?") == ALERT_REPLY
+    assert bot_only_reply("alice", "Як справи?") == BOT_ONLY_REPLY
+    assert bot_only_reply("kodex", "Була тривога?") == BOT_ONLY_REPLY
+    assert "/alerts" in ALERT_REPLY and "/regions" in ALERT_REPLY
 
 
 def test_commands_lists_every_command_of_the_agent():

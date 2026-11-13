@@ -7,9 +7,9 @@
 # Verify in CI with: python tools/export_openapi.py --check
 # ============================================================
 #
-# contract_sha256: cb694bfb3356daa592e2fb9c199e022fc12ae2db3f26e5e66139874abc14db99
+# contract_sha256: 04a39fd9173bb2fd731bbc74c276bcb7144a687e04fdefc877bc44d58ffc735b
 # api_version:     4.1.0
-# paths:           37
+# paths:           36
 #
 ---
 components:
@@ -97,6 +97,11 @@ components:
           - type: string
           - type: 'null'
           title: Message
+        owner:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Owner
         result:
           anyOf:
           - {}
@@ -1514,12 +1519,12 @@ paths:
       summary: Status
   /webhook/error:
     post:
-      description: 'Dead-letter error recording from n8n / subagents (Floor 1).
+      description: 'Dead-letter error recording from subagents and scripts (Floor
+        1).
 
 
-        Authenticated: the n8n templates already send ``X-API-Key``. It used to be
-
-        open to anyone who could reach the port.'
+        Authenticated with ``X-API-Key``. It used to be open to anyone who could reach
+        the port.'
       operationId: error_webhook_webhook_error_post
       parameters:
       - in: header
@@ -1551,39 +1556,6 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Error Webhook
-  /webhook/n8n/{agent}:
-    post:
-      description: Reminders, check-ins and learning items from n8n for one agent
-        (src/n8n_bridge.py).
-      operationId: n8n_agent_webhook_webhook_n8n__agent__post
-      parameters:
-      - in: path
-        name: agent
-        required: true
-        schema:
-          title: Agent
-          type: string
-      - in: header
-        name: Authorization
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Authorization
-      responses:
-        '200':
-          content:
-            application/json:
-              schema: {}
-          description: Successful Response
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
-      summary: N8N Agent Webhook
   /webhook/telegram/{agent_id}:
     post:
       description: One of the 18 director bots. Per-bot secret, owner-only, honest
@@ -1662,8 +1634,8 @@ paths:
       summary: Ukrainealarm Webhook
   /webhook/{source}:
     post:
-      description: Generic signed webhook (n8n, CI, partners). HMAC-SHA256 over the
-        raw body.
+      description: Generic signed webhook (CI, partners). HMAC-SHA256 over the raw
+        body.
       operationId: webhook_handler_webhook__source__post
       parameters:
       - in: path

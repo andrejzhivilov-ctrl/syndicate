@@ -108,7 +108,12 @@
     "context-engineering",
     "planning-breakdown",
     "internal-comms",
-    "market-research"
+    "market-research",
+    "dual-axis-skill-reviewer",
+    "skill-integration-tester",
+    "obsidian-markdown",
+    "obsidian-bases",
+    "json-canvas"
   ],
   "n8n": {
     "status": "not_configured",

@@ -8,14 +8,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from deploy.runtime.director_runner import AGENTS
-from src.agents.atlas import AtlasAgent
-from src.agents.dex import DexAgent
-from src.agents.oscar import OscarAgent
-from src.agents.oscar.agent import LEGAL_DISCLAIMERS
-from src.agents.ray import RayAgent
-from src.agents.scout import ScoutAgent
-from src.agents.sonar import SonarAgent
+from src.agents.eva_atlas import AtlasAgent
+from src.agents.tyler.dex import DexAgent
+from src.agents.tyler.oscar import OscarAgent
+from src.agents.tyler.oscar.agent import LEGAL_DISCLAIMERS
+from src.agents.tyler.ray import RayAgent
+from src.agents.tyler.scout import ScoutAgent
+from src.agents.tyler.sonar import SonarAgent
 from src.runtime_config import build_runtime_config
 
 
@@ -215,10 +214,11 @@ def test_atlas_route_planning_and_destination_evaluation():
     assert eval_res["destination"]["recommendation"] == "recommended"
 
 
-def test_director_runner_and_command_hub_include_all_commercial_agents():
+def test_commercial_parts_stay_off_and_command_hub_includes_them():
+    # The worker containers were removed on 04.11.2026: these parts run inside syndicate-agent, off by default.
     cfg = build_runtime_config({})
     for agent_id in ("oscar", "tyler", "jack", "scout", "dex", "ray", "atlas", "sonar"):
-        assert agent_id in AGENTS
+        assert "worker_url" not in cfg[agent_id]
         assert cfg[agent_id]["enabled"] is False
         assert cfg[agent_id]["allowed_actions"] == ["capabilities"]
 

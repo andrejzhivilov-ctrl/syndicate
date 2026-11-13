@@ -16,6 +16,7 @@ import re
 import shutil
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -182,7 +183,7 @@ def main(argv: List[str]) -> int:
     specs = [raw for raw in argv[3:] if not raw.startswith("--with-references=")]
     wanted = {name for raw in argv[3:] if raw.startswith("--with-references=")
               for name in raw.split("=", 1)[1].split(",") if name}
-    options: Dict[str, object] = {"date": "2026-11-03", "with_references": wanted}
+    options: Dict[str, object] = {"date": datetime.now(timezone.utc).date().isoformat(), "with_references": wanted}
     catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
     taken = {item["id"]: item["source"] for item in catalog["skills"]}
     report: List[Dict[str, object]] = []

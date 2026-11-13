@@ -7,8 +7,9 @@ and make a failed memory backend a visible degradation instead of an agent crash
 
 from __future__ import annotations
 
+import asyncio
 import json
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Set
 
 import structlog
 
@@ -209,6 +210,44 @@ async def save_agent_episode(
     except Exception as exc:  # noqa: BLE001
         logger.warning("agent_memory_save_failed", agent_id=agent_id, action=action, error=str(exc))
         return False
+
+
+#: Running background memory writes; a bare create_task result can be garbage-collected.
+_BACKGROUND_SAVES: Set["asyncio.Task[bool]"] = set()
+
+
+def save_agent_episode_in_background(
+    memory: Optional[Any],
+    *,
+    agent_id: str,
+    session_id: str,
+    action: str,
+    content: str,
+    role: str = "assistant",
+    metadata: Optional[Dict[str, Any]] = None,
+) -> Optional["asyncio.Task[bool]"]:
+    """Write an episode without making the reply wait for its embedding.
+
+    Embedding a memory text on the CPU takes seconds to tens of seconds; the
+    reply to the person must not wait for it. The task is kept referenced until
+    it finishes and save_agent_episode already logs and swallows its failures.
+    """
+    if memory is None or not callable(getattr(memory, "save_episode", None)):
+        return None
+    task = asyncio.get_running_loop().create_task(
+        save_agent_episode(
+            memory,
+            agent_id=agent_id,
+            session_id=session_id,
+            action=action,
+            content=content,
+            role=role,
+            metadata=metadata,
+        )
+    )
+    _BACKGROUND_SAVES.add(task)
+    task.add_done_callback(_BACKGROUND_SAVES.discard)
+    return task
 
 
 def compact_json(value: Any, max_chars: int = 4000) -> str:
