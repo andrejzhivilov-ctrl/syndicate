@@ -826,6 +826,22 @@ PII маскується, кожен виклик рахується.
 
 ---
 
+## 2026-11-03 — Claude Code: тривоги через окремий Worker у Cloudflare
+
+**Гілка:** `feat/alarm-worker`  **Ворота:** див. PR
+
+### Зроблено
+- `deploy/cloudflare/alarm-relay.js`: окремий Worker Андрія, Viber-Worker `ukraine-alarm-viber` не змінюється. Раз на хвилину читає `GET /api/v3/alerts` ключем Ukraine Alarm і шле на `POST /webhook/alarm-relay` повну картину тривог типу AIR (`{"regions": {id: "R"|"Y"}}`), підписану HMAC SHA-256 над `{timestamp}.{body}` (`X-Alarm-Signature`, `X-Alarm-Timestamp`, вікно 5 хв, повтор відкидається).
+- Сервер (`AlertWatch.accept_relay`, `handle_relay`) замінює стан картиною, тож пропущені хвилини надолужуються самі. Фрази й вибір місць ті самі, що для вебхука. Невідомі регіони й рівні відкидаються.
+- Секрет: `alarm_relay_secret` у `api-keys` Vault, вносить Андрій (`python scripts/syndicate_vault.py set-key alarm_relay`). Без секрету кожна подія отримує 401. Відсутній секрет перечитується раз на хвилину.
+- Після першої події від Worker мовчання понад 15 хв дає попередження в бот Аліси.
+
+### Не дороблено / свідомо залишено
+- Живий прогін не робився: Worker ще не створено, ключ і секрет вносить Андрій.
+- Два Worker'и одним ключем: 2 запити на хвилину. Ліміт ключа Ukraine Alarm не перевірений (документація за перевіркою Cloudflare). Якщо API почне віддавати 429, у журналі Worker'а з'явиться `ukrainealarm answered 429`.
+
+---
+
 ## 2026-11-03 — Claude Code: RSS у n8n читав лише першу стрічку
 
 **Гілка:** `fix/rss-read-all-feeds`  **Ворота:** див. PR

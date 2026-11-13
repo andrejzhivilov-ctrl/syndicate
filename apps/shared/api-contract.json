@@ -2463,6 +2463,67 @@
         "summary": "Status"
       }
     },
+    "/webhook/alarm-relay": {
+      "post": {
+        "description": "The full air-raid picture from the relay Worker in Andrii's Cloudflare, HMAC-signed.",
+        "operationId": "alarm_relay_webhook_webhook_alarm_relay_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Alarm-Signature",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alarm-Signature"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Alarm-Timestamp",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Alarm-Timestamp"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Alarm Relay Webhook"
+      }
+    },
     "/webhook/error": {
       "post": {
         "description": "Dead-letter error recording from subagents and scripts (Floor 1).\n\nAuthenticated with ``X-API-Key``. It used to be open to anyone who could reach the port.",

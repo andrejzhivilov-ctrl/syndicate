@@ -95,6 +95,8 @@ PROVIDER_KEYS = {
     "elevenlabs": ("elevenlabs_api_key",),
     # Air-raid alerts for Eva's briefings (src/integrations/public_data.py).
     "alerts": ("alerts_in_ua_token",),
+    # Shared HMAC secret of the alarm relay Worker in Cloudflare (deploy/cloudflare/alarm-relay.js).
+    "alarm_relay": ("alarm_relay_secret",),
     # Sam's macro sources (src/integrations/macro_data.py). EDGAR takes no key but
     # a "Name email" User-Agent, stored the same way so it never lands in code.
     "fred": ("fred_api_key",),
