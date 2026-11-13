@@ -1,7 +1,7 @@
 # SYNDICATE — embeddings service (self-hosted BGE-M3)
 #
-# Why a separate container instead of a library inside eva-agent:
-#   * eva-agent runs read-only with a 3 GB limit; a ~2 GB model does not belong there;
+# Why a separate container instead of a library inside syndicate-agent:
+#   * syndicate-agent runs read-only with a 3 GB limit; a ~2 GB model does not belong there;
 #   * the model loads once and stays warm, so agent restarts stay fast;
 #   * it mirrors the existing `whisper` service — one container, one model, one volume.
 #

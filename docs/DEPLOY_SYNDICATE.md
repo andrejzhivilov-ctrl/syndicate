@@ -8,7 +8,7 @@
 
 | Компонент | Де | Примітки |
 |---|---|---|
-| Стек Docker Compose | `docker-compose.yml`, `deploy/docker-compose.yml` | postgres (pgvector), redis, vault, embeddings, whisper, eva-agent, nginx |
+| Стек Docker Compose | `docker-compose.yml`, `deploy/docker-compose.yml` | postgres (pgvector), redis, vault, embeddings, whisper, syndicate-agent, nginx |
 | Gates (CI) | `.github/workflows/ci.yml`, `tools/check.sh` | тести, ruff, контракт API; запускаються на кожному пуші в `main` |
 | Профілі агентів | `config/agents/*.profile.json` | Єва, Архітектор, Маршал, Фін, Сем, Док, KODEX, Кіра |
 | Матриця прав | `docs/PERMISSIONS_MATRIX.md` | генерується з профілів (`tools/export_permissions.py`) |

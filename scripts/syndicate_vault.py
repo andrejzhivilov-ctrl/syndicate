@@ -17,13 +17,16 @@ Usage:
     scripts/syndicate_vault.py set-key <provider>            # prompts for the key
     scripts/syndicate_vault.py set-bot <agent_id>            # prompts for the token
     scripts/syndicate_vault.py bulk-bots <file> [--shred]    # file lines: agent_id:token
+    scripts/syndicate_vault.py set-google-sa <agent> <file> [--shred]  # agent's Google service account (0600 file)
+    scripts/syndicate_vault.py set-google-oauth <agent> <file> [--shred]  # OAuth client (TV / limited input)
+    scripts/syndicate_vault.py google-device-login <agent>  # Andrii approves drive.file on google.com/device
     scripts/syndicate_vault.py distribute-keys                # pool -> each worker's own subtree
     scripts/syndicate_vault.py verify-bots                   # Telegram getMe per bot
     scripts/syndicate_vault.py set-owner <telegram_user_id>  # who may talk to the bots
     scripts/syndicate_vault.py set-location                  # prompts: fixed point for Eva's weather
     scripts/syndicate_vault.py rotate-master [--reveal]
     scripts/syndicate_vault.py show-master --reveal
-    scripts/syndicate_vault.py obsidian-key --reveal          # Remotely Save settings for PC/phone
+    scripts/syndicate_vault.py obsidian-webdav --reveal [--rotate]  # Remotely Save (WebDAV) login for PC/phone
 """
 from __future__ import annotations
 
@@ -42,7 +45,7 @@ from typing import Any, Dict, Optional
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-from src.vault_paths import DIRECTOR_IDS  # noqa: E402
+from src.vault_paths import AGENT_ROSTER, DIRECTOR_IDS  # noqa: E402
 
 VAULT_ADDR = os.getenv("VAULT_ADDR", "http://127.0.0.1:8200")
 OPERATOR_TOKEN_FILE = Path(os.getenv("VAULT_OPERATOR_TOKEN_FILE", "/opt/eva/vault-secrets/operator.token"))
@@ -97,8 +100,6 @@ PROVIDER_KEYS = {
     "fred": ("fred_api_key",),
     "eia": ("eia_api_key",),
     "edgar": ("sec_user_agent",),
-    # n8n public API key: Eva and the architect build and read workflows through it.
-    "n8n": ("n8n_api_key",),
 }
 
 
@@ -247,6 +248,148 @@ def cmd_bulk_bots(path: str, shred: bool) -> None:
         print(f"[BULK] {path} overwritten and removed")
 
 
+def _private_file(path: str) -> Path:
+    file = Path(path)
+    if not file.is_file():
+        raise SystemExit(f"{path} not found")
+    if file.stat().st_mode & (stat.S_IRWXG | stat.S_IRWXO):
+        raise SystemExit(f"{path} must be mode 0600 before it may hold a key (chmod 600 {path})")
+    return file
+
+
+def google_key_path(agent_id: str) -> str:
+    """Each agent's own Google service account lives in its own subtree (10.11.2026)."""
+    return f"agents/{agent_id}/google"
+
+
+def cmd_set_google_sa(agent_id: str, path: str, shred: bool) -> None:
+    """An agent's Google service-account JSON key -> agents/<id>/google.service_account_json.
+
+    One service account per agent, so each sees only what Andrii shared with it. Read from
+    a 0600 file, never argv; only the account's email is printed, because Andrii shares
+    folders and calendars with it.
+    """
+    agent_id = agent_id.strip().lower()
+    if agent_id not in AGENT_ROSTER:
+        raise SystemExit(f"unknown agent '{agent_id}'; one of: {', '.join(AGENT_ROSTER)}")
+    file = _private_file(path)
+    try:
+        info = json.loads(file.read_text(encoding="utf-8"))
+    except ValueError:
+        raise SystemExit(f"{path} is not JSON")
+    if info.get("type") != "service_account" or not info.get("client_email") or not info.get("private_key"):
+        raise SystemExit("not a service-account key: expected type=service_account, client_email, private_key")
+    target = google_key_path(agent_id)
+    current = get_secret(target)
+    current["service_account_json"] = json.dumps(info)
+    put_secret(target, current)
+    print(f"[OK] {agent_id}: stored service_account_json for {info['client_email']}")
+    print("     Share with this email only what this agent should see.")
+    if shred:
+        size = file.stat().st_size
+        try:
+            file.write_bytes(b"\0" * size)
+        finally:
+            file.unlink()
+        print(f"[OK] {path} overwritten and removed")
+
+
+DEVICE_CODE_URL = "https://oauth2.googleapis.com/device/code"
+GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file"
+
+
+def google_oauth_path(agent_id: str) -> str:
+    """An agent's OAuth grant to write its own files in Andrii's Drive (src/drive_writer.py)."""
+    return f"agents/{agent_id}/google_oauth"
+
+
+def _agent(agent_id: str) -> str:
+    agent_id = agent_id.strip().lower()
+    if agent_id not in AGENT_ROSTER:
+        raise SystemExit(f"unknown agent '{agent_id}'; one of: {', '.join(AGENT_ROSTER)}")
+    return agent_id
+
+
+def cmd_set_google_oauth(agent_id: str, path: str, shred: bool) -> None:
+    """The OAuth client JSON ("TVs and Limited Input devices") from a 0600 file, never argv."""
+    agent_id = _agent(agent_id)
+    file = _private_file(path)
+    try:
+        data = json.loads(file.read_text(encoding="utf-8"))
+    except ValueError:
+        raise SystemExit(f"{path} is not JSON")
+    client = data.get("installed") or data.get("web") or data
+    if not client.get("client_id") or not client.get("client_secret"):
+        raise SystemExit("not an OAuth client file: expected client_id and client_secret")
+    current = get_secret(google_oauth_path(agent_id))
+    current.update({"client_id": client["client_id"], "client_secret": client["client_secret"]})
+    put_secret(google_oauth_path(agent_id), current)
+    print(f"[OK] {agent_id}: OAuth client stored ({mask(client['client_id'])}). "
+          f"Next: scripts/syndicate_vault.py google-device-login {agent_id}")
+    if shred:
+        size = file.stat().st_size
+        try:
+            file.write_bytes(b"\0" * size)
+        finally:
+            file.unlink()
+        print(f"[OK] {path} overwritten and removed")
+
+
+def _post_form(url: str, fields: Dict[str, str]) -> Dict[str, Any]:
+    import urllib.parse
+
+    req = urllib.request.Request(url, data=urllib.parse.urlencode(fields).encode("utf-8"), method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:  # noqa: S310 - fixed Google endpoint
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", "replace") if exc.fp else "{}"
+        try:
+            return json.loads(body)
+        except ValueError:
+            return {"error": f"http_{exc.code}"}
+
+
+def cmd_google_device_login(agent_id: str, sleep: Any = None) -> None:
+    """Andrii approves on any device at google.com/device; only drive.file is asked for."""
+    import time
+
+    sleep = sleep or time.sleep
+    agent_id = _agent(agent_id)
+    current = get_secret(google_oauth_path(agent_id))
+    if not current.get("client_id") or not current.get("client_secret"):
+        raise SystemExit(f"no OAuth client for {agent_id}: run set-google-oauth {agent_id} <file> first")
+    start = _post_form(DEVICE_CODE_URL, {"client_id": current["client_id"], "scope": DRIVE_FILE_SCOPE})
+    if "device_code" not in start:
+        raise SystemExit(f"Google refused the device login: {start.get('error')} {start.get('error_description', '')}")
+    print(f"Open {start.get('verification_url')} on your phone or PC and enter the code: {start['user_code']}")
+    print("Allow access only to files this app creates (drive.file). Waiting...")
+    interval = int(start.get("interval", 5))
+    deadline = time.monotonic() + int(start.get("expires_in", 1800))
+    while time.monotonic() < deadline:
+        sleep(interval)
+        reply = _post_form(GOOGLE_TOKEN_URL, {
+            "client_id": current["client_id"], "client_secret": current["client_secret"],
+            "device_code": start["device_code"], "grant_type": "urn:ietf:params:oauth:grant-type:device_code"})
+        error = reply.get("error")
+        if error == "authorization_pending":
+            continue
+        if error == "slow_down":
+            interval += 5
+            continue
+        if error:
+            raise SystemExit(f"device login stopped: {error}")
+        if not reply.get("refresh_token"):
+            raise SystemExit("Google returned no refresh token; nothing stored")
+        current.update({"refresh_token": reply["refresh_token"], "scope": reply.get("scope", ""),
+                        "granted_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
+        put_secret(google_oauth_path(agent_id), current)
+        print(f"[OK] {agent_id}: Drive access granted ({reply.get('scope', '')})")
+        return
+    raise SystemExit("the code expired; run google-device-login again")
+
+
 def cmd_verify_bots() -> None:
     ok = 0
     for agent in ALL_18_AGENTS:
@@ -292,7 +435,7 @@ def cmd_rotate_master(reveal: bool) -> None:
     new_key = secrets.token_urlsafe(48)
     auth["api_key"] = new_key
     put_secret("auth", auth)
-    print("[OK] master API key rotated. Restart eva-agent so it picks up the new key.")
+    print("[OK] master API key rotated. Restart syndicate-agent so it picks up the new key.")
     print("     Every device token stays valid; the old master key stops working.")
     if reveal:
         _print_master(new_key)
@@ -311,6 +454,26 @@ def cmd_show_master(reveal: bool) -> None:
     if not key:
         raise SystemExit("no master key stored")
     _print_master(key)
+
+
+def cmd_obsidian_webdav(reveal: bool, rotate: bool = False) -> None:
+    """WebDAV login for the Remotely Save plugin; created in Vault on the first run."""
+    if not reveal:
+        raise SystemExit("pass --reveal to display the Obsidian WebDAV login (interactive terminal only)")
+    # Checked before any write: a rotated password nobody saw would lock out every device.
+    if not sys.stdout.isatty():
+        raise SystemExit("refusing to print the login to a non-interactive stream")
+    data = get_secret("agents/eva/obsidian")
+    if rotate or not data.get("webdav_password"):
+        data = {**data, "webdav_user": "andrii", "webdav_password": secrets.token_urlsafe(24)}
+        put_secret("agents/eva/obsidian", data)
+        print("New login stored in Vault: restart syndicate-agent so the WebDAV server picks it up.")
+    print("\nRemotely Save → Remote service: WebDAV")
+    print("  Server Address: https://sync.syndicateholding.com")
+    print(f"  Username:       {data['webdav_user']}")
+    print(f"  Password:       {data['webdav_password']}")
+    print("  Auth Type:      basic")
+    print("  Change The Remote Base Directory: vault")
 
 
 def cmd_obsidian_key(reveal: bool) -> None:
@@ -346,6 +509,12 @@ def main(argv: list[str]) -> int:  # noqa: C901
         cmd_set_bot(args[0])
     elif cmd == "bulk-bots" and args:
         cmd_bulk_bots(args[0], "--shred" in flags)
+    elif cmd == "set-google-oauth" and len(args) >= 2:
+        cmd_set_google_oauth(args[0], args[1], "--shred" in flags)
+    elif cmd == "google-device-login" and args:
+        cmd_google_device_login(args[0])
+    elif cmd == "set-google-sa" and len(args) >= 2:
+        cmd_set_google_sa(args[0], args[1], "--shred" in flags)
     elif cmd == "distribute-keys":
         cmd_distribute_keys()
     elif cmd == "verify-bots":
@@ -358,6 +527,8 @@ def main(argv: list[str]) -> int:  # noqa: C901
         cmd_rotate_master("--reveal" in flags)
     elif cmd == "obsidian-key":
         cmd_obsidian_key("--reveal" in flags)
+    elif cmd == "obsidian-webdav":
+        cmd_obsidian_webdav("--reveal" in flags, "--rotate" in flags)
     elif cmd == "show-master":
         cmd_show_master("--reveal" in flags)
     else:

@@ -228,7 +228,7 @@ class TestFinAgentHonesty:
 # ─────────────────────────────────────────────────────────────────────────────
 class TestDocScreeningCalendar:
     def _calendar(self, last_checkups: Dict[str, str]):
-        from src.agents.doc import DocAgent
+        from src.agents.alex.doc import DocAgent
 
         return _run(DocAgent(memory=None)._screening_calendar({"last_checkups": last_checkups}))
 
@@ -1022,8 +1022,7 @@ class TestFinPDFFonts:
 # ─────────────────────────────────────────────────────────────────────────────
 def _dispatch_agents():
     """Every agent whose ``execute()`` dispatches through ``_ACTION_MAP``."""
-    from src.agents.architect.agent import ArchitectAgent
-    from src.agents.doc import DocAgent
+    from src.agents.alex.doc import DocAgent
     from src.agents.kira import KiraAgent
     from src.agents.marshal import MarshalAgent
     from src.agents.sam.agent import SamAgent
@@ -1031,7 +1030,6 @@ def _dispatch_agents():
 
     built = []
     for factory in (
-        lambda: ArchitectAgent(memory=None),
         lambda: DocAgent(memory=None),
         lambda: KiraAgent(memory=None),
         lambda: MarshalAgent(),
@@ -1366,7 +1364,7 @@ class TestEmbeddingContract:
         compose = yaml.safe_load(
             (REPO_ROOT / "deploy" / "docker-compose.yml").read_text(encoding="utf-8")
         )
-        env = compose["services"]["eva-agent"]["environment"]
+        env = compose["services"]["syndicate-agent"]["environment"]
         assert "embeddings:8000" in env["EMBEDDINGS_URL"]
         assert env["EMBEDDINGS_DIM"] == str(EMBEDDING_DIM)
 
@@ -1374,7 +1372,7 @@ class TestEmbeddingContract:
         assert service.get("ports") in (None, []), "the embeddings service must stay internal"
         assert service["networks"] == ["backend"]
         assert service["volumes"], "model weights need a volume or every restart re-downloads them"
-        assert not compose["services"]["eva-agent"]["depends_on"].get("embeddings"), (
+        assert not compose["services"]["syndicate-agent"]["depends_on"].get("embeddings"), (
             "a cold model must never block the agent from starting"
         )
 
@@ -1560,7 +1558,7 @@ class TestRepositoryHygiene:
 
     def test_no_duplicate_top_level_yaml_keys(self):
         """A repeated key silently drops the first block — this is how the
-        source mounts vanished from the eva-agent service."""
+        source mounts vanished from the syndicate-agent service."""
         import yaml
 
         compose = yaml.safe_load((REPO_ROOT / "deploy" / "docker-compose.yml").read_text(encoding="utf-8"))
@@ -1573,7 +1571,7 @@ class TestRepositoryHygiene:
         import yaml
 
         compose = yaml.safe_load((REPO_ROOT / "deploy" / "docker-compose.yml").read_text(encoding="utf-8"))
-        svc = compose["services"]["eva-agent"]
+        svc = compose["services"]["syndicate-agent"]
         mounts = "\n".join(svc.get("volumes", []))
         assert "/app/src" in mounts
         assert "/app/runtime" in mounts
@@ -2238,7 +2236,7 @@ class TestDomainAgentMemoryLoops:
         assert result["skill_candidate"]["name"] == "Socratic dialogue for deliberate learning"
 
     def test_doc_uses_old_memory_as_historical_not_current_measurement(self):
-        from src.agents.doc import DocAgent
+        from src.agents.alex.doc import DocAgent
 
         memory = _StubMemory(self._block("HRV was once 42 ms"))
         llm = _CapturingLLM()
@@ -2287,170 +2285,8 @@ class TestDomainAgentMemoryLoops:
         assert "Prior security audit summary" not in memory.saved[0]["content"]
 
 
-class TestN8NWorkflowApprovalGate:
-    """Generated n8n JSON stays inactive and GitOps fails closed until approval."""
-
-    @staticmethod
-    def _setup(tmp_path):
-        from src.change_requests import ChangeRequestStore
-        from src.vault_md import MarkdownVault
-        from src.agents.architect.agent import ArchitectAgent
-
-        vault = MarkdownVault(vault_root=tmp_path / "vault")
-        store = ChangeRequestStore(vault=vault)
-        return ArchitectAgent(memory=None, change_request_store=store), store
-
-    def test_orchestrator_surfaces_human_approval_requirement(self, tmp_path):
-        from src.change_requests import ChangeRequestStore
-        from src.orchestrator import EvaOrchestrator
-        from src.vault_md import MarkdownVault
-
-        class OrchestratorStub:
-            _memory = None
-            _llm = None
-            _llm_reasoning = None
-            _config = {}
-            _registry = None
-            # Real per-agent routing lookup; with no provider keys it returns _llm.
-            _llm_for = EvaOrchestrator._llm_for
-
-        store = ChangeRequestStore(vault=MarkdownVault(vault_root=tmp_path / "vault"))
-        orchestrator = OrchestratorStub()
-        orchestrator._change_requests = store
-        state = {
-            "task_type": "design_workflow",
-            "payload": {"name": "operator-gated flow", "trigger": "manual"},
-            "requires_hitl": False,
-            "hitl_reason": None,
-        }
-
-        _run(EvaOrchestrator._architect_agent_handler(orchestrator, state))
-
-        assert state["requires_hitl"] is True
-        assert "human approval" in state["hitl_reason"].lower()
-        assert state["result"]["approval_status"] == "pending"
-        assert store.get(state["result"]["approval_cr_id"])["status"] == "pending"
-
-        sync_state = {
-            "task_type": "gitops_sync",
-            "payload": {
-                "workflow_name": "operator-gated flow",
-                "workflow_json": state["result"]["workflow"],
-                "approval_cr_id": state["result"]["approval_cr_id"],
-            },
-            "requires_hitl": False,
-            "hitl_reason": None,
-        }
-        _run(EvaOrchestrator._architect_agent_handler(orchestrator, sync_state))
-        assert sync_state["result"]["status"] == "blocked_approval_pending"
-        assert sync_state["requires_hitl"] is True
-
-    def test_design_creates_pending_approval_and_never_activates(self, tmp_path):
-        agent, store = self._setup(tmp_path)
-        proposal = agent.design_workflow({"name": "daily report", "trigger": "manual"})
-
-        assert proposal["ready"] is True
-        assert proposal["requires_hitl"] is True
-        assert proposal["activation_blocked"] is True
-        assert proposal["approval_status"] == "pending"
-        assert proposal["workflow"]["active"] is False
-        cr = store.get(proposal["approval_cr_id"])
-        assert cr["status"] == "pending"
-        assert cr["author"] == "Architect"
-        assert cr["risk"] == "high"
-        assert "daily report" in cr["changes"][0]["content"]
-
-    def test_gitops_requires_applied_matching_cr(self, tmp_path):
-        agent, store = self._setup(tmp_path)
-        proposal = agent.design_workflow({"name": "weekly review", "trigger": "schedule"})
-        payload = {
-            "workflow_name": "weekly review",
-            "workflow_json": proposal["workflow"],
-            "adr": {"number": 9, "title": "Review"},
-            "approval_cr_id": proposal["approval_cr_id"],
-        }
-
-        missing_id = _run(agent.gitops_sync({"workflow_json": proposal["workflow"]}))
-        pending = _run(agent.gitops_sync(payload))
-        assert missing_id["status"] == "blocked_approval_required"
-        assert missing_id["requires_hitl"] is True
-        assert pending["status"] == "blocked_approval_pending"
-        assert pending["requires_hitl"] is True
-        assert "pr_bundle" not in pending
-
-        cr_id = proposal["approval_cr_id"]
-        store.review(cr_id, decision="approve", reviewer="operator", comment="Reviewed")
-        reviewed_only = _run(agent.gitops_sync(payload))
-        assert reviewed_only["status"] == "blocked_approval_not_applied"
-        assert reviewed_only["approval_status"] == "approved"
-        assert reviewed_only["requires_hitl"] is True
-        store.apply(cr_id, approver="operator")
-        released = _run(agent.gitops_sync(payload))
-
-        assert released["status"] == "pr_bundle_ready_pending_operator_activation"
-        assert released["approval_status"] == "approved"
-        assert released["activation_status"] == "inactive_until_operator_activates"
-        exported = json.loads(released["pr_bundle"]["files"][0]["content"])
-        assert exported["active"] is False
-
-    def test_missing_or_unavailable_approval_store_fails_closed(self, tmp_path):
-        from src.agents.architect.agent import ArchitectAgent
-
-        unavailable_agent = ArchitectAgent(memory=None, change_request_store=None)
-        unavailable = _run(unavailable_agent.gitops_sync({
-            "workflow_json": {"active": False},
-            "approval_cr_id": "CR-00000000",
-        }))
-        agent, _store = self._setup(tmp_path)
-        unknown = _run(agent.gitops_sync({
-            "workflow_json": {"active": False},
-            "approval_cr_id": "CR-00000000",
-        }))
-
-        assert unavailable["status"] == "blocked_approval_store_unavailable"
-        assert unknown["status"] == "blocked_approval_not_found"
-        assert "pr_bundle" not in unavailable and "pr_bundle" not in unknown
-
-    def test_rejected_cr_cannot_release_a_workflow(self, tmp_path):
-        agent, store = self._setup(tmp_path)
-        proposal = agent.design_workflow({"name": "rejected flow", "trigger": "manual"})
-        cr_id = proposal["approval_cr_id"]
-        store.review(cr_id, decision="reject", reviewer="operator", comment="Not approved")
-
-        result = _run(agent.gitops_sync({
-            "workflow_name": "rejected flow",
-            "workflow_json": proposal["workflow"],
-            "approval_cr_id": cr_id,
-        }))
-
-        assert result["status"] == "blocked_approval_rejected"
-        assert result["approval_status"] == "rejected"
-        assert result["requires_hitl"] is False
-        assert "pr_bundle" not in result
-
-    def test_approved_cr_cannot_release_a_modified_or_active_workflow(self, tmp_path):
-        agent, store = self._setup(tmp_path)
-        proposal = agent.design_workflow({"name": "guarded flow", "trigger": "manual"})
-        cr_id = proposal["approval_cr_id"]
-        store.review(cr_id, reviewer="operator")
-        store.apply(cr_id, approver="operator")
-
-        changed = dict(proposal["workflow"], name="different workflow")
-        mismatch = _run(agent.gitops_sync({
-            "workflow_name": "guarded flow",
-            "workflow_json": changed,
-            "approval_cr_id": cr_id,
-        }))
-        active = dict(proposal["workflow"], active=True)
-        enabled = _run(agent.gitops_sync({
-            "workflow_name": "guarded flow",
-            "workflow_json": active,
-            "approval_cr_id": cr_id,
-        }))
-
-        assert mismatch["status"] == "blocked_approval_payload_mismatch"
-        assert enabled["status"] == "blocked_workflow_must_remain_inactive"
-        assert "pr_bundle" not in mismatch and "pr_bundle" not in enabled
+# TestN8NWorkflowApprovalGate removed on 04.11.2026 together with the Architect agent:
+# its n8n workflow builder and GitOps release went with it (docs/MIGRATION_7_AGENTS.md, stage 3).
 
 
 class TestSkillStore:
@@ -3131,7 +2967,7 @@ class TestDocNeverInventsMetrics:
     fact (AGENTS.md §1). Absence must survive the boundary."""
 
     def _doc(self):
-        from src.agents.doc import DocAgent
+        from src.agents.alex.doc import DocAgent
 
         return DocAgent(memory=None)
 
@@ -3318,7 +3154,7 @@ class TestEvaBriefingReportsAbsence:
     def test_reflection_reports_real_file_counts_from_kodex(self):
         from datetime import datetime
 
-        from src.agents.kodex import evening_section, KodexStore
+        from src.agents.eva_kodex import evening_section, KodexStore
 
         import tempfile
         from pathlib import Path
@@ -3343,7 +3179,7 @@ class TestEvaBriefingReportsAbsence:
     def test_evening_without_kodex_data_dir_is_absence_not_zero(self):
         from datetime import datetime
 
-        from src.agents.kodex import evening_section
+        from src.agents.eva_kodex import evening_section
 
         section = evening_section(None, datetime.now())
         assert section["status"] == "unavailable" and "report" not in section
@@ -3427,19 +3263,6 @@ class TestVaultPolicyGeneration:
                 if other == agent_id:
                     continue
                 assert f"{mod.vault_paths.AGENTS}/{other}/" not in text
-
-    def test_retired_antigravity_profile_has_no_vault_data_grants(self):
-        """Antigravity is runtime technology, not an agent identity or secret reader."""
-        mod = self._policies()
-        policy = mod.build_policies()["eva-antigravity"]
-        assert mod.vault_paths.AGENT_SERVICES["antigravity"] == ()
-        assert mod.vault_paths.agent_policy_paths("antigravity") == []
-        policy_paths = {
-            line.split('"')[1]
-            for line in policy.splitlines()
-            if line.startswith('path "')
-        }
-        assert policy_paths == {"auth/token/renew-self", "auth/token/lookup-self"}
 
     def test_agent_policies_cannot_read_the_server_api_key(self):
         """`auth` holds the server's API key + webhook HMAC. A floor container
@@ -3767,7 +3590,7 @@ class TestDirectorSafetyRegressions:
         assert calculate_margin(payload)["eligible"] is True
 
     def test_jack_accepts_exact_ev_threshold_without_float_roundoff(self):
-        from src.agents.jack.quant import evaluate
+        from src.agents.sam.jack.quant import evaluate
         from datetime import datetime, timezone
         result = evaluate({"probability": 0.5225, "decimal_odds": 2, "bankroll": 1000,
                            "observed_at": datetime.now(timezone.utc).isoformat(), "model_source": "regression"})
@@ -3791,7 +3614,7 @@ class TestDirectorSafetyRegressions:
         assert result["status"] == "unavailable" and result["reason"] == "no_rates_in_response"
 
     def test_jack_treats_implausible_ev_as_a_palpable_error_not_value(self):
-        from src.agents.jack.quant import evaluate
+        from src.agents.sam.jack.quant import evaluate
         from datetime import datetime, timezone
         base = {"decimal_odds": 2, "bankroll": 1000, "observed_at": datetime.now(timezone.utc).isoformat(),
                 "model_source": "regression"}
@@ -3800,32 +3623,21 @@ class TestDirectorSafetyRegressions:
             evaluate({**base, "probability": 0.6, "stake": 500})
 
     def test_jack_never_rounds_stake_above_event_cap(self):
-        from src.agents.jack.quant import evaluate
+        from src.agents.sam.jack.quant import evaluate
         from datetime import datetime, timezone
         result = evaluate({"probability": 0.6, "decimal_odds": 2, "bankroll": 0.55,
                            "observed_at": datetime.now(timezone.utc).isoformat(), "model_source": "regression"})
         assert result["stake"] <= result["bankroll"] * result["event_risk_cap"]
 
     def test_agent_vault_policies_cannot_read_shared_llm_keys(self):
-        from src.vault_paths import (
-            API_KEYS,
-            agent_policy_paths,
-            agent_secret_path,
-            legacy_agent_secret_path,
-            secret_path,
-        )
-        for agent_id in ("oscar", "tyler", "jack", "alice", "antigravity"):
+        from src.vault_paths import API_KEYS, ISOLATED_WORKERS, agent_policy_paths, secret_path
+
+        assert ISOLATED_WORKERS == ("tyler",)
+        # Only Tyler stays an isolated worker since the old containers left (04.11.2026).
+        for agent_id in ISOLATED_WORKERS:
             paths = agent_policy_paths(agent_id)
             assert secret_path(API_KEYS) not in paths
             assert all(f"/agents/{agent_id}/" in path for path in paths)
-        alice_paths = set(agent_policy_paths("alice"))
-        expected = set()
-        for path_builder in (agent_secret_path, legacy_agent_secret_path):
-            for secret_name in ("auth", "gemini"):
-                data_path = path_builder("alice", secret_name)
-                expected.add(data_path)
-                expected.add(data_path.replace("/data/", "/metadata/", 1))
-        assert alice_paths == expected
 
 
 def test_vault_policy_generator_does_not_double_quote_capability_tokens():
@@ -4181,29 +3993,66 @@ def test_voice_assignment_covers_only_known_agents():
     assert set(AGENT_VOICES) <= set(DIRECTOR_IDS)
 
 
-def test_obsidian_vault_syncs_through_garage_not_syncthing():
-    # Operator 29.10: Syncthing was too fiddly on the devices. Garage is the hub:
-    # PC/phone use Remotely Save, eva-agent runs rclone bisync with Eva's own key.
+def test_obsidian_vault_is_served_over_webdav_not_through_a_bucket():
+    # Operator 31.10: Obsidian is the archive, Garage the agents' working memory. Devices reach
+    # the vault directory itself; S3 signatures also broke behind Cloudflare (Invalid signature).
     import yaml
 
-    from src.obsidian_sync import OBSIDIAN_BUCKET, bisync_args, rclone_env
-    from tools.garage_setup import OBSIDIAN_LIFECYCLE
+    from src.obsidian_webdav import REMOTE_BASE_DIR, WEBDAV_PORT, serve_args, serve_env
 
     main = yaml.safe_load((REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
     voice = yaml.safe_load((REPO_ROOT / "deploy" / "docker-compose.voice.yml").read_text(encoding="utf-8"))
-    eva = main["services"]["eva-agent"]
+    eva = main["services"]["syndicate-agent"]
     assert eva["user"] == "1001:1001"
     assert "/data/obsidian_vault:/data/obsidian" in eva["volumes"]
     assert eva["environment"]["OBSIDIAN_VAULT_DIR"] == "/data/obsidian"
     assert "obsidian-syncthing" not in voice["services"]
-    # A vault's "tmp/" is a folder of notes: no expiry rule on this bucket.
-    assert [rule["ID"] for rule in OBSIDIAN_LIFECYCLE] == ["abort-uploads"]
-    # The secret goes through the environment only, never argv.
-    key = {"access_key_id": "AK", "secret_access_key": "SECRET"}
-    args = bisync_args(Path("/v"), Path("/w"), resync=False)
-    assert "SECRET" not in " ".join(args) and f"garage:{OBSIDIAN_BUCKET}" in args
-    assert "SECRET" in rclone_env(key, Path("/w")).values()
-    assert "--resync" in bisync_args(Path("/v"), Path("/w"), resync=True)
+    # The login goes through the environment only, never argv.
+    creds = {"webdav_user": "andrii", "webdav_password": "SECRET"}
+    args = serve_args(Path("/v"), Path("/w"))
+    assert "SECRET" not in " ".join(args) and "bisync" not in args
+    assert args[:4] == ["rclone", "serve", "webdav", "/v"] and REMOTE_BASE_DIR in args
+    assert serve_env(creds, Path("/w"))["RCLONE_PASS"] == "SECRET"
+    nginx = (REPO_ROOT / "config" / "nginx" / "nginx.conf").read_text(encoding="utf-8")
+    assert f"proxy_pass http://syndicate-agent:{WEBDAV_PORT};" in nginx
+
+
+def test_obsidian_webdav_without_a_login_stays_down_and_says_so(tmp_path):
+    from src.obsidian_webdav import ObsidianWebDAV
+
+    class _Vault:
+        async def get_secret(self, path):
+            return {}
+
+    result = asyncio.run(ObsidianWebDAV(_Vault(), tmp_path, tmp_path / "w").run_once())
+    assert result["status"] == "unavailable"
+
+
+def test_obsidian_webdav_rotate_replaces_the_password_only_where_it_can_be_seen(monkeypatch, capsys):
+    # A password shown in a screenshot must be replaceable; a rotation nobody can read must not happen.
+    from scripts import syndicate_vault as sv
+
+    store = {"access_key_id": "GK-keep", "webdav_user": "andrii", "webdav_password": "OLD"}
+    writes = []
+    monkeypatch.setattr(sv, "get_secret", lambda path: dict(store))
+    monkeypatch.setattr(sv, "put_secret", lambda path, data: writes.append((path, data)))
+
+    monkeypatch.setattr(sv.sys.stdout, "isatty", lambda: False)
+    with pytest.raises(SystemExit):
+        sv.cmd_obsidian_webdav(True, rotate=True)
+    assert writes == []
+
+    monkeypatch.setattr(sv.sys.stdout, "isatty", lambda: True)
+    with pytest.raises(SystemExit):
+        sv.cmd_obsidian_webdav(False, rotate=True)
+    sv.cmd_obsidian_webdav(True)
+    assert writes == []  # plain --reveal keeps the password the devices already use
+
+    sv.cmd_obsidian_webdav(True, rotate=True)
+    path, data = writes[-1]
+    assert path == "agents/eva/obsidian" and data["webdav_password"] != "OLD"
+    assert data["access_key_id"] == "GK-keep" and data["webdav_user"] == "andrii"
+    assert data["webdav_password"] in capsys.readouterr().out
 
 
 def test_garage_setup_stores_the_obsidian_key_under_a_relative_vault_path():
@@ -4278,19 +4127,977 @@ def test_operator_token_renewal_fails_loudly_when_vault_refuses(monkeypatch, cap
     assert "HTTP 403" in capsys.readouterr().err
 
 
-def test_n8n_templates_do_not_read_env_and_keep_the_api_key_in_a_credential():
-    # n8n 2.x blocks $env inside nodes, and the Eva API key must never be inlined in a workflow.
-    import json as _json
+def test_n8n_is_gone_from_nginx_and_the_login_zone_stays_strict():
+    # Stage 6 (05.11.2026): n8n was removed with its subdomain and its 600r/m zone.
+    # The strict login zone (20r/m) is still there for the remaining logins.
+    text = (REPO_ROOT / "config" / "nginx" / "nginx.conf").read_text(encoding="utf-8")
+    assert "n8n" not in text
+    assert re.search(r"zone=login:\d+m rate=20r/m", text)
 
-    from src.n8n_templates import EVA_CREDENTIAL_NAME, all_templates, bind_credential
 
-    for name in ("error_handler", "cron_briefing", "cron_evening"):
-        workflow = all_templates()[name]
-        text = _json.dumps(workflow)
-        assert "$env" not in text, name
-        assert "X-API-Key" not in text, name
-        assert "http://eva-agent:8000" in text, name
-        http_nodes = [n for n in workflow["nodes"] if n["type"] == "n8n-nodes-base.httpRequest"]
-        assert http_nodes and all(n["credentials"]["httpHeaderAuth"]["name"] == EVA_CREDENTIAL_NAME for n in http_nodes)
-        bind_credential(workflow, "cred-7")
-        assert all(n["credentials"]["httpHeaderAuth"]["id"] == "cred-7" for n in http_nodes)
+def test_obsidian_notes_reach_the_chat_of_eva_and_report_an_absent_vault_honestly(tmp_path):
+    # Eva told Andrii she could not see the vault although it was synced: nothing fed it to the chat.
+    from src.obsidian_notes import obsidian_reference, reference_for
+
+    inbox = tmp_path / "00_Inbox"
+    inbox.mkdir()
+    (inbox / "Синхронізація.md").write_text("---\ntags: x\n---\nПеревірка синхронізації з телефона.", encoding="utf-8")
+    (tmp_path / ".obsidian").mkdir()
+    (tmp_path / ".obsidian" / "secret.md").write_text("Синхронізація службова", encoding="utf-8")
+
+    found = reference_for("Єво, бачиш нову нотатку Синхронізація?", tmp_path)
+    assert "00_Inbox/Синхронізація.md" in found and "Перевірка синхронізації" in found
+    assert ".obsidian" not in found and "tags: x" not in found
+    assert "нотаток 1" in found
+
+    assert reference_for("Привіт, як справи?", tmp_path) is None  # ordinary chat pays nothing
+    assert "не підключено" in reference_for("що в моїх нотатках?", None)
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    assert "немає жодної нотатки" in reference_for("що в моїх нотатках?", empty)
+    assert obsidian_reference("sam", "що в моїх нотатках?") is None  # only Eva and Kodex read the vault
+
+
+def _aged_note(path, text, days=30):
+    import os as _os
+    import time as _time
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    old = _time.time() - days * 86400
+    _os.utime(path, (old, old))
+
+
+def test_archivist_protected_notes_may_be_read_created_and_moved_but_never_edited_or_deleted(tmp_path):
+    from src.obsidian_archivist import ActivityLog, Archivist, is_protected
+
+    (tmp_path / "a").mkdir()
+    _aged_note(tmp_path / "a" / "Моя.md", "---\nandrii_protected: true\n---\nособисте, дуже довге речення про щось важливе")
+    _aged_note(tmp_path / "a" / "Теж.md", "текст з міткою #andrii_protected усередині нотатки на кілька слів")
+    _aged_note(tmp_path / "a" / "Вільна.md", "звичайна нотатка без мітки, яку агенти можуть прибрати самі")
+    assert is_protected((tmp_path / "a" / "Моя.md").read_text(encoding="utf-8"))
+    assert is_protected((tmp_path / "a" / "Теж.md").read_text(encoding="utf-8"))
+
+    arch = Archivist(tmp_path, ActivityLog(tmp_path.parent / "log.jsonl"))
+    for protected in ("a/Моя.md", "a/Теж.md"):
+        assert arch.check("read", protected)["allowed"] and arch.check("move", protected)["allowed"]
+        assert arch.check("create", protected)["allowed"]
+        for action in ("edit", "delete"):
+            verdict = arch.check(action, protected)
+            assert verdict["allowed"] is False and verdict["reason"] == "protected"
+    assert arch.trash("a/Моя.md")["status"] == "needs_permission"
+    assert (tmp_path / "a" / "Моя.md").exists()
+    assert arch.check("delete", "../outside.md")["reason"] == "path_escapes_vault"
+
+    assert arch.trash("a/Вільна.md")["status"] == "trashed"
+    assert (tmp_path / "_Кошик_агентів" / "a" / "Вільна.md").exists() and not (tmp_path / "a" / "Вільна.md").exists()
+
+
+def test_archivist_asks_permission_for_what_looks_important(tmp_path):
+    from src.obsidian_archivist import Archivist
+
+    _aged_note(tmp_path / "Хаб_знань.md", "огляд усіх матеріалів, довгий текст щоб не бути порожнім")
+    _aged_note(tmp_path / "Цільова.md", "нотатка, на яку посилаються інші нотатки в сховищі")
+    _aged_note(tmp_path / "Перша.md", "див. [[Цільова]] для деталей, а також багато іншого тексту")
+    _aged_note(tmp_path / "Друга.md", "ще раз [[Цільова]] і зовсім інший текст про щось своє")
+    _aged_note(tmp_path / "Нова.md", "щойно змінена нотатка з достатньою кількістю слів", days=0)
+    _aged_note(tmp_path / "Звичайна.md", "стара нотатка без посилань і без особливих ознак важливості")
+    arch = Archivist(tmp_path)
+    assert arch.check("delete", "Хаб_знань.md")["because"] == ["хаб, реєстр чи регламент"]
+    assert any("посилаються" in r for r in arch.check("delete", "Цільова.md")["because"])
+    assert any("протягом" in r for r in arch.check("edit", "Нова.md")["because"])
+    assert arch.check("delete", "Звичайна.md") == {"allowed": True}
+
+
+def test_archivist_mark_goes_on_only_when_andrii_asks_and_the_plan_changes_nothing(tmp_path):
+    from src.obsidian_archivist import ActivityLog, Archivist, is_protected
+
+    log = ActivityLog(tmp_path.parent / "log2.jsonl")
+    _aged_note(tmp_path / "Нотатка.md", "---\ntags: x\n---\nтекст нотатки, достатньо довгий для перевірки")
+    _aged_note(tmp_path / "Копія.md", "текст нотатки, достатньо довгий для перевірки")
+    _aged_note(tmp_path / "Порожня.md", "")
+    arch = Archivist(tmp_path, log)
+
+    assert arch.protect("Нотатка.md", "eva")["status"] == "refused"  # an agent cannot mark on its own
+    assert not is_protected((tmp_path / "Нотатка.md").read_text(encoding="utf-8"))
+    assert arch.protect("Нотатка.md", "andrii")["status"] == "protected"
+    text = (tmp_path / "Нотатка.md").read_text(encoding="utf-8")
+    assert is_protected(text) and "tags: x" in text and "текст нотатки" in text
+    assert arch.protect("Нотатка.md", "andrii")["status"] == "already_protected"
+
+    before = {p.name: p.read_text(encoding="utf-8") for p in tmp_path.glob("*.md")}
+    plan = arch.plan()
+    assert plan["dry_run"] is True and {p.name: p.read_text(encoding="utf-8") for p in tmp_path.glob("*.md")} == before
+    kinds = {i["kind"] for i in plan["items"]}
+    assert {"empty", "duplicate"} <= kinds
+    note = arch.write_plan_note(plan)
+    assert note.startswith("00_Inbox/Звіт_Кодекса_") and "Нічого не змінено" in (tmp_path / note).read_text(encoding="utf-8")
+    assert arch.write_plan_note(plan) != note  # never overwrites a previous report
+
+
+def test_archivist_activity_feeds_the_daily_reports_and_commands_are_owner_scoped(tmp_path, monkeypatch):
+    from datetime import datetime, timedelta, timezone
+
+    from src.agents.eva import _obsidian_summary
+    from src.obsidian_archivist import ActivityLog, chat_command
+
+    log = ActivityLog(tmp_path / "log.jsonl")
+    log.record("kodex", "trash", "a.md")
+    log.record("kodex", "permission_requested", "b.md")
+    log.record("eva", "create", "c.md")
+    digest = {"status": "ok", **log.digest(datetime.now(timezone.utc) - timedelta(hours=24))}
+    assert digest["total"] == 3 and digest["awaiting_permission"] == 1
+    line = _obsidian_summary(digest)
+    assert "дій агентів 3" in line and "trash 1" in line and "чекають дозволу: 1" in line
+    assert "недоступний" in _obsidian_summary({"status": "unavailable"})  # absent log is not a zero
+
+    monkeypatch.delenv("OBSIDIAN_VAULT_DIR", raising=False)
+    assert chat_command("sam", "/protect", "a.md")["status"] == "refused"
+    assert chat_command("kodex", "/protect", "a.md")["status"] == "unavailable"
+
+
+def test_eva_own_chat_path_gets_the_obsidian_notes(tmp_path, monkeypatch):
+    # Eva's Telegram chat does not go through agent_chat.chat_reply: she kept saying
+    # "Obsidian is not connected" until her own _chat fed the notes to the model.
+    from src.agents.eva import EvaAgent
+
+    (tmp_path / "00_Inbox").mkdir()
+    (tmp_path / "00_Inbox" / "Синхронізація.md").write_text("Перевірка синхронізації з телефона.", encoding="utf-8")
+
+    class _Llm:
+        def __init__(self):
+            self.system = ""
+
+        async def ainvoke(self, messages):
+            self.system = messages[0].content
+            return type("Reply", (), {"content": "ok"})()
+
+    monkeypatch.setenv("OBSIDIAN_VAULT_DIR", str(tmp_path))
+    llm = _Llm()
+    result = asyncio.run(EvaAgent(memory=None, llm=llm, vault=None).execute(
+        {"action": "chat", "message": "Єво, бачиш нотатку Синхронізація?"}))
+    assert result["status"] == "completed"
+    assert "00_Inbox/Синхронізація.md" in llm.system and "недовірений" in llm.system
+
+    llm_plain = _Llm()
+    asyncio.run(EvaAgent(memory=None, llm=llm_plain, vault=None).execute({"action": "chat", "message": "Привіт!"}))
+    assert "Obsidian Андрія" not in llm_plain.system  # ordinary chat pays nothing
+
+    monkeypatch.delenv("OBSIDIAN_VAULT_DIR")
+    llm_off = _Llm()
+    asyncio.run(EvaAgent(memory=None, llm=llm_off, vault=None).execute({"action": "chat", "message": "що в нотатках?"}))
+    assert "не підключено" in llm_off.system
+
+
+def test_a_general_question_about_notes_shows_their_beginning_not_only_titles(tmp_path):
+    # "Що в моїх нотатках?" has no search terms: Eva could only list file names.
+    from src.obsidian_notes import reference_for
+
+    (tmp_path / "План.md").write_text("---\ntags: x\n---\nЗакупити обладнання до листопада.", encoding="utf-8")
+    found = reference_for("Що в моїх нотатках?", tmp_path)
+    assert "Закупити обладнання" in found and "tags: x" not in found
+
+
+def test_agent_regulations_are_mounted_into_the_running_container():
+    # eva.json lived only in the image: Eva kept reading "Obsidian: not connected" after the file changed.
+    for compose in ("docker-compose.yml", "deploy/docker-compose.yml"):
+        text = (REPO_ROOT / compose).read_text(encoding="utf-8")
+        assert "./config/agent_specs:/app/config/agent_specs:ro" in text, compose
+
+
+def test_telegram_redelivery_of_one_update_is_answered_once():
+    import importlib
+
+    sys.path.insert(0, str(REPO_ROOT / "deploy" / "runtime"))
+    mod = importlib.import_module("agent_runner")
+
+    assert mod._first_delivery("eva", {"update_id": 987654}) is True
+    assert mod._first_delivery("eva", {"update_id": 987654}) is False
+    assert mod._first_delivery("sam", {"update_id": 987654}) is True
+    assert mod._first_delivery("eva", {}) is True
+
+
+def test_slow_embedding_does_not_hold_the_lessons_check(monkeypatch):
+    import src.lessons as lessons_module
+
+    class Session:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def execute(self, query, params=None):
+            class Rows:
+                def fetchall(self):
+                    return []
+
+                def scalar(self):
+                    return True
+            return Rows()
+
+    calls = []
+
+    async def hung(*args, **kwargs):
+        calls.append(args)
+        await asyncio.sleep(30)
+
+    store = object.__new__(lessons_module.LessonsStore)
+    store._session_factory = Session
+    store._embed = hung
+    monkeypatch.setattr(lessons_module, "ACTION_EMBED_TIMEOUT_S", 0.01)
+
+    assert asyncio.run(store.check_before_action("eva", action_text="hello")) == []
+    assert calls, "the bound must be what stopped the embedding"
+
+
+def test_lessons_check_skips_embedding_when_no_lesson_has_a_vector():
+    import src.lessons as lessons_module
+
+    class Session:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def execute(self, query, params=None):
+            class Rows:
+                def fetchall(self):
+                    return []
+
+                def scalar(self):
+                    return False
+            return Rows()
+
+    calls = []
+
+    async def embed(*args, **kwargs):
+        calls.append(args)
+
+    store = object.__new__(lessons_module.LessonsStore)
+    store._session_factory = Session
+    store._embed = embed
+
+    assert asyncio.run(store.check_before_action("eva", action_text="hello")) == []
+    assert calls == []
+
+
+def test_eva_remembers_the_masked_conversation():
+    import types
+
+    from src.agent_chat import ChatHistory
+    from src.agents.eva import EvaAgent
+
+    seen = []
+
+    class Llm:
+        async def ainvoke(self, messages):
+            seen.append(messages)
+            return types.SimpleNamespace(content="reply")
+
+    history = ChatHistory()
+    agent = EvaAgent(memory=None, llm=Llm(), chat_history=history)
+    secret_mail = "andrii@example.com"
+
+    asyncio.run(agent._chat({"text": f"my mail {secret_mail}", "chat_id": "1"}))
+    asyncio.run(agent._chat({"text": "what did I say?", "chat_id": "1"}))
+
+    assert secret_mail not in str(seen)
+    assert ("ai", "reply") in seen[1]
+    assert asyncio.run(history.load("eva", "2")) == []
+
+
+def test_daily_backup_covers_the_database_and_proves_the_dump_by_restoring_it():
+    script = (REPO_ROOT / "deploy" / "scripts" / "backup_daily.sh").read_text(encoding="utf-8")
+
+    assert "n8n" not in script and "N8N" not in script  # n8n removed in stage 6 (05.11.2026)
+    assert 'verify_restore postgres "${POSTGRES_DB_NAME:-syndicate}"' in script
+    assert 'record vault unavailable' in script
+    assert "--network none" in script
+
+
+class _AlertGateway:
+    def __init__(self):
+        self.sent = []
+        self.accept = True
+
+    async def owner_user_id(self):
+        return "1"
+
+    async def send(self, agent_id, chat_id, text):
+        if self.accept:
+            self.sent.append((agent_id, chat_id, text))
+        return self.accept
+
+
+def _vinnytsia():
+    from src.alert_watch import PARENTS, STATES
+
+    state = next(key for key, name in STATES.items() if name == "Вінницька область")
+    child = next(region for region, parent in PARENTS.items() if parent == state and region != state)
+    return state, child
+
+
+def _air(region, *levels):
+    return {"status": "Activate", "regionId": int(region), "alarmType": "AIR",
+            "activeAlertLevels": [{"alertLevel": level, "reason": "x"} for level in levels]}
+
+
+def test_ukrainealarm_signature_refuses_everything_unproven():
+    import base64
+    import time
+
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import padding, rsa
+
+    from src.alert_watch import AlertWatch, verify_signature
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    pem = key.public_key().public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo)
+    body = b'{"a": 1}'
+    stamp = str(int(time.time()))
+    good = base64.b64encode(key.sign(f"{stamp}.".encode() + body, padding.PKCS1v15(), hashes.SHA256())).decode()
+
+    assert verify_signature(body, good, stamp, "rsa-sha256", public_key_pem=pem)
+    assert verify_signature(body, good, stamp, None, public_key_pem=pem)
+    assert not verify_signature(b'{"a": 2}', good, stamp, "rsa-sha256", public_key_pem=pem)
+    assert not verify_signature(body, good, stamp, "hmac-sha256", public_key_pem=pem)
+    assert not verify_signature(body, good, stamp, "rsa-sha256", public_key_pem=pem, now=int(stamp) + 301)
+    assert not verify_signature(body, None, stamp, None, public_key_pem=pem)
+    assert not verify_signature(body, "@@@", stamp, None, public_key_pem=pem)
+    assert not verify_signature(body, good, "soon", None, public_key_pem=pem)
+    assert not verify_signature(body, good, stamp, None, public_key_pem=b"not a key")
+
+    watch = AlertWatch(_AlertGateway(), path=REPO_ROOT / "does-not-exist.json")
+    assert watch.accept(body, good, stamp, None, public_key_pem=pem)
+    assert not watch.accept(body, good, stamp, None, public_key_pem=pem), "a repeated event is refused"
+
+
+def test_alert_watch_rolls_regions_into_oblast_phrases_through_alice_bot(tmp_path):
+    from src.alert_phrases import POOLS
+    from src.alert_watch import AlertWatch
+
+    state, child = _vinnytsia()
+    gateway = _AlertGateway()
+    watch = AlertWatch(gateway, path=tmp_path / "state.json")
+
+    watch.handle(_air(child, "Yellow"))
+    watch.handle(_air(state, "Red", "Yellow"))
+    watch.handle(_air(state))  # the oblast cleared, the district is still on
+    watch.handle(_air(child))
+    asyncio.run(watch.flush())
+
+    assert [(bot, chat) for bot, chat, _ in gateway.sent] == [("alice", "1")]
+    lines = gateway.sent[0][2].split("\n\n")
+    assert all("Вінницька область: " in line for line in lines)
+    phrases = [line.split("Вінницька область: ", 1)[1] for line in lines]
+    phrases = [phrase.removesuffix(" (тривога лише в частині регіону)") for phrase in phrases]
+    assert phrases[0] in POOLS["yellow"]
+    assert phrases[1] in POOLS["escalate_to_red"]
+    assert phrases[2] in POOLS["ease_to_yellow"]
+    assert phrases[3] in POOLS["clear_after_red"]
+
+
+def test_alert_watch_uses_the_snapshot_not_the_status_field(tmp_path):
+    from src.alert_watch import AlertWatch
+
+    state, _ = _vinnytsia()
+    gateway = _AlertGateway()
+    watch = AlertWatch(gateway, path=tmp_path / "state.json")
+
+    watch.handle(_air(state, "Red", "Yellow"))
+    watch.handle({**_air(state, "Yellow"), "status": "DEACTIVATE"})  # one cause ended, the alert goes on
+    asyncio.run(watch.flush())
+
+    assert len(gateway.sent[0][2].split("\n\n")) == 2
+    assert "🟢" not in gateway.sent[0][2]
+
+
+def test_alert_watch_ignores_what_it_cannot_place_and_keeps_state_over_restart(tmp_path):
+    from src.alert_phrases import POOLS
+    from src.alert_watch import AlertWatch, read_snapshot, snapshot_text
+
+    state, _ = _vinnytsia()
+    path = tmp_path / "state.json"
+    gateway = _AlertGateway()
+    watch = AlertWatch(gateway, path=path)
+    watch.handle(_air("999999", "Red"))
+    watch.handle({**_air(state, "Red"), "alarmType": "ARTILLERY"})
+    watch.handle({"alarmType": "AIR", "regionId": int(state)})
+    assert read_snapshot(path) is None
+    watch.handle(_air(state, "Red"))
+    assert "Вінницька область: червоний" in snapshot_text(read_snapshot(path))
+
+    restarted = AlertWatch(gateway, path=path)
+    restarted.handle(_air(state, "Red"))
+    restarted.handle(_air(state))
+    asyncio.run(restarted.flush())
+
+    assert gateway.sent[0][2].split(": ", 1)[1] in POOLS["clear_after_red"]
+
+
+def test_alert_watch_says_once_that_the_feed_went_quiet_and_when_it_is_back(tmp_path):
+    import base64
+    import time
+
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import padding, rsa
+
+    from src.alert_watch import SILENCE_S, AlertWatch
+
+    gateway = _AlertGateway()
+    watch = AlertWatch(gateway, path=tmp_path / "state.json")
+    start = time.time()
+    watch.check_silence(start + SILENCE_S - 60)
+    assert watch._pending == []
+    watch.check_silence(start + SILENCE_S + 60)
+    watch.check_silence(start + SILENCE_S + 120)
+    assert len(watch._pending) == 1 and "немає подій" in watch._pending[0]
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    pem = key.public_key().public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo)
+    stamp = str(int(time.time()))
+    signature = base64.b64encode(key.sign(f"{stamp}.{{}}".encode(), padding.PKCS1v15(), hashes.SHA256())).decode()
+    assert not watch.accept(b"{}", "bad", stamp, "rsa-sha256", public_key_pem=pem)
+    assert len(watch._pending) == 1  # a refused event proves nothing
+    assert watch.accept(b"{}", signature, stamp, "rsa-sha256", public_key_pem=pem)
+    assert len(watch._pending) == 2 and "знову" in watch._pending[1]
+
+
+def test_alert_watch_keeps_a_notification_telegram_refused(tmp_path):
+    from src.alert_watch import AlertWatch
+
+    state, _ = _vinnytsia()
+    gateway = _AlertGateway()
+    gateway.accept = False
+    watch = AlertWatch(gateway, path=tmp_path / "state.json")
+    watch.handle(_air(state, "Red"))
+    asyncio.run(watch.flush())
+
+    gateway.accept = True
+    asyncio.run(watch.flush())
+    asyncio.run(watch.flush())
+
+    assert len(gateway.sent) == 1
+
+
+def test_ukrainealarm_route_takes_precedence_over_generic_webhook():
+    source = (REPO_ROOT / "deploy" / "runtime" / "agent_runner.py").read_text(encoding="utf-8")
+
+    assert source.index('@app.post("/webhook/ukrainealarm")') < source.index('@app.post("/webhook/{source}")')
+
+
+def test_daily_backup_covers_agent_data_volume_with_confirmed_memory():
+    script = (REPO_ROOT / "deploy" / "scripts" / "backup_daily.sh").read_text(encoding="utf-8")
+
+    assert 'EVA_VOLUME="${EVA_VOLUME:-syndicate_eva_data}"' in script
+    assert 'backup_volume eva_data "$EVA_VOLUME"' in script
+
+
+def test_ukrainealarm_public_key_ships_with_the_code():
+    from src.alert_watch import _public_key
+
+    assert _public_key(None).key_size >= 2048
+
+
+def test_regions_command_filters_notices_but_keeps_tracking_all_of_ukraine(tmp_path):
+    from src.agent_chat import pool_command
+    from src.alert_watch import AlertWatch, STATES, chosen_places, regions_reply
+
+    assert pool_command({"text": "/regions Вінницька"}) == ("/regions", "Вінницька")
+    path = tmp_path / "state.json"
+    state, _ = _vinnytsia()
+    other = next(key for key, name in STATES.items() if name == "Волинська область")
+    gateway = _AlertGateway()
+    watch = AlertWatch(gateway, path=path)
+
+    assert chosen_places(path) is None
+    assert regions_reply("вінницька", path)["response"].endswith("Вінницька область.")
+    watch.handle(_air(other, "Red"))
+    watch.handle(_air(state, "Red"))
+    asyncio.run(watch.flush())
+    assert "Волинська" not in gateway.sent[0][2] and "Вінницька" in gateway.sent[0][2]
+
+    regions_reply("Вінницька, Волинська", path)
+    watch.handle(_air(other))  # its alert was tracked while it was muted, so the all-clear is real
+    asyncio.run(watch.flush())
+    assert "Волинська" in gateway.sent[1][2]
+
+    assert regions_reply("Атлантида", path)["status"] == "error"
+    assert sorted(chosen_places(path)) == sorted([state, other])
+    assert regions_reply("всі", path)["response"].endswith("вся Україна.")
+    assert chosen_places(path) is None
+    assert len(regions_reply(f"{state}, {other}", path)["response"]) > 0
+    assert len(chosen_places(path)) == 2
+    assert regions_reply("0", path)["status"] == "error"
+
+
+def _place(name):
+    from src.alert_watch import NAMES
+
+    return next(region for region, value in NAMES.items() if value == name)
+
+
+def test_regions_command_reaches_districts_and_communities(tmp_path):
+    from src.alert_watch import NAMES, UP, _unclear, _find, chosen_places, regions_reply
+
+    assert len(NAMES) == 1605 and "Тестовий регіон" not in NAMES.values()
+    path = tmp_path / "state.json"
+    district, community = _place("Тульчинський район"), _place("Тульчинська територіальна громада")
+    assert UP[community] == district
+
+    listing = regions_reply("", path)["response"]
+    assert "Вінницька область" in listing and "Тульчинський" in listing  # the hint, the list stays oblasts only
+    districts = regions_reply("список Вінницька", path)["response"]
+    assert f"{district} — Тульчинський район" in districts
+    assert chosen_places(path) is None  # looking changes nothing
+    assert f"{community} — Тульчинська" in regions_reply("список Тульчинський район", path)["response"]
+    assert regions_reply("список Атлантида", path)["status"] == "error"
+    assert "немає дрібніших" in regions_reply("список м. Київ", path)["response"]
+
+    regions_reply("Тульчинський район", path)
+    assert chosen_places(path) == [district]
+    assert regions_reply("- Атлантида", path)["status"] == "error"
+    regions_reply(f"+ {community}", path)
+    regions_reply(f"+ {community}", path)
+    assert chosen_places(path) == [district, community]
+    regions_reply(f"- {district}", path)
+    assert chosen_places(path) == [community]
+    assert "Вінницька область" in regions_reply(str(community), path)["response"]
+    regions_reply("всі", path)
+    assert regions_reply(f"- {community}", path)["status"] == "error"
+
+    # The same name in several oblasts is never guessed: the choice stays, the candidates are listed.
+    same = regions_reply("Миколаївська територіальна громада", path)
+    assert same["status"] == "error" and same["response"].count("\n") == 6
+    assert chosen_places(path) is None
+    assert _find("мар'янівська") == _find("Мар’янівська")  # the source mixes the apostrophes
+    assert _unclear("район", _find("район")).endswith("уточни назву.")
+
+
+def test_alert_notices_follow_the_chosen_district_and_community(tmp_path):
+    from src.alert_watch import AlertWatch, UP, regions_reply
+
+    path = tmp_path / "state.json"
+    district, community = _place("Тульчинський район"), _place("Тульчинська територіальна громада")
+    sibling = next(region for region, parent in UP.items() if parent == district and region != community)
+    oblast = UP[district]
+    other_district = next(region for region, parent in UP.items() if parent == oblast and region != district)
+    gateway = _AlertGateway()
+    watch = AlertWatch(gateway, path=path)
+
+    def sent_after(event):
+        before = len(gateway.sent)
+        watch.handle(event)
+        asyncio.run(watch.flush())
+        return " ".join(item[2] for item in gateway.sent[before:])
+
+    regions_reply(community, path)
+    assert sent_after(_air(other_district, "Red")) == ""
+    assert sent_after(_air(other_district)) == ""
+    assert sent_after(_air(sibling, "Red")) == ""  # a neighbouring community is not this one
+    assert sent_after(_air(sibling)) == ""
+    assert "Тульчинська територіальна громада, Тульчинський район" in sent_after(_air(oblast, "Yellow"))  # covered whole
+    assert "🟢" in sent_after(_air(oblast))
+    assert "🔴" in sent_after(_air(community, "Red"))
+    assert "🟢" in sent_after(_air(community))
+
+    regions_reply(district, path)
+    assert "(тривога лише в частині регіону)" in sent_after(_air(sibling, "Yellow"))
+    assert "🟢" in sent_after(_air(sibling))
+
+    # Chosen during an alert: nothing to announce yet, but the all-clear still comes.
+    watch.handle(_air(other_district, "Red"))
+    regions_reply(other_district, path)
+    assert sent_after(_air(sibling, "Red")) == ""
+    assert "🟢" in sent_after(_air(other_district))
+
+
+def test_confirmed_facts_get_a_one_way_copy_in_obsidian(tmp_path, monkeypatch):
+    from src.vault_md import MarkdownVault, OBSIDIAN_FACTS_DIR
+
+    obsidian = tmp_path / "obsidian"
+    obsidian.mkdir()
+    monkeypatch.setenv("OBSIDIAN_VAULT_DIR", str(obsidian))
+    vault = MarkdownVault(vault_root=tmp_path / "vault")
+    copy = obsidian / OBSIDIAN_FACTS_DIR / "eva.md"
+
+    vault.remember("eva", "Улюблене дерево: кедр", source="user", confirmed=True)
+    assert vault.obsidian_copied is True and "кедр" in copy.read_text(encoding="utf-8")
+    assert "<!--" not in copy.read_text(encoding="utf-8")  # provenance stays in the source
+
+    copy.write_text("змінено andrii_protected", encoding="utf-8")
+    vault.remember("eva", "Улюблений колір: синій", source="user", confirmed=True)
+    assert vault.obsidian_copied is False
+    assert copy.read_text(encoding="utf-8") == "змінено andrii_protected"  # his mark is never overwritten
+    assert "синій" in vault.read("agents/eva/memory.md")
+
+    copy.unlink()
+    monkeypatch.delenv("OBSIDIAN_VAULT_DIR")
+    vault.remember("eva", "Улюблена пора: осінь", source="user", confirmed=True)
+    assert vault.obsidian_copied is False and not copy.exists()
+
+
+def test_every_data_dir_key_used_without_a_default_is_registered():
+    """``ensure_dir("hermes")`` raised KeyError in production: the key was never added to DIRS."""
+    import re
+
+    from src.data_paths import DIRS
+
+    used = set()
+    for folder in ("src", "deploy", "tools"):
+        for path in (REPO_ROOT / folder).rglob("*.py"):
+            used |= set(re.findall(r'(?:ensure_dir|data_dir)\("([a-z_]+)"\)', path.read_text(encoding="utf-8")))
+    assert "hermes" in used and used <= set(DIRS), sorted(used - set(DIRS))
+
+
+def test_learning_budget_finds_its_file_under_the_data_dir(tmp_path, monkeypatch):
+    from src import hermes_gateway
+
+    monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
+    budget = hermes_gateway.LearningBudget(limit=1.0)
+    assert budget.allowed() and (tmp_path / "hermes").is_dir()
+
+
+def test_curator_decision_is_not_held_for_review_because_of_its_own_id(tmp_path, monkeypatch):
+    # CI 04.11: a random decision_id "…ec872490…" matched the passport pattern, so about
+    # 1 in 85 ordinary decisions went to manual review instead of Eva's memory.
+    import uuid as uuid_mod
+
+    from src.agents import eva_curator
+    from src.vault_md import MarkdownVault
+
+    monkeypatch.setattr(eva_curator.uuid, "uuid4",
+                        lambda: uuid_mod.UUID("ec872490-1111-4111-8111-111111111111"))
+    curator = eva_curator.EvaCurator(memory=None, llm=None, vault=MarkdownVault(vault_root=tmp_path / "vault"))
+    record = asyncio.run(curator.execute({"action": "record_decision",
+                                          "decision": "Use Obsidian for the project archive."}))
+    assert record["memory_write"]["status"] == "created"
+    # The owner's own words are still checked: a passport number in them is held for review.
+    held = asyncio.run(curator.execute({"action": "record_decision", "decision": "Passport AB123456 renewed."}))
+    assert held["memory_write"]["status"] == "review_required"
+
+
+def test_every_route_belongs_to_one_of_the_seven_agents():
+    # 04.11: 19 agents became 7. Old agents stay as parts of their new owner,
+    # and a new route without an owner must fail here, not fall to Eva silently.
+    from src.agent_owners import MERGED_INTO, owner_of
+    from src.orchestrator import EvaOrchestrator
+    from src.vault_paths import AGENT_ROSTER
+
+    targets = set(EvaOrchestrator.TASK_ROUTING.values())
+    unowned = sorted(t for t in targets if owner_of(t) not in AGENT_ROSTER)
+    assert not unowned, f"routes without an owner: {unowned}"
+    assert owner_of("jack") == "sam" and owner_of("doc") == "trainer" and owner_of("atlas") == "eva"
+    assert {owner_of(old) for old in ("scout", "sonar", "dex", "ray", "oscar")} == {"tyler"}
+    assert not set(MERGED_INTO) & set(AGENT_ROSTER) and owner_of("nobody") is None
+
+
+def test_evas_routing_hint_names_only_the_seven_agents():
+    from src.agents.eva import EvaAgent
+    from src.vault_paths import AGENT_ROSTER
+
+    eva = EvaAgent.__new__(EvaAgent)
+    eva._memory_policy = __import__("src.agents.eva_memory_policy", fromlist=["x"]).EvaMemoryPolicy()
+    for query, expected in (("поганий сон і пульс", "trainer"), ("зробити відео для тікток", "tyler"),
+                            ("ставки на футбол", "sam"), ("бюджет на місяць", "fin"), ("привіт", "eva")):
+        hint = asyncio.run(eva._delegate_intent({"query": query}))
+        assert hint["target_agent"] == expected and hint["target_agent"] in AGENT_ROSTER, query
+
+
+def test_retired_task_types_answer_retired_and_never_reach_eva():
+    # 04.11.2026: Alice, the Architect and the Antigravity gateway were removed. Unknown
+    # task types fall to Eva, so their old names must answer "retired" explicitly instead.
+    from src.orchestrator import EvaOrchestrator
+
+    retired = sorted(t for t, target in EvaOrchestrator.TASK_ROUTING.items() if target == "retired")
+    assert {"review_code", "alice_engineer", "antigravity_contractor_dispatch", "gitops_sync"} <= set(retired)
+    orchestrator = object.__new__(EvaOrchestrator)
+    for task_type in retired:
+        state = asyncio.run(orchestrator._retired_handler({"task_type": task_type, "payload": {}}))
+        result = state["result"]
+        assert result["status"] == "unavailable" and result["retired"] is True and result["value"] is None
+        assert "Claude Code" in result["reason"]
+
+
+def test_old_worker_containers_are_gone_from_compose_and_vault():
+    # Stage 4 (04.11.2026): the nine idle worker containers, Alice's compose file and
+    # the AppRole policies of removed agents are gone; Eva's own policy is untouched.
+    from pathlib import Path
+
+    from src import vault_paths
+    from tools import vault_policies
+
+    root = Path(__file__).resolve().parents[1]
+    for gone in ("deploy/docker-compose.directors.yml", "deploy/docker-compose.alice.yml",
+                 "deploy/docker/Dockerfile.director", "deploy/runtime/director_runner.py"):
+        assert not (root / gone).exists(), gone
+    assert set(vault_paths.AGENT_ROSTER) <= set(vault_paths.AGENTS_IDS)
+    removed = {"alice", "architect", "antigravity", "doc", "oscar", "jack", "sonar", "scout", "dex", "ray", "atlas"}
+    assert not removed & set(vault_paths.AGENTS_IDS)
+    assert not any(f"eva-{agent}" in vault_policies.build_policies() for agent in removed)
+    for line in (root / "docker-compose.yml").read_text(encoding="utf-8").splitlines():
+        assert "ALICE_WORKER" not in line and "alice-agent" not in line
+
+
+def test_runtime_service_is_syndicate_agent_without_the_old_alias():
+    # Stage 5 (04.11.2026): the compose service is syndicate-agent. Stage 6 (05.11.2026)
+    # removed n8n, the last caller of http://eva-agent:8000, and with it the network alias.
+    # The Vault role keeps its name on purpose.
+    from pathlib import Path
+
+    import yaml
+
+    from tools import vault_policies
+
+    root = Path(__file__).resolve().parents[1]
+    main = (root / "docker-compose.yml").read_text(encoding="utf-8")
+    assert main == (root / "deploy" / "docker-compose.yml").read_text(encoding="utf-8")
+    services = yaml.safe_load(main)["services"]
+    assert "eva-agent" not in services and "syndicate-agent" in services and "n8n" not in services
+    assert "n8n_data" not in yaml.safe_load(main)["volumes"]
+    assert set(services["syndicate-agent"]["networks"]) == {"db_net", "backend", "hermes_net"}
+    assert "eva-agent" not in main and "n8n" not in main.lower()
+    assert "syndicate-agent" in services["nginx"]["depends_on"]
+    nginx = (root / "config" / "nginx" / "nginx.conf").read_text(encoding="utf-8")
+    assert "server syndicate-agent:8000;" in nginx and "eva-agent" not in nginx and "eva_agent" not in nginx
+    hermes = (root / "deploy" / "hermes" / "trainer" / "config.yaml").read_text(encoding="utf-8")
+    assert "eva-agent" not in hermes and "syndicate-agent:8000" in hermes
+    assert vault_policies.RUNTIME_POLICY_NAME == "eva-agent"
+
+
+def test_old_agent_modules_live_in_their_owners_packages():
+    # Stage 4a (04.11.2026): the code of the absorbed agents moved under its new owner.
+    # The agent ids, data/<id> stores and Vault paths did not change, only module paths.
+    import importlib
+    from pathlib import Path
+
+    agents = Path(__file__).resolve().parents[1] / "src" / "agents"
+    for gone in ("trainer.py", "doc.py", "doc_shopping.py", "atlas.py", "kodex.py", "kodex_buttons.py",
+                 "kodex_telegram.py", "scout.py", "sonar.py", "dex.py", "ray.py", "jack", "oscar"):
+        assert not (agents / gone).exists(), gone
+    moved = {
+        "src.agents.alex.trainer": "TrainerAgent", "src.agents.alex.doc": "DocAgent",
+        "src.agents.sam.jack": "JackAgent", "src.agents.tyler.oscar": "OscarAgent",
+        "src.agents.tyler.scout": "ScoutAgent", "src.agents.tyler.sonar": "SonarAgent",
+        "src.agents.tyler.dex": "DexAgent", "src.agents.tyler.ray": "RayAgent",
+        "src.agents.eva_atlas": "AtlasAgent", "src.agents.eva_kodex": "KodexAgent",
+    }
+    for module, cls in moved.items():
+        assert hasattr(importlib.import_module(module), cls), module
+    from src.agents.alex import doc_exercises
+
+    assert doc_exercises.DEFAULT_DB.parent.parent.name == "free-exercise-db"
+    assert doc_exercises.DEFAULT_DB.exists(), "the exercise database path broke when doc_exercises moved"
+
+
+def test_alex_gets_the_internet_only_through_the_gateway():
+    """06.11.2026: web, archive, notes and colleagues are gateway tools; the Hermes container stays closed."""
+    from src import hermes_tools
+
+    assert hermes_tools.check_url("http://169.254.169.254/latest/meta-data/") == "address_not_public"
+    assert hermes_tools.check_url("http://10.0.0.1/") == "address_not_public"
+    assert "ask_agent" in hermes_tools.granted("trainer") and hermes_tools.granted("sam") == ()
+    compose = (REPO_ROOT / "deploy" / "docker-compose.hermes.yml").read_text(encoding="utf-8")
+    assert "hermes_net" in compose and "ports:" not in compose and "docker.sock" not in compose
+
+
+def test_a_photo_to_a_bot_is_never_dropped_silently():
+    """06.11.2026: Alex stayed silent on a photo; media now has a kind, a handler and an honest refusal."""
+    from src import media_vision
+    from src.telegram_gateway import extract_message
+
+    update = {"message": {"from": {"id": 1}, "chat": {"id": 1, "type": "private"}, "photo": [{"file_id": "p"}]}}
+    assert extract_message(update)["kind"] == "media"
+    assert media_vision.refusal("eva", {"mime": "image/jpeg"}) == media_vision.NO_MEDIA
+    runner = (REPO_ROOT / "deploy" / "runtime" / "agent_runner.py").read_text(encoding="utf-8")
+    assert '"media"' in runner and "_telegram_media" in runner
+
+
+def test_trading_skills_teach_sam_but_never_trade_for_him():
+    """06.11.2026: 46 trading skills joined the hub; a skill is a method to read, never a script or a grant."""
+    import json
+
+    catalog = json.loads((REPO_ROOT / "config" / "skill_library.json").read_text(encoding="utf-8"))
+    sam = json.loads((REPO_ROOT / "config" / "agents" / "sam.profile.json").read_text(encoding="utf-8"))
+    by_id = {item["id"]: item for item in catalog["skills"]}
+    assert {"pre-trade-check", "drawdown-circuit-breaker", "trader-timemachine"} <= set(sam["reference_skills"])
+    assert all(by_id[skill]["mode"] == "reference_only" for skill in sam["reference_skills"])
+    assert sam["capabilities"] == [] and sam["services_enabled"] == []
+    # Order-placing skills stay out: orders go only through Andrii's HITL button.
+    assert not {"trader-broker", "etoro", "portfolio-manager"} & set(by_id)
+    sources = ("tradermonty", "marian2js", "Jakeschincariol/day-trader-skill", "Shubhamkumartrichy")
+    vendored = [path for source in sources
+                for path in (REPO_ROOT / "skills" / "vendor" / source).rglob("*") if path.is_file()]
+    assert vendored and all(path.suffix in {".md", ""} or path.name == "LICENSE" for path in vendored)
+
+
+def test_alex_reply_never_waits_for_the_memory_embedding():
+    """06.11.2026: a breakfast question took 62 s, 49 s of it a memory write embedding on the CPU."""
+    import asyncio
+
+    from src.agents.alex.trainer import MEMORY_EPISODE_CHARS, TrainerAgent
+
+    class _SlowMemory:
+        def __init__(self):
+            self.saved = []
+            self.release = asyncio.Event()
+
+        async def save_episode(self, **kwargs):
+            await self.release.wait()  # an embedding that has not finished
+            self.saved.append(kwargs)
+
+    async def scenario():
+        memory = _SlowMemory()
+        agent = TrainerAgent(memory=memory)
+        result = await asyncio.wait_for(
+            agent.execute({"action": "nutrition_plan", "weight_kg": 80, "height_cm": 180, "age": 30,
+                           "sex": "male", "activity_level": "moderate", "goal": "maintenance"}),
+            timeout=2,
+        )
+        assert result["status"] == "ok" and memory.saved == []  # answered before the write ended
+        memory.release.set()
+        for _ in range(20):
+            await asyncio.sleep(0)
+        assert len(memory.saved) == 1  # the episode is still written
+        assert len(memory.saved[0]["content"]) <= MEMORY_EPISODE_CHARS
+
+    asyncio.run(scenario())
+
+
+def test_alex_has_no_recipe_tool_until_the_recipe_base_exists():
+    """06.11.2026: recipe_plan answered any request with the same two hard-coded recipes as ok."""
+    import asyncio
+
+    from src.agents.alex.trainer import TrainerAgent
+    from src.hermes_gateway import AGENT_ACTIONS
+
+    assert "recipe_plan" not in AGENT_ACTIONS["trainer"]
+    res = asyncio.run(TrainerAgent().execute({"action": "recipe_plan", "protein_g": 40}))
+    assert res["status"] == "unavailable" and res["recipes"] == []
+    source = (REPO_ROOT / "src" / "agents" / "alex" / "trainer.py").read_text(encoding="utf-8")
+    assert "Кіноа" not in source and "лосось" not in source
+
+
+def test_alex_can_read_a_book_from_the_vault_in_parts():
+    """10.11.2026: Alex read only .md notes; a PDF or EPUB course was out of reach."""
+    from src import hermes_tools as tools
+    from src.hermes_gateway import _tools
+
+    assert {tools.MATERIAL_LIST, tools.MATERIAL_READ} <= set(tools.granted("trainer"))
+    assert {tools.MATERIAL_LIST, tools.MATERIAL_READ} <= {tool["name"] for tool in _tools("trainer")}
+    assert tools.granted("sam") == ()
+    assert not any(hasattr(tools, name) for name in ("material_write", "material_delete"))
+
+
+def test_drive_mirror_reads_drive_and_never_deletes_from_the_vault():
+    """10.11.2026: materials arrive from Andrii's Google Drive folder; read-only scope, no deletion path."""
+    import inspect
+
+    from src import drive_mirror
+
+    assert drive_mirror.SCOPE.endswith("/drive.readonly")
+    source = inspect.getsource(drive_mirror)
+    assert "unlink(missing_ok=True)" in source  # only the half-downloaded .part file
+    assert ".delete(" not in source and "rmtree" not in source
+
+
+def test_lecture_audio_goes_to_deepgram_only_with_training_opt_out():
+    """10.11.2026: Deepgram transcribes course lectures; mip_opt_out keeps the audio out of its training."""
+    from src import lecture_transcriber as lt
+
+    assert lt.PARAMS["mip_opt_out"] == "true" and lt.PARAMS["language"] == "uk"
+    assert lt.MONTHLY_MINUTES_CAP > 0 and lt.MAX_PER_RUN == 1
+
+
+def test_offsite_backup_is_encrypted_before_it_leaves_and_never_deletes_remotely():
+    """10.11.2026: the off-site copy carries the Vault snapshot and .env; only Andrii's key opens it."""
+    script = (REPO_ROOT / "deploy" / "scripts" / "backup_daily.sh").read_text(encoding="utf-8")
+    offsite = script[script.index("backup_offsite() {"):script.index("prune_old() {")]
+    assert offsite.index("--encrypt") < offsite.index("rsync")
+    assert "--delete" not in offsite and "--recipient-file" in offsite
+    assert "record offsite unavailable" in offsite and "\nbackup_offsite\n" in script.replace("\r", "")
+    timer = (REPO_ROOT / "deploy" / "systemd" / "syndicate-backup.timer").read_text(encoding="utf-8")
+    assert "20:00:00 Europe/Kyiv" in timer
+
+
+def test_google_service_account_key_enters_vault_from_a_private_file_only(tmp_path, monkeypatch):
+    """10.11.2026: the Drive mirror needs service_account_json; the key never goes through argv."""
+    import json
+    import os
+    import sys
+
+    import pytest
+
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    import syndicate_vault as tool
+
+    stored = {}
+    monkeypatch.setattr(tool, "get_secret", lambda path: {"other": "kept"})
+    monkeypatch.setattr(tool, "put_secret", lambda path, data: stored.update({path: data}))
+    key = tmp_path / "sa.json"
+    key.write_text(json.dumps({"type": "service_account", "client_email": "a@p.iam.gserviceaccount.com",
+                               "private_key": "-----BEGIN PRIVATE KEY-----x"}), encoding="utf-8")
+    if os.name != "nt":
+        key.chmod(0o644)
+        with pytest.raises(SystemExit):
+            tool.cmd_set_google_sa("trainer", str(key), shred=False)
+        key.chmod(0o600)
+    tool.cmd_set_google_sa("trainer", str(key), shred=True)
+    saved = stored["agents/trainer/google"]
+    assert saved["other"] == "kept" and list(stored) == ["agents/trainer/google"]
+    assert json.loads(saved["service_account_json"])["client_email"] == "a@p.iam.gserviceaccount.com"
+    assert not key.exists()
+    bad = tmp_path / "bad.json"
+    bad.write_text(json.dumps({"type": "authorized_user"}), encoding="utf-8")
+    if os.name != "nt":
+        bad.chmod(0o600)
+    with pytest.raises(SystemExit):
+        tool.cmd_set_google_sa("trainer", str(bad), shred=False)
+    # One service account per agent: no shared key, no unknown agent.
+    with pytest.raises(SystemExit):
+        tool.cmd_set_google_sa("nobody", str(bad), shred=False)
+    from src import drive_mirror
+
+    assert drive_mirror.KEY_PATH == tool.google_key_path("trainer")
+
+
+def test_video_digest_never_bypasses_bot_checks_and_defuddle_never_fetches():
+    """10.11.2026: video links go through captions or Groq; a blocked source is reported, not evaded."""
+    import inspect
+
+    from src import hermes_tools, video_digest
+
+    source = inspect.getsource(video_digest).lower()
+    for evasion in ("cookiesfrombrowser", "impersonate", "proxy", "user_agent", "cookiefile"):
+        assert evasion not in source, evasion
+    assert "source_blocked" in source
+    assert '["defuddle", "parse", "--md"]' in inspect.getsource(hermes_tools.defuddle_markdown)
+    assert hermes_tools.VIDEO_DIGEST in hermes_tools.granted("trainer")
+
+def test_eva_sorting_never_deletes_and_only_trusts_listed_topics():
+    """10.11.2026: Andrii drops everything unsorted; Eva shelves it, a wrong topic goes to review."""
+    import inspect
+
+    from src import material_sorter as ms
+
+    assert ms.parse_verdict('{"topic": "Криптовалюта"}', ms.SHELVES["trainer"][1])["topic"] == ms.UNSURE
+    source = inspect.getsource(ms)
+    assert "unlink" not in source and "rmtree" not in source and ".remove(" not in source
+    assert ms.MAX_PER_RUN > 0 and ms.DAILY_MODEL_CALLS > 0
+
+
+def test_alex_drive_writes_use_only_drive_file_and_have_no_delete():
+    """10.11.2026: a service account cannot create files in My Drive; Alex writes via OAuth drive.file."""
+    import inspect
+    import sys
+
+    from src import drive_writer
+
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    import syndicate_vault as tool
+
+    assert tool.DRIVE_FILE_SCOPE == "https://www.googleapis.com/auth/drive.file"
+    source = inspect.getsource(drive_writer)
+    assert ".delete(" not in source and '"DELETE"' not in source and "trash" not in source.replace("trashed", "")

@@ -5,7 +5,7 @@ Codex, Claude Code тощо). Якщо ти агент — почни звідс
 
 **Проєкт:** SYNDICATE — автономний AI-холдинг, 10 поверхів (Floor 1 інфраструктура →
 Floor 10 Marshal/безпека). Python 3.11, FastAPI, LangGraph, PostgreSQL+pgvector, Redis,
-HashiCorp Vault, n8n. Оператор-людина — Andrii.
+HashiCorp Vault. Оператор-людина — Andrii.
 
 ---
 
@@ -16,6 +16,8 @@ git pull --ff-only
 cat docs/HANDOFF.md     # що зроблено й що не дороблено попереднім агентом
 bash tools/check.sh     # усі ворота мають бути зеленими ДО твоїх змін
 ```
+
+**Рантайм агентів:** кожен із 7 агентів (з 04.11.2026; було 19) працює на Hermes Agent + LangGraph, це незмінне рішення Андрія. Хто що поглинув: `src/agent_owners.py`, план: `docs/MIGRATION_7_AGENTS.md`. Стан і порядок: **`docs/HERMES_ROLLOUT.md`**. Не вважай агента розгорнутим, поки це не підтверджено там.
 
 Якщо ти Google Antigravity — додатково прочитай **`docs/ANTIGRAVITY_BRIEF.md`**: там межі
 твоєї зони, правила співпраці з Arena Agent і підготовлений промпт для старту.
@@ -174,7 +176,7 @@ apps/shared/api-contract.yaml  ← генерується З БЕКЕНДУ. В�
 ## 7. Коротко про структуру
 
 ```
-src/agents/              агенти поверхів (eva, fin, sam, kira, doc, marshal, architect, office_copilot)
+src/agents/              7 агентів; код старих — у пакетах власників: alex/ (Тренер, Док), sam/jack/, tyler/ (Скаут, Сонар, Декс, Рей, oscar/), eva_atlas.py, eva_kodex*.py
 src/departments/         content_factory, operations, compliance, coordinator (Floor 2)
 src/integrations/        зовнішні сервіси (telegram, google_workspace, banking, mcp_gateway)
 src/verifier.py          Orc — адверсаріальний верифікатор тверджень

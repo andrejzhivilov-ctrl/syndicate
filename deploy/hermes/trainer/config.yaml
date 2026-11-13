@@ -1,0 +1,68 @@
+# Trainer on Hermes. No provider key and no internet here: docs/HERMES_ROLLOUT.md.
+model:
+  provider: custom
+  default: syndicate-chat
+  base_url: http://syndicate-agent:8000/hermes/trainer/llm/chat/v1
+  api_key: ${SYNDICATE_TOKEN}
+  context_length: 200000
+
+# Only memory, own skills, session search and our MCP gateway. Terminal, files, web and
+# code execution stay off, so the rights checked by the gateway cannot be bypassed.
+# Internet, Eva's archive, notes and colleagues come as gateway tools (src/hermes_tools.py).
+platform_toolsets:
+  api_server: [memory, skills, session_search, mcp-syndicate]
+agent:
+  max_turns: 12
+  disabled_toolsets: [terminal, file, web, browser, code_execution, delegation, cronjob, computer_use, image_gen, video_gen, tts, vision, x_search]
+# Our tools are few and known, so they go to the model directly. The tool_search bridge
+# made every turn search and describe a tool first: ~9 model calls instead of 2-3.
+tools:
+  tool_search:
+    enabled: "off"
+mcp_servers:
+  syndicate:
+    url: http://syndicate-agent:8000/hermes/trainer/mcp
+    headers:
+      Authorization: Bearer ${SYNDICATE_TOKEN}
+    timeout: 120
+
+# Learning is automatic: memory is written without asking, a new skill waits for Andrii.
+memory:
+  memory_enabled: true
+  user_profile_enabled: true
+  write_approval: false
+  nudge_interval: 20
+skills:
+  write_approval: true
+  creation_nudge_interval: 25
+  # Hub skills assigned in the Trainer's profile, mounted read-only by docker-compose.hermes.yml.
+  external_dirs: [/opt/syndicate-skills]
+  # Hermes' own bundled skills would be listed in every request; none is the Trainer's work.
+  disabled: [apple-notes, apple-reminders, architecture-diagram, arxiv, ascii-video, baoyu-infographic,
+    blocked-page-recovery, claude-code, claude-design, codebase-inspection, codex, competitor-news-monitor,
+    computer-use, document-to-action-items, dogfood, email-inbox-triage, findmy, github, google-workspace,
+    grounded-citations, hermes-agent, himalaya, humanizer, imessage, manim-video, maps, meeting-action-items,
+    microsoft-office, obsidian, p5js, pdf, popular-web-designs, product-price-monitor, requesting-code-review,
+    sdlc-review, simplify-code, songwriting-and-ai-music, spike, systematic-debugging, teams-meeting-pipeline,
+    test-driven-development, weekly-review-planning, xurl, youtube-content]
+curator:
+  enabled: true
+  consolidate: false
+
+# Background review goes through the budgeted learning door on the cheapest model.
+auxiliary:
+  background_review:
+    provider: custom
+    model: syndicate-learning
+    base_url: http://syndicate-agent:8000/hermes/trainer/llm/learning/v1
+    api_key: ${SYNDICATE_TOKEN}
+  compression:
+    provider: custom
+    model: syndicate-learning
+    base_url: http://syndicate-agent:8000/hermes/trainer/llm/learning/v1
+    api_key: ${SYNDICATE_TOKEN}
+  title_generation:
+    enabled: false
+
+security:
+  allow_lazy_installs: false

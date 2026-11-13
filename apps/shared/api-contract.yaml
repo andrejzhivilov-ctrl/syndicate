@@ -7,9 +7,9 @@
 # Verify in CI with: python tools/export_openapi.py --check
 # ============================================================
 #
-# contract_sha256: ae3faa85c26366929ff1ef26504b77a96a1aa806b6a6fc87db582db3481c2905
+# contract_sha256: 04a39fd9173bb2fd731bbc74c276bcb7144a687e04fdefc877bc44d58ffc735b
 # api_version:     4.1.0
-# paths:           35
+# paths:           36
 #
 ---
 components:
@@ -97,6 +97,11 @@ components:
           - type: string
           - type: 'null'
           title: Message
+        owner:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Owner
         result:
           anyOf:
           - {}
@@ -1514,12 +1519,12 @@ paths:
       summary: Status
   /webhook/error:
     post:
-      description: 'Dead-letter error recording from n8n / subagents (Floor 1).
+      description: 'Dead-letter error recording from subagents and scripts (Floor
+        1).
 
 
-        Authenticated: the n8n templates already send ``X-API-Key``. It used to be
-
-        open to anyone who could reach the port.'
+        Authenticated with ``X-API-Key``. It used to be open to anyone who could reach
+        the port.'
       operationId: error_webhook_webhook_error_post
       parameters:
       - in: header
@@ -1584,10 +1589,53 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Telegram Webhook
+  /webhook/ukrainealarm:
+    post:
+      description: Air-raid events pushed by Ukraine Alarm, signed with their RSA
+        key.
+      operationId: ukrainealarm_webhook_webhook_ukrainealarm_post
+      parameters:
+      - in: header
+        name: X-Webhook-Signature
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Webhook-Signature
+      - in: header
+        name: X-Webhook-Timestamp
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Webhook-Timestamp
+      - in: header
+        name: X-Webhook-Signature-Alg
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Webhook-Signature-Alg
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Ukrainealarm Webhook
   /webhook/{source}:
     post:
-      description: Generic signed webhook (n8n, CI, partners). HMAC-SHA256 over the
-        raw body.
+      description: Generic signed webhook (CI, partners). HMAC-SHA256 over the raw
+        body.
       operationId: webhook_handler_webhook__source__post
       parameters:
       - in: path

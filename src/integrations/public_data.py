@@ -176,6 +176,11 @@ def _alerts_text(alerts: List[Dict[str, Any]]) -> str:
 
 
 async def _alerts_reply(vault: Any, transport: Any) -> Dict[str, Any]:
+    from src.alert_watch import read_snapshot, snapshot_text
+
+    snapshot = read_snapshot()  # the webhook's state; before its first event only alerts.in.ua is left
+    if snapshot is not None:
+        return {"status": "completed", "response": snapshot_text(snapshot)}
     data = await air_alerts(await alerts_token(vault), transport=transport)
     if data["status"] != "ok":
         text = ("Токен alerts.in.ua ще не внесено." if data["reason"] == "token_not_configured"

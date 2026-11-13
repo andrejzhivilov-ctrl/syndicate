@@ -56,6 +56,24 @@ def verify_webhook_secret(master_secret: Optional[str], agent_id: str, presented
     return hmac.compare_digest(expected.encode("utf-8"), presented.encode("utf-8"))
 
 
+def _media(message: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
+    """The photo or video of a message: file id, type, size and length; None for anything else."""
+    photos = message.get("photo")
+    if isinstance(photos, list) and photos and isinstance(photos[-1], Mapping):
+        found, mime = photos[-1], "image/jpeg"  # Telegram lists sizes smallest first
+    else:
+        key = next((key for key in ("video", "video_note", "animation", "document")
+                    if isinstance(message.get(key), Mapping)), None)
+        found = message.get(key) if key else None
+        # A round video note has no mime type; a document without one is not guessed.
+        mime = str((found or {}).get("mime_type") or ("video/mp4" if key in ("video", "video_note", "animation") else ""))
+    if not isinstance(found, Mapping) or not isinstance(found.get("file_id"), str) \
+            or not mime.startswith(("image/", "video/")):
+        return None
+    return {"file_id": found["file_id"], "mime": mime, "file_size": int(found.get("file_size") or 0),
+            "duration": int(found.get("duration") or 0)}
+
+
 def extract_message(update: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
     """Reduce a Telegram update to the few fields an agent may see."""
     if not isinstance(update, Mapping):
@@ -96,6 +114,13 @@ def extract_message(update: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
             "file_size": int(voice.get("file_size") or 0),
             "message_id": message.get("message_id"),
         }
+    media = _media(message)
+    if media is not None and sender.get("id") is not None and chat.get("id") is not None:
+        # A photo or video: only the file reference, the caption is the owner's words.
+        caption = message.get("caption")
+        return {"kind": "media", "user_id": str(sender["id"]), "chat_id": str(chat["id"]),
+                "chat_type": chat.get("type", ""), "text": caption[:1000] if isinstance(caption, str) else "",
+                "message_id": message.get("message_id"), **media}
     if sender.get("id") is None or chat.get("id") is None or not isinstance(text, str):
         return None
     return {
@@ -139,6 +164,11 @@ class TelegramGateway:
         self._vault = vault
         self._owner = owner_user_id
         self._transport = transport
+
+    @property
+    def vault(self) -> Any:
+        """The Vault client, for scheduled jobs that read their own secret (src/drive_mirror.py)."""
+        return self._vault
 
     async def owner_user_id(self) -> Optional[str]:
         if self._owner:

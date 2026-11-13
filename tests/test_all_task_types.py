@@ -29,6 +29,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "deploy" / "runtime"))
 
+from src.vault_paths import AGENT_ROSTER  # noqa: E402
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Test doubles
@@ -308,6 +310,9 @@ def _payloads(tmp_path: Path) -> Dict[str, Dict[str, Any]]:
         },
         "kodex_triage_tasks": {},
         "kodex_storage_stats": {},
+        "kodex_obsidian_plan": {"write_note": False},
+        "kodex_obsidian_report": {},
+        "morning_data_kodex": {},
         "antigravity_contractor_dispatch": {
             "requester_agent": "architect",
             "objective": "Design async event bus",
@@ -385,24 +390,6 @@ def _build_payload(harness, task_type: str) -> Dict[str, Any]:
             "proposed_content": "# Seed\n",
         }))
         payload["cr_id"] = (seed.get("result") or {}).get("cr_id")
-    if task_type == "gitops_sync":
-        # GitOps now intentionally fails closed. Exercise its success route with
-        # a workflow whose exact proposal has been reviewed and applied by the
-        # test operator; the approval step is not bypassed by the harness.
-        draft = asyncio.run(harness.orchestrator.execute("design_workflow", {
-            "name": "gitops-sync-test",
-            "trigger": "manual",
-        }))
-        proposal = draft.get("result") or {}
-        cr_id = proposal.get("approval_cr_id")
-        store = harness.orchestrator._change_requests
-        store.review(cr_id, reviewer="operator", comment="Approved in route probe")
-        store.apply(cr_id, approver="operator")
-        payload.update({
-            "workflow_name": "gitops-sync-test",
-            "workflow_json": proposal["workflow"],
-            "approval_cr_id": cr_id,
-        })
     return payload
 
 
@@ -426,6 +413,8 @@ def test_task_type_routes_cleanly(harness, task_type: str):
 
     assert isinstance(result, dict), f"{task_type}: orchestrator returned {type(result)}"
     assert result.get("status") == "completed", f"{task_type}: {result}"
+    # Seven agents since 04.11: every task names the one that owns it.
+    assert result.get("owner") in AGENT_ROSTER, f"{task_type}: owner {result.get('owner')!r}"
 
     # A non-serialisable value here used to surface as an HTTP 500.
     json.dumps(result, default=str)

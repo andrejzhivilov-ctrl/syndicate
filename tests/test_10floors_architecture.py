@@ -1,7 +1,7 @@
 """
 SYNDICATE — 10-Floor Comprehensive Sandbox Verification Suite
 Tests all 10 floors of the Syndicate architecture:
-- Floor 1: Server & n8n (SensoryRouter, ErrorCollector, n8n templates, ProactiveScheduler)
+- Floor 1: Server (SensoryRouter, ErrorCollector, fixed agent schedule, ProactiveScheduler)
 - Floor 2: Content Factory (Floor2Coordinator, Humanizer, VideoPromptEnhancer, ReleasePackBuilder)
 - Floors 3-6: Reserved Floors (Single Source of Truth verification, graceful routing)
 - Floor 7: Quant & Capital (SamAgent, ConfluenceEngine, strict HITL)
@@ -20,7 +20,7 @@ import hmac
 import json
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -219,17 +219,12 @@ async def run_10floors_sandbox_suite():
     print(f"  ✅ All {len(py_files)} Python files parsed cleanly with 0 SyntaxErrors.")
 
     # ─────────────────────────────────────────────────────────────────────────
-    # STEP 2: Floor 1 — Server & n8n Verification
+    # STEP 2: Floor 1 — Server Verification
     # ─────────────────────────────────────────────────────────────────────────
-    print("\n[2/10] Testing Floor 1: Server & n8n (SensoryRouter, ErrorCollector, n8n templates, ProactiveScheduler)...")
+    print("\n[2/10] Testing Floor 1: Server (SensoryRouter, ErrorCollector, agent schedule, ProactiveScheduler)...")
     from src.sensory import SensoryRouter
     from src.error_collector import ErrorCollector
-    from src.n8n_templates import (
-        build_sensory_switch_workflow,
-        build_error_handler_workflow,
-        build_cron_briefing_workflow,
-        build_evening_reflection_workflow,
-    )
+    from src.agent_schedule import JOBS, AgentSchedule
     from src.proactive import ProactiveScheduler, cron_matches
 
     # 2a. Sensory Router: Whisper audio splitting (<25MB chunks)
@@ -277,21 +272,11 @@ async def run_10floors_sandbox_suite():
     recent_errors = err_collector.get_recent_errors(limit=5)
     assert len(recent_errors) == 1 and recent_errors[0]["occurrences"] == 2
 
-    # 2e. n8n Templates (FlowLint verified workflows)
-    wf_sensory = build_sensory_switch_workflow()
-    wf_error = build_error_handler_workflow()
-    wf_briefing = build_cron_briefing_workflow()
-    wf_evening = build_evening_reflection_workflow()
-
-    assert "nodes" in wf_sensory and "connections" in wf_sensory
-    assert any("telegramTrigger" in n["type"] or "webhook" in n["type"] for n in wf_sensory["nodes"])
-    assert any("30 7 * * *" in str(n.get("parameters", {})) for n in wf_briefing["nodes"])
-    assert any("0 21 * * *" in str(n.get("parameters", {})) for n in wf_evening["nodes"])
-
-    # The error-handler template must actually route failures to the DLQ endpoint.
-    assert "nodes" in wf_error and "connections" in wf_error
-    assert any("errorTrigger" in n["type"] for n in wf_error["nodes"])
-    assert "/webhook/error" in json.dumps(wf_error)
+    # 2e. The fixed agent schedule that replaced n8n (stage 6): known jobs, all off by default.
+    assert {"alex_morning_plan", "alex_checkin", "alex_reflection"} <= set(JOBS)
+    assert AgentSchedule(None, []).due(datetime(2026, 11, 9, 6, 0, tzinfo=timezone.utc)) == []
+    on = AgentSchedule(None, ["alex_morning_plan"])
+    assert [j.name for j in on.due(datetime(2026, 11, 9, 6, 0, tzinfo=timezone.utc))] == ["alex_morning_plan"]
 
     # 2f. The prepared, dormant Eva-only 03:00 Kyiv cron contract is the sole default job.
     scheduler = ProactiveScheduler()
@@ -302,7 +287,7 @@ async def run_10floors_sandbox_suite():
     assert cron_matches("30 7 * * *", t_0730)
     assert [job.name for job in scheduler.due(t_0300)] == ["nightly_analysis"]
     assert scheduler.due(t_0730) == []
-    print("  ✅ Floor 1 (Sensory Router, Dead Letter Queue, n8n FlowLint Workflows, Proactive Cron) verified!")
+    print("  ✅ Floor 1 (Sensory Router, Dead Letter Queue, Agent Schedule, Proactive Cron) verified!")
 
     # ─────────────────────────────────────────────────────────────────────────
     # STEP 3: Floor 2 — Operations & Content Factory
@@ -471,7 +456,7 @@ async def run_10floors_sandbox_suite():
     # STEP 7: Floor 9 — Health & Energy (Doc)
     # ─────────────────────────────────────────────────────────────────────────
     print("\n[7/10] Testing Floor 9: Health & Energy (DocAgent, morning readiness, Mifflin-St Jeor TDEE, emergency card)...")
-    from src.agents.doc import DocAgent
+    from src.agents.alex.doc import DocAgent
 
     doc = DocAgent(memory=mem, llm=mock_llm)
 

@@ -33,6 +33,17 @@ DIRS = {
     "reports": "media/reports",
     "hitl": "hitl",
     "lockdown": "lockdown",
+    "obsidian_activity": "obsidian_activity",
+    "alerts": "alerts",
+    "hermes": "hermes",
+    "learning": "learning",
+    "schedule": "schedule",
+    "materials": "materials_text_cache",
+    "drive_mirror": "drive_mirror",
+    "video_work": "video_work",
+    "drive_writer": "drive_writer",
+    "transcription": "transcription",
+    "material_sorter": "material_sorter",
 }
 
 

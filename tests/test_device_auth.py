@@ -435,8 +435,8 @@ class TestProtectedReadSurface:
                     return config[i:j]
             raise AssertionError(header)
 
-        assert "proxy_pass http://eva_agent/cockpit;" in block("location = /cockpit {")
-        assert "proxy_pass http://eva_agent/floors;" in block("location = /floors {")
+        assert "proxy_pass http://syndicate_agent/cockpit;" in block("location = /cockpit {")
+        assert "proxy_pass http://syndicate_agent/floors;" in block("location = /floors {")
         assert "return 404;" in block("location /cockpit/ {")
         assert "alias /usr/share/nginx/static/;" not in config
         # Credentials must never reach the access log through the query string.
@@ -454,11 +454,11 @@ class TestProtectedReadSurface:
         config = (REPO_ROOT / "config" / "nginx" / "nginx.conf").read_text(encoding="utf-8")
         assert "syncthing_backend" not in config
         assert "8384" not in config
-        # Operator 29.10: sync.* now serves only Garage's S3 API (SigV4-signed,
-        # obsidian-devices key) for Remotely Save; nothing else is proxied there.
+        # Operator 31.10: sync.* serves only the WebDAV door to the Obsidian vault for
+        # Remotely Save; nothing else is proxied there.
         start = config.index("server_name sync.syndicateholding.com;")
         block = config[start: config.index("\n    }\n", start)]
-        assert re.findall(r"proxy_pass\s+(\S+);", block) == ["http://garage:3900"]
+        assert re.findall(r"proxy_pass\s+(\S+);", block) == ["http://syndicate-agent:8081"]
         assert "proxy_set_header Host $host;" in block
 
 

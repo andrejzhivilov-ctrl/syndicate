@@ -126,13 +126,10 @@ def test_compose_runs_garage_internal_only_and_identical_in_both_files():
     # No admin HTTP API at all: administration goes over the encrypted RPC (garage json-api).
     sections = [line.strip() for line in toml.splitlines() if line.strip().startswith("[")]
     assert "[admin]" not in sections and "3903" not in toml and "ADMIN_TOKEN" not in block
-    # Operator 29.10: only Garage's S3 API (3900, SigV4) is published, and only on
-    # sync.* for the Obsidian hub; the admin side stays unreachable.
+    # Operator 31.10: Garage is the agents' private working memory, nginx publishes none of it.
     nginx = (ROOT / "config/nginx/nginx.conf").read_text(encoding="utf-8")
-    assert re.findall(r"proxy_pass\s+http://garage[^;]*;", nginx) == ["proxy_pass http://garage:3900;"]
+    assert re.findall(r"proxy_pass\s+http://garage[^;]*;", nginx) == []
     assert "3903" not in nginx
-    start = nginx.index("server_name sync.syndicateholding.com;")
-    assert start < nginx.index("http://garage:3900") < nginx.index("\n    }\n", start)
 
 
 def test_client_construction_and_stream_failures_stay_honest():

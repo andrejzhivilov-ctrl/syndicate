@@ -34,6 +34,8 @@ logger = structlog.get_logger(__name__)
 LAYOUT_DIRS = ("raw", "wiki", "statutes", "agents", "archive")
 PROTECTED_DIRS = ("statutes",)
 _SAFE_AGENT = re.compile(r"^[a-z0-9_\-]{1,32}$")
+OBSIDIAN_FACTS_DIR = "09_База_Знань/Факти_Агентів"
+OBSIDIAN_COPY_NOTE = "Копія підтвердженої пам'яті. Правки тут агент не читає й наступний запис їх перезапише."
 _FACT_LINE = re.compile(r"^- \*\*(?P<key>[^*]+)\*\*: (?P<value>.*?)(?: <!-- (?P<meta>.*?) -->)?$")
 
 
@@ -74,6 +76,7 @@ class MarkdownVault:
 
             target = data_dir("vault")
         self.root = Path(target).resolve()
+        self.obsidian_copied: Optional[bool] = None  # result of the last fact write's copy
         self.ensure_layout()
 
     # ── paths ─────────────────────────────────────────────────────────────
@@ -171,6 +174,31 @@ class MarkdownVault:
             meta = f" <!-- {f['meta']} -->" if f.get("meta") else ""
             lines.append(f"- **{f['key']}**: {f['value']}{meta}")
         self.write(self._agent_memory_path(agent), "\n".join(lines) + "\n", allow_memory_write=True)
+        self.obsidian_copied = self._copy_to_obsidian(agent, facts)
+
+    @staticmethod
+    def _copy_to_obsidian(agent: str, facts: List[Dict[str, str]]) -> bool:
+        """One-way readable copy for Andrii; this vault stays the source and is never read back."""
+        from src.obsidian_notes import vault_dir_from_env
+
+        vault = vault_dir_from_env()
+        if vault is None:
+            return False
+        target = vault / OBSIDIAN_FACTS_DIR / f"{agent}.md"
+        body = [f"# Факти агента {agent}", "", OBSIDIAN_COPY_NOTE, ""]
+        body += [f"- **{fact['key']}**: {fact['value']}" for fact in facts]
+        spare = target.with_suffix(".tmp")
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if target.exists() and "andrii_protected" in target.read_text(encoding="utf-8"):
+                logger.warning("obsidian_copy_skipped_protected", agent=agent)
+                return False
+            spare.write_text("\n".join(body) + "\n", encoding="utf-8")
+            spare.replace(target)
+        except OSError as exc:
+            logger.warning("obsidian_copy_failed", agent=agent, error_type=type(exc).__name__)
+            return False
+        return True
 
     @staticmethod
     def _slug(text: str, limit: int = 48) -> str:

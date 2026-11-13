@@ -971,6 +971,57 @@ class TestVectorMemoryLive:
         assert with_vector == 1, "the lesson was recorded without a vector"
         assert matched and matched[0]["summary"] == summary
 
+    def test_error_report_really_becomes_a_lesson(self, live_pg):
+        """A fake store hid that the schema refused the kind the collector used to write."""
+        from src.error_collector import ErrorCollector
+        from src.lessons import LessonsStore
+
+        source = _tag("incident")
+
+        async def scenario():
+            memory = await _memory(live_pg)
+            try:
+                collector = ErrorCollector(lessons_store=LessonsStore(session_factory=memory._session_factory))
+                return await collector.record_error(source, "n8n node crashed")
+            finally:
+                await memory.close()
+
+        report = _run(scenario())
+        assert "architect_lessons" in report["routed_to"]
+        assert live_pg.scalar("SELECT count(*) FROM memory.lessons WHERE summary LIKE %s", (f"[{source}]%",)) == 1
+
+    def test_operator_lessons_stay_with_their_agent_and_can_be_retired(self, live_pg):
+        from src.agent_chat import lesson_reply
+        from src.lessons import LessonsStore
+
+        agent_id, other = _tag("student"), _tag("other")
+
+        async def scenario():
+            memory = await _memory(live_pg)
+            try:
+                store = LessonsStore(session_factory=memory._session_factory)
+                await store.add_operator_lesson(agent_id, "перше")
+                await store.add_operator_lesson(agent_id, "друге")
+                await store.add_operator_lesson(other, "чуже")
+                before = await store.operator_lessons(agent_id)
+                vectors = live_pg.scalar(
+                    "SELECT count(*) FROM memory.lessons WHERE agent_id = %s AND lesson_vector IS NOT NULL",
+                    (agent_id,),
+                )
+                foreign = await store.retire_operator_lesson(other, before[0]["id"])
+                retired = await lesson_reply(agent_id, "- 1", store)
+                return before, vectors, foreign, retired, await store.operator_lessons(agent_id)
+            finally:
+                await memory.close()
+
+        before, vectors, foreign, retired, after = _run(scenario())
+        assert {row["summary"] for row in before} == {"перше", "друге"}
+        assert vectors == 0, "a vector here would slow every later reply"
+        assert foreign is False
+        assert retired["status"] == "completed"
+        assert len(after) == 1
+        assert live_pg.scalar("SELECT count(*) FROM memory.lessons WHERE agent_id = %s", (agent_id,)) == 2
+
     def test_episode_survives_a_dead_embedder_without_a_vector(self, live_pg):
         """Vector search is an enhancement. Losing it must never lose the episode
         — and the failure must be visible, not silent."""

@@ -45,6 +45,7 @@ def test_openai_transcribes_first_with_the_registry_model():
     text, provider = asyncio.run(transcribe(b"ogg", {"openai_api_key": "sk-test"}, transport=httpx.MockTransport(handler)))
     assert (text, provider) == ("Привіт, Фіне", "openai")
     assert seen[0].url.host == "api.openai.com" and b"gpt-4o-mini-transcribe" in seen[0].content
+    assert "Обсидіан".encode() in seen[0].content  # names the model cannot guess
     assert seen[0].headers["Authorization"] == "Bearer sk-test"
 
 
@@ -79,9 +80,9 @@ def test_agents_speak_with_the_voices_the_operator_picked():
     assert voice_for("kira", voices) == "mariia-audiobook"
     assert voice_for("sam", voices) == "yevhen-audiobook"
     assert voice_for("trainer", voices) == "ihoreo-conversation"
-    assert voice_for("jack", voices) == "oleksandr-commercial"
+    # Jack's voice left with Jack (merged into Sam, 2026-11-04); agents without a pick get the default.
     assert voice_for("fin", voices) == "yevhen-commercial"
-    assert voice_for("oscar", voices) == "yevhen-commercial"
+    assert voice_for("tyler", voices) == "yevhen-commercial"
     # A retired voice still gets a real one, never silence or fake audio.
     assert voice_for("eva", [{"id": "dmytro-conversation"}]) == "dmytro-conversation"
 
