@@ -7,9 +7,9 @@
 # Verify in CI with: python tools/export_openapi.py --check
 # ============================================================
 #
-# contract_sha256: 04a39fd9173bb2fd731bbc74c276bcb7144a687e04fdefc877bc44d58ffc735b
+# contract_sha256: f67cff8060122fe9e885a666c8dafe3be96d1e612077c3fd94627ed45fd183ec
 # api_version:     4.1.0
-# paths:           36
+# paths:           37
 #
 ---
 components:
@@ -1517,6 +1517,41 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
           description: Validation Error
       summary: Status
+  /webhook/alarm-relay:
+    post:
+      description: The full air-raid picture from the relay Worker in Andrii's Cloudflare,
+        HMAC-signed.
+      operationId: alarm_relay_webhook_webhook_alarm_relay_post
+      parameters:
+      - in: header
+        name: X-Alarm-Signature
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Alarm-Signature
+      - in: header
+        name: X-Alarm-Timestamp
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Alarm-Timestamp
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Alarm Relay Webhook
   /webhook/error:
     post:
       description: 'Dead-letter error recording from subagents and scripts (Floor
