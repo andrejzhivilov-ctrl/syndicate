@@ -88,7 +88,9 @@ def test_tools_refuse_what_was_not_granted_and_mask_results():
     orchestrator = _Orchestrator()
     listed = asyncio.run(gateway.mcp_reply("trainer", {"id": 1, "method": "tools/list"}, orchestrator))
     names = {tool["name"] for tool in listed["result"]["tools"]}
-    assert names == {"agent_action", "hub_search", "hub_read", "obsidian_search", "obsidian_read"}
+    assert names == {"agent_action", "hub_search", "hub_read", "obsidian_search", "obsidian_read", "learning_inbox",
+                     "web_search", "web_fetch", "archive_search", "archive_read", "note_write", "ask_agent",
+                     "material_list", "material_read", "video_digest", "drive_save"}
 
     denied = asyncio.run(gateway.mcp_reply("trainer", _call("agent_action", action="place_trade"), orchestrator))
     text = denied["result"]["content"][0]["text"]
@@ -160,3 +162,32 @@ def test_the_token_tool_prints_nothing_but_the_env_file(monkeypatch, capsys):
         structlog.configure(**saved)
     lines = capsys.readouterr().out.splitlines()
     assert [line.split("=", 1)[0] for line in lines] == ["API_SERVER_KEY", "SYNDICATE_TOKEN"]
+
+
+def test_trainer_tools_reach_the_model_without_the_search_bridge():
+    """The tool_search bridge cost ~9 model calls per turn in the first live run (2026-11-03)."""
+    from pathlib import Path
+
+    import yaml
+
+    config = yaml.safe_load((Path(__file__).resolve().parent.parent / "deploy/hermes/trainer/config.yaml")
+                            .read_text(encoding="utf-8"))
+    assert config["tools"]["tool_search"]["enabled"] == "off"
+
+
+def test_trainer_hermes_mounts_exactly_its_profile_skills():
+    """A skill assigned in the profile but not mounted would silently never reach the Trainer."""
+    import json
+    import re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    profile = json.loads((root / "config/agents/trainer.profile.json").read_text(encoding="utf-8"))
+    catalog = {item["id"]: item for item in json.loads(
+        (root / "config/skill_library.json").read_text(encoding="utf-8"))["skills"]}
+    compose = (root / "deploy/docker-compose.hermes.yml").read_text(encoding="utf-8")
+    mounts = dict((name, source) for source, name in re.findall(r"- \.\./(\S+):/opt/syndicate-skills/([\w-]+):ro", compose))
+    assert set(mounts) == set(profile["reference_skills"])
+    for name, source in mounts.items():
+        assert catalog[name]["resources"]["SKILL.md"] == f"{source}/SKILL.md"
+        assert (root / source / "SKILL.md").is_file()

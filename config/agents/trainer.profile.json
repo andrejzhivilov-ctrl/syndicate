@@ -68,9 +68,14 @@
   "role_title": "Керівник відділу фізичної підготовки, тренувальних програм, нутриціології та відновлення",
   "reports_to": "eva",
   "reference_skills": [
-    "content-engine",
-    "internal-comms",
-    "scientific-critical-thinking"
+    "evidence-based-fitness-coach",
+    "hypertrophy-training",
+    "i-have-adhd",
+    "rep-max",
+    "scientific-critical-thinking",
+    "obsidian-markdown",
+    "obsidian-bases",
+    "json-canvas"
   ],
   "proposed_grants": [
     {

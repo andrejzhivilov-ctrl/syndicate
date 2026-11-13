@@ -39,7 +39,6 @@ if docker compose -f "${REPO_ROOT}/deploy/docker-compose.yml" \
     pass "docker-compose.yml syntax is valid"
 elif env POSTGRES_PASSWORD=placeholder REDIS_PASSWORD=placeholder \
         VAULT_ROLE_ID=placeholder VAULT_SECRET_ID=placeholder \
-        N8N_USER=placeholder N8N_PASSWORD=placeholder N8N_ENCRYPTION_KEY=placeholder \
         docker compose -f "${REPO_ROOT}/deploy/docker-compose.yml" \
         --project-directory "${REPO_ROOT}" config -q >/dev/null 2>&1; then
     pass "docker-compose.yml syntax is valid (validated with placeholder env vars)"

@@ -226,31 +226,23 @@ async def run_sandbox_suite():
     print(f"  ✅ Sentinel blocked injection & direct email; PIIRedactor masked {len(events)} items; Sam locked to HITL ({sam_eval.level.value}).")
 
     # -------------------------------------------------------------------------
-    # STEP 4: Architect Reasoning + AST/Signature Self-Healing Compiler Loop
+    # STEP 4: The fixed schedule that replaced n8n (stage 6, 05.11.2026)
     # -------------------------------------------------------------------------
-    print("\n[4/7] Testing ArchitectAgent Compiler-in-the-Loop & Self-Healing Generator...")
-    from src.agents.architect import ArchitectAgent
+    print("\n[4/7] Checking the fixed schedule: every job valid and off by default...")
+    from datetime import datetime as _dt, timedelta as _td, timezone as _tz
 
-    mock_llm = MockReasoningLLM()
-    architect = ArchitectAgent(memory=mem, llm=mock_llm)
+    from src.agent_schedule import JOBS, AgentSchedule, enabled_from_env
+    from src.proactive import cron_matches
 
-    # 4a. Test n8n builder + FlowLint QA
-    wf_res = await architect.execute({
-        "action": "design_workflow",
-        "name": "Telegram Idempotent Alert",
-        "trigger_path": "tg-alert",
-    })
-    assert wf_res["flowlint"]["passed"] is True, f"FlowLint failed on generated workflow: {wf_res['flowlint']}"
-
-    # 4b. Test Self-Healing Code Generator (Attempt 1 has 2 bugs -> Compiler catches -> Attempt 2 heals!)
-    heal_res = await architect.execute({
-        "action": "self_healing_generate",
-        "specification": "Write an async helper function that calls llm and saves an episode to memory.",
-        "max_retries": 3,
-    })
-    assert heal_res["verified"] is True, f"Self-healing failed: {heal_res}"
-    assert heal_res["attempts"] == 2, f"Expected 2 attempts (1 fail -> 1 heal), got {heal_res['attempts']}"
-    print(f"  ✅ FlowLint QA passed (0 errors). Self-Healing Compiler caught Attempt #1 bugs & healed on Attempt #{heal_res['attempts']}!")
+    start = _dt(2026, 11, 2, tzinfo=_tz.utc)  # a Monday
+    minutes = [start + _td(minutes=m) for m in range(7 * 24 * 60)]
+    for job in JOBS.values():
+        assert any(cron_matches(job.cron, m) for m in minutes), f"{job.name} never fires"
+    assert enabled_from_env("") == ([], [])
+    off = AgentSchedule(None, [])
+    assert not any(off.due(m) for m in minutes[::30]), "a job ran although none was switched on"
+    print(f"  ✅ {len(JOBS)} scheduled jobs are valid and stay off until named in SYNDICATE_SCHEDULE.")
+    mock_llm = MockReasoningLLM()  # step 5 runs the orchestrator on it
 
     # -------------------------------------------------------------------------
     # STEP 5: Full LangGraph Orchestrator Execution across All Specialist Agents

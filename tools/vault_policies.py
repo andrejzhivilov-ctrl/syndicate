@@ -70,9 +70,10 @@ def _policy_text(title: str, paths: List[Tuple[str, str]]) -> str:
     return "\n".join(lines).rstrip("\n") + "\n"
 
 
-#: The runtime container (server + orchestrator). Named ``eva-agent`` because
-#: that is the service ``docker-compose.yml`` and ``.env.example`` already
-#: refer to; Eva's orchestrator *is* the server process, so she has no separate
+#: The runtime container (server + orchestrator). The compose service was renamed to
+#: ``syndicate-agent`` on 04.11.2026 (stage 5), but the Vault policy and AppRole keep
+#: the name ``eva-agent``: renaming them needs a new SecretID and gains nothing.
+#: Eva's orchestrator *is* the server process, so she has no separate
 #: per-agent policy.
 RUNTIME_POLICY_NAME = "eva-agent"
 
@@ -95,19 +96,9 @@ def runtime_policy() -> Tuple[str, str]:
 def agent_policy(agent_id: str) -> Tuple[str, str]:
     """One agent's own policy (used when floors get their own containers)."""
     services = vault_paths.AGENT_SERVICES.get(agent_id, ())
-    if agent_id == "alice":
-        own_scope = (
-            f"{vault_paths.agent_secret_path(agent_id, 'auth')} and "
-            f"{vault_paths.agent_secret_path(agent_id, 'gemini')}"
-        )
-        own_scope_label = "Own secrets"
-    elif agent_id == "antigravity":
-        own_scope = "none (retired profile; no Vault data access)"
-        own_scope_label = "Secret paths"
-    else:
-        own_scope = f"{vault_paths.agent_secret_path(agent_id, '<name>')}"
-        own_scope_label = "Own subtree"
-    if agent_id in vault_paths.ISOLATED_WORKERS or agent_id in {"alice", "antigravity"}:
+    own_scope = f"{vault_paths.agent_secret_path(agent_id, '<name>')}"
+    own_scope_label = "Own subtree"
+    if agent_id in vault_paths.ISOLATED_WORKERS:
         infrastructure = "none"
     else:
         infrastructure = ", ".join(vault_paths.INFRA_SERVICES)

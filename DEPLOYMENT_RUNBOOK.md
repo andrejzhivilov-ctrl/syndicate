@@ -13,7 +13,7 @@
 | Сервіс | Образ | Внутрішній порт | Публічний | UID |
 |--------|-------|------------------|-----------|-----|
 | nginx | nginx:1.25-alpine | 80/443 | ✅ 80, 443 | root+NET_BIND |
-| eva-agent | build docker/Dockerfile.agent | 8000 | ❌ (через nginx) | 1001 |
+| syndicate-agent | build docker/Dockerfile.agent | 8000 | ❌ (через nginx) | 1001 |
 | n8n | n8nio/n8n:latest | 5678 | ❌ (через nginx /n8n/) | 1000 |
 | postgres | pgvector/pgvector:pg16 | 5432 | ❌ | 999 |
 | redis | redis:7-alpine | 6379 | ❌ | 999 |
@@ -208,12 +208,11 @@ python tools/vault_policies.py --check     # виконується і в tools/
 | `eva-eva` | Єва в окремому контейнері (на майбутнє) | інфраструктура + конектори + голос + `agents/eva/*` |
 | `eva-marshal` | Маршал | інфраструктура + `mcp`, `telegram` + `agents/marshal/*` |
 | `eva-fin` | Фін | інфраструктура + `google_workspace` + `agents/fin/*` |
-| `eva-architect` | Архітектор | інфраструктура + `mcp` + `agents/architect/*` |
-| `eva-sam`, `eva-doc`, `eva-kira` | Сем, Док, Кіра | інфраструктура + власна гілка (default deny) |
+| `eva-sam`, `eva-kira`, `eva-tyler`, `eva-trainer` | Сем, Кіра, Тайлер, Алекс | інфраструктура + власна гілка (default deny) |
 
 Жодна агентська політика не дає `auth` (ключ API самого сервера) і не дає доступу до
 гілки іншого агента. **Причина, чому рантайм поки бачить усе:** сьогодні всі поверхи
-живуть в одному процесі (`eva-agent`). Щойно поверх переїде в окремий контейнер, його
+живуть в одному процесі (`syndicate-agent`). Щойно поверх переїде в окремий контейнер, його
 `VAULT_ROLE_ID/SECRET_ID` беруться з `vault-secrets/eva-<id>.approle.env`, і жодних
 змін у коді це не потребує.
 
@@ -254,7 +253,7 @@ ls /etc/letsencrypt/live/your-domain.com/   # fullchain.pem, privkey.pem
 
 ```bash
 cd /opt/eva
-docker compose -f deploy/docker-compose.yml --project-directory . --env-file .env build eva-agent
+docker compose -f deploy/docker-compose.yml --project-directory . --env-file .env build syndicate-agent
 docker compose -f deploy/docker-compose.yml --project-directory . --env-file .env up -d
 docker compose -f deploy/docker-compose.yml --project-directory . --env-file .env ps
 ```
@@ -312,7 +311,7 @@ bash /opt/eva/deploy/scripts/vault_unseal.sh
 Після unseal перезапустіть агента, якщо він стартував раніше за розпечатування:
 
 ```bash
-cd /opt/eva && docker compose -f deploy/docker-compose.yml --project-directory . --env-file .env restart eva-agent
+cd /opt/eva && docker compose -f deploy/docker-compose.yml --project-directory . --env-file .env restart syndicate-agent
 ```
 
 ---
@@ -322,7 +321,7 @@ cd /opt/eva && docker compose -f deploy/docker-compose.yml --project-directory .
 ```bash
 cd /opt/eva
 git pull origin feature/complete-system-implementation
-docker compose -f deploy/docker-compose.yml --project-directory . --env-file .env build eva-agent
+docker compose -f deploy/docker-compose.yml --project-directory . --env-file .env build syndicate-agent
 docker compose -f deploy/docker-compose.yml --project-directory . --env-file .env up -d
 ```
 
@@ -454,8 +453,8 @@ for a in m['artifacts']:
 
 | Симптом | Причина | Дія |
 |---------|---------|-----|
-| eva-agent `unhealthy` | Vault запечатано або невірні AppRole-креденшли | Розпечатати Vault (крок 8), перевірити `VAULT_ROLE_ID/SECRET_ID` у `.env` |
-| eva-agent не стартує: `POSTGRES_PASSWORD required` | Порожній `.env` | Заповнити `.env`, запускати compose з кореня з `--project-directory . --env-file .env` |
+| syndicate-agent `unhealthy` | Vault запечатано або невірні AppRole-креденшли | Розпечатати Vault (крок 8), перевірити `VAULT_ROLE_ID/SECRET_ID` у `.env` |
+| syndicate-agent не стартує: `POSTGRES_PASSWORD required` | Порожній `.env` | Заповнити `.env`, запускати compose з кореня з `--project-directory . --env-file .env` |
 | nginx `unhealthy` | Відсутні TLS-сертифікати | Виконати крок 5, перевірити `/etc/letsencrypt/live/<domain>/` |
 | redis healthcheck fail | Пароль у конфізі ≠ `.env` | Синхронізувати (крок 2.3), перезапустити redis |
 | Vault `sealed:true` після рестарту | Очікувано | Розпечатати (крок 8) |

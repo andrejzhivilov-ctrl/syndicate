@@ -1,8 +1,9 @@
 [Unit]
-Description=Run the SYNDICATE backup every night
+Description=Run the SYNDICATE backup every evening at 20:00 Kyiv time
 
 [Timer]
-OnCalendar=*-*-* 03:30:00
+# Andrii's time (10.11.2026): the set, then the encrypted off-site copy, at 20:00 Kyiv.
+OnCalendar=*-*-* 20:00:00 Europe/Kyiv
 Persistent=true
 Unit=syndicate-backup.service
 

@@ -1,9 +1,9 @@
 from datetime import date
 from decimal import Decimal as D
 
-from src.agents import doc_buttons as DB
-from src.agents import doc_knowledge as K
-from src.agents import doc_nutrition as N
+from src.agents.alex import doc_buttons as DB
+from src.agents.alex import doc_knowledge as K
+from src.agents.alex import doc_nutrition as N
 
 
 def test_no_medical_values_are_invented():

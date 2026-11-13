@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Release the emergency lockdown. Run on the server, inside the eva-agent container:
+"""Release the emergency lockdown. Run on the server, inside the syndicate-agent container:
 
-    docker exec -it syndicate-eva-agent-1 python -m tools.unlock_lockdown
+    docker compose exec syndicate-agent python -m tools.unlock_lockdown
 
 Asks for the master API key (hidden) and compares it, in constant time, with the
 key the running process holds (``EVA_API_KEY`` in its environment). There is no

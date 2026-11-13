@@ -1,6 +1,6 @@
 # SYNDICATE — Agent runtime image.
 #
-# Referenced by ``deploy/docker-compose.yml`` (service ``eva-agent``); before
+# Referenced by ``deploy/docker-compose.yml`` (service ``syndicate-agent``); before
 # this file existed the compose stack could not be built at all.
 #
 # The container runs as UID 1001 with a read-only root filesystem, so the image
@@ -31,6 +31,21 @@ RUN wget -q -O /tmp/rclone.zip "https://downloads.rclone.org/${RCLONE_VERSION}/r
     && chmod 0755 /usr/local/bin/rclone \
     && rm /tmp/rclone.zip \
     && rclone version | head -1
+
+# Node.js runs only Defuddle (kepano/defuddle), which turns a page already fetched by
+# web_fetch into clean Markdown over stdin; it never opens a URL itself (10.11.2026).
+# Pinned release, verified against nodejs.org SHASUMS256.
+ARG NODE_VERSION=v22.23.4
+ARG NODE_SHA256=1805bcd35e6815559bd2eb97db438d3fdb0eb3a5e6a977b7c1badca76337e9ce
+ARG DEFUDDLE_VERSION=0.19.6
+RUN apt-get update && apt-get install -y --no-install-recommends xz-utils && rm -rf /var/lib/apt/lists/* \
+    && wget -q -O /tmp/node.tar.xz "https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-linux-x64.tar.xz" \
+    && echo "${NODE_SHA256}  /tmp/node.tar.xz" | sha256sum -c - \
+    && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 --no-same-owner \
+    && rm /tmp/node.tar.xz \
+    && npm install -g --no-fund --no-audit "defuddle@${DEFUDDLE_VERSION}" \
+    && npm cache clean --force \
+    && node --version && echo "<html><body><article><p>ok</p></article></body></html>" | defuddle parse --md
 
 WORKDIR /app
 

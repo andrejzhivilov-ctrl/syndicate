@@ -42,8 +42,8 @@ RETAILERS: Dict[str, Dict[str, str]] = {
 }
 
 # ---------------------------------------------------------------- нутрієнти
-# Власник — Док (src/agents/doc_shopping.py). Тут лише імпорт, без дубля порогів.
-from src.agents.doc_shopping import (  # noqa: E402
+# Власник — Док (src/agents/alex/doc_shopping.py). Тут лише імпорт, без дубля порогів.
+from src.agents.alex.doc_shopping import (  # noqa: E402
     nutrition_score,
     within_limits,
 )

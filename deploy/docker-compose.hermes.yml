@@ -1,4 +1,4 @@
-# Hermes agents. Each one has no route but the internal hermes_net to eva-agent.
+# Hermes agents. Each one has no route but the internal hermes_net to syndicate-agent.
 # Rights and the reasons for each cap: docs/HERMES_ROLLOUT.md.
 services:
   trainer-hermes:
@@ -29,6 +29,16 @@ services:
       - trainer_hermes_data:/opt/data
       - ./hermes/trainer/config.yaml:/opt/data/config.yaml:ro
       - ./hermes/trainer/SOUL.md:/opt/data/SOUL.md:ro
+      # The Trainer's hub skills (config/agents/trainer.profile.json reference_skills), read-only.
+      - ../skills/vendor/ayghri/i-have-adhd/skills/i-have-adhd:/opt/syndicate-skills/i-have-adhd:ro
+      - ../skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking:/opt/syndicate-skills/scientific-critical-thinking:ro
+      - ../skills/vendor/Lancetnik/evidence-based-fitness-coach/skills/evidence-based-fitness-coach:/opt/syndicate-skills/evidence-based-fitness-coach:ro
+      - ../skills/vendor/disco-trooper/skills/hypertrophy-training:/opt/syndicate-skills/hypertrophy-training:ro
+      - ../skills/vendor/Jeffallan/Fitness-Tools/skills/rep-max:/opt/syndicate-skills/rep-max:ro
+      # Obsidian format rules from kepano/obsidian-skills (10.11.2026), read-only.
+      - ../skills/vendor/kepano/obsidian-skills/skills/obsidian-markdown:/opt/syndicate-skills/obsidian-markdown:ro
+      - ../skills/vendor/kepano/obsidian-skills/skills/obsidian-bases:/opt/syndicate-skills/obsidian-bases:ro
+      - ../skills/vendor/kepano/obsidian-skills/skills/json-canvas:/opt/syndicate-skills/json-canvas:ro
     networks:
       - hermes_net
     mem_limit: 1g

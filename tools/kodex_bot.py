@@ -1,4 +1,4 @@
-"""Запуск приватного Telegram-бота KODEX (long polling). Лише мережевий шар; логіка — src/agents/kodex_telegram.py.
+"""Запуск приватного Telegram-бота KODEX (long polling). Лише мережевий шар; логіка — src/agents/eva_kodex_telegram.py.
 
 Потрібні змінні середовища (значення — лише на сервері, не в git):
     TELEGRAM_BOT_TOKEN_KODEX          токен окремого бота KODEX
@@ -26,8 +26,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.agents.kodex import KodexStore  # noqa: E402
-from src.agents.kodex_telegram import ALLOWLIST_ENV, KodexBot, parse_allowlist  # noqa: E402
+from src.agents.eva_kodex import KodexStore  # noqa: E402
+from src.agents.eva_kodex_telegram import ALLOWLIST_ENV, KodexBot, parse_allowlist  # noqa: E402
 
 log = logging.getLogger("kodex_bot")
 TOKEN_ENV = "TELEGRAM_BOT_TOKEN_KODEX"

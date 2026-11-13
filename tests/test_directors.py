@@ -9,20 +9,17 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
-from fastapi.testclient import TestClient
 from PIL import Image
 
-from src.agents.antigravity_worker import AntigravityDirectorAgent
-from src.agents.jack import JackAgent
-from src.agents.oscar import OscarAgent
-from src.agents.oscar.router import TriLLMRouter
+from src.agents.sam.jack import JackAgent
+from src.agents.tyler.oscar import OscarAgent
+from src.agents.tyler.oscar.router import TriLLMRouter
 from src.agents.tyler import TylerAgent
 from src.agents.tyler.finance import calculate_margin
-from src.agents.jack.engines import football, tennis, esports, icm, basketball, poker
-from src.agents.jack.quant import evaluate
-from src.agents.jack.tracker import anti_tilt
+from src.agents.sam.jack.engines import football, tennis, esports, icm, basketball, poker
+from src.agents.sam.jack.quant import evaluate
+from src.agents.sam.jack.tracker import anti_tilt
 from src.agents.director_providers import OddsScout, YouTubeComments, VaultLLM, build_provider
-from deploy.runtime.director_runner import AGENTS, create_app, boot_director
 
 
 def run(agent, action, **payload):
@@ -242,49 +239,6 @@ def test_empty_report_has_no_invented_roi_or_winrate():
     assert report["roi"] is None and report["win_rate"] is None
 
 
-def test_retired_antigravity_placeholder_has_no_operational_actions():
-    result = run(AntigravityDirectorAgent(), "capabilities")
-    assert result["agent"] == "alice"
-    assert result["runtime"] == "antigravity_sdk"
-    assert result["available_actions"] == ["capabilities"]
-    assert result["grants_level"] == "none"
-    assert result["external_actions"] is False
-    assert run(AntigravityDirectorAgent(), "browser")["status"] == "error"
-
-
-def test_retired_antigravity_id_cannot_boot_as_standalone_worker(monkeypatch):
-    assert "antigravity" not in AGENTS
-    monkeypatch.setenv("SYNDICATE_DIRECTOR_ID", "antigravity")
-
-    class VaultThatMustNotAuthenticate:
-        async def authenticate(self):
-            raise AssertionError("retired director must be rejected before Vault access")
-
-    with pytest.raises(RuntimeError, match="unknown_director"):
-        asyncio.run(boot_director(VaultThatMustNotAuthenticate()))
-
-
-def test_worker_api_auth_and_agent_isolation():
-    with TestClient(create_app(JackAgent(), api_key="synthetic-key")) as client:
-        assert client.get("/health").status_code == 200
-        assert client.post("/execute", json={"payload": {}}).status_code == 401
-        result = client.post("/execute", headers={"X-API-Key": "synthetic-key"},
-                             json={"payload": {"action": "report", "agent_id": "oscar"}})
-        assert result.status_code == 200 and result.json()["agent"] == "jack"
-
-
-def test_worker_requires_real_vault_auth_secret(monkeypatch):
-    monkeypatch.setenv("SYNDICATE_DIRECTOR_ID", "jack")
-    class Vault:
-        async def authenticate(self):
-            pass
-        async def get_secret(self, path):
-            assert path.endswith("agents/jack/auth")
-            return {"api_key": ""}
-    with pytest.raises(RuntimeError, match="auth_key_missing"):
-        asyncio.run(boot_director(Vault()))
-
-
 def test_scout_reports_missing_bookmaker_without_faking_quote():
     def respond(request):
         assert request.url.host == "api.the-odds-api.com"
@@ -350,13 +304,6 @@ def test_prepared_skill_files_and_catalog_are_pinned():
             assert f'name: {skill["id"]}' in content and 'description:' in content
 
 
-def test_worker_enforces_operator_action_allowlist():
-    with TestClient(create_app(JackAgent(), api_key="synthetic-key", allowed_actions={"capabilities"})) as client:
-        response = client.post("/execute", headers={"X-API-Key": "synthetic-key"},
-                               json={"payload": {"action": "record_paper", "grants": ["*"]}})
-        assert response.status_code == 403
-
-
 def test_oscar_generates_escaped_diagram_and_real_thumbnail():
     from xml.etree import ElementTree
     result = run(OscarAgent(), "diagram", nodes=["Input <script>", "A&B", "Output"])
@@ -373,54 +320,19 @@ def test_email_metrics_never_divide_by_zero_or_accept_impossible_counts():
     assert run(OscarAgent(), "email_health", delivered=10, unique_opens=11, unsubscribes=0)["status"] == "error"
 
 
-def test_worker_bridge_uses_only_own_vault_auth_and_checks_response_agent():
-    from src.agent_platform.director_client import DirectorWorkerClient
-    class Vault:
-        async def get_secret(self, path):
-            assert path.endswith("agents/jack/auth")
-            return {"api_key": "synthetic"}
-    def respond(request):
-        assert request.url.host == "jack-agent" and request.url.path == "/execute"
-        return httpx.Response(200, json={"agent": "oscar", "status": "ok"})
-    client = DirectorWorkerClient("jack", "http://jack-agent:8000", Vault(), transport=httpx.MockTransport(respond))
-    result = asyncio.run(client.execute({"action": "report"}))
-    assert result["status"] == "unavailable"
-
-
-def test_alice_worker_bridge_uses_only_alice_auth_and_checks_response_agent():
-    from src.agent_platform.director_client import DirectorWorkerClient
-
-    class Vault:
-        async def get_secret(self, path):
-            assert path.endswith("agents/alice/auth")
-            return {"api_key": "synthetic-alice-worker-key"}
-
-    def respond(request):
-        assert request.url.host == "alice-agent"
-        assert request.url.path == "/execute"
-        assert request.headers["X-API-Key"] == "synthetic-alice-worker-key"
-        return httpx.Response(200, json={"agent": "alice", "status": "ok", "value": "review"})
-
-    client = DirectorWorkerClient("alice", "http://alice-agent:8000", Vault(), transport=httpx.MockTransport(respond))
-    result = asyncio.run(client.execute({"action": "review"}))
-    assert result == {"agent": "alice", "status": "ok", "value": "review"}
-
-
 def test_worker_config_is_dormant_and_explicit():
     from src.runtime_config import build_runtime_config
     config = build_runtime_config({})
     assert config["jack"]["enabled"] is False
     assert config["jack"]["allowed_actions"] == ["capabilities"]
-    assert config["alice"]["enabled"] is False
-    assert config["alice"]["allowed_actions"] == ["capabilities"]
+    assert "alice" not in config
     config = build_runtime_config({"JACK_WORKER_ENABLED": "true", "JACK_WORKER_URL": "http://jack-agent:8000",
                                    "JACK_COORDINATOR_ACTIONS": "evaluate,report",
                                    "ALICE_WORKER_ENABLED": "true", "ALICE_WORKER_URL": "http://alice-agent:8000",
                                    "ALICE_COORDINATOR_ACTIONS": "engineer,review"})
     assert config["jack"]["allowed_actions"] == ["evaluate", "report"]
-    assert config["alice"]["enabled"] is True
-    assert config["alice"]["worker_url"] == "http://alice-agent:8000"
-    assert config["alice"]["allowed_actions"] == ["engineer", "review"]
+    assert "worker_url" not in config["jack"]  # no worker containers since 04.11.2026
+    assert "alice" not in config  # her old switch turns nothing on
 
 
 def test_orchestrator_director_handler_respects_host_allowlist_and_remote_client():
