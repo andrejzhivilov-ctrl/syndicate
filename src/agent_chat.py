@@ -152,7 +152,7 @@ class ChatHistory:
 #: Telegram pool commands, answered without any model call.
 POOL_COMMANDS: Dict[str, Optional[str]] = {"/skills": "skill", "/prompts": "prompt", "/mcp": "mcp", "/pool": None,
                                            "/spec": None, "/files": None,
-                                           "/rates": None, "/weather": None, "/alerts": None, "/regions": None, "/svitlo": None,
+                                           "/rates": None, "/weather": None, "/alerts": None, "/regions": None, "/svitlo": None, "/voda": None,
                                            "/protect": None, "/vaultplan": None, "/lesson": None,
                                            "/commands": None}
 #: What /commands shows; a test keeps it equal to POOL_COMMANDS.
@@ -164,6 +164,7 @@ COMMAND_HELP: Dict[str, str] = {
     "/rates": "курси валют", "/weather": "погода", "/alerts": "повітряна тривога",
     "/regions": "регіони сповіщень про тривогу",
     "/svitlo": "графік відключень світла твоєї черги",
+    "/voda": "повідомлення про відключення води в області",
     "/protect": "захистити файл міткою Андрія", "/vaultplan": "план упорядкування Obsidian",
 }
 _POOL_LABELS = {"skill": "Скіли", "prompt": "Промти", "mcp": "MCP-сервери"}

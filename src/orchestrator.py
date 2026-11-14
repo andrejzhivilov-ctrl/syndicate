@@ -1733,7 +1733,7 @@ class EvaOrchestrator:
             from src.obsidian_archivist import chat_command
 
             result = await asyncio.to_thread(chat_command, agent_id, command[0], command[1])
-        elif command is not None and command[0] in {"/rates", "/weather", "/alerts", "/regions", "/svitlo"}:
+        elif command is not None and command[0] in {"/rates", "/weather", "/alerts", "/regions", "/svitlo", "/voda"}:
             result = {"agent": agent_id, **await self._public_command(command[0], command[1])}
         elif command is not None and command[0] == "/lesson":
             from src.agent_chat import lesson_reply
@@ -1757,7 +1757,7 @@ class EvaOrchestrator:
         return {"task_id": str(uuid.uuid4()), "status": "completed", "result": result}
 
     async def _public_command(self, name: str, argument: str) -> Dict[str, Any]:
-        """Alice's public-data commands: rates, weather, air alerts and their places, power."""
+        """Alice's public-data commands: rates, weather, air alerts and their places, power, water."""
         if name == "/regions":
             from src.alert_watch import regions_reply
 
@@ -1766,6 +1766,10 @@ class EvaOrchestrator:
             from src import power_outages
 
             return await power_outages.reply(argument)
+        if name == "/voda":
+            from src import water_outages
+
+            return await water_outages.reply(argument)
         from src.integrations.public_data import source_reply
 
         return await source_reply(name, self._vault_client)
