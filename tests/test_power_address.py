@@ -88,3 +88,19 @@ def test_ukrainian_command_spellings_reach_the_commands():
     assert pool_command({"text": "/світло Дніпро"}) == ("/svitlo", "Дніпро")
     assert pool_command({"text": "/Вода Дніпропетровська"}) == ("/voda", "Дніпропетровська")
     assert pool_command({"text": "/тривоги"}) == ("/alerts", "")
+
+
+def test_a_city_inside_an_oblast_name_stays_a_city(tmp_path, monkeypatch):
+    # Live 14.11.2026: «Дніпро» matched «Дніпропетровська» and the city was dropped.
+    from src import water_outages as wo
+
+    monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
+    assert po.find_source("Дніпро") is None and po.find_source("Вінницька область") == "vinnytsia"
+    asyncio.run(po.reply("Дніпро 5.1"))
+    assert po.choice() == ("dnipro", "5.1") and po.place() == "Дніпро"
+    assert "Дніпропетровська, Дніпро" in asyncio.run(wo.reply("Дніпро"))["reply"]
+    assert wo.choice() == "Дніпропетровська" and wo.place() == "Дніпро"
+    asyncio.run(wo.reply("Павлоград"))
+    assert wo.choice() == "Дніпропетровська" and wo.place() == "Павлоград"
+    asyncio.run(wo.reply("Вінницька Вінниця"))
+    assert wo.choice() == "Вінницька" and wo.place() == "Вінниця"

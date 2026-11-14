@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple
@@ -156,9 +157,11 @@ def choice() -> Optional[Tuple[str, str]]:
 
 
 def find_source(text: str) -> Optional[str]:
+    """A source by key or by the oblast name as whole words: «Дніпро» is a city, not «Дніпропетровська»."""
     wanted = text.strip().lower().replace("область", "").strip()
+    word = re.compile(rf"(?<!\w){re.escape(wanted)}(?!\w)")
     for key, (name, _url) in SOURCES.items():
-        if wanted and (wanted == key or wanted in name.lower()):
+        if wanted and (wanted == key or word.search(name.lower())):
             return key
     return None
 

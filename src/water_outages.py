@@ -240,12 +240,27 @@ async def reply(text: str, transport: Any = None) -> Dict[str, Any]:
     return {"status": "completed", "reply": body}
 
 
+def _region_of_town(text: str) -> Optional[str]:
+    """The water region of a city or community, through the alert region tree («Дніпро», «Павлоград»)."""
+    from src.power_outages import oblast_of
+
+    oblast = oblast_of(text)
+    if oblast is None:
+        return None
+    name = oblast.replace(" область", "")
+    return next((region for region in list(CHANNELS) + list(MISSING) if region == name), None)
+
+
 def _choose(text: str) -> Dict[str, Any]:
     """The region first, then optionally the city or community (``/voda Вінницька Вінниця``)."""
     words = text.split()
     region, town = find_region(words[0]) if words else None, " ".join(words[1:])[:60]
+    if region is not None and not re.search(rf"(?<!\w){re.escape(words[0].lower())}(?!\w)", region.lower()):
+        region, town = None, ""  # «Дніпро» is a city, not «Дніпропетровська» (live 14.11.2026)
     if region is None:
         region, town = find_region(text), ""
+    if region is None:
+        region, town = _region_of_town(text), text.strip()[:60]
     if region is None:
         return {"status": "completed", "reply": f"Не знайшов «{text}».\n{HELP}"}
     if region in MISSING:
