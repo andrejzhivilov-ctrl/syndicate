@@ -169,16 +169,29 @@ def _plain(text: str) -> str:
     return text.strip().lower().replace("’", "'").replace("ʼ", "'")
 
 
+def _preferred(found: List[str], wanted: str) -> List[str]:
+    """Oblasts first, then a city named exactly so ("м. Дніпро та …"), then all the matches."""
+    states = [region for region in found if region in STATES]
+    if states:
+        return states
+    cities = [region for region in found if re.match(rf"м\. {re.escape(wanted)}(?!\w)", _plain(NAMES[region]))]
+    return cities or found
+
+
 def _find(part: str) -> List[str]:
-    """An id, an exact name, then oblasts, then anything containing the text."""
+    """An id, an exact name, then the text as whole words (so «Дніпро» is the city, not
+    «Дніпропетровська область»), then anything containing the text; oblasts win each step."""
     if part.isdigit():
         return [part] if part in NAMES else []
     wanted = _plain(part)
     exact = [region for region, name in NAMES.items() if _plain(name) == wanted]
     if exact:
         return exact
-    found = [region for region, name in NAMES.items() if wanted in _plain(name)]
-    return [region for region in found if region in STATES] or found
+    word = re.compile(rf"(?<!\w){re.escape(wanted)}(?!\w)")
+    whole = [region for region, name in NAMES.items() if word.search(_plain(name))]
+    if whole:
+        return _preferred(whole, wanted)
+    return _preferred([region for region, name in NAMES.items() if wanted in _plain(name)], wanted)
 
 
 def _unclear(part: str, found: List[str]) -> str:
