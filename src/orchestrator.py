@@ -1733,18 +1733,8 @@ class EvaOrchestrator:
             from src.obsidian_archivist import chat_command
 
             result = await asyncio.to_thread(chat_command, agent_id, command[0], command[1])
-        elif command is not None and command[0] in {"/rates", "/weather", "/alerts"}:
-            from src.integrations.public_data import source_reply
-
-            result = {"agent": agent_id, **await source_reply(command[0], self._vault_client)}
-        elif command is not None and command[0] == "/regions":
-            from src.alert_watch import regions_reply
-
-            result = {"agent": agent_id, **regions_reply(command[1])}
-        elif command is not None and command[0] == "/svitlo":
-            from src import power_outages
-
-            result = {"agent": agent_id, **await power_outages.reply(command[1])}
+        elif command is not None and command[0] in {"/rates", "/weather", "/alerts", "/regions", "/svitlo"}:
+            result = {"agent": agent_id, **await self._public_command(command[0], command[1])}
         elif command is not None and command[0] == "/lesson":
             from src.agent_chat import lesson_reply
 
@@ -1765,6 +1755,20 @@ class EvaOrchestrator:
             result = await self._hermes_turn(agent_id, text, owner, lessons) or await chat_reply(
                 agent_id, text, self._llm_for(agent_id), self._chat_buffer(), owner, reference, notes, lessons)
         return {"task_id": str(uuid.uuid4()), "status": "completed", "result": result}
+
+    async def _public_command(self, name: str, argument: str) -> Dict[str, Any]:
+        """Alice's public-data commands: rates, weather, air alerts and their places, power."""
+        if name == "/regions":
+            from src.alert_watch import regions_reply
+
+            return regions_reply(argument)
+        if name == "/svitlo":
+            from src import power_outages
+
+            return await power_outages.reply(argument)
+        from src.integrations.public_data import source_reply
+
+        return await source_reply(name, self._vault_client)
 
     async def _hermes_turn(self, agent_id: str, text: str, owner: str, lessons: str) -> Optional[Dict[str, Any]]:
         """The agent's Hermes when it runs on one; a failed turn falls back to the direct path."""
