@@ -240,6 +240,13 @@ async def reply(text: str, transport: Any = None) -> Dict[str, Any]:
     return {"status": "completed", "reply": body}
 
 
+def _named_region(text: str) -> Optional[str]:
+    """A region named by whole words: «Дніпро» is a city, not «Дніпропетровська» (live 14.11.2026)."""
+    region = find_region(text)
+    wanted = text.strip().lower().replace("область", "").strip()
+    return region if region and re.search(rf"(?<!\w){re.escape(wanted)}(?!\w)", region.lower()) else None
+
+
 def _region_of_town(text: str) -> Optional[str]:
     """The water region of a city or community, through the alert region tree («Дніпро», «Павлоград»)."""
     from src.power_outages import oblast_of
@@ -254,11 +261,9 @@ def _region_of_town(text: str) -> Optional[str]:
 def _choose(text: str) -> Dict[str, Any]:
     """The region first, then optionally the city or community (``/voda Вінницька Вінниця``)."""
     words = text.split()
-    region, town = find_region(words[0]) if words else None, " ".join(words[1:])[:60]
-    if region is not None and not re.search(rf"(?<!\w){re.escape(words[0].lower())}(?!\w)", region.lower()):
-        region, town = None, ""  # «Дніпро» is a city, not «Дніпропетровська» (live 14.11.2026)
+    region, town = _named_region(words[0]) if words else None, " ".join(words[1:])[:60]
     if region is None:
-        region, town = find_region(text), ""
+        region, town = _named_region(text), ""
     if region is None:
         region, town = _region_of_town(text), text.strip()[:60]
     if region is None:
