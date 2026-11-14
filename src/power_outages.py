@@ -173,7 +173,11 @@ def oblast_of(town: str) -> Optional[str]:
     stems = [_stem(word) for word in town.replace(",", " ").split() if len(word) > 2]
     if not stems:
         return None
-    found = [region for region, name in NAMES.items() if all(stem in name.lower() for stem in stems)]
+    def starts(name: str) -> bool:  # «Марс» must not match the middle of a word (caught by a test)
+        words = name.lower().replace("'", " ").replace("’", " ").split()
+        return all(any(word.startswith(stem) for word in words) for stem in stems)
+
+    found = [region for region, name in NAMES.items() if starts(name)]
     found.sort(key=lambda region: (UP.get(region) is None, len(NAMES[region])))
     return STATES.get(_lineage(found[0])[-1]) if found else None
 
