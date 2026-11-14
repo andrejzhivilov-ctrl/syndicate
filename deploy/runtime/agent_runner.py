@@ -54,6 +54,10 @@ from src.orchestrator import OPERATOR_ONLY_TASK_TYPES, EvaOrchestrator  # noqa: 
 from src.hitl_queue import HitlError  # noqa: E402
 from src.directors_registry import roster as directors_roster  # noqa: E402
 from src.lockdown import Lockdown  # noqa: E402
+from src import alert_poll  # noqa: E402
+from src import power_outages  # noqa: E402
+from src import water_outages  # noqa: E402
+from src.alert_watch import ALERT_BOT  # noqa: E402
 from src.alert_watch import AlertWatch  # noqa: E402
 from src import hermes_gateway  # noqa: E402
 from src import media_vision  # noqa: E402
@@ -131,6 +135,9 @@ class AppState:
     obsidian_webdav_task: Optional[Any] = None
     alert_watch: Optional[AlertWatch] = None
     alert_watch_task: Optional[Any] = None
+    alert_poll_task: Optional[Any] = None
+    power_task: Optional[Any] = None
+    water_task: Optional[Any] = None
     alarm_relay_secret: Tuple[Optional[str], float] = (None, 0.0)
     schedule_task: Optional[Any] = None
 
@@ -371,8 +378,7 @@ async def lifespan(app: FastAPI):
         app_state.change_request_notifier = notifier
         app_state.telegram_gateway = TelegramGateway(app_state.vault_client)
         logger.info("HITL surface initialized", change_requests=store is not None)
-        app_state.alert_watch = AlertWatch(app_state.telegram_gateway)
-        app_state.alert_watch_task = asyncio.create_task(app_state.alert_watch.loop())
+        _start_alerts()
         _start_schedule()
 
         app_state.ready = True
@@ -416,6 +422,17 @@ def _start_obsidian_webdav() -> None:
         app_state.obsidian_webdav_task = asyncio.create_task(server.loop())
 
 
+def _start_alerts() -> None:
+    """Alice's alert watch, fed once a minute from the keyless mirror (src/alert_poll.py)."""
+    app_state.alert_watch = AlertWatch(app_state.telegram_gateway)
+    app_state.alert_watch_task = asyncio.create_task(app_state.alert_watch.loop())
+    if alert_poll.enabled():
+        app_state.alert_poll_task = asyncio.create_task(alert_poll.loop(app_state.alert_watch))
+    # Planned power outages of the chosen group, also through Alice (src/power_outages.py).
+    app_state.power_task = asyncio.create_task(power_outages.loop(app_state.telegram_gateway, ALERT_BOT))
+    app_state.water_task = asyncio.create_task(water_outages.loop(app_state.telegram_gateway, ALERT_BOT))
+
+
 def _start_schedule() -> None:
     """The fixed schedule (src/agent_schedule.py): only the jobs Andrii named in SYNDICATE_SCHEDULE."""
     enabled, unknown = enabled_from_env()
@@ -429,7 +446,7 @@ def _start_schedule() -> None:
 
 
 async def _stop_background_loops() -> None:
-    for name in ("obsidian_webdav_task", "alert_watch_task", "schedule_task"):
+    for name in ("obsidian_webdav_task", "alert_watch_task", "alert_poll_task", "power_task", "water_task", "schedule_task"):
         task = getattr(app_state, name)
         if task is not None:
             task.cancel()

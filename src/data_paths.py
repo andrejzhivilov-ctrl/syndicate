@@ -44,6 +44,8 @@ DIRS = {
     "drive_writer": "drive_writer",
     "transcription": "transcription",
     "material_sorter": "material_sorter",
+    "power": "power_outages",
+    "water": "water_outages",
 }
 
 

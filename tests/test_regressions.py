@@ -5165,3 +5165,26 @@ def test_alex_drive_writes_use_only_drive_file_and_have_no_delete():
     assert tool.DRIVE_FILE_SCOPE == "https://www.googleapis.com/auth/drive.file"
     source = inspect.getsource(drive_writer)
     assert ".delete(" not in source and '"DELETE"' not in source and "trash" not in source.replace("trashed", "")
+
+
+def test_alerts_come_from_the_keyless_mirror_and_never_use_the_viber_key():
+    """13.11.2026: Ukraine Alarm gives the server 403 and its key belongs to the Viber bot."""
+    import inspect
+
+    from src import alert_poll
+
+    assert alert_poll.SOURCE_URL.startswith("https://siren.pp.ua/")
+    assert alert_poll.INTERVAL_S >= 60
+    source = inspect.getsource(alert_poll)
+    assert "Authorization" not in source and "api_key" not in source.lower()
+
+
+def test_power_and_water_go_through_alice_with_their_own_icons():
+    """14.11.2026: outages for all of Ukraine by region, 💡 power and 🚰 water, no keys, no guesses."""
+    from src import power_outages, water_outages
+    from src.agent_chat import COMMAND_HELP
+
+    assert power_outages.ICON == "💡" and water_outages.ICON == "🚰"
+    assert power_outages.INTERVAL_S >= 300 and water_outages.INTERVAL_S >= 300
+    assert {"/svitlo", "/voda"} <= set(COMMAND_HELP)
+    assert all(url.startswith("https://raw.githubusercontent.com/") for _n, url in power_outages.SOURCES.values())

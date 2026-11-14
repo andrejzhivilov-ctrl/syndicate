@@ -304,6 +304,14 @@ class AlertWatch:
         self._quiet_limit = RELAY_SILENCE_S
         return self._fresh(raw_body, str(timestamp))
 
+    def accept_poll(self) -> None:
+        """A successful read of the keyless mirror (src/alert_poll.py) shows the feed is alive."""
+        self._quiet_limit = RELAY_SILENCE_S
+        self._heard = time.time()
+        if self._silent:
+            self._silent = False
+            self._pending.append("✅ Події тривог знову надходять.")
+
     def _fresh(self, raw_body: bytes, timestamp: Optional[str]) -> bool:
         """A proven event counts once and shows the feed is alive."""
         digest = hashlib.sha256(f"{timestamp}.".encode("utf-8") + raw_body).hexdigest()
