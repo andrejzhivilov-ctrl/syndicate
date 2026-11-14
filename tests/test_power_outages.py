@@ -41,7 +41,7 @@ def test_choice_by_region_name_and_group(tmp_path, monkeypatch):
     assert po.find_source("Вінницька область") == "vinnytsia" and po.find_source("Київська") == "kyiv-region"
     answer = asyncio.run(po.reply("Вінницька 3.1"))
     assert "Вінницька, черга 3.1" in answer["reply"] and po.choice() == ("vinnytsia", "3.1")
-    assert "Не зрозумів" in asyncio.run(po.reply("Марс 3.1"))["reply"]
+    assert "Не знайшов «Марс»" in asyncio.run(po.reply("Марс 3.1"))["reply"]  # wording since 14.11
     assert "Вінницька" in asyncio.run(po.reply("список"))["reply"]
     asyncio.run(po.reply("вимкнути"))
     assert po.choice() is None
