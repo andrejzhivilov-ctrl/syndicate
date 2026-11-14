@@ -105,3 +105,32 @@ def test_the_city_or_community_is_kept_with_the_group(tmp_path, monkeypatch):
     answer = asyncio.run(po.reply("Вінницька 3.1 Жмеринська громада"))
     assert "Вінницька, Жмеринська громада, черга 3.1" in answer["reply"]
     assert po.choice() == ("vinnytsia", "3.1") and po.place() == "Жмеринська громада"
+
+
+def test_city_first_then_group_finds_the_oblast_itself(tmp_path, monkeypatch):
+    """14.11.2026: «/svitlo Вінниця», then «/svitlo 3.1»; or both at once."""
+    monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
+    first = asyncio.run(po.reply("Вінниця"))["reply"]
+    assert "Вінниця (Вінницька)" in first and "Тепер черга" in first and po.choice() is None
+    second = asyncio.run(po.reply("3.1"))["reply"]
+    assert "Вінницька, Вінниця, черга 3.1" in second and po.choice() == ("vinnytsia", "3.1")
+    assert po.resolve("Жмеринка")[0] == "vinnytsia"
+    both = asyncio.run(po.reply("Жмеринка 2.2"))["reply"]
+    assert "Вінницька, Жмеринка, черга 2.2" in both
+    nowhere = asyncio.run(po.reply("Ковель 1.1"))["reply"]  # Volyn: no open schedule yet
+    assert "графіків поки немає" in nowhere
+
+
+def test_an_extended_outage_is_said_with_the_new_end(tmp_path, monkeypatch):
+    """14.11.2026: in the dark, a later end replaces the schedule table with «extended»."""
+    from src import outage_phrases
+
+    monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
+    asyncio.run(po.reply("Вінницька 3.1"))
+    inside = NOW.replace(hour=16, minute=30)
+    po.check("vinnytsia", "3.1", DATA, inside)
+    longer = {**DATA, "fact": {"data": {str(TODAY): {"GPV3.1": _hours({17: "no", 18: "no", 19: "no", 20: "no"})},
+                                        str(TOMORROW): DATA["fact"]["data"][str(TOMORROW)]}}}
+    said = po.check("vinnytsia", "3.1", longer, inside.replace(minute=36))
+    assert said[0].startswith("💡⏳") and "до 20:00" in said[0]
+    assert any(phrase in said[0] for phrase in outage_phrases.POWER_EXTENDED)

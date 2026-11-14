@@ -157,6 +157,40 @@ def find_source(text: str) -> Optional[str]:
     return None
 
 
+def _stem(word: str) -> str:
+    word = word.lower()
+    return word[:-2] if len(word) > 5 else word
+
+
+def oblast_of(town: str) -> Optional[str]:
+    """The oblast of a city or community named the way people say it («Вінниця», «Жмеринка»).
+
+    Looked up in the Ukraine Alarm region tree: communities first, the shortest matching name
+    wins, then its oblast. None when nothing matches.
+    """
+    from src.alert_watch import NAMES, STATES, UP, _lineage
+
+    stems = [_stem(word) for word in town.replace(",", " ").split() if len(word) > 2]
+    if not stems:
+        return None
+    found = [region for region, name in NAMES.items() if all(stem in name.lower() for stem in stems)]
+    found.sort(key=lambda region: (UP.get(region) is None, len(NAMES[region])))
+    return STATES.get(_lineage(found[0])[-1]) if found else None
+
+
+def resolve(text: str) -> Tuple[Optional[str], str, str]:
+    """(power source, place label, oblast name) for an oblast or a city / community."""
+    source = find_source(text)
+    if source:
+        return source, "", SOURCES[source][0]
+    oblast = oblast_of(text)
+    if oblast is None:
+        return None, "", ""
+    key = next((key for key, (name, _url) in SOURCES.items()
+                if oblast == name or oblast.startswith(name + " ")), None)
+    return key, text.strip()[:60], oblast
+
+
 # ── reading ───────────────────────────────────────────────────────────────────────────────
 
 
@@ -233,20 +267,42 @@ def _warnings(plan: Dict[str, List[Interval]], now: datetime, sent: List[str]) -
     return out
 
 
+def _current(plan: Dict[str, List[Interval]], now: datetime) -> Optional[Dict[str, Any]]:
+    """The outage we are in right now, if any."""
+    minute = now.hour * 60 + now.minute
+    for start, end, _certain in plan.get(now.date().isoformat(), []):
+        if start <= minute < end:
+            return {"date": now.date().isoformat(), "start": start, "end": end}
+    return None
+
+
+def _extension(before: Optional[Dict[str, Any]], now_in: Optional[Dict[str, Any]]) -> Optional[str]:
+    """An outage that was running and now ends later: Alice says it was extended."""
+    if not before or not now_in or before.get("date") != now_in["date"] or before.get("start") != now_in["start"]:
+        return None
+    if now_in["end"] <= int(before.get("end", 0)):
+        return None
+    return f"{ICON}⏳ {say('power_extended')}\nТепер за графіком до {_clock(now_in['end'])}."
+
+
 def check(source: str, group: str, data: Dict[str, Any], now: datetime) -> List[str]:
     """Messages for this round; the state remembers what was already said."""
     state = _read("state.json")
     plan = schedule(data, group, now)
+    running = _current(plan, now)
+    extended = _extension(state.get("current"), running)
     signature = json.dumps({"choice": [source, group], "plan": plan}, sort_keys=True)
     messages = []
-    if signature != state.get("signature"):
+    if extended:
+        messages.append(extended)  # in the dark, the new end time matters more than the whole table
+    elif signature != state.get("signature"):
         text = schedule_text(source, group, data, now)
         messages.append(text.replace(f"{ICON} Світло", f"{ICON} {say('power_changed')}\nСвітло", 1))
     sent = [key for key in state.get("warned", []) if key[:10] >= now.date().isoformat()]
     for key, text in _warnings(plan, now, sent):
         messages.append(text)
         sent.append(key)
-    _write("state.json", {"signature": signature, "warned": sent})
+    _write("state.json", {"signature": signature, "warned": sent, "current": running})
     return messages
 
 
@@ -277,8 +333,9 @@ async def loop(gateway: Any, bot: str) -> None:
 # ── Alice's /svitlo ───────────────────────────────────────────────────────────────────────
 
 HELP = ("/svitlo — графік твоєї черги на сьогодні й завтра\n"
-        "/svitlo Вінницька 3.1 Вінниця — область, черга й (за бажанням) місто чи громада\n"
-        "Чергу дивись на сайті свого обленерго за адресою\n"
+        "/svitlo Вінниця — місто, громада чи область (Аліса знайде область сама)\n"
+        "/svitlo 3.1 — черга; її показує сайт обленерго за адресою\n"
+        "/svitlo Вінниця 3.1 — усе одразу\n"
         "/svitlo список — області, для яких є графіки\n"
         "/svitlo вимкнути — не надсилати графіки")
 
@@ -303,13 +360,39 @@ async def reply(text: str, transport: Any = None) -> Dict[str, Any]:
 
 
 def _choose(words: List[str]) -> Dict[str, Any]:
-    """Region words, then the group (like 3.1), then optionally the city or community as a label."""
-    at = next((i for i, word in enumerate(words) if i and word.replace(".", "").isdigit()), None)
-    source = find_source(" ".join(words[:at])) if at else None
-    if source is None:
-        return {"status": "completed", "reply": f"Не зрозумів. Приклад: /svitlo Вінницька 3.1 Вінниця\n{HELP}"}
-    group, town = words[at], " ".join(words[at + 1:])[:60]
-    _write("choice.json", {"source": source, "group": group, "place": town})
+    """A city, community or oblast and the group, in any order; either may come in a separate message.
+
+    ``/svitlo Вінниця`` remembers the place and asks for the group, ``/svitlo 3.1`` adds the group,
+    ``/svitlo Вінниця 3.1`` or ``/svitlo Вінницька 3.1 Вінниця`` does both.
+    """
+    groups = [word for word in words if word.replace(".", "").isdigit()]
+    rest = " ".join(word for word in words if word not in groups)
+    saved = _read("choice.json")
+    if rest:
+        source, town, oblast = _place_from(rest)
+        if source is None:
+            reason = f"для області «{oblast}» відкритих графіків поки немає" if oblast else f"не знайшов «{rest}»"
+            return {"status": "completed", "reply": f"{ICON} {reason[0].upper() + reason[1:]}.\n{HELP}"}
+        saved = {"source": source, "place": town, "group": saved.get("group", "") if not groups else ""}
+    if groups:
+        saved["group"] = groups[0]
+    if saved.get("source") not in SOURCES:
+        return {"status": "completed", "reply": f"{ICON} Спершу місто, громада чи область: /svitlo Вінниця\n{HELP}"}
+    _write("choice.json", saved)
     _write("state.json", {})
+    if not saved.get("group"):
+        where = saved.get("place") or SOURCES[saved["source"]][0]
+        return {"status": "completed", "reply": f"{ICON} Записав: {where} ({SOURCES[saved['source']][0]}). "
+                                                "Тепер черга: /svitlo 3.1 — її показує сайт обленерго за адресою."}
     return {"status": "completed",
-            "reply": f"{ICON} Стежу за світлом: {_where(source, group)}. Графік прийде протягом 6 хв."}
+            "reply": f"{ICON} Стежу за світлом: {_where(saved['source'], saved['group'])}. Графік прийде протягом 6 хв."}
+
+
+def _place_from(text: str) -> Tuple[Optional[str], str, str]:
+    """An oblast first («Вінницька Вінниця»: oblast + label), else a city or community."""
+    words = text.split()
+    for cut in range(len(words), 0, -1):
+        source = find_source(" ".join(words[:cut]))
+        if source:
+            return source, " ".join(words[cut:])[:60], SOURCES[source][0]
+    return resolve(text)
