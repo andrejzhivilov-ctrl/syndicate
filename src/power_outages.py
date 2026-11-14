@@ -23,6 +23,7 @@ import httpx
 import structlog
 
 from src.data_paths import ensure_dir
+from src.outage_phrases import say
 
 logger = structlog.get_logger(__name__)
 
@@ -175,9 +176,19 @@ def _day_name(date: str, today: datetime) -> str:
     return "сьогодні" if date == today.date().isoformat() else "завтра"
 
 
+def place() -> str:
+    """The city or community Andrii named with his group, only as a label."""
+    return str(_read("choice.json").get("place") or "")
+
+
+def _where(source: str, group: str) -> str:
+    town = place()
+    return f"{SOURCES[source][0]}{', ' + town if town else ''}, черга {group}"
+
+
 def schedule_text(source: str, group: str, data: Dict[str, Any], now: datetime) -> str:
     plan = schedule(data, group, now)
-    head = f"{ICON} Світло, {SOURCES[source][0]}, черга {group}"
+    head = f"{ICON} Світло, {_where(source, group)}"
     lines = [f"{_day_name(date, now)}: {describe(spans)}" for date, spans in sorted(plan.items())]
     if not lines:
         lines = [f"черги {group} у графіку немає; перевір номер на сайті обленерго"]
@@ -190,16 +201,35 @@ def schedule_text(source: str, group: str, data: Dict[str, Any], now: datetime) 
 # ── the watch ─────────────────────────────────────────────────────────────────────────────
 
 
+def _event(kind: str, start: int, end: int, certain: bool) -> str:
+    """One notice: Alice's phrase, then the times from the schedule (never from the phrase)."""
+    maybe = " (можливе відключення)" if not certain else ""
+    times = {"soon": f"О {_clock(start)} вимкнення, до {_clock(end)}{maybe}.",
+             "off": f"За графіком до {_clock(end)}{maybe}.",
+             "on": f"Відключення {_clock(start)}–{_clock(end)} за графіком закінчилось."}[kind]
+    arrow = {"soon": "⬇️", "off": "🌑", "on": "⬆️"}[kind]
+    return f"{ICON}{arrow} {say('power_' + kind)}\n{times}"
+
+
+def _due(kind: str, start: int, end: int, date: str, now: datetime) -> bool:
+    """Whether a notice falls into this round: before the start, at the start, at the end."""
+    midnight = datetime.fromisoformat(date).replace(tzinfo=KYIV)
+    window = timedelta(seconds=INTERVAL_S + 60)
+    if kind == "soon":
+        return timedelta(0) < midnight + timedelta(minutes=start) - now <= timedelta(minutes=WARN_BEFORE_MIN)
+    moment = midnight + timedelta(minutes=start if kind == "off" else end)
+    return timedelta(0) <= now - moment < window
+
+
 def _warnings(plan: Dict[str, List[Interval]], now: datetime, sent: List[str]) -> List[Tuple[str, str]]:
-    """(key, text) for outages that start within WARN_BEFORE_MIN and were not warned about."""
+    """(key, text) for the soon / off / on notices due now and not sent yet."""
     out = []
     for date, spans in plan.items():
         for start, end, certain in spans:
-            begins = datetime.fromisoformat(date).replace(tzinfo=KYIV) + timedelta(minutes=start)
-            key = f"{date}T{start}"
-            if key not in sent and timedelta(0) < begins - now <= timedelta(minutes=WARN_BEFORE_MIN):
-                maybe = " можливе" if not certain else ""
-                out.append((key, f"{ICON}⬇️ О {_clock(start)}{maybe} вимкнення світла, до {_clock(end)}."))
+            for kind in ("soon", "off", "on"):
+                key = f"{date}T{start}:{kind}"
+                if key not in sent and _due(kind, start, end, date, now):
+                    out.append((key, _event(kind, start, end, certain)))
     return out
 
 
@@ -210,7 +240,8 @@ def check(source: str, group: str, data: Dict[str, Any], now: datetime) -> List[
     signature = json.dumps({"choice": [source, group], "plan": plan}, sort_keys=True)
     messages = []
     if signature != state.get("signature"):
-        messages.append(schedule_text(source, group, data, now).replace(f"{ICON} Світло", f"{ICON} Графік світла", 1))
+        text = schedule_text(source, group, data, now)
+        messages.append(text.replace(f"{ICON} Світло", f"{ICON} {say('power_changed')}\nСвітло", 1))
     sent = [key for key in state.get("warned", []) if key[:10] >= now.date().isoformat()]
     for key, text in _warnings(plan, now, sent):
         messages.append(text)
@@ -246,7 +277,8 @@ async def loop(gateway: Any, bot: str) -> None:
 # ── Alice's /svitlo ───────────────────────────────────────────────────────────────────────
 
 HELP = ("/svitlo — графік твоєї черги на сьогодні й завтра\n"
-        "/svitlo Вінницька 3.1 — вибрати область і чергу\n"
+        "/svitlo Вінницька 3.1 Вінниця — область, черга й (за бажанням) місто чи громада\n"
+        "Чергу дивись на сайті свого обленерго за адресою\n"
         "/svitlo список — області, для яких є графіки\n"
         "/svitlo вимкнути — не надсилати графіки")
 
@@ -271,11 +303,13 @@ async def reply(text: str, transport: Any = None) -> Dict[str, Any]:
 
 
 def _choose(words: List[str]) -> Dict[str, Any]:
-    group = words[-1] if len(words) > 1 else ""
-    source = find_source(" ".join(words[:-1])) if group else None
-    if source is None or not group.replace(".", "").isdigit():
-        return {"status": "completed", "reply": f"Не зрозумів. Приклад: /svitlo Вінницька 3.1\n{HELP}"}
-    _write("choice.json", {"source": source, "group": group})
+    """Region words, then the group (like 3.1), then optionally the city or community as a label."""
+    at = next((i for i, word in enumerate(words) if i and word.replace(".", "").isdigit()), None)
+    source = find_source(" ".join(words[:at])) if at else None
+    if source is None:
+        return {"status": "completed", "reply": f"Не зрозумів. Приклад: /svitlo Вінницька 3.1 Вінниця\n{HELP}"}
+    group, town = words[at], " ".join(words[at + 1:])[:60]
+    _write("choice.json", {"source": source, "group": group, "place": town})
     _write("state.json", {})
     return {"status": "completed",
-            "reply": f"{ICON} Стежу за світлом: {SOURCES[source][0]}, черга {group}. Графік прийде протягом 6 хв."}
+            "reply": f"{ICON} Стежу за світлом: {_where(source, group)}. Графік прийде протягом 6 хв."}

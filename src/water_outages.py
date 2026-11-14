@@ -23,6 +23,7 @@ import httpx
 import structlog
 
 from src.data_paths import ensure_dir
+from src.outage_phrases import say
 
 logger = structlog.get_logger(__name__)
 
@@ -56,6 +57,8 @@ CHANNELS: Dict[str, Tuple[str, ...]] = {
 }
 #: Regions without a verified channel yet: said plainly instead of guessed.
 MISSING = ("Миколаївська", "Рівненська", "Сумська")
+#: Water utility channels: every water post counts, the place filter applies to administrations only.
+WATER_UTILITIES = {"vinvoda_info", "vodokanal_cv_ua", "infoxvodokanal"}
 _WATER = re.compile(r"вод(а|и|у|ою|опостач|опровід|оканал)|без води", re.IGNORECASE)
 _OUTAGE = re.compile(r"відключ|припин|не буде|немає|відсутн|аварі|пориву|тиск|ремонт|обмежен|графік|подач",
                      re.IGNORECASE)
@@ -133,9 +136,31 @@ async def fetch_channel(channel: str, transport: Any = None) -> Optional[str]:
         return None
 
 
+def place() -> str:
+    return str(_read("choice.json").get("place") or "")
+
+
+_GENERIC = {"громада", "міська", "селищна", "сільська", "територіальна", "місто", "м.", "смт", "село"}
+
+
+def stems(town: str) -> List[str]:
+    """Word stems of a city or community name, so «Вінниця» also matches «Вінниці», «Вінницею»."""
+    words = [word for word in re.split(r"[\s,]+", town.lower()) if word and word not in _GENERIC]
+    return [word[:-2] if len(word) > 5 else word for word in words]
+
+
+def relevant(channel: str, text: str) -> bool:
+    """A water post; from a regional administration it must also name the chosen place."""
+    if not about_water(text):
+        return False
+    wanted = stems(place())
+    return channel in WATER_UTILITIES or not wanted or any(stem in text.lower() for stem in wanted)
+
+
 def _quote(region: str, channel: str, number: int, text: str) -> str:
     body = text if len(text) <= QUOTE_CHARS else text[:QUOTE_CHARS].rsplit(" ", 1)[0] + "…"
-    return f"{ICON} Вода, {region} (@{channel}):\n{body}\nhttps://t.me/{channel}/{number}"
+    where = f"{region}, {place()}" if place() else region
+    return f"{ICON} {say('water')}\n{where} (@{channel}):\n{body}\nhttps://t.me/{channel}/{number}"
 
 
 async def new_notices(region: str, transport: Any = None) -> List[str]:
@@ -151,7 +176,7 @@ async def new_notices(region: str, transport: Any = None) -> List[str]:
         last = seen.get(channel)
         if last is not None:
             messages += [_quote(region, channel, number, text) for chan, number, text in found
-                         if number > last and about_water(text) and chan.lower() == channel.lower()]
+                         if number > last and relevant(channel, text) and chan.lower() == channel.lower()]
         if found:
             seen[channel] = max(number for _c, number, _t in found)
     _write("state.json", {"region": region, "seen": seen})
@@ -182,7 +207,7 @@ async def loop(gateway: Any, bot: str) -> None:
 # ── Alice's /voda ─────────────────────────────────────────────────────────────────────────
 
 HELP = ("/voda — останні повідомлення про воду в твоїй області\n"
-        "/voda Вінницька — вибрати область\n"
+        "/voda Вінницька Вінниця — область і (за бажанням) місто чи громада\n"
         "/voda список — області з джерелами\n"
         "/voda вимкнути — не надсилати")
 
@@ -192,7 +217,7 @@ async def recent(region: str, transport: Any = None, limit: int = 3) -> List[str
     for channel in CHANNELS[region]:
         page = await fetch_channel(channel, transport)
         found += [_quote(region, channel, number, text) for chan, number, text in posts(page or "")
-                  if about_water(text) and chan.lower() == channel.lower()]
+                  if relevant(channel, text) and chan.lower() == channel.lower()]
     return found[-limit:]
 
 
@@ -216,12 +241,17 @@ async def reply(text: str, transport: Any = None) -> Dict[str, Any]:
 
 
 def _choose(text: str) -> Dict[str, Any]:
-    region = find_region(text)
+    """The region first, then optionally the city or community (``/voda Вінницька Вінниця``)."""
+    words = text.split()
+    region, town = find_region(words[0]) if words else None, " ".join(words[1:])[:60]
+    if region is None:
+        region, town = find_region(text), ""
     if region is None:
         return {"status": "completed", "reply": f"Не знайшов «{text}».\n{HELP}"}
     if region in MISSING:
         return {"status": "unavailable", "reply": f"{ICON} Для області «{region}» ще немає перевіреного джерела."}
-    _write("choice.json", {"region": region})
+    _write("choice.json", {"region": region, "place": town})
     _write("state.json", {})
+    where = f"{region}, {town}" if town else region
     return {"status": "completed",
-            "reply": f"{ICON} Стежу за водою: {region}. Нові повідомлення приходитимуть з посиланням."}
+            "reply": f"{ICON} Стежу за водою: {where}. Нові повідомлення приходитимуть з посиланням."}

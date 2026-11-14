@@ -51,8 +51,9 @@ def test_a_changed_schedule_is_sent_once_and_a_warning_30_minutes_before(tmp_pat
     monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
     asyncio.run(po.reply("Вінницька 3.1"))
     first = po.check("vinnytsia", "3.1", DATA, NOW)
-    assert first[0].startswith("💡 Графік світла, Вінницька, черга 3.1") and "сьогодні: 16:00–18:30" in first[0]
-    assert any("⬇️ О 16:00" in line for line in first)  # starts in 20 minutes
+    assert first[0].startswith("💡 ") and "Світло, Вінницька, черга 3.1" in first[0]
+    assert "сьогодні: 16:00–18:30" in first[0]
+    assert any(line.startswith("💡⬇️") and "О 16:00 вимкнення, до 18:30" in line for line in first)  # in 20 min
     assert po.check("vinnytsia", "3.1", DATA, NOW + timedelta(minutes=6)) == []  # nothing new, no repeat
 
 
@@ -82,3 +83,25 @@ def test_the_watch_sends_through_alice_and_a_dead_source_sends_nothing(tmp_path,
     alive = httpx.MockTransport(lambda request: httpx.Response(200, json=DATA))
     assert asyncio.run(po.run_once(gateway, "alice", alive, NOW)) >= 1
     assert gateway.sent[0][0] == "alice" and gateway.sent[0][1].startswith("💡")
+
+
+def test_off_and_back_on_come_with_alices_phrases_once_each(tmp_path, monkeypatch):
+    """14.11.2026: three notices per outage — soon, off, on — each a phrase plus the schedule times."""
+    from src import outage_phrases
+
+    monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
+    asyncio.run(po.reply("Вінницька 3.1 Вінниця"))
+    po.check("vinnytsia", "3.1", DATA, NOW)  # schedule + soon
+    at_start = po.check("vinnytsia", "3.1", DATA, NOW.replace(hour=16, minute=2))
+    assert len(at_start) == 1 and at_start[0].startswith("💡🌑") and "до 18:30" in at_start[0]
+    assert any(phrase in at_start[0] for phrase in outage_phrases.POWER_OFF)
+    at_end = po.check("vinnytsia", "3.1", DATA, NOW.replace(hour=18, minute=33))
+    assert len(at_end) == 1 and at_end[0].startswith("💡⬆️") and "16:00–18:30" in at_end[0]
+    assert po.check("vinnytsia", "3.1", DATA, NOW.replace(hour=18, minute=36)) == []
+
+
+def test_the_city_or_community_is_kept_with_the_group(tmp_path, monkeypatch):
+    monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
+    answer = asyncio.run(po.reply("Вінницька 3.1 Жмеринська громада"))
+    assert "Вінницька, Жмеринська громада, черга 3.1" in answer["reply"]
+    assert po.choice() == ("vinnytsia", "3.1") and po.place() == "Жмеринська громада"

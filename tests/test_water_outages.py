@@ -44,7 +44,8 @@ def test_first_read_sets_the_mark_then_only_new_water_posts_are_sent_once(tmp_pa
     pages["vinvoda_info"] = _page((10, "Аварія, немає води на Замостю"), (11, "Новини підприємства"),
                                   (12, "Припинено водопостачання на вул. Келецька до 18:00"))
     sent = asyncio.run(wo.new_notices("Вінницька", transport))
-    assert len(sent) == 1 and sent[0].startswith("🚰 Вода, Вінницька") and "t.me/vinvoda_info/12" in sent[0]
+    assert len(sent) == 1 and sent[0].startswith("🚰 ") and "Вінницька (@vinvoda_info)" in sent[0]
+    assert "t.me/vinvoda_info/12" in sent[0]
     assert asyncio.run(wo.new_notices("Вінницька", transport)) == []
 
 
@@ -55,3 +56,13 @@ def test_missing_regions_and_lookalikes_are_never_guessed(tmp_path, monkeypatch)
     assert "sumy_oda" not in every  # a Russian-named lookalike found on 14.11.2026
     assert "Не знайшов" in asyncio.run(wo.reply("Атлантида"))["reply"]
     assert "Чернівецька" in asyncio.run(wo.reply("список"))["reply"]
+
+
+def test_a_chosen_place_filters_administration_posts_but_not_the_water_utility(tmp_path, monkeypatch):
+    """14.11.2026: /voda <region> <city or community>; the utility's own posts always count."""
+    monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
+    asyncio.run(wo.reply("Вінницька Жмеринка"))
+    assert wo.relevant("VinnytsiaODA", "У Жмеринці аварія: немає води до вечора")
+    assert not wo.relevant("VinnytsiaODA", "У Тульчині аварія: немає води до вечора")
+    assert wo.relevant("vinvoda_info", "Аварія, немає води на вул. Келецькій")
+    assert wo.stems("Вінниця") == ["вінни"]
