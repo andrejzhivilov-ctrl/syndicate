@@ -68,3 +68,27 @@ def test_the_poll_can_be_switched_off(monkeypatch):
     assert alert_poll.enabled() is False
     monkeypatch.delenv("ALERT_POLL")
     assert alert_poll.enabled() is True
+
+
+def test_when_siren_fails_the_fallback_mirror_gives_the_same_picture(tmp_path):
+    """14.11.2026: vadimklimenko.com carries the same upstream data, keyed by names."""
+    from src.alert_watch import NAMES, UP
+
+    district = next(r for r, parent in UP.items() if parent == KYIV) if any(UP.get(r) == KYIV for r in UP) else None
+    fallback = {"states": {"м. Київ": {"enabled": True, "alert_level": "red", "districts": {}},
+                           "Невідома область": {"enabled": True, "alert_level": "red"}}}
+    if district:
+        fallback["states"]["м. Київ"]["districts"] = {NAMES[district]: {"enabled": True, "alert_level": "yellow"}}
+
+    def handler(request):
+        if request.url.host == "siren.pp.ua":
+            return httpx.Response(502)
+        return httpx.Response(200, json=fallback)
+
+    picture = asyncio.run(alert_poll.read_picture(httpx.MockTransport(handler)))
+    assert picture[KYIV] == "R" and len(picture) == (2 if district else 1)  # unknown names are dropped
+
+    def both_down(request):
+        return httpx.Response(503)
+
+    assert asyncio.run(alert_poll.read_picture(httpx.MockTransport(both_down))) is None

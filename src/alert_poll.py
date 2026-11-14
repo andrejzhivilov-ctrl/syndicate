@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import os
-from typing import Any, Dict, Iterable, Mapping
+from typing import Any, Dict, Iterable, Mapping, Optional
 
 import httpx
 import structlog
@@ -43,22 +43,71 @@ def air_levels(regions: Iterable[Any]) -> Dict[str, str]:
     return levels
 
 
+#: Fallback with the same upstream data on another host (checked 14.11.2026: same update time to the
+#: second as siren.pp.ua). Regions are keyed by name, so they are mapped onto Ukraine Alarm ids.
+FALLBACK_URL = "https://vadimklimenko.com/map/statuses.json"
+
+
+def _id_for(name: str, parent: Optional[str]) -> Optional[str]:
+    from src.alert_watch import NAMES, UP
+
+    return next((region for region, title in NAMES.items() if title == name and UP.get(region) == parent), None)
+
+
+def fallback_levels(data: Any) -> Dict[str, str]:
+    """Region id -> "R"/"Y" from the fallback's nested oblast -> district names; unknown names dropped."""
+    levels: Dict[str, str] = {}
+
+    def walk(places: Any, parent: Optional[str]) -> None:
+        for name, place in (places or {}).items() if isinstance(places, Mapping) else []:
+            if not isinstance(place, Mapping):
+                continue
+            region = _id_for(str(name), parent)
+            if region and place.get("enabled"):
+                levels[region] = "R" if str(place.get("alert_level")).lower() == "red" else "Y"
+            if region:
+                walk(place.get("districts"), region)
+                walk(place.get("communities"), region)
+
+    walk(data.get("states") if isinstance(data, Mapping) else None, None)
+    return levels
+
+
+async def _get_json(url: str, transport: Any) -> Any:
+    async with httpx.AsyncClient(timeout=TIMEOUT_S, transport=transport,
+                                 headers={"User-Agent": USER_AGENT}) as client:
+        response = await client.get(url)
+    response.raise_for_status()
+    return response.json()
+
+
+async def read_picture(transport: Any = None) -> Optional[Dict[str, str]]:
+    """The air-raid picture from siren.pp.ua, or from the fallback when siren fails; None if both fail."""
+    try:
+        regions = await _get_json(SOURCE_URL, transport)
+        if isinstance(regions, list):
+            return air_levels(regions)
+        logger.warning("alert_poll_unexpected_shape", source="siren")
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning("alert_poll_failed", source="siren", error_type=type(exc).__name__)
+    try:
+        data = await _get_json(FALLBACK_URL, transport)
+        if isinstance(data, Mapping) and isinstance(data.get("states"), Mapping):
+            logger.info("alert_poll_fallback_used")
+            return fallback_levels(data)
+        logger.warning("alert_poll_unexpected_shape", source="fallback")
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning("alert_poll_failed", source="fallback", error_type=type(exc).__name__)
+    return None
+
+
 async def poll_once(watch: Any, transport: Any = None) -> bool:
     """One read; True when a picture was delivered to the watch."""
-    try:
-        async with httpx.AsyncClient(timeout=TIMEOUT_S, transport=transport,
-                                     headers={"User-Agent": USER_AGENT}) as client:
-            response = await client.get(SOURCE_URL)
-        response.raise_for_status()
-        regions = response.json()
-    except (httpx.HTTPError, ValueError) as exc:
-        logger.warning("alert_poll_failed", error_type=type(exc).__name__)
-        return False
-    if not isinstance(regions, list):
-        logger.warning("alert_poll_unexpected_shape")
+    picture = await read_picture(transport)
+    if picture is None:
         return False
     watch.accept_poll()
-    watch.handle_relay({"regions": air_levels(regions)})
+    watch.handle_relay({"regions": picture})
     return True
 
 
