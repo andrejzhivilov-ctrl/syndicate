@@ -1741,6 +1741,10 @@ class EvaOrchestrator:
             from src.alert_watch import regions_reply
 
             result = {"agent": agent_id, **regions_reply(command[1])}
+        elif command is not None and command[0] == "/svitlo":
+            from src import power_outages
+
+            result = {"agent": agent_id, **await power_outages.reply(command[1])}
         elif command is not None and command[0] == "/lesson":
             from src.agent_chat import lesson_reply
 
