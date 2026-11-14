@@ -246,12 +246,28 @@ def test_lessons_reach_the_model_masked():
 
 def test_alices_bot_explains_the_alarm_feed_without_an_agent():
     # Since 2026-11-04 Alice is a bot without an agent: the alarm hint is a fixed reply, not a model turn.
-    from src.agent_chat import ALERT_REPLY, BOT_ONLY_REPLY, bot_only_reply
+    # Since 2026-11-14 Alice is the notifier: other text gets her role, still without a model.
+    from src.agent_chat import ALERT_REPLY, ALICE_ROLE, BOT_ONLY_REPLY, bot_only_reply
 
     assert bot_only_reply("alice", "Чому не попередила про тривогу?") == ALERT_REPLY
-    assert bot_only_reply("alice", "Як справи?") == BOT_ONLY_REPLY
+    assert bot_only_reply("alice", "Як справи?") == ALICE_ROLE
     assert bot_only_reply("kodex", "Була тривога?") == BOT_ONLY_REPLY
+    assert bot_only_reply("kodex", "Дніпро") == BOT_ONLY_REPLY
     assert "/alerts" in ALERT_REPLY and "/regions" in ALERT_REPLY
+    assert all(command in ALICE_ROLE for command in ("/regions", "/svitlo", "/voda", "/alerts"))
+
+
+def test_alice_turns_a_bare_city_name_into_ready_commands():
+    # Live 14.11.2026: Andrii wrote «Дніпро» without a command and got "this bot has no agent".
+    from src.agent_chat import bot_only_reply
+
+    city = bot_only_reply("alice", "Дніпро")
+    assert "м. Дніпро та Дніпровська територіальна громада" in city
+    assert "/regions 332" in city and "/svitlo Дніпро" in city and "/voda Дніпропетровська Дніпро" in city
+    kyiv = bot_only_reply("alice", "Київ")
+    assert "/regions 31" in kyiv and "/voda Київ" in kyiv
+    oblast = bot_only_reply("alice", "Вінницька")
+    assert "/voda Вінницька —" in oblast and "/svitlo <місто>" in oblast
 
 
 def test_commands_lists_every_command_of_the_agent():

@@ -272,11 +272,50 @@ ALERT_REPLY = (
 _ALERT_HINT_RE = re.compile(r"тривог|алерт|сирен|alert", re.IGNORECASE)
 
 
+#: Alice's role (14.11.2026): the notifier. She answers without a model, so she is not an eighth agent.
+ALICE_ROLE = (
+    "Я Аліса, оповісниця SYNDICATE: повітряні тривоги, світло й вода для вибраних тобою місць. "
+    "Відповідаю без моделі, лише командами:\n"
+    "/regions <місто, громада, район чи область> — тривоги\n"
+    "/svitlo <місто> <черга> — графік світла\n"
+    "/voda <область> <місто> — повідомлення про воду\n"
+    "/alerts — тривоги зараз по областях\n"
+    "Напиши назву міста, і я підкажу готові команди для нього."
+)
+_PLACE_MAX_CHARS = 60
+KYIV_CITY = "31"  # Ukraine Alarm id of м. Київ, an oblast-level region of its own
+
+
+def _place_hint(text: str) -> Optional[str]:
+    """Ready commands for a place Andrii typed without a command; None if it is not one known place."""
+    from src.alert_watch import NAMES, STATES, _find, _label, _lineage
+
+    words = text.strip()
+    if not words or len(words) > _PLACE_MAX_CHARS or words.startswith("/"):
+        return None
+    found = _find(words)
+    if len(found) != 1:
+        return None
+    place = found[0]
+    lines = [f"Знайшла: {_label(place)}.", f"/regions {place} — тривоги саме тут"]
+    if place == KYIV_CITY:
+        lines += ["/svitlo Київ <черга> — світло", "/voda Київ — вода"]
+    elif place in STATES:
+        lines += ["/svitlo <місто> <черга> — світло", f"/voda {NAMES[place].replace(' область', '')} — вода"]
+    else:
+        oblast = NAMES[_lineage(place)[-1]].replace(" область", "")
+        lines += [f"/svitlo {words} <черга> — світло (черга з рахунку чи сайту обленерго)",
+                  f"/voda {oblast} {words} — вода"]
+    return "\n".join(lines)
+
+
 def bot_only_reply(agent_id: str, text: str) -> str:
-    """Free text to a bot without an agent: the alarm hint on Alice's bot, otherwise BOT_ONLY_REPLY."""
-    if agent_id == "alice" and _ALERT_HINT_RE.search(text or ""):
+    """Free text to a bot without an agent: Alice answers as the notifier, others with BOT_ONLY_REPLY."""
+    if agent_id != "alice":
+        return BOT_ONLY_REPLY
+    if _ALERT_HINT_RE.search(text or ""):
         return ALERT_REPLY
-    return BOT_ONLY_REPLY
+    return _place_hint(text or "") or ALICE_ROLE
 
 
 def lessons_note(lessons: Optional[List[Dict[str, str]]]) -> str:

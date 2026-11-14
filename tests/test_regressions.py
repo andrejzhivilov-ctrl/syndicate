@@ -4740,6 +4740,18 @@ def test_regions_command_reaches_districts_and_communities(tmp_path):
     assert _unclear("район", _find("район")).endswith("уточни назву.")
 
 
+def test_regions_picks_the_city_not_the_oblast_whose_name_contains_it(tmp_path):
+    # Live 14.11.2026: «/regions Дніпро» chose Дніпропетровська область because its name contains «Дніпро».
+    from src.alert_watch import _find, chosen_places, regions_reply
+
+    assert _find("Дніпро") == ["332"]  # м. Дніпро та Дніпровська територіальна громада
+    assert _find("Харків") == ["1293"] and _find("Одеса") == ["964"]  # not м. Нова-Одеса
+    assert _find("Київ") == ["31"] and _find("Вінницька") == [r for r in _find("вінницька область")]
+    path = tmp_path / "state.json"
+    assert "м. Дніпро" in regions_reply("Дніпро", path)["response"]
+    assert chosen_places(path) == ["332"]
+
+
 def test_alert_notices_follow_the_chosen_district_and_community(tmp_path):
     from src.alert_watch import AlertWatch, UP, regions_reply
 
