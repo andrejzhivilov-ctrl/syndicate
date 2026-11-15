@@ -5300,5 +5300,7 @@ def test_air_force_posts_reach_alice_only_for_the_chosen_oblast_and_are_quoted_w
     # 15.11: one card — level, the watched territory, what flies word for word, a phrase; no link.
     [card] = [text for _a, _c, text in gateway.sent]
     lines = card.split("\n")
-    assert lines[0] == "⚠️ УВАГА! ЗАГРОЗА" and lines[1].startswith("📍 м. Дніпро")
-    assert lines[2] == "💣 КАБи на Дніпропетровщину" and lines[3].startswith("💬 ") and "http" not in card
+    # Live 15.11: threat cards opened like alert cards and read as extra alerts — «НЕБЕЗПЕКА» first.
+    assert lines[0] == "⚠️ НЕБЕЗПЕКА" and lines[1] == "⚪ Тривоги зараз немає" and lines[2].startswith("📍 м. Дніпро")
+    assert lines[3] == "💣 КАБи на Дніпропетровщину" and lines[4].startswith("💬 ") and "http" not in card
+    assert "ТРИВОГА" not in lines[0]

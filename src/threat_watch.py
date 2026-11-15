@@ -261,17 +261,20 @@ def map_markers(oblast: str, now: Optional[float] = None) -> Tuple[List[Marker],
     return signs + extra, neptun.CREDIT
 
 
-LEVEL_HEADINGS = {"R": "🔴 УВАГА! ПОВІТРЯНА ТРИВОГА — ЧЕРВОНИЙ РІВЕНЬ", "Y": "🟡 УВАГА! НЕБЕЗПЕКА — ЖОВТИЙ РІВЕНЬ",
-                  "P": "🟡 УВАГА! НЕБЕЗПЕКА — ЖОВТИЙ РІВЕНЬ", "N": "⚠️ УВАГА! ЗАГРОЗА"}
+#: A threat card must not look like an alert card (live 15.11.2026: two threat cards read as two more
+#: alerts). It always opens with «НЕБЕЗПЕКА»; the alert level of the place is its own line.
+THREAT_HEADING = "⚠️ НЕБЕЗПЕКА"
+LEVEL_LINES = {"R": "🔴 Зараз червоний рівень тривоги", "Y": "🟡 Зараз жовтий рівень тривоги",
+               "P": "🟡 Зараз тривога в частині регіону", "N": "⚪ Тривоги зараз немає"}
 
 
 def threat_card(level: str, territory: str, texts: List[str], phrase: str) -> str:
-    """The threat as one card, like the alert cards: level, the watched territory, what flies, a phrase.
+    """Danger, the level, the watched territory, what flies, a phrase (operator, 15.11.2026).
 
-    The Air Force's words are kept as they are; no link, no source, no explanation (operator, 15.11.2026).
+    The Air Force's words are kept as they are; no link, no source, no explanation.
     """
     flying = "\n".join(texts)
-    return f"{LEVEL_HEADINGS.get(level, LEVEL_HEADINGS['N'])}\n📍 {territory}\n{flying}\n💬 {phrase}"
+    return f"{THREAT_HEADING}\n{LEVEL_LINES.get(level, LEVEL_LINES['N'])}\n📍 {territory}\n{flying}\n💬 {phrase}"
 
 
 
@@ -312,6 +315,7 @@ class ThreatWatch:
             places = [place for place in chosen or [] if alert_map.oblast_of(place) == oblast]
             texts = [text for _n, text, home in relevant if home == oblast]
             await self._gateway.send(self._bot, owner, self._card(oblast, places, texts))
+            logger.info("threat_card", oblast=oblast, posts=[n for n, _t, home in relevant if home == oblast])
             await self._send_map(owner, [oblast], now, places)
         return sent + len(relevant)
 

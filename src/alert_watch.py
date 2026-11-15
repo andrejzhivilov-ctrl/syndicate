@@ -388,6 +388,9 @@ class AlertWatch:
             note = tracker.update(_level(self._regions, place))
             if note:
                 self._pending.append(card(tracker.kind, _label(place), note))
+                # What was announced and why, so a later question «why three messages?» has an answer.
+                logger.info("alert_notice", place=place, kind=tracker.kind, level=_level(self._regions, place),
+                            active=sorted(r for r in self._regions if place in _lineage(r) or r in _lineage(place)))
                 oblast = alert_map.oblast_of(place)
                 if oblast:
                     self._map_places.setdefault(oblast, []).append(place)

@@ -91,8 +91,10 @@ def test_first_read_sets_the_mark_then_new_posts_are_quoted_with_a_map(tmp_path,
     watch._transport = _page((10, KABS), (11, KOZELETS), (12, "🛵 БпЛА на Дніпро з півночі"))
     assert asyncio.run(watch.run_once(["332"], now=1060.0)) == 1
     card = gateway.sent[0].split("\n")  # 15.11: a card, then its picture with no caption
-    assert card[0] == "⚠️ УВАГА! ЗАГРОЗА" and card[1].startswith("📍 м. Дніпро")
-    assert card[2] == "🛵 БпЛА на Дніпро з півночі" and card[3].startswith("💬 ") and len(gateway.sent) == 1
+    assert card[0] == "⚠️ НЕБЕЗПЕКА" and card[1] == "⚪ Тривоги зараз немає" and card[2].startswith("📍 м. Дніпро")
+    assert card[3] == "🛵 БпЛА на Дніпро з півночі" and card[4].startswith("💬 ") and len(gateway.sent) == 1
+    red = tw.threat_card("R", "м. Дніпро", ["🚀 Бандероль курсом на Нікополь"], "фраза")
+    assert red.split("\n")[:2] == ["⚠️ НЕБЕЗПЕКА", "🔴 Зараз червоний рівень тривоги"]
     png, caption = gateway.photos[0]
     assert png.startswith(b"\x89PNG") and caption == ""
     assert len(tw.recent_markers("9", now=1060.0)) == 1 and tw.recent_markers("9", now=1060.0 + tw.MARKER_TTL_S) == []
