@@ -5232,3 +5232,70 @@ def test_alert_notices_are_cards_with_attention_level_place_and_phrase():
         "escalate_to_red", "ease_to_yellow"]
     assert set(POOLS) | {"partial"} == set(HEADINGS)
     assert card(None, "X", "🔴 Фраза") == "🔴 X: Фраза"  # unknown kind: the old line, never a wrong level
+
+
+class _MapGateway(_AlertGateway):
+    def __init__(self):
+        super().__init__()
+        self.photos = []
+
+    async def send_photo(self, agent_id, chat_id, png, caption=""):
+        self.photos.append((agent_id, chat_id, png, caption))
+        return True
+
+
+def test_alert_cards_are_followed_by_the_oblast_map_and_a_broken_map_never_stops_them(tmp_path, monkeypatch):
+    # Operator, 15.11.2026: «можливість підтягувати скріншоти з зображенням районів де небезпека».
+    from src import alert_map, alert_watch
+    from src.alert_watch import AlertWatch
+
+    state, child = _vinnytsia()
+    gateway = _MapGateway()
+    watch = AlertWatch(gateway, path=tmp_path / "state.json")
+    watch.handle(_air(child, "Red"))
+    asyncio.run(watch.flush())
+    assert len(gateway.sent) == 1 and len(gateway.photos) == 1
+    agent, _chat, png, caption = gateway.photos[0]
+    assert agent == "alice" and png.startswith(b"\x89PNG") and caption.startswith("🗺️ Вінницька область")
+    assert alert_map.ATTRIBUTION in caption
+
+    # Many oblasts at once: one map of Ukraine, not one per oblast.
+    many = [o for o in alert_watch.STATES if o in alert_map.shapes()][: alert_watch.MAX_MAPS + 1]
+    for oblast in many:
+        watch.handle(_air(oblast, "Red"))
+    asyncio.run(watch.flush())
+    assert len(gateway.photos) == 2 and gateway.photos[-1][3].startswith("🗺️ Україна")
+
+    # The map is extra: if drawing fails, the cards still go and nothing is retried forever.
+    def broken(*_a, **_k):
+        raise RuntimeError("no picture")
+
+    monkeypatch.setattr(alert_map, "render", broken)
+    watch.handle(_air(child))  # the district clears: an all-clear card
+    asyncio.run(watch.flush())
+    assert len(gateway.sent) == 3 and len(gateway.photos) == 2 and watch._map_places == {}
+
+
+def test_air_force_posts_reach_alice_only_for_the_chosen_oblast_and_are_quoted_word_for_word(tmp_path, monkeypatch):
+    # Operator, 15.11.2026: show «що саме летить» — from @kpszsu, never rewritten, never a guessed pin.
+    import httpx
+
+    from src import threat_watch
+
+    monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
+    posts = [(0, "⚠ Увага! Загроза для прифронтових областей"), (1, "💣 КАБи на Дніпропетровщину"),
+             (2, "🏍 Чернігівщина: Реактивний БпЛА курсом на Козелець.")]
+
+    def page(numbers):
+        body = "".join(f'<div data-post="kpszsu/{n}"><div class="tgme_widget_message_text">{t}</div></div>'
+                       for n, t in posts if n in numbers)
+        return httpx.MockTransport(lambda _r: httpx.Response(200, text=body))
+
+    gateway = _MapGateway()
+    alerts = type("Alerts", (), {"level_of": staticmethod(lambda _p: "N")})()
+    watch = threat_watch.ThreatWatch(gateway, "alice", alerts, transport=page({0}))
+    asyncio.run(watch.run_once(["332"]))  # sets the mark at the post already there
+    watch._transport = page({1, 2})
+    asyncio.run(watch.run_once(["332"]))
+    assert [text for _a, _c, text in gateway.sent] == [
+        "🛰️ Повітряні сили:\n💣 КАБи на Дніпропетровщину\nhttps://t.me/kpszsu/1"]

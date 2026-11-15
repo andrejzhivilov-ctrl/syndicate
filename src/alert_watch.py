@@ -30,6 +30,7 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
+from src import alert_map
 from src.alert_phrases import AlertTracker, card
 from src.data_paths import ensure_dir
 
@@ -40,6 +41,8 @@ REPLAY_WINDOW_S = 300
 FLUSH_INTERVAL_S = 5
 #: Notifications joined into one Telegram message, so a mass attack stays readable.
 BATCH = 15
+#: More oblasts than this in one round get one map of Ukraine instead of one map each.
+MAX_MAPS = 2
 #: Some part of Ukraine changes state every few hours, so this much quiet means the feed is down.
 SILENCE_S = 6 * 3600
 #: The relay Worker posts every minute, so once it has spoken, a short gap is already a failure.
@@ -301,6 +304,7 @@ class AlertWatch:
         self._heard = _heard_at(saved)
         self._silent = False
         self._quiet_limit = SILENCE_S
+        self._map_places: Dict[str, List[str]] = {}  # oblast -> notified places since the last map
 
     def accept(self, raw_body: bytes, signature: Optional[str], timestamp: Optional[str],
                algorithm: Optional[str], *, public_key_pem: Optional[bytes] = None) -> bool:
@@ -384,6 +388,9 @@ class AlertWatch:
             note = tracker.update(_level(self._regions, place))
             if note:
                 self._pending.append(card(tracker.kind, _label(place), note))
+                oblast = alert_map.oblast_of(place)
+                if oblast:
+                    self._map_places.setdefault(oblast, []).append(place)
         self._save()
 
     def _baseline(self, place: str) -> AlertTracker:
@@ -408,6 +415,35 @@ class AlertWatch:
         owner = await self._gateway.owner_user_id() if batch else None
         if owner and await self._gateway.send(ALERT_BOT, owner, "\n\n".join(batch)):
             del self._pending[: len(batch)]
+            await self._send_maps(owner)
+
+    def level_of(self, place: str) -> str:
+        """The current level of any region, for maps drawn outside the watch (src/threat_watch.py)."""
+        return _level(self._regions, place)
+
+    async def _send_maps(self, owner: str) -> None:
+        """The map after the cards: each changed oblast, or Ukraine when many changed at once.
+
+        A map is extra: if it cannot be drawn or sent, the cards have already gone and it is dropped.
+        """
+        wanted, self._map_places = self._map_places, {}
+        send = getattr(self._gateway, "send_photo", None)
+        if not wanted or send is None:
+            return
+        from src.threat_watch import recent_markers  # the Air Force signs of the last half hour
+
+        jobs = list(wanted.items()) if len(wanted) <= MAX_MAPS else [(None, [])]
+        regions = dict(self._regions)
+        for oblast, chosen in jobs:
+            signs = recent_markers(oblast) if oblast else []
+            try:
+                png = await asyncio.to_thread(alert_map.render, lambda place: _level(regions, place), oblast, chosen,
+                                              signs)
+            except Exception as exc:  # noqa: BLE001 - a broken picture must not stop the alerts
+                logger.warning("alert_map_failed", error_type=type(exc).__name__)
+                continue
+            if png:
+                await send(ALERT_BOT, owner, png, alert_map.caption(oblast))
 
     async def loop(self) -> None:
         while True:

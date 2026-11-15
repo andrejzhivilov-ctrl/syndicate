@@ -255,6 +255,26 @@ class TelegramGateway:
             logger.warning("telegram_send_voice_error", agent_id=agent_id, error_type=type(exc).__name__)
             return False
 
+    async def send_photo(self, agent_id: str, chat_id: str, png: bytes, caption: str = "") -> bool:
+        """Send a PNG picture with an optional plain-text caption from this bot."""
+        token = await self.bot_token(agent_id)
+        if not token:
+            return False
+        try:
+            async with httpx.AsyncClient(timeout=30, transport=self._transport, follow_redirects=False) as client:
+                response = await client.post(
+                    f"{TELEGRAM_API}/bot{token}/sendPhoto",
+                    data={"chat_id": chat_id, "caption": caption[:1024]},
+                    files={"photo": ("map.png", png, "image/png")},
+                )
+            if response.status_code != 200:
+                logger.warning("telegram_send_photo_failed", agent_id=agent_id, status=response.status_code)
+                return False
+            return True
+        except Exception as exc:  # noqa: BLE001 - never log the URL: it contains the token
+            logger.warning("telegram_send_photo_error", agent_id=agent_id, error_type=type(exc).__name__)
+            return False
+
     async def register_webhooks(
         self, base_url: str, master_secret: str, agents: Iterable[str] = DIRECTOR_IDS
     ) -> List[Dict[str, Any]]:
