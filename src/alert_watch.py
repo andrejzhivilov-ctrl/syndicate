@@ -30,7 +30,7 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
-from src.alert_phrases import AlertTracker
+from src.alert_phrases import AlertTracker, card
 from src.data_paths import ensure_dir
 
 logger = structlog.get_logger(__name__)
@@ -383,8 +383,7 @@ class AlertWatch:
         for place, tracker in self._trackers.items():
             note = tracker.update(_level(self._regions, place))
             if note:
-                mark, _, phrase = note.partition(" ")
-                self._pending.append(f"{mark} {_label(place)}: {phrase}")
+                self._pending.append(card(tracker.kind, _label(place), note))
         self._save()
 
     def _baseline(self, place: str) -> AlertTracker:

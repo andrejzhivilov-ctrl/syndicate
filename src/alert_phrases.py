@@ -133,6 +133,7 @@ class AlertTracker:
         self._bag = bag
         self._current: Optional[str] = None
         self._peak = 0
+        self.kind: Optional[str] = None  # what the last notification was: a key of HEADINGS
 
     def update(self, status: Optional[str]) -> Optional[str]:
         status = (status or "").strip().upper()
@@ -149,12 +150,41 @@ class AlertTracker:
             peak, self._peak = self._peak, 0
             if not peak:
                 return None
-            return "🟢 " + self._bag.draw("clear_after_red" if peak == 2 else "clear_after_yellow")
+            self.kind = "clear_after_red" if peak == 2 else "clear_after_yellow"
+            return "🟢 " + self._bag.draw(self.kind)
         if level == 2:
             self._peak = 2
             # Every level change is announced (operator, 29.10): yellow → red has its own phrases.
-            return "🔴 " + self._bag.draw("escalate_to_red" if _LEVEL[previous] == 1 else "red")
+            self.kind = "escalate_to_red" if _LEVEL[previous] == 1 else "red"
+            return "🔴 " + self._bag.draw(self.kind)
         self._peak = max(self._peak, 1)
         pool = "ease_to_yellow" if previous == "R" else "yellow"
+        self.kind = "partial" if status == "P" and pool == "yellow" else pool
         text = "🟡 " + self._bag.draw(pool)
         return f"{text} {PARTIAL_NOTE}" if status == "P" else text
+
+
+#: The card Alice sends (operator, 15.11.2026): one heading line, the place, then the phrase.
+#: The level's circle first; a level change adds ❗ (raised to red) or ⚠️ (lowered to yellow).
+#: Plain text: the gateway sets no parse mode.
+RED_SIGN, YELLOW_SIGN, CLEAR_SIGN = "🔴", "🟡", "✅"
+RAISED, LOWERED = "❗", "⚠️"
+HEADINGS: Dict[str, str] = {
+    "red": f"{RED_SIGN} УВАГА! ПОВІТРЯНА ТРИВОГА — ЧЕРВОНИЙ РІВЕНЬ",
+    "escalate_to_red": f"{RED_SIGN}{RAISED} УВАГА! РІВЕНЬ ПІДНЯТО ДО ЧЕРВОНОГО",
+    "yellow": f"{YELLOW_SIGN} УВАГА! НЕБЕЗПЕКА — ЖОВТИЙ РІВЕНЬ",
+    "partial": f"{YELLOW_SIGN} УВАГА! НЕБЕЗПЕКА — ЖОВТИЙ РІВЕНЬ (ЧАСТИНА РЕГІОНУ)",
+    "ease_to_yellow": f"{YELLOW_SIGN}{LOWERED} УВАГА! РІВЕНЬ ЗНИЖЕНО ДО ЖОВТОГО",
+    "clear_after_red": f"{CLEAR_SIGN} ВІДБІЙ ПОВІТРЯНОЇ ТРИВОГИ",
+    "clear_after_yellow": f"{CLEAR_SIGN} ВІДБІЙ НЕБЕЗПЕКИ",
+}
+
+
+def card(kind: Optional[str], place: str, note: str) -> str:
+    """One notification as a card; an unknown kind keeps the plain «mark place: phrase» line."""
+    mark, _, phrase = note.partition(" ")
+    if kind not in HEADINGS:
+        return f"{mark} {place}: {phrase}"
+    if kind == "partial":
+        phrase = phrase.removesuffix(f" {PARTIAL_NOTE}")  # the heading already says it
+    return f"{HEADINGS[kind]}\n📍 {place}\n💬 {phrase}"

@@ -4489,11 +4489,11 @@ def test_alert_watch_rolls_regions_into_oblast_phrases_through_alice_bot(tmp_pat
     asyncio.run(watch.flush())
 
     assert [(bot, chat) for bot, chat, _ in gateway.sent] == [("alice", "1")]
-    lines = gateway.sent[0][2].split("\n\n")
-    assert all("Вінницька область: " in line for line in lines)
-    phrases = [line.split("Вінницька область: ", 1)[1] for line in lines]
-    phrases = [phrase.removesuffix(" (тривога лише в частині регіону)") for phrase in phrases]
-    assert phrases[0] in POOLS["yellow"]
+    # Since 15.11.2026 each notice is a card (attention, level, 📍 place, 💬 phrase), not one line.
+    cards = [card.split("\n") for card in gateway.sent[0][2].split("\n\n")]
+    assert all(lines[1] == "📍 Вінницька область" for lines in cards)
+    phrases = [lines[2].removeprefix("💬 ").removesuffix(" (тривога лише в частині регіону)") for lines in cards]
+    assert phrases[0] in POOLS["yellow"] and cards[0][0].endswith("(ЧАСТИНА РЕГІОНУ)")
     assert phrases[1] in POOLS["escalate_to_red"]
     assert phrases[2] in POOLS["ease_to_yellow"]
     assert phrases[3] in POOLS["clear_after_red"]
@@ -4511,7 +4511,7 @@ def test_alert_watch_uses_the_snapshot_not_the_status_field(tmp_path):
     asyncio.run(watch.flush())
 
     assert len(gateway.sent[0][2].split("\n\n")) == 2
-    assert "🟢" not in gateway.sent[0][2]
+    assert "ВІДБІЙ" not in gateway.sent[0][2]
 
 
 def test_alert_watch_ignores_what_it_cannot_place_and_keeps_state_over_restart(tmp_path):
@@ -4534,7 +4534,7 @@ def test_alert_watch_ignores_what_it_cannot_place_and_keeps_state_over_restart(t
     restarted.handle(_air(state))
     asyncio.run(restarted.flush())
 
-    assert gateway.sent[0][2].split(": ", 1)[1] in POOLS["clear_after_red"]
+    assert gateway.sent[0][2].rsplit("\n💬 ", 1)[1] in POOLS["clear_after_red"]  # a card since 15.11
 
 
 def test_alert_watch_says_once_that_the_feed_went_quiet_and_when_it_is_back(tmp_path):
@@ -4611,9 +4611,9 @@ def test_alarm_relay_picture_replaces_the_state_and_heals_missed_events(tmp_path
     asyncio.run(watch.flush())
 
     lines = gateway.sent[0][2].split("\n\n")
-    assert len(lines) == 2 and all("Вінницька область: " in line for line in lines)
-    assert lines[0].split(": ", 1)[1] in POOLS["red"]
-    assert lines[1].split(": ", 1)[1] in POOLS["clear_after_red"]
+    assert len(lines) == 2 and all("\n📍 Вінницька область\n" in line for line in lines)  # cards since 15.11
+    assert lines[0].rsplit("\n💬 ", 1)[1] in POOLS["red"]
+    assert lines[1].rsplit("\n💬 ", 1)[1] in POOLS["clear_after_red"]
 
     watch.check_silence(watch._heard + RELAY_SILENCE_S + 60)  # a minute-by-minute feed is missed fast
     assert "15 хв" in watch._pending[-1]
@@ -4775,19 +4775,19 @@ def test_alert_notices_follow_the_chosen_district_and_community(tmp_path):
     assert sent_after(_air(sibling, "Red")) == ""  # a neighbouring community is not this one
     assert sent_after(_air(sibling)) == ""
     assert "Тульчинська територіальна громада, Тульчинський район" in sent_after(_air(oblast, "Yellow"))  # covered whole
-    assert "🟢" in sent_after(_air(oblast))
-    assert "🔴" in sent_after(_air(community, "Red"))
-    assert "🟢" in sent_after(_air(community))
+    assert "ВІДБІЙ" in sent_after(_air(oblast))
+    assert "ЧЕРВОН" in sent_after(_air(community, "Red"))
+    assert "ВІДБІЙ" in sent_after(_air(community))
 
     regions_reply(district, path)
-    assert "(тривога лише в частині регіону)" in sent_after(_air(sibling, "Yellow"))
-    assert "🟢" in sent_after(_air(sibling))
+    assert "(ЧАСТИНА РЕГІОНУ)" in sent_after(_air(sibling, "Yellow"))  # the card heading
+    assert "ВІДБІЙ" in sent_after(_air(sibling))
 
     # Chosen during an alert: nothing to announce yet, but the all-clear still comes.
     watch.handle(_air(other_district, "Red"))
     regions_reply(other_district, path)
     assert sent_after(_air(sibling, "Red")) == ""
-    assert "🟢" in sent_after(_air(other_district))
+    assert "ВІДБІЙ" in sent_after(_air(other_district))
 
 
 def test_confirmed_facts_get_a_one_way_copy_in_obsidian(tmp_path, monkeypatch):
@@ -5202,3 +5202,33 @@ def test_power_and_water_go_through_alice_with_their_own_icons():
     # Keyless public sources only: the GitHub mirrors, and since 14.11.2026 Yasno's public API for CEK.
     keyless = ("https://raw.githubusercontent.com/", "https://app.yasno.ua/api/blackout-service/public/")
     assert all(url.startswith(keyless) for _n, url in power_outages.SOURCES.values())
+
+
+def test_alert_notices_are_cards_with_attention_level_place_and_phrase():
+    # Operator, 15.11.2026: «ці повідомлення якось зливаються» — one line per notice ran together.
+    from src.alert_phrases import HEADINGS, PARTIAL_NOTE, POOLS, AlertTracker, card
+
+    tracker = AlertTracker()
+    tracker.update("N")
+    note = tracker.update("R")
+    red = card(tracker.kind, "м. Дніпро", note)
+    # Operator, 15.11.2026 (third pass): one heading line, the level's circle; ❗ / ⚠️ only on a change.
+    assert red.split("\n")[:2] == ["🔴 УВАГА! ПОВІТРЯНА ТРИВОГА — ЧЕРВОНИЙ РІВЕНЬ", "📍 м. Дніпро"]
+    assert red.split("\n")[2].removeprefix("💬 ") in POOLS["red"]
+    tracker.update("Y")
+    assert tracker.kind == "ease_to_yellow" and HEADINGS["ease_to_yellow"] == "🟡⚠️ УВАГА! РІВЕНЬ ЗНИЖЕНО ДО ЖОВТОГО"
+    tracker.update("R")
+    assert HEADINGS[tracker.kind] == "🔴❗ УВАГА! РІВЕНЬ ПІДНЯТО ДО ЧЕРВОНОГО"
+    note = tracker.update("N")
+    clear = card(tracker.kind, "м. Дніпро", note).split("\n")
+    assert clear[0] == "✅ ВІДБІЙ ПОВІТРЯНОЇ ТРИВОГИ" and clear[2].removeprefix("💬 ") in POOLS["clear_after_red"]
+    assert len(clear) == 3
+    tracker.update("P")
+    assert tracker.kind == "partial"
+    partial = card(tracker.kind, "Вінницька область", "🟡 Фраза " + PARTIAL_NOTE)
+    assert partial.endswith("💬 Фраза") and partial.startswith("🟡 УВАГА! НЕБЕЗПЕКА — ЖОВТИЙ РІВЕНЬ")
+    # The change signs appear only on a change of level, and every tracker kind has a heading.
+    assert [kind for kind, heading in HEADINGS.items() if "❗" in heading or "⚠️" in heading] == [
+        "escalate_to_red", "ease_to_yellow"]
+    assert set(POOLS) | {"partial"} == set(HEADINGS)
+    assert card(None, "X", "🔴 Фраза") == "🔴 X: Фраза"  # unknown kind: the old line, never a wrong level
