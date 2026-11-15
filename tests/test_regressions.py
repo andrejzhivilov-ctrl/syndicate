@@ -4534,7 +4534,7 @@ def test_alert_watch_ignores_what_it_cannot_place_and_keeps_state_over_restart(t
     restarted.handle(_air(state))
     asyncio.run(restarted.flush())
 
-    assert gateway.sent[0][2].split(": ", 1)[1] in POOLS["clear_after_red"]
+    assert gateway.sent[0][2].rsplit("\n💬 ", 1)[1] in POOLS["clear_after_red"]  # a card since 15.11
 
 
 def test_alert_watch_says_once_that_the_feed_went_quiet_and_when_it_is_back(tmp_path):
@@ -4611,9 +4611,9 @@ def test_alarm_relay_picture_replaces_the_state_and_heals_missed_events(tmp_path
     asyncio.run(watch.flush())
 
     lines = gateway.sent[0][2].split("\n\n")
-    assert len(lines) == 2 and all("Вінницька область: " in line for line in lines)
-    assert lines[0].split(": ", 1)[1] in POOLS["red"]
-    assert lines[1].split(": ", 1)[1] in POOLS["clear_after_red"]
+    assert len(lines) == 2 and all("\n📍 Вінницька область\n" in line for line in lines)  # cards since 15.11
+    assert lines[0].rsplit("\n💬 ", 1)[1] in POOLS["red"]
+    assert lines[1].rsplit("\n💬 ", 1)[1] in POOLS["clear_after_red"]
 
     watch.check_silence(watch._heard + RELAY_SILENCE_S + 60)  # a minute-by-minute feed is missed fast
     assert "15 хв" in watch._pending[-1]
@@ -4780,7 +4780,7 @@ def test_alert_notices_follow_the_chosen_district_and_community(tmp_path):
     assert "🟢" in sent_after(_air(community))
 
     regions_reply(district, path)
-    assert "(тривога лише в частині регіону)" in sent_after(_air(sibling, "Yellow"))
+    assert "⚠️ Тривога в частині регіону" in sent_after(_air(sibling, "Yellow"))  # the card's level line
     assert "🟢" in sent_after(_air(sibling))
 
     # Chosen during an alert: nothing to announce yet, but the all-clear still comes.
@@ -5210,10 +5210,12 @@ def test_alert_notices_are_cards_with_attention_level_place_and_phrase():
 
     tracker = AlertTracker()
     tracker.update("N")
-    red = card(tracker.kind, "м. Дніпро", tracker.update("R"))
+    note = tracker.update("R")
+    red = card(tracker.kind, "м. Дніпро", note)
     assert red.split("\n")[:3] == ["🔴📢 УВАГА!", "🚀 Повітряна тривога · червоний рівень", "📍 м. Дніпро"]
     assert red.split("\n")[3].removeprefix("💬 ") in POOLS["red"]
-    clear = card(tracker.kind, "м. Дніпро", tracker.update("N")).split("\n")
+    note = tracker.update("N")
+    clear = card(tracker.kind, "м. Дніпро", note).split("\n")
     assert clear[0] == "🟢🔕 ВІДБІЙ" and clear[3].removeprefix("💬 ") in POOLS["clear_after_red"]
     tracker.update("P")
     assert tracker.kind == "partial"

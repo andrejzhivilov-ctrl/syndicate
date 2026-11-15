@@ -183,5 +183,6 @@ def card(kind: Optional[str], place: str, note: str) -> str:
     if kind not in HEADINGS:
         return f"{mark} {place}: {phrase}"
     attention, level = HEADINGS[kind]
-    phrase = phrase.removesuffix(f" {PARTIAL_NOTE}")  # the level line already says it
+    if kind == "partial":
+        phrase = phrase.removesuffix(f" {PARTIAL_NOTE}")  # the level line already says it
     return f"{attention}\n{level}\n📍 {place}\n💬 {phrase}"
