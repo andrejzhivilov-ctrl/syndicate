@@ -5271,6 +5271,6 @@ def test_alert_cards_are_followed_by_the_oblast_map_and_a_broken_map_never_stops
         raise RuntimeError("no picture")
 
     monkeypatch.setattr(alert_map, "render", broken)
-    watch.handle(_air(state))
+    watch.handle(_air(child))  # the district clears: an all-clear card
     asyncio.run(watch.flush())
     assert len(gateway.sent) == 3 and len(gateway.photos) == 2 and watch._map_places == {}
