@@ -37,3 +37,18 @@ def test_builder_names_and_simplification():
     assert key("Кам’янська") == key("Кам'янська територіальна громада")
     ring = [[0, 0], [1, 0.0001], [2, 0], [2, 2], [0, 2], [0, 0]]
     assert simplify(ring, 0.01) == [[0, 0], [2, 0], [2, 2], [0, 2], [0, 0]]
+
+
+def test_cities_are_named_on_the_map_largest_first():
+    # Operator, 15.11.2026: «щоб населені пункти також прописувались … Дніпро, Павлоград, Самар».
+    names = [name for name, _lon, _lat in alert_map.cities("9")]
+    assert names[0] in ("Дніпро", "Кривий Ріг") and {"Павлоград", "Самар"} <= set(names)
+    assert "Тульчин" in [name for name, _lon, _lat in alert_map.cities("4")]
+    assert alert_map.short_name("9") == "Дніпропетровська" and alert_map.short_name("9999") == "А. Р. Крим"
+
+
+def test_a_guided_bomb_has_its_own_sign():
+    from src.alert_map import Marker
+
+    png = alert_map.render(lambda _p: "R", "9", [], [Marker("kab", 35.0, 48.4), Marker("drone", 35.9, 48.5, (35.9, 48.9))])
+    assert png and png.startswith(b"\x89PNG")

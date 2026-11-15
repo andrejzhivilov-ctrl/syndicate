@@ -173,9 +173,53 @@ def _save_last(number: int) -> None:
 
 
 def watched_oblasts(chosen: Optional[List[str]]) -> List[str]:
-    """The oblasts of the alert choice; with no choice (all Ukraine) nothing — that would be every post."""
+    """The oblasts of the alert choice; with no choice (all Ukraine) none — Alice sends a summary instead."""
     found = [alert_map.oblast_of(place) for place in chosen or []]
     return sorted({oblast for oblast in found if oblast})
+
+
+KIND_ICONS = {"drone": "🛵", "missile": "🚀", "kab": "💣", "other": "⚠️"}
+SUMMARY_GAP_S = 300  # with no oblast chosen: one short list at most every five minutes
+
+
+@lru_cache(maxsize=1)
+def _city_pattern() -> Tuple[Optional[Pattern[str]], Dict[str, str]]:
+    """Every city of Ukraine (status «місто»), to place a post that names only a city («Харків: …»)."""
+    owner: Dict[str, str] = {}
+    for oblast in alert_map.oblasts():
+        for name, _lon, _lat in alert_map.cities(oblast):
+            if len(name) >= _MIN_NAME:
+                owner.setdefault(name, oblast)
+    if not owner:
+        return None, {}
+    names = sorted(owner, key=len, reverse=True)
+    return re.compile(r"(?<!\w)(" + "|".join(re.escape(name) for name in names) + r")(?!\w)"), owner
+
+
+def oblasts_named(text: str) -> List[str]:
+    """The oblasts a post is about: named directly, or through a city when no oblast is named."""
+    named = named_oblasts(text)
+    if named:
+        return named
+    pattern, owner = _city_pattern()
+    found = pattern.search(text) if pattern else None
+    return [owner[found.group(1)]] if found else []
+
+
+def summary(posts: List[Tuple[int, str]]) -> Optional[str]:
+    """«🛵 Чернігівська, Житомирська» per kind of threat, from the posts' own words; None when none names a place."""
+    by_kind: Dict[str, List[str]] = {}
+    for _number, text in posts:
+        for oblast in oblasts_named(text):
+            names = by_kind.setdefault(kind_of(text), [])
+            name = alert_map.short_name(oblast)
+            if name not in names:
+                names.append(name)
+    if not by_kind:
+        return None
+    lines = [f"{KIND_ICONS[kind]} {', '.join(names)}" for kind, names in by_kind.items()]
+    return (f"{ICON} Повітряні сили — загрози зараз:\n" + "\n".join(lines) +
+            f"\nОбери область у /regions — і я надсилатиму повідомлення повністю та з картою.\nhttps://t.me/{CHANNEL}")
 
 
 def new_posts(page: str, last: Optional[int]) -> Tuple[List[Tuple[int, str]], Optional[int]]:
@@ -196,17 +240,19 @@ class ThreatWatch:
     def __init__(self, gateway: Any, bot: str, alerts: Any, transport: Any = None) -> None:
         self._gateway, self._bot, self._alerts, self._transport = gateway, bot, alerts, transport
         self._map_sent_at = 0.0
+        self._summary_sent_at = 0.0
+        self._waiting: List[Tuple[int, str]] = []  # posts for the next summary, when no oblast is chosen
 
     async def run_once(self, chosen: Optional[List[str]], now: Optional[float] = None) -> int:
-        oblasts = watched_oblasts(chosen)
-        if not oblasts:
-            return 0
         page = await water_outages.fetch_channel(CHANNEL, self._transport)
         if page is None:
             return 0
         posts, newest = new_posts(page, _last_seen())
         if newest is not None:
             _save_last(newest)
+        oblasts = watched_oblasts(chosen)
+        if not oblasts:
+            return await self._summarise(posts, now)
         relevant = [(number, text, oblast) for number, text in posts for oblast in oblasts if concerns(text, oblast)]
         if not relevant:
             return 0
@@ -220,6 +266,21 @@ class ThreatWatch:
                 remember(oblast, sign, now)
         await self._send_map(owner, sorted({oblast for _n, _t, oblast in relevant}), now)
         return len(relevant)
+
+    async def _summarise(self, posts: List[Tuple[int, str]], now: Optional[float]) -> int:
+        """No oblast chosen: gather the posts and send the list of oblasts at most every SUMMARY_GAP_S."""
+        now = time.time() if now is None else now
+        self._waiting += posts
+        if not self._waiting or now - self._summary_sent_at < SUMMARY_GAP_S:
+            return 0
+        text, count = summary(self._waiting), len(self._waiting)
+        self._waiting = []
+        owner = await self._gateway.owner_user_id() if text else None
+        if not owner:
+            return 0
+        self._summary_sent_at = now
+        await self._gateway.send(self._bot, owner, text)
+        return count
 
     async def _send_map(self, owner: str, oblasts: List[str], now: Optional[float]) -> None:
         now = time.time() if now is None else now

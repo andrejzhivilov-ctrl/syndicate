@@ -154,22 +154,26 @@ def build(folder: Path) -> Tuple[Dict[str, Any], Dict[str, str], List[str], Dict
     return shapes, attached, missing, oblasts
 
 
-def places(folder: Path, oblasts: Dict[str, str]) -> Dict[str, Dict[str, List[float]]]:
-    """Settlement points by oblast alarm id, for placing an Air Force message on the map.
+def places(folder: Path, oblasts: Dict[str, str]) -> Tuple[Dict[str, Dict[str, List[float]]], Dict[str, List[Any]]]:
+    """Settlement points by oblast alarm id, and the oblast's cities (largest first) for the labels.
 
     A name that two settlements of one oblast share is kept only when exactly one of them is a city;
     otherwise it is left out, so a marker never lands on the wrong village.
     """
-    kinds = {f["properties"]["adm4_pcode"]: f["properties"].get("adm4_type1") for f in _features(folder, 4)}
+    kinds = {f["properties"]["adm4_pcode"]: (f["properties"].get("adm4_type1"), f["properties"].get("area_sqkm") or 0)
+             for f in _features(folder, 4)}
     found: Dict[str, Dict[str, List[Tuple[bool, List[float]]]]] = {}
+    towns: Dict[str, List[Tuple[float, str, List[float]]]] = {}
     for feature in json.loads((folder / "ukr_adminpoints.geojson").read_text(encoding="utf-8"))["features"]:
         props = feature["properties"]
         oblast = oblasts.get(props.get("adm1_pcode") or "")
         if props.get("admin_level") != 4 or not oblast or not props.get("name1"):
             continue
-        city = kinds.get(props.get("adm4_pcode")) == "Місто"
-        point = [round(props["x_coord"], 3), round(props["y_coord"], 3)]
-        found.setdefault(oblast, {}).setdefault(props["name1"].replace("’", "'"), []).append((city, point))
+        kind, area = kinds.get(props.get("adm4_pcode"), (None, 0))
+        name, point = props["name1"].replace("’", "'"), [round(props["x_coord"], 3), round(props["y_coord"], 3)]
+        found.setdefault(oblast, {}).setdefault(name, []).append((kind == "Місто", point))
+        if kind == "Місто":
+            towns.setdefault(oblast, []).append((area, name, point))
     out: Dict[str, Dict[str, List[float]]] = {}
     for oblast, names in found.items():
         for name, options in names.items():
@@ -177,7 +181,9 @@ def places(folder: Path, oblasts: Dict[str, str]) -> Dict[str, Dict[str, List[fl
             point = options[0][1] if len(options) == 1 else (cities[0] if len(cities) == 1 else None)
             if point:
                 out.setdefault(oblast, {})[name] = point
-    return out
+    cities_out = {oblast: [[name, *point] for _area, name, point in sorted(items, key=lambda item: -item[0])]
+                  for oblast, items in towns.items()}
+    return out, cities_out
 
 
 def main(argv: List[str]) -> int:
@@ -188,9 +194,9 @@ def main(argv: List[str]) -> int:
     source = "OCHA COD-AB Ukraine v05 (SSPE Kartographia, 2025-09-01), CC BY-IGO"
     data = {"source": source, "attached": attached, "shapes": shapes}
     OUT.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    points = places(Path(argv[1]), oblasts)
-    PLACES.write_text(json.dumps({"source": source, "places": points}, ensure_ascii=False, separators=(",", ":")),
-                      encoding="utf-8")
+    points, cities = places(Path(argv[1]), oblasts)
+    PLACES.write_text(json.dumps({"source": source, "places": points, "cities": cities}, ensure_ascii=False,
+                                 separators=(",", ":")), encoding="utf-8")
     print(f"{len(shapes)} shapes, {OUT.stat().st_size // 1024} KiB, {len(missing)} unmatched; "
           f"{sum(len(p) for p in points.values())} places, {PLACES.stat().st_size // 1024} KiB")
     for line in missing:

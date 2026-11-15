@@ -84,9 +84,21 @@ def test_first_read_sets_the_mark_then_new_posts_are_quoted_with_a_map(tmp_path,
     assert len(gateway.sent) == 2 and len(gateway.photos) == 1
 
 
-def test_no_choice_means_no_threats_rather_than_every_post_in_ukraine(tmp_path, monkeypatch):
+def test_no_choice_gives_a_short_list_of_oblasts_at_most_every_five_minutes(tmp_path, monkeypatch):
+    # Operator, 15.11.2026: «коли не вибраний регіон, вона може просто давати список областей».
     monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
     gateway = _Gateway()
     watch = tw.ThreatWatch(gateway, "alice", _Alerts(), transport=_page((1, KABS)))
-    assert asyncio.run(watch.run_once(None)) == 0 and tw.watched_oblasts(None) == []
-    assert tw.watched_oblasts(["332", "1293"]) == ["22", "9"]
+    assert asyncio.run(watch.run_once(None, now=1000.0)) == 0 and gateway.sent == []  # first read: the mark only
+    watch._transport = _page((1, KABS), (2, KOZELETS), (3, KHARKIV), (4, KOROSTEN), (5, "💣 КАБи на Донеччину"))
+    assert asyncio.run(watch.run_once(None, now=1060.0)) == 4
+    text = gateway.sent[0]
+    assert "🛵 Чернігівська, Харківська, Житомирська, Київська" in text and "💣 Донецька" in text
+    assert "/regions" in text and gateway.photos == []
+    watch._transport = _page((6, "💣 КАБи на Сумщину"))
+    asyncio.run(watch.run_once(None, now=1120.0))
+    assert len(gateway.sent) == 1  # gathered, not sent yet
+    asyncio.run(watch.run_once(None, now=1060.0 + tw.SUMMARY_GAP_S))
+    assert len(gateway.sent) == 2 and "💣 Сумська" in gateway.sent[1]
+    assert tw.watched_oblasts(None) == [] and tw.watched_oblasts(["332", "1293"]) == ["22", "9"]
+    assert tw.summary([(1, "⚠ Увага! Загроза для прифронтових областей")]) is None  # no place: nothing to list

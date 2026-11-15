@@ -28,6 +28,9 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 SHAPES_PATH = Path(__file__).with_name("alert_map_shapes.json")
+PLACES_PATH = Path(__file__).with_name("alert_places.json")
+CITY_LIMIT = 18  # the largest cities of the oblast that fit without overlapping
+DIM_TEXT = (165, 170, 186)
 TREE_PATH = Path(__file__).with_name("ukrainealarm_regions.json")
 WIDTH = 900
 PAD = 24
@@ -214,29 +217,91 @@ def _short(name: str) -> str:
     return name.replace("Автономна Республіка Крим", "А. Р. Крим")
 
 
-def _labels(draw: Any, canvas: _Canvas, idents: Iterable[str], size: int) -> None:
-    font = _font(size)
-    if font is None:
-        return
-    for ident in idents:
-        point = label_point(ident)
-        if point is None:
-            continue
-        x, y = canvas.xy(*point)
-        if 0 < x < canvas.width and 0 < y < canvas.height:
-            draw.text((x, y), _short(_tree()[ident][0]), font=font, fill=TEXT, anchor="mm",
-                      stroke_width=SCALE, stroke_fill=BACKGROUND)
+def short_name(ident: str) -> str:
+    """«Дніпропетровська», «м. Київ», «А. Р. Крим» — a region's name without the level word."""
+    return _short(_tree()[ident][0]) if ident in _tree() else ident
+
+
+@lru_cache(maxsize=1)
+def _all_cities() -> Dict[str, List[List[Any]]]:
+    try:
+        return json.loads(PLACES_PATH.read_text(encoding="utf-8")).get("cities", {})
+    except (OSError, ValueError) as exc:
+        logger.warning("alert_map_cities_unreadable", error_type=type(exc).__name__)
+        return {}
+
+
+def cities(oblast: str) -> List[Tuple[str, float, float]]:
+    """The oblast's cities (status «місто»), largest first: Дніпро, Кривий Ріг, …, Павлоград, Самар."""
+    return [(name, lon, lat) for name, lon, lat in _all_cities().get(oblast, [])]
+
+
+class _Labels:
+    """Text placed without overlapping what is already written; a label that would collide is skipped."""
+
+    def __init__(self, draw: Any, canvas: _Canvas) -> None:
+        self.draw, self.canvas, self.taken = draw, canvas, []
+
+    def _free(self, box: Box) -> bool:
+        inside = 0 <= box[0] and 0 <= box[1] and box[2] <= self.canvas.width and box[3] <= self.canvas.height
+        return inside and not any(_overlaps(box, other) for other in self.taken)
+
+    def put(self, xy: Tuple[float, float], text: str, size: int, colour: Tuple[int, int, int] = TEXT,
+            anchor: str = "mm", dot: bool = False) -> bool:
+        font = _font(size)
+        if font is None:
+            return False
+        box = self.draw.textbbox(xy, text, font=font, anchor=anchor, stroke_width=SCALE)
+        if not self._free(box):
+            return False
+        self.taken.append(box)
+        if dot:
+            r = 3 * SCALE
+            self.draw.ellipse((xy[0] - 6 * SCALE - r, xy[1] - r, xy[0] - 6 * SCALE + r, xy[1] + r),
+                              fill=TEXT, outline=BACKGROUND, width=SCALE)
+        self.draw.text(xy, text, font=font, fill=colour, anchor=anchor, stroke_width=SCALE, stroke_fill=BACKGROUND)
+        return True
+
+    def regions(self, idents: Iterable[str], size: int, colour: Tuple[int, int, int] = TEXT) -> None:
+        for ident in idents:
+            point = label_point(ident)
+            if point:
+                self.put(self.canvas.xy(*point), _short(_tree()[ident][0]), size, colour)
+
+    def towns(self, oblast: str, size: int, limit: int) -> None:
+        shown = 0
+        for name, lon, lat in cities(oblast):
+            if shown >= limit:
+                break
+            x, y = self.canvas.xy(lon, lat)
+            shown += self.put((x, y), name, size, anchor="lm", dot=True)
+
+
+def _bomb(draw: Any, at: Tuple[float, float], heading: Tuple[float, float], size: float) -> None:
+    """A guided bomb: a white rounded body nose first, with tail fins."""
+    from math import pi, sin
+    from math import cos as cosine
+
+    x, y = at
+    hx, hy = heading
+    px, py = -hy, hx
+    body = [(x + hx * size * cosine(t) + px * size * 0.45 * sin(t), y + hy * size * cosine(t) + py * size * 0.45 * sin(t))
+            for t in (i * pi / 12 for i in range(24))]
+    tail = (x - hx * size * 0.9, y - hy * size * 0.9)
+    end = (x - hx * size * 1.6, y - hy * size * 1.6)
+    fins = [tail, (end[0] + px * size * 0.7, end[1] + py * size * 0.7), (end[0] - px * size * 0.7, end[1] - py * size * 0.7)]
+    draw.polygon(fins, fill=TEXT, outline=BACKGROUND, width=SCALE)
+    draw.polygon(body, fill=TEXT, outline=BACKGROUND, width=SCALE * 2)
 
 
 def _glyph(draw: Any, at: Tuple[float, float], heading: Tuple[float, float], kind: str) -> None:
-    """A white sign: a dart for a drone, a long dart for a missile, a ringed dot for a guided bomb."""
+    """A white sign: a dart for a drone, a long dart for a missile, a bomb for a guided bomb (КАБ)."""
     x, y = at
     hx, hy = heading
     px, py = -hy, hx
     size = 15 * SCALE
     if kind == "kab":
-        draw.ellipse((x - size, y - size, x + size, y + size), fill=TEXT, outline=BACKGROUND, width=SCALE)
-        draw.ellipse((x - size / 3, y - size / 3, x + size / 3, y + size / 3), fill=BACKGROUND)
+        _bomb(draw, at, heading, size)
         return
     length = size * (2.2 if kind == "missile" else 1.4)
     tip = (x + hx * size, y + hy * size)
@@ -288,11 +353,13 @@ def render(level_of: Callable[[str], str], oblast: Optional[str], chosen: Sequen
     if oblast:
         _outline(draw, canvas, "focus", [oblast])
     _outline(draw, canvas, "chosen", [c for c in chosen if c != oblast])
-    if oblast:
-        _labels(draw, canvas, children(oblast), 11)
-        _labels(draw, canvas, [o for o in oblasts() if o != oblast], 13)
+    labels = _Labels(draw, canvas)
+    if oblast:  # cities first: Дніпро, Павлоград, Самар …; districts dimmer, only where room is left
+        labels.towns(oblast, 12, CITY_LIMIT)
+        labels.regions([o for o in oblasts() if o != oblast], 13)
+        labels.regions(children(oblast), 10, DIM_TEXT)
     else:
-        _labels(draw, canvas, oblasts(), 11)
+        labels.regions(oblasts(), 11)
     _markers(draw, canvas, markers)  # on top of the labels: a threat is never hidden under a name
     _footer(draw, canvas, now or datetime.now(timezone.utc))
     image = image.resize((canvas.width // SCALE, canvas.height // SCALE), Image.LANCZOS)
