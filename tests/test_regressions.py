@@ -5339,6 +5339,8 @@ def test_map_command_answers_with_the_oblast_status_on_request(tmp_path):
     assert "Регіон не вибрано" in oblast_status(path)
     regions_reply("332", path)
     watch = AlertWatch(_AlertGateway(), path=path)
-    watch.handle(_air("47", "Red"))  # Дніпровський район
+    from src.alert_watch import UP
+
+    watch.handle(_air(UP["332"], "Red"))  # the district of м. Дніпро
     text = oblast_status(path)
     assert text.startswith("🗺️ Дніпропетровська область зараз:") and "🔴 Дніпровський район" in text
