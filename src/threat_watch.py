@@ -345,7 +345,7 @@ class ThreatWatch:
         sent = forecast_count + await self._send_urgent(urgent)
         if not oblasts:
             return sent + await self._summarise(posts, now)
-        for number, text in posts:  # every sign of the oblast goes on the map, asked for or not
+        for _number, text in posts:  # every sign of the oblast goes on the map, asked for or not
             for oblast in oblasts:
                 sign = marker(text, oblast) if concerns(text, oblast) else None
                 if sign:

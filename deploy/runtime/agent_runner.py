@@ -1307,6 +1307,12 @@ async def telegram_webhook(
         _VOICE_TASKS.add(task)
         task.add_done_callback(_VOICE_TASKS.discard)
         return {"ok": True}
+    await _telegram_text(state, gateway, agent_id, message)
+    return {"ok": True}
+
+
+async def _telegram_text(state: AppState, gateway: Any, agent_id: str, message: Dict[str, Any]) -> None:
+    """A typed message: the reply, Alice's map after /карта, and a voice copy when one was asked for."""
     text = await _telegram_reply(state, agent_id, message, message["text"])
     await gateway.send(agent_id, message["chat_id"], text)
     if agent_id == ALERT_BOT and (pool_command({"text": message["text"]}) or ("",))[0] == "/map":
@@ -1316,7 +1322,6 @@ async def telegram_webhook(
         task = asyncio.create_task(_voice_on_request(state, agent_id, message["chat_id"], message["text"], text))
         _VOICE_TASKS.add(task)
         task.add_done_callback(_VOICE_TASKS.discard)
-    return {"ok": True}
 
 
 #: Running voice-note tasks (a bare create_task result can be garbage-collected).
