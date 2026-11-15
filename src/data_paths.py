@@ -46,6 +46,7 @@ DIRS = {
     "material_sorter": "material_sorter",
     "power": "power_outages",
     "water": "water_outages",
+    "threats": "threat_watch",
 }
 
 
