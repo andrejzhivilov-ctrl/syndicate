@@ -4491,9 +4491,9 @@ def test_alert_watch_rolls_regions_into_oblast_phrases_through_alice_bot(tmp_pat
     assert [(bot, chat) for bot, chat, _ in gateway.sent] == [("alice", "1")]
     # Since 15.11.2026 each notice is a card (attention, level, 📍 place, 💬 phrase), not one line.
     cards = [card.split("\n") for card in gateway.sent[0][2].split("\n\n")]
-    assert all(lines[2] == "📍 Вінницька область" for lines in cards)
-    phrases = [lines[3].removeprefix("💬 ").removesuffix(" (тривога лише в частині регіону)") for lines in cards]
-    assert phrases[0] in POOLS["yellow"] and cards[0][1].startswith("⚠️ Тривога в частині регіону")
+    assert all(lines[1] == "📍 Вінницька область" for lines in cards)
+    phrases = [lines[2].removeprefix("💬 ").removesuffix(" (тривога лише в частині регіону)") for lines in cards]
+    assert phrases[0] in POOLS["yellow"] and cards[0][0].endswith("(ЧАСТИНА РЕГІОНУ)")
     assert phrases[1] in POOLS["escalate_to_red"]
     assert phrases[2] in POOLS["ease_to_yellow"]
     assert phrases[3] in POOLS["clear_after_red"]
@@ -4511,7 +4511,7 @@ def test_alert_watch_uses_the_snapshot_not_the_status_field(tmp_path):
     asyncio.run(watch.flush())
 
     assert len(gateway.sent[0][2].split("\n\n")) == 2
-    assert "🟢" not in gateway.sent[0][2]
+    assert "ВІДБІЙ" not in gateway.sent[0][2]
 
 
 def test_alert_watch_ignores_what_it_cannot_place_and_keeps_state_over_restart(tmp_path):
@@ -4775,19 +4775,19 @@ def test_alert_notices_follow_the_chosen_district_and_community(tmp_path):
     assert sent_after(_air(sibling, "Red")) == ""  # a neighbouring community is not this one
     assert sent_after(_air(sibling)) == ""
     assert "Тульчинська територіальна громада, Тульчинський район" in sent_after(_air(oblast, "Yellow"))  # covered whole
-    assert "🟢" in sent_after(_air(oblast))
-    assert "🔴" in sent_after(_air(community, "Red"))
-    assert "🟢" in sent_after(_air(community))
+    assert "ВІДБІЙ" in sent_after(_air(oblast))
+    assert "ЧЕРВОН" in sent_after(_air(community, "Red"))
+    assert "ВІДБІЙ" in sent_after(_air(community))
 
     regions_reply(district, path)
-    assert "⚠️ Тривога в частині регіону" in sent_after(_air(sibling, "Yellow"))  # the card's level line
-    assert "🟢" in sent_after(_air(sibling))
+    assert "(ЧАСТИНА РЕГІОНУ)" in sent_after(_air(sibling, "Yellow"))  # the card heading
+    assert "ВІДБІЙ" in sent_after(_air(sibling))
 
     # Chosen during an alert: nothing to announce yet, but the all-clear still comes.
     watch.handle(_air(other_district, "Red"))
     regions_reply(other_district, path)
     assert sent_after(_air(sibling, "Red")) == ""
-    assert "🟢" in sent_after(_air(other_district))
+    assert "ВІДБІЙ" in sent_after(_air(other_district))
 
 
 def test_confirmed_facts_get_a_one_way_copy_in_obsidian(tmp_path, monkeypatch):
@@ -5212,16 +5212,22 @@ def test_alert_notices_are_cards_with_attention_level_place_and_phrase():
     tracker.update("N")
     note = tracker.update("R")
     red = card(tracker.kind, "м. Дніпро", note)
-    assert red.split("\n")[:3] == ["🔴📢 УВАГА!", "🚀 Повітряна тривога · червоний рівень", "📍 м. Дніпро"]
-    assert red.split("\n")[3].removeprefix("💬 ") in POOLS["red"]
+    # Operator, 15.11.2026 (second pass): one heading line, triangles, no separate level line.
+    assert red.split("\n")[:2] == ["🔺❗ УВАГА! ПОВІТРЯНА ТРИВОГА — ЧЕРВОНИЙ РІВЕНЬ", "📍 м. Дніпро"]
+    assert red.split("\n")[2].removeprefix("💬 ") in POOLS["red"]
+    tracker.update("Y")
+    assert tracker.kind == "ease_to_yellow" and HEADINGS["ease_to_yellow"] == "⚠️ УВАГА! РІВЕНЬ ЗНИЖЕНО ДО ЖОВТОГО"
+    tracker.update("R")
+    assert HEADINGS[tracker.kind] == "🔺❗ УВАГА! РІВЕНЬ ПІДНЯТО ДО ЧЕРВОНОГО"
     note = tracker.update("N")
     clear = card(tracker.kind, "м. Дніпро", note).split("\n")
-    assert clear[0] == "🟢🔕 ВІДБІЙ" and clear[3].removeprefix("💬 ") in POOLS["clear_after_red"]
+    assert clear[0] == "✅ ВІДБІЙ ПОВІТРЯНОЇ ТРИВОГИ" and clear[2].removeprefix("💬 ") in POOLS["clear_after_red"]
+    assert len(clear) == 3
     tracker.update("P")
     assert tracker.kind == "partial"
     partial = card(tracker.kind, "Вінницька область", "🟡 Фраза " + PARTIAL_NOTE)
-    assert partial.endswith("💬 Фраза") and "частині регіону" in partial.split("\n")[1]
-    # Every level sign is not a circle, and every tracker kind has a heading.
-    assert not any(level.startswith(("🔴", "🟡", "🟢")) for _a, level in HEADINGS.values())
+    assert partial.endswith("💬 Фраза") and partial.startswith("⚠️ УВАГА! НЕБЕЗПЕКА — ЖОВТИЙ РІВЕНЬ")
+    # No circles anywhere in a heading, and every tracker kind has one.
+    assert not any(sign in heading for heading in HEADINGS.values() for sign in ("🔴", "🟡", "🟢"))
     assert set(POOLS) | {"partial"} == set(HEADINGS)
     assert card(None, "X", "🔴 Фраза") == "🔴 X: Фраза"  # unknown kind: the old line, never a wrong level
