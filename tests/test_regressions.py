@@ -5274,3 +5274,27 @@ def test_alert_cards_are_followed_by_the_oblast_map_and_a_broken_map_never_stops
     watch.handle(_air(child))  # the district clears: an all-clear card
     asyncio.run(watch.flush())
     assert len(gateway.sent) == 3 and len(gateway.photos) == 2 and watch._map_places == {}
+
+
+def test_air_force_posts_reach_alice_only_for_the_chosen_oblast_and_are_quoted_word_for_word(tmp_path, monkeypatch):
+    # Operator, 15.11.2026: show «що саме летить» — from @kpszsu, never rewritten, never a guessed pin.
+    import httpx
+
+    from src import threat_watch
+
+    monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
+    posts = [(1, "💣 КАБи на Дніпропетровщину"), (2, "🏍 Чернігівщина: Реактивний БпЛА курсом на Козелець.")]
+
+    def page(numbers):
+        body = "".join(f'<div data-post="kpszsu/{n}"><div class="tgme_widget_message_text">{t}</div></div>'
+                       for n, t in posts if n in numbers)
+        return httpx.MockTransport(lambda _r: httpx.Response(200, text=body))
+
+    gateway = _MapGateway()
+    alerts = type("Alerts", (), {"level_of": staticmethod(lambda _p: "N")})()
+    watch = threat_watch.ThreatWatch(gateway, "alice", alerts, transport=page({0}))
+    asyncio.run(watch.run_once(["332"]))  # sets the mark at nothing seen
+    watch._transport = page({1, 2})
+    asyncio.run(watch.run_once(["332"]))
+    assert [text for _a, _c, text in gateway.sent] == [
+        "🛰️ Повітряні сили:\n💣 КАБи на Дніпропетровщину\nhttps://t.me/kpszsu/1"]

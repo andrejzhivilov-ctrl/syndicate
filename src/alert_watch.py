@@ -417,6 +417,10 @@ class AlertWatch:
             del self._pending[: len(batch)]
             await self._send_maps(owner)
 
+    def level_of(self, place: str) -> str:
+        """The current level of any region, for maps drawn outside the watch (src/threat_watch.py)."""
+        return _level(self._regions, place)
+
     async def _send_maps(self, owner: str) -> None:
         """The map after the cards: each changed oblast, or Ukraine when many changed at once.
 
@@ -426,11 +430,15 @@ class AlertWatch:
         send = getattr(self._gateway, "send_photo", None)
         if not wanted or send is None:
             return
+        from src.threat_watch import recent_markers  # the Air Force signs of the last half hour
+
         jobs = list(wanted.items()) if len(wanted) <= MAX_MAPS else [(None, [])]
         regions = dict(self._regions)
         for oblast, chosen in jobs:
+            signs = recent_markers(oblast) if oblast else []
             try:
-                png = await asyncio.to_thread(alert_map.render, lambda place: _level(regions, place), oblast, chosen)
+                png = await asyncio.to_thread(alert_map.render, lambda place: _level(regions, place), oblast, chosen,
+                                              signs)
             except Exception as exc:  # noqa: BLE001 - a broken picture must not stop the alerts
                 logger.warning("alert_map_failed", error_type=type(exc).__name__)
                 continue

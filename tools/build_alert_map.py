@@ -20,6 +20,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 ROOT = Path(__file__).resolve().parent.parent
 TREE = ROOT / "src" / "ukrainealarm_regions.json"
 OUT = ROOT / "src" / "alert_map_shapes.json"
+PLACES = ROOT / "src" / "alert_places.json"
 TOLERANCE = {1: 0.01, 2: 0.006, 3: 0.004}  # degrees; ~1 km, 600 m, 400 m
 _SUFFIXES = (" область", " район", " територіальна громада", " міська", " селищна", " сільська")
 
@@ -136,29 +137,62 @@ def _oblast_of_district(by_parent: Dict[Optional[str], Dict[str, str]], district
     return next(parent for parent, names in by_parent.items() if district in names.values())
 
 
-def build(folder: Path) -> Tuple[Dict[str, Any], Dict[str, str], List[str]]:
+def build(folder: Path) -> Tuple[Dict[str, Any], Dict[str, str], List[str], Dict[str, str]]:
+    """Shapes by alarm id, top cities attached to oblasts, what did not match, oblast pcode → alarm id."""
     tree = json.loads(TREE.read_text(encoding="utf-8"))["regions"]
     by_parent = _children(tree)
     shapes: Dict[str, Any] = {}
     attached: Dict[str, str] = {}
     missing: List[str] = []
     parents: Dict[str, str] = {}
+    oblasts: Dict[str, str] = {}
     for level in (1, 2, 3):
         found, parents, lost = _match(folder, level, by_parent, parents, attached)
+        oblasts = oblasts or dict(parents)
         missing += lost + [f"adm{level} {ident} already has a border" for ident in found if ident in shapes]
         shapes.update({ident: rings_ for ident, rings_ in found.items() if ident not in shapes})
-    return shapes, attached, missing
+    return shapes, attached, missing, oblasts
+
+
+def places(folder: Path, oblasts: Dict[str, str]) -> Dict[str, Dict[str, List[float]]]:
+    """Settlement points by oblast alarm id, for placing an Air Force message on the map.
+
+    A name that two settlements of one oblast share is kept only when exactly one of them is a city;
+    otherwise it is left out, so a marker never lands on the wrong village.
+    """
+    kinds = {f["properties"]["adm4_pcode"]: f["properties"].get("adm4_type1") for f in _features(folder, 4)}
+    found: Dict[str, Dict[str, List[Tuple[bool, List[float]]]]] = {}
+    for feature in json.loads((folder / "ukr_adminpoints.geojson").read_text(encoding="utf-8"))["features"]:
+        props = feature["properties"]
+        oblast = oblasts.get(props.get("adm1_pcode") or "")
+        if props.get("admin_level") != 4 or not oblast or not props.get("name1"):
+            continue
+        city = kinds.get(props.get("adm4_pcode")) == "Місто"
+        point = [round(props["x_coord"], 3), round(props["y_coord"], 3)]
+        found.setdefault(oblast, {}).setdefault(props["name1"].replace("’", "'"), []).append((city, point))
+    out: Dict[str, Dict[str, List[float]]] = {}
+    for oblast, names in found.items():
+        for name, options in names.items():
+            cities = [point for city, point in options if city]
+            point = options[0][1] if len(options) == 1 else (cities[0] if len(cities) == 1 else None)
+            if point:
+                out.setdefault(oblast, {})[name] = point
+    return out
 
 
 def main(argv: List[str]) -> int:
     if len(argv) != 2:
         print(__doc__)
         return 2
-    shapes, attached, missing = build(Path(argv[1]))
-    data = {"source": "OCHA COD-AB Ukraine v05 (SSPE Kartographia, 2025-09-01), CC BY-IGO",
-            "attached": attached, "shapes": shapes}
+    shapes, attached, missing, oblasts = build(Path(argv[1]))
+    source = "OCHA COD-AB Ukraine v05 (SSPE Kartographia, 2025-09-01), CC BY-IGO"
+    data = {"source": source, "attached": attached, "shapes": shapes}
     OUT.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    print(f"{len(shapes)} shapes, {OUT.stat().st_size // 1024} KiB, {len(missing)} unmatched")
+    points = places(Path(argv[1]), oblasts)
+    PLACES.write_text(json.dumps({"source": source, "places": points}, ensure_ascii=False, separators=(",", ":")),
+                      encoding="utf-8")
+    print(f"{len(shapes)} shapes, {OUT.stat().st_size // 1024} KiB, {len(missing)} unmatched; "
+          f"{sum(len(p) for p in points.values())} places, {PLACES.stat().st_size // 1024} KiB")
     for line in missing:
         print("  unmatched:", line)
     return 0

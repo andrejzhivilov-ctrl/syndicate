@@ -57,8 +57,9 @@ from src.lockdown import Lockdown  # noqa: E402
 from src import alert_poll  # noqa: E402
 from src import power_outages  # noqa: E402
 from src import water_outages  # noqa: E402
+from src.threat_watch import ThreatWatch  # noqa: E402
 from src.alert_watch import ALERT_BOT  # noqa: E402
-from src.alert_watch import AlertWatch  # noqa: E402
+from src.alert_watch import AlertWatch, chosen_places  # noqa: E402
 from src import hermes_gateway  # noqa: E402
 from src import media_vision  # noqa: E402
 from src.agent_schedule import AgentSchedule, enabled_from_env  # noqa: E402
@@ -138,6 +139,7 @@ class AppState:
     alert_poll_task: Optional[Any] = None
     power_task: Optional[Any] = None
     water_task: Optional[Any] = None
+    threat_task: Optional[Any] = None
     alarm_relay_secret: Tuple[Optional[str], float] = (None, 0.0)
     schedule_task: Optional[Any] = None
 
@@ -431,6 +433,9 @@ def _start_alerts() -> None:
     # Planned power outages of the chosen group, also through Alice (src/power_outages.py).
     app_state.power_task = asyncio.create_task(power_outages.loop(app_state.telegram_gateway, ALERT_BOT))
     app_state.water_task = asyncio.create_task(water_outages.loop(app_state.telegram_gateway, ALERT_BOT))
+    # Air Force messages about the chosen oblasts, quoted, with signs on the map (src/threat_watch.py).
+    threats = ThreatWatch(app_state.telegram_gateway, ALERT_BOT, app_state.alert_watch)
+    app_state.threat_task = asyncio.create_task(threats.loop(chosen_places))
 
 
 def _start_schedule() -> None:
@@ -446,7 +451,7 @@ def _start_schedule() -> None:
 
 
 async def _stop_background_loops() -> None:
-    for name in ("obsidian_webdav_task", "alert_watch_task", "alert_poll_task", "power_task", "water_task", "schedule_task"):
+    for name in ("obsidian_webdav_task", "alert_watch_task", "alert_poll_task", "power_task", "water_task", "threat_task", "schedule_task"):
         task = getattr(app_state, name)
         if task is not None:
             task.cancel()
