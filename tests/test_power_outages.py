@@ -52,7 +52,8 @@ def test_a_changed_schedule_is_sent_once_and_a_warning_30_minutes_before(tmp_pat
     asyncio.run(po.reply("Вінницька 3.1"))
     first = po.check("vinnytsia", "3.1", DATA, NOW)
     assert first[0].startswith("💡 ") and "Світло, Вінницька, черга 3.1" in first[0]
-    assert "сьогодні: 16:00–18:30" in first[0]
+    # 15.11: the whole day in turns, 🔴 off and 🟢 on.
+    assert "Сьогодні:\n🟢 00:00–16:00\n🔴 16:00–18:30\n🟢 18:30–21:00\n🔴 21:00–22:00 (можливо)\n🟢 22:00–24:00" in first[0]
     assert any(line.startswith("💡⬇️") and "О 16:00 вимкнення, до 18:30" in line for line in first)  # in 20 min
     assert po.check("vinnytsia", "3.1", DATA, NOW + timedelta(minutes=6)) == []  # nothing new, no repeat
 
@@ -134,3 +135,20 @@ def test_an_extended_outage_is_said_with_the_new_end(tmp_path, monkeypatch):
     said = po.check("vinnytsia", "3.1", longer, inside.replace(minute=36))
     assert said[0].startswith("💡⏳") and "до 20:00" in said[0]
     assert any(phrase in said[0] for phrase in outage_phrases.POWER_EXTENDED)
+
+
+def test_the_schedule_is_sent_again_only_when_the_groups_hours_really_change(tmp_path, monkeypatch):
+    # Operator, 15.11.2026: «один раз відправила графік … тільки якщо змінився і правда графік».
+    monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
+    asyncio.run(po.reply("Вінницька 3.1"))
+    early = NOW - timedelta(hours=10)  # before the 30-minute warning
+    assert len(po.check("vinnytsia", "3.1", DATA, early)) == 1
+    another_group_changed = {**DATA, "fact": {"data": {
+        str(TODAY): {**DATA["fact"]["data"][str(TODAY)], "GPV1.1": _hours({10: "no"})},
+        str(TOMORROW): DATA["fact"]["data"][str(TOMORROW)]}}}
+    assert po.check("vinnytsia", "3.1", another_group_changed, early) == []  # other queues changed, not ours
+    next_morning = datetime(2026, 11, 15, 1, 0, tzinfo=po.KYIV)
+    assert po.check("vinnytsia", "3.1", DATA, next_morning) == []  # tomorrow became today: no news
+    moved = {**DATA, "fact": {"data": {str(TOMORROW): {"GPV3.1": _hours({9: "no"})}}}}
+    assert "🔴 08:00–09:00" in po.check("vinnytsia", "3.1", moved, next_morning)[0]  # the hours moved: news
+    assert po.day_lines([]) == ["🟢 весь день без відключень"]

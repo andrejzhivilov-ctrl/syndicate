@@ -238,6 +238,22 @@ def _occupied(draw: Any, canvas: _Canvas) -> None:
             draw.polygon(canvas.points(ring), fill=OCCUPIED)
 
 
+def _in_ring(lon: float, lat: float, ring: Ring) -> bool:
+    inside = False
+    for (x0, y0), (x1, y1) in zip(ring, ring[1:] + ring[:1], strict=True):
+        if (y0 > lat) != (y1 > lat) and lon < x0 + (lat - y0) * (x1 - x0) / (y1 - y0):
+            inside = not inside
+    return inside
+
+
+def contains(ident: str, lon: float, lat: float) -> bool:
+    """Whether a point lies within a region's border (False when the border is unknown)."""
+    box = _box_of(ident)
+    if box is None or not (box[0] <= lon <= box[2] and box[1] <= lat <= box[3]):
+        return False
+    return any(_in_ring(lon, lat, ring) for ring in shapes()[ident])
+
+
 def full_name(ident: str) -> str:
     """«Дніпропетровська область» — the name as the alarm tree (and NEPTUN) write it."""
     return _tree()[ident][0] if ident in _tree() else ident

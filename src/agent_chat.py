@@ -152,7 +152,7 @@ class ChatHistory:
 #: Telegram pool commands, answered without any model call.
 POOL_COMMANDS: Dict[str, Optional[str]] = {"/skills": "skill", "/prompts": "prompt", "/mcp": "mcp", "/pool": None,
                                            "/spec": None, "/files": None,
-                                           "/rates": None, "/weather": None, "/alerts": None, "/regions": None, "/svitlo": None, "/voda": None,
+                                           "/rates": None, "/weather": None, "/alerts": None, "/regions": None, "/svitlo": None, "/voda": None, "/map": None,
                                            "/protect": None, "/vaultplan": None, "/lesson": None,
                                            "/commands": None}
 #: What /commands shows; a test keeps it equal to POOL_COMMANDS.
@@ -165,6 +165,7 @@ COMMAND_HELP: Dict[str, str] = {
     "/regions": "регіони сповіщень про тривогу",
     "/svitlo": "графік відключень світла твоєї черги",
     "/voda": "повідомлення про відключення води в області",
+    "/map": "стан тривог у твоїй області й карта — на запит",
     "/protect": "захистити файл міткою Андрія", "/vaultplan": "план упорядкування Obsidian",
 }
 #: Ukrainian spellings Andrii types (live 14.11.2026: «/світло Дніпро» fell through to the role text).
@@ -172,7 +173,7 @@ COMMAND_HELP: Dict[str, str] = {
 COMMAND_ALIASES: Dict[str, str] = {
     "/світло": "/svitlo", "/свiтло": "/svitlo", "/вода": "/voda", "/тривоги": "/alerts", "/тривога": "/alerts",
     "/регіони": "/regions", "/регіон": "/regions", "/курс": "/rates", "/курси": "/rates", "/погода": "/weather",
-    "/команди": "/commands",
+    "/команди": "/commands", "/карта": "/map", "/мапа": "/map",
 }
 _POOL_LABELS = {"skill": "Скіли", "prompt": "Промти", "mcp": "MCP-сервери"}
 _POOL_HINT_RE = re.compile(r"скіл|skill|промпт|промт|prompt|\bmcp\b", re.IGNORECASE)
