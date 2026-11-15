@@ -5199,4 +5199,6 @@ def test_power_and_water_go_through_alice_with_their_own_icons():
     assert power_outages.ICON == "💡" and water_outages.ICON == "🚰"
     assert power_outages.INTERVAL_S >= 300 and water_outages.INTERVAL_S >= 300
     assert {"/svitlo", "/voda"} <= set(COMMAND_HELP)
-    assert all(url.startswith("https://raw.githubusercontent.com/") for _n, url in power_outages.SOURCES.values())
+    # Keyless public sources only: the GitHub mirrors, and since 14.11.2026 Yasno's public API for CEK.
+    keyless = ("https://raw.githubusercontent.com/", "https://app.yasno.ua/api/blackout-service/public/")
+    assert all(url.startswith(keyless) for _n, url in power_outages.SOURCES.values())

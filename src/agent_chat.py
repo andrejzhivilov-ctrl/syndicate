@@ -167,6 +167,13 @@ COMMAND_HELP: Dict[str, str] = {
     "/voda": "повідомлення про відключення води в області",
     "/protect": "захистити файл міткою Андрія", "/vaultplan": "план упорядкування Obsidian",
 }
+#: Ukrainian spellings Andrii types (live 14.11.2026: «/світло Дніпро» fell through to the role text).
+#: Telegram does not highlight them as commands, but the text still arrives and is understood.
+COMMAND_ALIASES: Dict[str, str] = {
+    "/світло": "/svitlo", "/свiтло": "/svitlo", "/вода": "/voda", "/тривоги": "/alerts", "/тривога": "/alerts",
+    "/регіони": "/regions", "/регіон": "/regions", "/курс": "/rates", "/курси": "/rates", "/погода": "/weather",
+    "/команди": "/commands",
+}
 _POOL_LABELS = {"skill": "Скіли", "prompt": "Промти", "mcp": "MCP-сервери"}
 _POOL_HINT_RE = re.compile(r"скіл|skill|промпт|промт|prompt|\bmcp\b", re.IGNORECASE)
 POOL_REFERENCE_CHARS = 1200
@@ -180,6 +187,7 @@ def pool_command(payload: Dict[str, Any]) -> Optional[Tuple[str, str]]:
         return None
     head, _, arg = text.strip().partition(" ")
     command = head.split("@")[0].lower()
+    command = COMMAND_ALIASES.get(command, command)
     return (command, arg.strip()) if command in POOL_COMMANDS else None
 
 
@@ -278,8 +286,10 @@ ALICE_ROLE = (
     "Відповідаю без моделі, лише командами:\n"
     "/regions <місто, громада, район чи область> — тривоги\n"
     "/svitlo <місто> <черга> — графік світла\n"
+    "/svitlo адреса <місто>, <вулиця> <будинок> — дізнатися чергу (Київ, Дніпропетровщина)\n"
     "/voda <область> <місто> — повідомлення про воду\n"
     "/alerts — тривоги зараз по областях\n"
+    "Можна й українською: /світло, /вода, /тривоги, /регіони.\n"
     "Напиши назву міста, і я підкажу готові команди для нього."
 )
 _PLACE_MAX_CHARS = 60
@@ -305,6 +315,7 @@ def _place_hint(text: str) -> Optional[str]:
     else:
         oblast = NAMES[_lineage(place)[-1]].replace(" область", "")
         lines += [f"/svitlo {words} <черга> — світло (черга з рахунку чи сайту обленерго)",
+                  f"/svitlo адреса {words}, <вулиця> <будинок> — дізнатися чергу",
                   f"/voda {oblast} {words} — вода"]
     return "\n".join(lines)
 

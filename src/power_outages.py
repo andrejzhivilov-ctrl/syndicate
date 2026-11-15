@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple
@@ -54,7 +55,13 @@ SOURCES: Dict[str, Tuple[str, str]] = {
     "zakarpattia": ("Закарпатська", f"{_YAR}/Zakarpattiaoblenerho.json"),
     "zaporizhzhia": ("Запорізька", f"{_YAR}/Zaporizhzhiaoblenergo.json"),
     "zhytomyr": ("Житомирська", f"{_YAR}/Zhytomyroblenergo.json"),
+    # CEK serves part of Dnipropetrovsk oblast with its own schedule (very different from DnEM's on
+    # 14.11.2026); only Yasno publishes it, in its own format, converted by from_yasno().
+    "dnipro-cek": ("Дніпропетровська (ЦЕК)",
+                   "https://app.yasno.ua/api/blackout-service/public/shutdowns/regions/3/dsos/303/planned-outages"),
 }
+#: Sources in Yasno's format: group -> today/tomorrow -> slots of minutes.
+YASNO_SOURCES = {"dnipro-cek"}
 #: hour value -> (minutes off from, to) within the hour, and whether it is certain.
 _OFF = {"no": (0, 60, True), "first": (0, 30, True), "second": (30, 60, True),
         "maybe": (0, 60, False), "mfirst": (0, 30, False), "msecond": (30, 60, False)}
@@ -150,9 +157,11 @@ def choice() -> Optional[Tuple[str, str]]:
 
 
 def find_source(text: str) -> Optional[str]:
+    """A source by key or by the oblast name as whole words: «Дніпро» is a city, not «Дніпропетровська»."""
     wanted = text.strip().lower().replace("область", "").strip()
+    word = re.compile(rf"(?<!\w){re.escape(wanted)}(?!\w)")
     for key, (name, _url) in SOURCES.items():
-        if wanted and (wanted == key or wanted in name.lower()):
+        if wanted and (wanted == key or word.search(name.lower())):
             return key
     return None
 
@@ -207,7 +216,44 @@ async def fetch(source: str, transport: Any = None) -> Optional[Dict[str, Any]]:
     except (httpx.HTTPError, ValueError) as exc:
         logger.warning("power_fetch_failed", source=source, error_type=type(exc).__name__)
         return None
+    if isinstance(data, dict) and source in YASNO_SOURCES:
+        return from_yasno(data)
     return data if isinstance(data, dict) else None
+
+
+def _half(slots: List[Any], minute: int) -> Optional[str]:
+    """"D" (definite outage), "P" (any other planned kind, said as possible) or None at that minute."""
+    for slot in slots:
+        if isinstance(slot, Mapping) and slot.get("start", 0) <= minute < slot.get("end", 0):
+            kind = slot.get("type")
+            return None if kind == "NotPlanned" else "D" if kind == "Definite" else "P"
+    return None
+
+
+_HOUR_VALUE = {("D", "D"): "no", ("D", None): "first", (None, "D"): "second", ("D", "P"): "no", ("P", "D"): "no",
+               ("P", "P"): "maybe", ("P", None): "mfirst", (None, "P"): "msecond"}
+
+
+def from_yasno(data: Mapping[str, Any]) -> Dict[str, Any]:
+    """Yasno's slots in the mirrors' format; a day whose schedule does not apply stays missing."""
+    days: Dict[str, Dict[str, Dict[str, str]]] = {}
+    updated = []
+    for group, plan in data.items():
+        if not isinstance(plan, Mapping):
+            continue
+        updated.append(str(plan.get("updatedOn") or ""))
+        for day in (plan.get("today"), plan.get("tomorrow")):
+            if not isinstance(day, Mapping) or day.get("status") != "ScheduleApplies":
+                continue
+            try:
+                epoch = str(int(datetime.fromisoformat(str(day.get("date"))).timestamp()))
+            except ValueError:
+                continue
+            slots = day.get("slots") or []
+            days.setdefault(epoch, {})[group_key(group)] = {
+                str(hour): _HOUR_VALUE.get((_half(slots, (hour - 1) * 60), _half(slots, (hour - 1) * 60 + 30)), "yes")
+                for hour in range(1, 25)}
+    return {"fact": {"data": days}, "lastUpdated": max(updated, default="") or None}
 
 
 def _day_name(date: str, today: datetime) -> str:
@@ -340,6 +386,7 @@ HELP = ("/svitlo — графік твоєї черги на сьогодні й
         "/svitlo Вінниця — місто, громада чи область (Аліса знайде область сама)\n"
         "/svitlo 3.1 — черга; її показує сайт обленерго за адресою\n"
         "/svitlo Вінниця 3.1 — усе одразу\n"
+        "/svitlo адреса Дніпро, Гоголя 5 — черга будинку (без номера — черги всієї вулиці)\n"
         "/svitlo список — області, для яких є графіки\n"
         "/svitlo вимкнути — не надсилати графіки")
 
@@ -352,6 +399,10 @@ async def reply(text: str, transport: Any = None) -> Dict[str, Any]:
     if words[:1] == ["вимкнути"]:
         _write("choice.json", {})
         return {"status": "completed", "reply": f"{ICON} Графіки світла більше не надсилатиму."}
+    if words[:1] and words[0].lower() in ADDRESS_WORDS:
+        return await _address(" ".join(words[1:]), transport)
+    if words[:1] and words[0].lower() in ("райони", "район"):
+        return {"status": "unavailable", "reply": DISTRICTS_REPLY}
     if words:
         return _choose(words)
     chosen = choice()
@@ -361,6 +412,28 @@ async def reply(text: str, transport: Any = None) -> Dict[str, Any]:
     if data is None:
         return {"status": "unavailable", "reply": f"{ICON} Джерело графіка зараз не відповідає, спробуй пізніше."}
     return {"status": "completed", "reply": schedule_text(chosen[0], chosen[1], data, datetime.now(KYIV))}
+
+
+ADDRESS_WORDS = ("адреса", "адрес", "вулиця", "вул", "вул.")
+DISTRICTS_REPLY = (f"{ICON} Списку черг за районами міста відкрито не публікує жодне обленерго. "
+                   "Можу показати черги всіх будинків вулиці: /svitlo адреса Дніпро, Гоголя")
+
+
+async def _address(text: str, transport: Any = None) -> Dict[str, Any]:
+    """The group by street and house; the town comes from the text («Дніпро, Гоголя 5») or the choice."""
+    from src import power_address
+
+    saved = _read("choice.json")
+    source, town = saved.get("source"), str(saved.get("place") or "")
+    named, _street, _house = power_address.split_address(text)
+    if named:
+        source, town, oblast = resolve(named)
+        town = town or named.strip()
+        if source not in power_address.REGIONS:
+            return {"status": "unavailable", "reply": power_address.unsupported(source, oblast)}
+    elif source is None:
+        return {"status": "completed", "reply": f"{ICON} Напиши й місто: /svitlo адреса Дніпро, Гоголя 5"}
+    return await power_address.lookup(source, town, text, transport)
 
 
 def _choose(words: List[str]) -> Dict[str, Any]:
