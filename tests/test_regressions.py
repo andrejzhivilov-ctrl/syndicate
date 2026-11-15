@@ -4774,7 +4774,8 @@ def test_alert_notices_follow_the_chosen_district_and_community(tmp_path):
     assert sent_after(_air(other_district)) == ""
     assert sent_after(_air(sibling, "Red")) == ""  # a neighbouring community is not this one
     assert sent_after(_air(sibling)) == ""
-    assert "Тульчинська територіальна громада, Тульчинський район" in sent_after(_air(oblast, "Yellow"))  # covered whole
+    # 15.11: the place is short — «Тульчинська громада, Тульчинський район», not the whole lineage.
+    assert "📍 Тульчинська громада, Тульчинський район\n" in sent_after(_air(oblast, "Yellow"))  # covered whole
     assert "ВІДБІЙ" in sent_after(_air(oblast))
     assert "ЧЕРВОН" in sent_after(_air(community, "Red"))
     assert "ВІДБІЙ" in sent_after(_air(community))
