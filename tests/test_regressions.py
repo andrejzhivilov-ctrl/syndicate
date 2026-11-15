@@ -5212,13 +5212,13 @@ def test_alert_notices_are_cards_with_attention_level_place_and_phrase():
     tracker.update("N")
     note = tracker.update("R")
     red = card(tracker.kind, "м. Дніпро", note)
-    # Operator, 15.11.2026 (second pass): one heading line, triangles, no separate level line.
-    assert red.split("\n")[:2] == ["🔺❗ УВАГА! ПОВІТРЯНА ТРИВОГА — ЧЕРВОНИЙ РІВЕНЬ", "📍 м. Дніпро"]
+    # Operator, 15.11.2026 (third pass): one heading line, the level's circle; ❗ / ⚠️ only on a change.
+    assert red.split("\n")[:2] == ["🔴 УВАГА! ПОВІТРЯНА ТРИВОГА — ЧЕРВОНИЙ РІВЕНЬ", "📍 м. Дніпро"]
     assert red.split("\n")[2].removeprefix("💬 ") in POOLS["red"]
     tracker.update("Y")
-    assert tracker.kind == "ease_to_yellow" and HEADINGS["ease_to_yellow"] == "⚠️ УВАГА! РІВЕНЬ ЗНИЖЕНО ДО ЖОВТОГО"
+    assert tracker.kind == "ease_to_yellow" and HEADINGS["ease_to_yellow"] == "🟡⚠️ УВАГА! РІВЕНЬ ЗНИЖЕНО ДО ЖОВТОГО"
     tracker.update("R")
-    assert HEADINGS[tracker.kind] == "🔺❗ УВАГА! РІВЕНЬ ПІДНЯТО ДО ЧЕРВОНОГО"
+    assert HEADINGS[tracker.kind] == "🔴❗ УВАГА! РІВЕНЬ ПІДНЯТО ДО ЧЕРВОНОГО"
     note = tracker.update("N")
     clear = card(tracker.kind, "м. Дніпро", note).split("\n")
     assert clear[0] == "✅ ВІДБІЙ ПОВІТРЯНОЇ ТРИВОГИ" and clear[2].removeprefix("💬 ") in POOLS["clear_after_red"]
@@ -5226,8 +5226,9 @@ def test_alert_notices_are_cards_with_attention_level_place_and_phrase():
     tracker.update("P")
     assert tracker.kind == "partial"
     partial = card(tracker.kind, "Вінницька область", "🟡 Фраза " + PARTIAL_NOTE)
-    assert partial.endswith("💬 Фраза") and partial.startswith("⚠️ УВАГА! НЕБЕЗПЕКА — ЖОВТИЙ РІВЕНЬ")
-    # No circles anywhere in a heading, and every tracker kind has one.
-    assert not any(sign in heading for heading in HEADINGS.values() for sign in ("🔴", "🟡", "🟢"))
+    assert partial.endswith("💬 Фраза") and partial.startswith("🟡 УВАГА! НЕБЕЗПЕКА — ЖОВТИЙ РІВЕНЬ")
+    # The change signs appear only on a change of level, and every tracker kind has a heading.
+    assert [kind for kind, heading in HEADINGS.items() if "❗" in heading or "⚠️" in heading] == [
+        "escalate_to_red", "ease_to_yellow"]
     assert set(POOLS) | {"partial"} == set(HEADINGS)
     assert card(None, "X", "🔴 Фраза") == "🔴 X: Фраза"  # unknown kind: the old line, never a wrong level

@@ -165,15 +165,16 @@ class AlertTracker:
 
 
 #: The card Alice sends (operator, 15.11.2026): one heading line, the place, then the phrase.
-#: Triangles, not circles: ⚠️ for yellow, 🔺❗ for red (no single red ⚠ emoji exists).
+#: The level's circle first; a level change adds ❗ (raised to red) or ⚠️ (lowered to yellow).
 #: Plain text: the gateway sets no parse mode.
-RED_SIGN, YELLOW_SIGN, CLEAR_SIGN = "🔺❗", "⚠️", "✅"
+RED_SIGN, YELLOW_SIGN, CLEAR_SIGN = "🔴", "🟡", "✅"
+RAISED, LOWERED = "❗", "⚠️"
 HEADINGS: Dict[str, str] = {
     "red": f"{RED_SIGN} УВАГА! ПОВІТРЯНА ТРИВОГА — ЧЕРВОНИЙ РІВЕНЬ",
-    "escalate_to_red": f"{RED_SIGN} УВАГА! РІВЕНЬ ПІДНЯТО ДО ЧЕРВОНОГО",
+    "escalate_to_red": f"{RED_SIGN}{RAISED} УВАГА! РІВЕНЬ ПІДНЯТО ДО ЧЕРВОНОГО",
     "yellow": f"{YELLOW_SIGN} УВАГА! НЕБЕЗПЕКА — ЖОВТИЙ РІВЕНЬ",
     "partial": f"{YELLOW_SIGN} УВАГА! НЕБЕЗПЕКА — ЖОВТИЙ РІВЕНЬ (ЧАСТИНА РЕГІОНУ)",
-    "ease_to_yellow": f"{YELLOW_SIGN} УВАГА! РІВЕНЬ ЗНИЖЕНО ДО ЖОВТОГО",
+    "ease_to_yellow": f"{YELLOW_SIGN}{LOWERED} УВАГА! РІВЕНЬ ЗНИЖЕНО ДО ЖОВТОГО",
     "clear_after_red": f"{CLEAR_SIGN} ВІДБІЙ ПОВІТРЯНОЇ ТРИВОГИ",
     "clear_after_yellow": f"{CLEAR_SIGN} ВІДБІЙ НЕБЕЗПЕКИ",
 }
