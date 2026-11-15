@@ -5283,7 +5283,8 @@ def test_air_force_posts_reach_alice_only_for_the_chosen_oblast_and_are_quoted_w
     from src import threat_watch
 
     monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
-    posts = [(1, "💣 КАБи на Дніпропетровщину"), (2, "🏍 Чернігівщина: Реактивний БпЛА курсом на Козелець.")]
+    posts = [(0, "⚠ Увага! Загроза для прифронтових областей"), (1, "💣 КАБи на Дніпропетровщину"),
+             (2, "🏍 Чернігівщина: Реактивний БпЛА курсом на Козелець.")]
 
     def page(numbers):
         body = "".join(f'<div data-post="kpszsu/{n}"><div class="tgme_widget_message_text">{t}</div></div>'
@@ -5293,7 +5294,7 @@ def test_air_force_posts_reach_alice_only_for_the_chosen_oblast_and_are_quoted_w
     gateway = _MapGateway()
     alerts = type("Alerts", (), {"level_of": staticmethod(lambda _p: "N")})()
     watch = threat_watch.ThreatWatch(gateway, "alice", alerts, transport=page({0}))
-    asyncio.run(watch.run_once(["332"]))  # sets the mark at nothing seen
+    asyncio.run(watch.run_once(["332"]))  # sets the mark at the post already there
     watch._transport = page({1, 2})
     asyncio.run(watch.run_once(["332"]))
     assert [text for _a, _c, text in gateway.sent] == [
