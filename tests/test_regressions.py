@@ -5304,3 +5304,24 @@ def test_air_force_posts_reach_alice_only_for_the_chosen_oblast_and_are_quoted_w
     assert lines[0] == "⚠️ НЕБЕЗПЕКА" and lines[1] == "⚪ Тривоги зараз немає" and lines[2].startswith("📍 м. Дніпро")
     assert lines[3] == "💣 КАБи на Дніпропетровщину" and lines[4].startswith("💬 ") and "http" not in card
     assert "ТРИВОГА" not in lines[0]
+
+
+def test_occupied_areas_come_from_the_official_list_and_liberated_places_stay_unpainted():
+    # Operator, 15.11.2026: dark burgundy for occupied territory, from the official TOT list only.
+    from src import alert_map
+
+    data = json.loads((REPO_ROOT / "src" / "alert_occupied.json").read_text(encoding="utf-8"))
+    assert "z0380-25" in data["source"] and data["settlements"] > 3000 and data["areas"]
+    def in_ring(lon, lat, ring):
+        hit = False
+        for (x0, y0), (x1, y1) in zip(ring, ring[1:] + ring[:1], strict=True):
+            if (y0 > lat) != (y1 > lat) and lon < x0 + (lat - y0) * (x1 - x0) / (y1 - y0):
+                hit = not hit
+        return hit
+
+    def inside(lon, lat):
+        return any(in_ring(lon, lat, ring) for _box, ring in alert_map.occupied())
+
+    assert inside(34.10, 44.95)  # Сімферополь
+    assert not inside(32.62, 46.64)  # Херсон, liberated 11.11.2022
+    assert not inside(31.29, 51.50)  # Чернігів, never occupied
