@@ -27,6 +27,10 @@ def test_caption_says_where_when_in_kyiv_time_and_whose_borders():
     text = alert_map.caption("9", datetime(2026, 11, 15, 9, 37, tzinfo=timezone.utc))
     assert text.startswith("🗺️ Дніпропетровська область · стан на 11:37")
     assert text.endswith(alert_map.ATTRIBUTION)
+    # 15.11: maps go without a caption, so the credits are printed inside the picture.
+    png = alert_map.render(lambda _p: "N", "9", (), (), datetime(2026, 11, 15, 9, 37, tzinfo=timezone.utc),
+                           "Дані: NEPTUN · neptun.in.ua")
+    assert png and png.startswith(b"\x89PNG")
 
 
 def test_builder_names_and_simplification():

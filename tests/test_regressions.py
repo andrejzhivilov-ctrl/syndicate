@@ -5256,15 +5256,15 @@ def test_alert_cards_are_followed_by_the_oblast_map_and_a_broken_map_never_stops
     asyncio.run(watch.flush())
     assert len(gateway.sent) == 1 and len(gateway.photos) == 1
     agent, _chat, png, caption = gateway.photos[0]
-    assert agent == "alice" and png.startswith(b"\x89PNG") and caption.startswith("🗺️ Вінницька область")
-    assert alert_map.ATTRIBUTION in caption
+    assert agent == "alice" and png.startswith(b"\x89PNG") and caption == ""  # 15.11: no caption, the card says it
+    assert alert_map.BORDERS_CREDIT  # the borders credit is printed inside the picture instead
 
     # Many oblasts at once: one map of Ukraine, not one per oblast.
     many = [o for o in alert_watch.STATES if o in alert_map.shapes()][: alert_watch.MAX_MAPS + 1]
     for oblast in many:
         watch.handle(_air(oblast, "Red"))
     asyncio.run(watch.flush())
-    assert len(gateway.photos) == 2 and gateway.photos[-1][3].startswith("🗺️ Україна")
+    assert len(gateway.photos) == 2  # one map of Ukraine, not one per oblast
 
     # The map is extra: if drawing fails, the cards still go and nothing is retried forever.
     def broken(*_a, **_k):
@@ -5297,5 +5297,8 @@ def test_air_force_posts_reach_alice_only_for_the_chosen_oblast_and_are_quoted_w
     asyncio.run(watch.run_once(["332"]))  # sets the mark at the post already there
     watch._transport = page({1, 2})
     asyncio.run(watch.run_once(["332"]))
-    assert [text for _a, _c, text in gateway.sent] == [
-        "🛰️ Повітряні сили:\n💣 КАБи на Дніпропетровщину\nhttps://t.me/kpszsu/1"]
+    # 15.11: one card — level, the watched territory, what flies word for word, a phrase; no link.
+    [card] = [text for _a, _c, text in gateway.sent]
+    lines = card.split("\n")
+    assert lines[0] == "⚠️ УВАГА! ЗАГРОЗА" and lines[1].startswith("📍 м. Дніпро")
+    assert lines[2] == "💣 КАБи на Дніпропетровщину" and lines[3].startswith("💬 ") and "http" not in card

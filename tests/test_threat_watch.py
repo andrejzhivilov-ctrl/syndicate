@@ -76,22 +76,25 @@ def test_country_wide_warnings_go_at_once_as_an_urgent_notice_whatever_the_choic
         tw._save_last(1)
         watch._transport = _page((1, KABS), (2, warning))
         asyncio.run(watch.run_once(chosen, now=5000.0))
-        assert gateway.sent[0] == f"❗❗❗ НЕГАЙНЕ ПОВІДОМЛЕННЯ ❗❗❗\n{warning}\nhttps://t.me/kpszsu/2"
+        assert gateway.sent[0] == f"❗❗❗ НЕГАЙНЕ ПОВІДОМЛЕННЯ ❗❗❗\n{warning}"  # no link (15.11)
         assert all("НЕГАЙНЕ" not in text for text in gateway.sent[1:])  # never repeated as an ordinary quote
 
 
 def test_first_read_sets_the_mark_then_new_posts_are_quoted_with_a_map(tmp_path, monkeypatch):
     monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
     tw._markers.clear()
+    tw._live.update(at=0.0, data=None)  # no NEPTUN snapshot left from another test
     gateway = _Gateway()
     watch = tw.ThreatWatch(gateway, "alice", _Alerts(), transport=_page((10, KABS)))
     assert asyncio.run(watch.run_once(["332"], now=1000.0)) == 0 and gateway.sent == []  # old posts stay old
 
     watch._transport = _page((10, KABS), (11, KOZELETS), (12, "🛵 БпЛА на Дніпро з півночі"))
     assert asyncio.run(watch.run_once(["332"], now=1060.0)) == 1
-    assert gateway.sent == ["🛰️ Повітряні сили:\n🛵 БпЛА на Дніпро з півночі\nhttps://t.me/kpszsu/12"]
+    card = gateway.sent[0].split("\n")  # 15.11: a card, then its picture with no caption
+    assert card[0] == "⚠️ УВАГА! ЗАГРОЗА" and card[1].startswith("📍 м. Дніпро")
+    assert card[2] == "🛵 БпЛА на Дніпро з півночі" and card[3].startswith("💬 ") and len(gateway.sent) == 1
     png, caption = gateway.photos[0]
-    assert png.startswith(b"\x89PNG") and caption.endswith(tw.NOTE)
+    assert png.startswith(b"\x89PNG") and caption == ""
     assert len(tw.recent_markers("9", now=1060.0)) == 1 and tw.recent_markers("9", now=1060.0 + tw.MARKER_TTL_S) == []
 
     # Busy night: the quotes keep coming, the map at most every MAP_GAP_S.

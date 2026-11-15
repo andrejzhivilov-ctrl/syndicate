@@ -3,7 +3,7 @@
 Borders come from ``alert_map_shapes.json``, built by ``tools/build_alert_map.py`` from OCHA COD-AB
 Ukraine v05 (SSPE «Kartographia», CC BY-IGO). The levels are the ones the watch already holds;
 nothing is fetched here. Dark style at the operator's request: quiet areas slate, danger mustard,
-alert burgundy, every community coloured by its own level, so a quiet city with an alert next
+alert red, occupied areas dark burgundy, every community coloured by its own level, so a quiet city with an alert next
 door shows both. A region without a border (occupied areas, a few renamed communities) takes its
 district's colour, which is drawn underneath; an oblast without borders gets no map at all.
 
@@ -28,6 +28,7 @@ logger = structlog.get_logger(__name__)
 
 SHAPES_PATH = Path(__file__).with_name("alert_map_shapes.json")
 PLACES_PATH = Path(__file__).with_name("alert_places.json")
+OCCUPIED_PATH = Path(__file__).with_name("alert_occupied.json")
 CITY_LIMIT = 18  # the largest cities of the oblast that fit without overlapping
 DIM_TEXT = (165, 170, 186)
 TREE_PATH = Path(__file__).with_name("ukrainealarm_regions.json")
@@ -38,7 +39,8 @@ AROUND = 0.15  # an oblast map also shows this share of its size around it
 KYIV = ZoneInfo("Europe/Kyiv")
 BACKGROUND = (30, 33, 43)
 QUIET = (58, 62, 79)
-FILL = {"R": (138, 30, 46), "Y": (201, 162, 39)}  # burgundy alert (operator, 15.11.2026); the rest is QUIET
+FILL = {"R": (224, 103, 95), "Y": (201, 162, 39)}  # as on the operator's reference (15.11.2026); the rest is QUIET
+OCCUPIED = (122, 36, 34)  # dark burgundy: the official list of occupied communities, over any level
 LINE = {"community": (70, 74, 92), "district": (88, 93, 114), "oblast": (24, 26, 34),
         "focus": (210, 214, 226), "chosen": (110, 170, 255)}
 WIDTHS = {"community": 1, "district": 1, "oblast": 2, "focus": 3, "chosen": 3}
@@ -47,6 +49,7 @@ FONT_PATHS = ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "DejaVuSans.ttf
 MONTHS = ("січня", "лютого", "березня", "квітня", "травня", "червня", "липня", "серпня", "вересня",
           "жовтня", "листопада", "грудня")
 ATTRIBUTION = "Межі: OCHA / ДНВП «Картографія», CC BY-IGO"
+BORDERS_CREDIT = "Межі: OCHA, CC BY-IGO"
 
 Ring = List[List[float]]
 Box = Tuple[float, float, float, float]
@@ -198,7 +201,7 @@ def _fill(draw: Any, canvas: _Canvas, level_of: Callable[[str], str]) -> None:
         return depths[ident], -(box[2] - box[0]) * (box[3] - box[1])
 
     for ident in sorted(visible, key=order):
-        colour = FILL.get(level_of(ident), QUIET)
+        colour = OCCUPIED if ident in occupied() else FILL.get(level_of(ident), QUIET)
         for ring in shapes()[ident]:
             draw.polygon(canvas.points(ring), fill=colour)
 
@@ -213,6 +216,23 @@ def _short(name: str) -> str:
     for suffix in (" область", " район", " територіальна громада"):
         name = name.replace(suffix, "")
     return name.replace("Автономна Республіка Крим", "А. Р. Крим")
+
+
+@lru_cache(maxsize=1)
+def occupied() -> frozenset:
+    """Alarm ids of communities wholly in the official list of occupied territories (Мінрозвитку).
+
+    Built by tools/build_occupied.py; with no file the map paints none as occupied rather than guess.
+    """
+    try:
+        return frozenset(json.loads(OCCUPIED_PATH.read_text(encoding="utf-8")).get("occupied", []))
+    except (OSError, ValueError, AttributeError):
+        return frozenset()
+
+
+def full_name(ident: str) -> str:
+    """«Дніпропетровська область» — the name as the alarm tree (and NEPTUN) write it."""
+    return _tree()[ident][0] if ident in _tree() else ident
 
 
 def short_name(ident: str) -> str:
@@ -275,14 +295,14 @@ class _Labels:
             shown += self.put((x + 6 * SCALE, y), name, size, anchor="lm", dot=True)  # dot on the city, name after it
 
 
-SIGN_SIZE = 7.5  # half of the first version (operator, 15.11.2026)
-SIGN_FILL = (255, 36, 36)  # bright red, apart from the burgundy alert areas
+SIGN_SIZE = 11  # white signs with a black edge, sized like the operator's reference
+SIGN_FILL, SIGN_EDGE = (255, 255, 255), (0, 0, 0)
 #: Each sign pointing down, as (along, across) multiples of the size: a Shahed's wide delta,
 #: a jet Shahed's narrow one, a missile's long body with small fins.
 SHAPES_OF = {
     "drone": ((1.0, 0.0), (-0.8, 1.3), (-0.4, 0.0), (-0.8, -1.3)),
     "jet": ((1.2, 0.0), (-0.9, 0.8), (-0.5, 0.0), (-0.9, -0.8)),
-    "missile": ((1.6, 0.0), (0.9, 0.3), (-1.2, 0.3), (-1.6, 0.7), (-1.6, -0.7), (-1.2, -0.3), (0.9, -0.3)),
+    "missile": ((1.6, 0.0), (0.9, 0.45), (-1.1, 0.45), (-1.6, 0.95), (-1.6, -0.95), (-1.1, -0.45), (0.9, -0.45)),
     "other": ((1.0, 0.0), (0.0, 1.0), (-1.0, 0.0), (0.0, -1.0)),
 }
 
@@ -295,8 +315,8 @@ def _bomb(draw: Any, at: Tuple[float, float], size: float) -> None:
     x, y = at
     body = [(x + size * 0.45 * sin(t), y + size * cosine(t)) for t in (i * pi / 12 for i in range(24))]
     fins = [(x, y - size * 0.9), (x + size * 0.7, y - size * 1.6), (x - size * 0.7, y - size * 1.6)]
-    draw.polygon(fins, fill=SIGN_FILL, outline=TEXT, width=SCALE)
-    draw.polygon(body, fill=SIGN_FILL, outline=TEXT, width=SCALE)
+    draw.polygon(fins, fill=SIGN_FILL, outline=SIGN_EDGE, width=SCALE * 2)
+    draw.polygon(body, fill=SIGN_FILL, outline=SIGN_EDGE, width=SCALE * 2)
 
 
 def _glyph(draw: Any, at: Tuple[float, float], kind: str) -> None:
@@ -307,7 +327,7 @@ def _glyph(draw: Any, at: Tuple[float, float], kind: str) -> None:
         return
     x, y = at
     points = [(x + across * size, y + along * size) for along, across in SHAPES_OF.get(kind, SHAPES_OF["other"])]
-    draw.polygon(points, fill=SIGN_FILL, outline=TEXT, width=SCALE)
+    draw.polygon(points, fill=SIGN_FILL, outline=SIGN_EDGE, width=SCALE * 2)
 
 
 def _markers(draw: Any, canvas: _Canvas, markers: Sequence[Marker]) -> None:
@@ -316,17 +336,22 @@ def _markers(draw: Any, canvas: _Canvas, markers: Sequence[Marker]) -> None:
         _glyph(draw, canvas.xy(marker.lon, marker.lat), marker.kind)
 
 
-def _footer(draw: Any, canvas: _Canvas, now: datetime) -> None:
+def _footer(draw: Any, canvas: _Canvas, now: datetime, credit: str = "") -> None:
+    """«Станом на …» on the left; the data credits, small, on the right (OCHA's licence, NEPTUN's terms)."""
     font = _font(13)
     if font is None:
         return
     local = now.astimezone(KYIV)
     text = f"Станом на {local.day} {MONTHS[local.month - 1]} о {local:%H:%M}"
     draw.text((PAD * SCALE, canvas.height - PAD * SCALE // 2), text, font=font, fill=TEXT, anchor="ls")
+    small = _font(9)
+    credits = " · ".join(part for part in (BORDERS_CREDIT, credit) if part)
+    draw.text((canvas.width - PAD * SCALE, canvas.height - PAD * SCALE // 2), credits, font=small, fill=DIM_TEXT,
+              anchor="rs")
 
 
 def render(level_of: Callable[[str], str], oblast: Optional[str], chosen: Sequence[str] = (),
-           markers: Sequence[Marker] = (), now: Optional[datetime] = None) -> Optional[bytes]:
+           markers: Sequence[Marker] = (), now: Optional[datetime] = None, credit: str = "") -> Optional[bytes]:
     """PNG of the levels, or None when the borders are missing (never a guessed shape)."""
     from PIL import Image, ImageDraw
 
@@ -352,7 +377,7 @@ def render(level_of: Callable[[str], str], oblast: Optional[str], chosen: Sequen
     else:
         labels.regions(oblasts(), 11)
     _markers(draw, canvas, markers)  # on top of the labels: a threat is never hidden under a name
-    _footer(draw, canvas, now or datetime.now(timezone.utc))
+    _footer(draw, canvas, now or datetime.now(timezone.utc), credit)
     image = image.resize((canvas.width // SCALE, canvas.height // SCALE), Image.LANCZOS)
     out = io.BytesIO()
     image.save(out, format="PNG", optimize=True)
