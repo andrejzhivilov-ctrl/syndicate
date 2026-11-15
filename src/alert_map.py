@@ -3,7 +3,7 @@
 Borders come from ``alert_map_shapes.json``, built by ``tools/build_alert_map.py`` from OCHA COD-AB
 Ukraine v05 (SSPE «Kartographia», CC BY-IGO). The levels are the ones the watch already holds;
 nothing is fetched here. Dark style at the operator's request: quiet areas slate, danger mustard,
-alert salmon red, every community coloured by its own level, so a quiet city with an alert next
+alert burgundy, every community coloured by its own level, so a quiet city with an alert next
 door shows both. A region without a border (occupied areas, a few renamed communities) takes its
 district's colour, which is drawn underneath; an oblast without borders gets no map at all.
 
@@ -38,7 +38,7 @@ AROUND = 0.15  # an oblast map also shows this share of its size around it
 KYIV = ZoneInfo("Europe/Kyiv")
 BACKGROUND = (30, 33, 43)
 QUIET = (58, 62, 79)
-FILL = {"R": (224, 103, 95), "Y": (201, 162, 39)}  # anything else (quiet, «part of») is QUIET
+FILL = {"R": (138, 30, 46), "Y": (201, 162, 39)}  # alert burgundy (operator, 15.11.2026)  # anything else (quiet, «part of») is QUIET
 LINE = {"community": (70, 74, 92), "district": (88, 93, 114), "oblast": (24, 26, 34),
         "focus": (210, 214, 226), "chosen": (110, 170, 255)}
 WIDTHS = {"community": 1, "district": 1, "oblast": 2, "focus": 3, "chosen": 3}
@@ -276,7 +276,7 @@ class _Labels:
 
 
 SIGN_SIZE = 7.5  # half of the first version (operator, 15.11.2026)
-SIGN_FILL = (230, 32, 32)
+SIGN_FILL = (255, 36, 36)  # bright red, apart from the burgundy alert areas
 #: Each sign pointing down, as (along, across) multiples of the size: a Shahed's wide delta,
 #: a jet Shahed's narrow one, a missile's long body with small fins.
 SHAPES_OF = {
