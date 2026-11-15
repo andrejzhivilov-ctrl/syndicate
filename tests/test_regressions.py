@@ -4492,7 +4492,7 @@ def test_alert_watch_rolls_regions_into_oblast_phrases_through_alice_bot(tmp_pat
     # Since 15.11.2026 each notice is a card (attention, level, 📍 place, 💬 phrase), not one line.
     cards = [card.split("\n") for card in gateway.sent[0][2].split("\n\n")]
     assert all(lines[2] == "📍 Вінницька область" for lines in cards)
-    phrases = [lines[3].removeprefix("💬 ") for lines in cards]
+    phrases = [lines[3].removeprefix("💬 ").removesuffix(" (тривога лише в частині регіону)") for lines in cards]
     assert phrases[0] in POOLS["yellow"] and cards[0][1].startswith("⚠️ Тривога в частині регіону")
     assert phrases[1] in POOLS["escalate_to_red"]
     assert phrases[2] in POOLS["ease_to_yellow"]
