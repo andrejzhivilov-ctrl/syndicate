@@ -274,7 +274,7 @@ class _Labels:
             if shown >= limit:
                 break
             x, y = self.canvas.xy(lon, lat)
-            shown += self.put((x, y), name, size, anchor="lm", dot=True)
+            shown += self.put((x + 6 * SCALE, y), name, size, anchor="lm", dot=True)  # dot on the city, name after it
 
 
 def _bomb(draw: Any, at: Tuple[float, float], heading: Tuple[float, float], size: float) -> None:
