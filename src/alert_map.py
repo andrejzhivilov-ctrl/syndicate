@@ -7,9 +7,8 @@ alert salmon red, every community coloured by its own level, so a quiet city wit
 door shows both. A region without a border (occupied areas, a few renamed communities) takes its
 district's colour, which is drawn underneath; an oblast without borders gets no map at all.
 
-Threat markers (``Marker``) come from the Air Force's messages (``src/threat_watch.py``): a white
-sign at the named settlement and, when the message gives one, an arrow from where it comes.
-They show what the message says, never a measured track.
+Threat markers (``Marker``) come from the Air Force's messages (``src/threat_watch.py``): a small red
+sign at the named settlement, no arrow — the messages give no track.
 """
 from __future__ import annotations
 
@@ -18,7 +17,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from functools import lru_cache
-from math import cos, hypot, radians
+from math import cos, radians
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 from zoneinfo import ZoneInfo
@@ -55,10 +54,9 @@ Box = Tuple[float, float, float, float]
 
 @dataclass(frozen=True)
 class Marker:
-    kind: str  # "drone", "missile", "kab", "other"
+    kind: str  # "drone" (Shahed), "jet" (jet Shahed), "missile", "kab", "other"
     lon: float
     lat: float
-    origin: Optional[Tuple[float, float]] = None  # where it comes from, when the message says
 
 
 @lru_cache(maxsize=1)
@@ -277,52 +275,45 @@ class _Labels:
             shown += self.put((x + 6 * SCALE, y), name, size, anchor="lm", dot=True)  # dot on the city, name after it
 
 
-def _bomb(draw: Any, at: Tuple[float, float], heading: Tuple[float, float], size: float) -> None:
-    """A guided bomb: a white rounded body nose first, with tail fins."""
-    from math import pi, sin
+SIGN_SIZE = 7.5  # half of the first version (operator, 15.11.2026)
+SIGN_FILL = (230, 32, 32)
+#: Each sign pointing down, as (along, across) multiples of the size: a Shahed's wide delta,
+#: a jet Shahed's narrow one, a missile's long body with small fins.
+SHAPES_OF = {
+    "drone": ((1.0, 0.0), (-0.8, 1.3), (-0.4, 0.0), (-0.8, -1.3)),
+    "jet": ((1.2, 0.0), (-0.9, 0.8), (-0.5, 0.0), (-0.9, -0.8)),
+    "missile": ((1.6, 0.0), (0.9, 0.3), (-1.2, 0.3), (-1.6, 0.7), (-1.6, -0.7), (-1.2, -0.3), (0.9, -0.3)),
+    "other": ((1.0, 0.0), (0.0, 1.0), (-1.0, 0.0), (0.0, -1.0)),
+}
+
+
+def _bomb(draw: Any, at: Tuple[float, float], size: float) -> None:
+    """A guided bomb (КАБ): a rounded body nose down, with tail fins."""
     from math import cos as cosine
+    from math import pi, sin
 
     x, y = at
-    hx, hy = heading
-    px, py = -hy, hx
-    body = [(x + hx * size * cosine(t) + px * size * 0.45 * sin(t), y + hy * size * cosine(t) + py * size * 0.45 * sin(t))
-            for t in (i * pi / 12 for i in range(24))]
-    tail = (x - hx * size * 0.9, y - hy * size * 0.9)
-    end = (x - hx * size * 1.6, y - hy * size * 1.6)
-    fins = [tail, (end[0] + px * size * 0.7, end[1] + py * size * 0.7), (end[0] - px * size * 0.7, end[1] - py * size * 0.7)]
-    draw.polygon(fins, fill=TEXT, outline=BACKGROUND, width=SCALE)
-    draw.polygon(body, fill=TEXT, outline=BACKGROUND, width=SCALE * 2)
+    body = [(x + size * 0.45 * sin(t), y + size * cosine(t)) for t in (i * pi / 12 for i in range(24))]
+    fins = [(x, y - size * 0.9), (x + size * 0.7, y - size * 1.6), (x - size * 0.7, y - size * 1.6)]
+    draw.polygon(fins, fill=SIGN_FILL, outline=TEXT, width=SCALE)
+    draw.polygon(body, fill=SIGN_FILL, outline=TEXT, width=SCALE)
 
 
-def _glyph(draw: Any, at: Tuple[float, float], heading: Tuple[float, float], kind: str) -> None:
-    """A white sign: a dart for a drone, a long dart for a missile, a bomb for a guided bomb (КАБ)."""
-    x, y = at
-    hx, hy = heading
-    px, py = -hy, hx
-    size = 15 * SCALE
+def _glyph(draw: Any, at: Tuple[float, float], kind: str) -> None:
+    """A small red sign with a white edge, so it shows on a red alert area too."""
+    size = SIGN_SIZE * SCALE
     if kind == "kab":
-        _bomb(draw, at, heading, size)
+        _bomb(draw, at, size)
         return
-    length = size * (2.2 if kind == "missile" else 1.4)
-    tip = (x + hx * size, y + hy * size)
-    tail = (x - hx * length, y - hy * length)
-    wing = size * (0.5 if kind == "missile" else 0.9)
-    draw.polygon([tip, (tail[0] + px * wing, tail[1] + py * wing), (x - hx * size * 0.3, y - hy * size * 0.3),
-                  (tail[0] - px * wing, tail[1] - py * wing)], fill=TEXT, outline=BACKGROUND, width=SCALE * 2)
+    x, y = at
+    points = [(x + across * size, y + along * size) for along, across in SHAPES_OF.get(kind, SHAPES_OF["other"])]
+    draw.polygon(points, fill=SIGN_FILL, outline=TEXT, width=SCALE)
 
 
 def _markers(draw: Any, canvas: _Canvas, markers: Sequence[Marker]) -> None:
+    """Signs only — no arrows: the messages give no track (operator, 15.11.2026)."""
     for marker in markers:
-        target = canvas.xy(marker.lon, marker.lat)
-        heading = (0.0, 1.0)  # pointing down, when no direction is known
-        if marker.origin:
-            start = canvas.xy(*marker.origin)
-            dx, dy = target[0] - start[0], target[1] - start[1]
-            norm = hypot(dx, dy) or 1.0
-            heading = (dx / norm, dy / norm)
-            draw.line([start, target], fill=BACKGROUND, width=5 * SCALE)
-            draw.line([start, target], fill=TEXT, width=2 * SCALE)
-        _glyph(draw, target, heading, marker.kind)
+        _glyph(draw, canvas.xy(marker.lon, marker.lat), marker.kind)
 
 
 def _footer(draw: Any, canvas: _Canvas, now: datetime) -> None:

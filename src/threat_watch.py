@@ -5,8 +5,9 @@ text: «🏍 Чернігівщина: Реактивний БпЛА курсо�
 Дніпропетровщину». This module reads the channel's public web preview (no account, no key), keeps
 the posts about the oblasts of the alert choice (``/regions``), quotes each new one once with its
 link, and puts a sign on the map at the settlement it names. The text is never rewritten. A sign
-is placed only at a settlement the message names; a direction («з півночі», «з Київщини») becomes
-an arrow. None of it is a measured track, and the caption says so.
+is placed only at a settlement the message names; no direction is drawn. A country-wide warning
+(a massed attack, strategic bombers, MiG-31K) goes at once in its own «НЕГАЙНЕ ПОВІДОМЛЕННЯ».
+None of it is a measured track, and the caption says so.
 """
 from __future__ import annotations
 
@@ -15,7 +16,6 @@ import json
 import re
 import time
 from functools import lru_cache
-from math import cos, radians
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Pattern, Tuple
 
@@ -31,10 +31,9 @@ CHANNEL = "kpszsu"
 INTERVAL_S = 60
 MAP_GAP_S = 180  # at most one threat map this often, however busy the night
 MARKER_TTL_S = 30 * 60
-OFFSET_DEG = 0.35  # how far back an arrow starts when only a side («з півночі») is given
 PLACES_PATH = Path(__file__).with_name("alert_places.json")
 ICON = "🛰️"
-NOTE = "Значки — за повідомленнями Повітряних сил; напрямки приблизні, це не трек."
+NOTE = "Значки — біля населених пунктів з повідомлень Повітряних сил; це не трек."
 
 #: Oblast alarm id -> how the Air Force names it («на Дніпропетровщину», «з Київщини», «Буковина»).
 REGION_STEMS: Dict[str, Tuple[str, ...]] = {
@@ -47,15 +46,14 @@ REGION_STEMS: Dict[str, Tuple[str, ...]] = {
     "26": ("Буковин", "Чернівеччин"), "27": ("Львівщин",), "28": ("Донеччин",), "3": ("Хмельниччин",),
     "5": ("Рівненщин",), "9999": ("Крим",),
 }
-#: «з півночі» — where it comes from, as (east, north).
-FROM_SIDE = {"північного сходу": (1, 1), "північного заходу": (-1, 1), "південного сходу": (1, -1),
-             "південного заходу": (-1, -1), "півночі": (0, 1), "півдня": (0, -1), "сходу": (1, 0),
-             "заходу": (-1, 0)}
-#: «курсом на південь» — where it heads, so it comes from the opposite side.
-HEADING = {"північний схід": (1, 1), "північний захід": (-1, 1), "південний схід": (1, -1),
-           "південний захід": (-1, -1), "північ": (0, 1), "південь": (0, -1), "схід": (1, 0), "захід": (-1, 0)}
-KINDS = (("💣", "kab"), ("КАБ", "kab"), ("🚀", "missile"), ("ракет", "missile"), ("🛵", "drone"),
-         ("🏍", "drone"), ("БпЛА", "drone"), ("шахед", "drone"))
+#: The Air Force's own signs first: 🛵 a Shahed, 🏍 a jet Shahed («Реактивний БпЛА»).
+KINDS = (("💣", "kab"), ("КАБ", "kab"), ("🚀", "missile"), ("ракет", "missile"), ("🏍", "jet"),
+         ("Реактивний БпЛА", "jet"), ("🛵", "drone"), ("БпЛА", "drone"), ("шахед", "drone"))
+#: Warnings for the whole country, sent at once in their own message, whatever region is chosen
+#: (operator, 15.11.2026): a massed attack, strategic or long-range bombers, MiG-31K (Kinzhal), launches.
+URGENT = re.compile(r"масован|МіГ-?31|Ту-?95|Ту-?160|Ту-?22|стратегічн\w* авіац|Кинджал|"
+                    r"пуск\w* (?:крилатих|балістичн|ракет)|по всій території", re.IGNORECASE)
+URGENT_HEADING = "❗❗❗ НЕГАЙНЕ ПОВІДОМЛЕННЯ ❗❗❗"
 _MIN_NAME = 4  # shorter settlement names are too easily ordinary words
 
 _markers: List[Tuple[float, str, Marker]] = []  # (when, oblast, marker), kept MARKER_TTL_S
@@ -106,38 +104,22 @@ def kind_of(text: str) -> str:
     return next((kind for sign, kind in KINDS if sign in text), "other")
 
 
-def _origin(text: str, target: List[float]) -> Optional[Tuple[float, float]]:
-    """Where an arrow starts: a named oblast it comes from, a side, or the opposite of its heading."""
-    source = re.search(r"(?<!\w)з\s+(\w+щини|Криму|Буковини|Волині|Закарпаття|Прикарпаття)", text, re.IGNORECASE)
-    if source:
-        for oblast in named_oblasts(source.group(1)):
-            point = alert_map.label_point(oblast)
-            if point:
-                return point
-    side = _vector(text, r"(?<!\w)(?:з|зі)\s+(?:{})", FROM_SIDE, 1)
-    side = side or _vector(text, r"курсом\s+на\s+(?:{})(?!\w)", HEADING, -1)
-    if side is None:
-        return None
-    stretch = max(cos(radians(target[1])), 0.3)
-    return target[0] + side[0] * OFFSET_DEG / stretch, target[1] + side[1] * OFFSET_DEG
+def is_urgent(text: str) -> bool:
+    """A warning for the whole country: a massed attack, strategic bombers, MiG-31K, launches."""
+    return bool(URGENT.search(text))
 
 
-def _vector(text: str, template: str, table: Dict[str, Tuple[int, int]], sign: int) -> Optional[Tuple[int, int]]:
-    words = "|".join(sorted(table, key=len, reverse=True))
-    found = re.search(template.format(words), text, re.IGNORECASE)
-    if not found:
-        return None
-    word = next(word for word in sorted(table, key=len, reverse=True) if word in found.group(0).lower())
-    east, north = table[word]
-    return sign * east, sign * north
+def urgent_notice(number: int, text: str) -> str:
+    return f"{URGENT_HEADING}\n{text}\nhttps://t.me/{CHANNEL}/{number}"
 
 
 def marker(text: str, oblast: str) -> Optional[Marker]:
+    """A sign at the settlement the message names; no direction is drawn (operator, 15.11.2026)."""
     named = settlement(text, oblast)
     if named is None:
         return None  # an oblast alone is no place for a sign: the text is quoted, nothing is pinned
     point = named[1]
-    return Marker(kind_of(text), point[0], point[1], _origin(text, point))
+    return Marker(kind_of(text), point[0], point[1])
 
 
 def remember(oblast: str, sign: Marker, now: Optional[float] = None) -> None:
@@ -178,7 +160,7 @@ def watched_oblasts(chosen: Optional[List[str]]) -> List[str]:
     return sorted({oblast for oblast in found if oblast})
 
 
-KIND_ICONS = {"drone": "🛵", "missile": "🚀", "kab": "💣", "other": "⚠️"}
+KIND_ICONS = {"drone": "🛵", "jet": "🏍", "missile": "🚀", "kab": "💣", "other": "⚠️"}
 SUMMARY_GAP_S = 300  # with no oblast chosen: one short list at most every five minutes
 
 
@@ -250,22 +232,34 @@ class ThreatWatch:
         posts, newest = new_posts(page, _last_seen())
         if newest is not None:
             _save_last(newest)
+        urgent = [(number, text) for number, text in posts if is_urgent(text)]
+        posts = [post for post in posts if post not in urgent]
+        sent = await self._send_urgent(urgent)
         oblasts = watched_oblasts(chosen)
         if not oblasts:
-            return await self._summarise(posts, now)
+            return sent + await self._summarise(posts, now)
         relevant = [(number, text, oblast) for number, text in posts for oblast in oblasts if concerns(text, oblast)]
         if not relevant:
-            return 0
+            return sent
         owner = await self._gateway.owner_user_id()
         if not owner:
-            return 0
+            return sent
         await self._gateway.send(self._bot, owner, "\n\n".join(quote(number, text) for number, text, _o in relevant))
         for _number, text, oblast in relevant:
             sign = marker(text, oblast)
             if sign:
                 remember(oblast, sign, now)
         await self._send_map(owner, sorted({oblast for _n, _t, oblast in relevant}), now)
-        return len(relevant)
+        return sent + len(relevant)
+
+    async def _send_urgent(self, urgent: List[Tuple[int, str]]) -> int:
+        """Each country-wide warning at once, in its own message, whatever region is chosen."""
+        owner = await self._gateway.owner_user_id() if urgent else None
+        if not owner:
+            return 0
+        for number, text in urgent:
+            await self._gateway.send(self._bot, owner, urgent_notice(number, text))
+        return len(urgent)
 
     async def _summarise(self, posts: List[Tuple[int, str]], now: Optional[float]) -> int:
         """No oblast chosen: gather the posts and send the list of oblasts at most every SUMMARY_GAP_S."""

@@ -51,17 +51,33 @@ def test_posts_are_matched_to_oblasts_by_name_or_settlement():
     assert not tw.concerns(KOZELETS, "9")  # another oblast is named: its villages are not ours
 
 
-def test_a_sign_only_where_the_message_names_a_settlement_with_its_direction():
+def test_a_sign_only_where_the_message_names_a_settlement_and_no_direction():
+    # Operator, 15.11.2026: «напрямки прибрати, оті стрілочки взагалі».
     assert tw.marker(KABS, "9") is None  # an oblast alone is no place for a pin
     kozelets = tw.marker(KOZELETS, "25")
-    assert kozelets.kind == "drone" and abs(kozelets.lon - 31.11) < 0.05 and kozelets.origin is None
-    berezna = tw.marker(BEREZNA, "25")
-    assert berezna.origin[1] > berezna.lat  # heading south: it comes from the north
-    kharkiv = tw.marker(KHARKIV, "22")
-    assert kharkiv.origin[1] > kharkiv.lat  # «з півночі»
-    korosten = tw.marker(KOROSTEN, "10")
-    assert korosten.origin[0] > korosten.lon  # from Київщина, east of Коростень
+    assert kozelets.kind == "jet" and abs(kozelets.lon - 31.11) < 0.05
+    assert not hasattr(kozelets, "origin")
+    assert tw.marker(BEREZNA, "25") and tw.marker(KHARKIV, "22") and tw.marker(KOROSTEN, "10")
     assert tw.kind_of(KABS) == "kab" and tw.kind_of("🚀 Київ: Бандероль в напрямку міста") == "missile"
+    assert tw.kind_of("🛵 БпЛА в напрямку м.Запоріжжя з півдня") == "drone"  # a Shahed
+    assert tw.kind_of(KHARKIV) == "jet" and tw.kind_of("Реактивний БпЛА на Сумщину") == "jet"
+
+
+def test_country_wide_warnings_go_at_once_as_an_urgent_notice_whatever_the_choice(tmp_path, monkeypatch):
+    # Operator, 15.11.2026: «очікувану масовану атаку … окремим повідомленням … НЕГАЙНЕ ПОВІДОМЛЕННЯ».
+    monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
+    warning = "⚠ Увага! Зліт МіГ-31К! Загроза застосування ракет по всій території України!"
+    assert tw.is_urgent(warning) and tw.is_urgent("Загроза масованої атаки сьогодні вночі")
+    assert tw.is_urgent("Фіксуємо пуски крилатих ракет з Ту-95МС")
+    assert not tw.is_urgent(KABS) and not tw.is_urgent(KOZELETS)
+    for chosen in (None, ["332"]):
+        gateway = _Gateway()
+        watch = tw.ThreatWatch(gateway, "alice", _Alerts(), transport=_page((1, KABS)))
+        tw._save_last(1)
+        watch._transport = _page((1, KABS), (2, warning))
+        asyncio.run(watch.run_once(chosen, now=5000.0))
+        assert gateway.sent[0] == f"❗❗❗ НЕГАЙНЕ ПОВІДОМЛЕННЯ ❗❗❗\n{warning}\nhttps://t.me/kpszsu/2"
+        assert all("НЕГАЙНЕ" not in text for text in gateway.sent[1:])  # never repeated as an ordinary quote
 
 
 def test_first_read_sets_the_mark_then_new_posts_are_quoted_with_a_map(tmp_path, monkeypatch):
@@ -93,7 +109,7 @@ def test_no_choice_gives_a_short_list_of_oblasts_at_most_every_five_minutes(tmp_
     watch._transport = _page((1, KABS), (2, KOZELETS), (3, KHARKIV), (4, KOROSTEN), (5, "💣 КАБи на Донеччину"))
     assert asyncio.run(watch.run_once(None, now=1060.0)) == 4
     text = gateway.sent[0]
-    assert "🛵 Чернігівська, Харківська, Житомирська, Київська" in text and "💣 Донецька" in text
+    assert "🏍 Чернігівська, Харківська, Житомирська, Київська" in text and "💣 Донецька" in text
     assert "/regions" in text and gateway.photos == []
     watch._transport = _page((6, "💣 КАБи на Сумщину"))
     asyncio.run(watch.run_once(None, now=1120.0))

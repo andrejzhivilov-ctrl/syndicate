@@ -50,5 +50,6 @@ def test_cities_are_named_on_the_map_largest_first():
 def test_a_guided_bomb_has_its_own_sign():
     from src.alert_map import Marker
 
-    png = alert_map.render(lambda _p: "R", "9", [], [Marker("kab", 35.0, 48.4), Marker("drone", 35.9, 48.5, (35.9, 48.9))])
+    png = alert_map.render(lambda _p: "R", "9", [], [Marker("kab", 35.0, 48.4), Marker("drone", 35.9, 48.5), Marker("jet", 34.6, 48.1),
+                                                         Marker("missile", 33.4, 47.9)])
     assert png and png.startswith(b"\x89PNG")
