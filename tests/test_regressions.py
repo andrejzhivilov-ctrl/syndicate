@@ -4489,11 +4489,11 @@ def test_alert_watch_rolls_regions_into_oblast_phrases_through_alice_bot(tmp_pat
     asyncio.run(watch.flush())
 
     assert [(bot, chat) for bot, chat, _ in gateway.sent] == [("alice", "1")]
-    lines = gateway.sent[0][2].split("\n\n")
-    assert all("Вінницька область: " in line for line in lines)
-    phrases = [line.split("Вінницька область: ", 1)[1] for line in lines]
-    phrases = [phrase.removesuffix(" (тривога лише в частині регіону)") for phrase in phrases]
-    assert phrases[0] in POOLS["yellow"]
+    # Since 15.11.2026 each notice is a card (attention, level, 📍 place, 💬 phrase), not one line.
+    cards = [card.split("\n") for card in gateway.sent[0][2].split("\n\n")]
+    assert all(lines[2] == "📍 Вінницька область" for lines in cards)
+    phrases = [lines[3].removeprefix("💬 ") for lines in cards]
+    assert phrases[0] in POOLS["yellow"] and cards[0][1].startswith("⚠️ Тривога в частині регіону")
     assert phrases[1] in POOLS["escalate_to_red"]
     assert phrases[2] in POOLS["ease_to_yellow"]
     assert phrases[3] in POOLS["clear_after_red"]
@@ -5202,3 +5202,24 @@ def test_power_and_water_go_through_alice_with_their_own_icons():
     # Keyless public sources only: the GitHub mirrors, and since 14.11.2026 Yasno's public API for CEK.
     keyless = ("https://raw.githubusercontent.com/", "https://app.yasno.ua/api/blackout-service/public/")
     assert all(url.startswith(keyless) for _n, url in power_outages.SOURCES.values())
+
+
+def test_alert_notices_are_cards_with_attention_level_place_and_phrase():
+    # Operator, 15.11.2026: «ці повідомлення якось зливаються» — one line per notice ran together.
+    from src.alert_phrases import HEADINGS, PARTIAL_NOTE, POOLS, AlertTracker, card
+
+    tracker = AlertTracker()
+    tracker.update("N")
+    red = card(tracker.kind, "м. Дніпро", tracker.update("R"))
+    assert red.split("\n")[:3] == ["🔴📢 УВАГА!", "🚀 Повітряна тривога · червоний рівень", "📍 м. Дніпро"]
+    assert red.split("\n")[3].removeprefix("💬 ") in POOLS["red"]
+    clear = card(tracker.kind, "м. Дніпро", tracker.update("N")).split("\n")
+    assert clear[0] == "🟢🔕 ВІДБІЙ" and clear[3].removeprefix("💬 ") in POOLS["clear_after_red"]
+    tracker.update("P")
+    assert tracker.kind == "partial"
+    partial = card(tracker.kind, "Вінницька область", "🟡 Фраза " + PARTIAL_NOTE)
+    assert partial.endswith("💬 Фраза") and "частині регіону" in partial.split("\n")[1]
+    # Every level sign is not a circle, and every tracker kind has a heading.
+    assert not any(level.startswith(("🔴", "🟡", "🟢")) for _a, level in HEADINGS.values())
+    assert set(POOLS) | {"partial"} == set(HEADINGS)
+    assert card(None, "X", "🔴 Фраза") == "🔴 X: Фраза"  # unknown kind: the old line, never a wrong level
