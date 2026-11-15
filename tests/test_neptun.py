@@ -77,8 +77,9 @@ def test_forecasts_are_new_unofficial_and_said_once_across_channels():
     again, _seen = neptun.forecasts(MESSAGES, seen)
     assert again == []
     text = neptun.forecast_notice(found[0], tw.URGENT_HEADING)
-    assert text.startswith("❗❗❗ НЕГАЙНЕ ПОВІДОМЛЕННЯ ❗❗❗\n⚠️ Неофіційно — @monitor_ukr:")
-    assert text.endswith(neptun.ATTRIBUTION) and "NEPTUN" in neptun.ATTRIBUTION
+    # 15.11: no channel, no link — only the short credit NEPTUN's terms require.
+    assert text == ("❗❗❗ НЕГАЙНЕ ПОВІДОМЛЕННЯ ❗❗❗\n⚠️ Неофіційно — Ймовірна масована атака вночі, будьте уважні\n"
+                    f"{neptun.ATTRIBUTION}") and "@" not in text
 
 
 def test_the_watch_sends_forecasts_after_the_first_read_and_maps_use_neptun(tmp_path, monkeypatch):
@@ -90,11 +91,12 @@ def test_the_watch_sends_forecasts_after_the_first_read_and_maps_use_neptun(tmp_
     assert gateway.sent == []  # first read: nothing old is replayed
     watch._transport = _api()
     asyncio.run(watch.run_once(["332"], now=1060.0))
-    assert len(gateway.sent) == 1 and "@monitor_ukr" in gateway.sent[0]  # the Харківщина one is not ours
-    signs, note = tw.map_markers("9", now=1060.0)
-    assert len(signs) == 3 and note == neptun.ATTRIBUTION
-    stale, note = tw.map_markers("9", now=1060.0 + tw.LIVE_TTL_S)
-    assert note == tw.NOTE  # an old snapshot is not shown as now
+    assert len(gateway.sent) == 1 and "масована атака вночі" in gateway.sent[0]  # the Харківщина one is not ours
+    tw._markers.clear()
+    signs, credit = tw.map_markers("9", now=1060.0)
+    assert len(signs) == 3 and credit == neptun.CREDIT
+    stale, credit = tw.map_markers("9", now=1060.0 + tw.LIVE_TTL_S)
+    assert stale == [] and credit == ""  # an old snapshot is not shown as now
     assert json.loads((tmp_path / "threat_watch" / "neptun.json").read_text())["ready"] is True
 
 

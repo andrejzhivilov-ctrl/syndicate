@@ -435,15 +435,15 @@ class AlertWatch:
         jobs = list(wanted.items()) if len(wanted) <= MAX_MAPS else [(None, [])]
         regions = dict(self._regions)
         for oblast, chosen in jobs:
-            signs, note = map_markers(oblast) if oblast else ([], "")
+            signs, credit = map_markers(oblast) if oblast else ([], "")
             try:
                 png = await asyncio.to_thread(alert_map.render, lambda place: _level(regions, place), oblast, chosen,
-                                              signs)
+                                              signs, None, credit)
             except Exception as exc:  # noqa: BLE001 - a broken picture must not stop the alerts
                 logger.warning("alert_map_failed", error_type=type(exc).__name__)
                 continue
             if png:
-                await send(ALERT_BOT, owner, png, f"{alert_map.caption(oblast)}\n{note}".rstrip())
+                await send(ALERT_BOT, owner, png, "")  # no caption: the card above says it all
 
     async def loop(self) -> None:
         while True:

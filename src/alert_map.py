@@ -49,6 +49,7 @@ FONT_PATHS = ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "DejaVuSans.ttf
 MONTHS = ("січня", "лютого", "березня", "квітня", "травня", "червня", "липня", "серпня", "вересня",
           "жовтня", "листопада", "грудня")
 ATTRIBUTION = "Межі: OCHA / ДНВП «Картографія», CC BY-IGO"
+BORDERS_CREDIT = "Межі: OCHA, CC BY-IGO"
 
 Ring = List[List[float]]
 Box = Tuple[float, float, float, float]
@@ -301,7 +302,7 @@ SIGN_FILL, SIGN_EDGE = (255, 255, 255), (0, 0, 0)
 SHAPES_OF = {
     "drone": ((1.0, 0.0), (-0.8, 1.3), (-0.4, 0.0), (-0.8, -1.3)),
     "jet": ((1.2, 0.0), (-0.9, 0.8), (-0.5, 0.0), (-0.9, -0.8)),
-    "missile": ((1.6, 0.0), (0.9, 0.3), (-1.2, 0.3), (-1.6, 0.7), (-1.6, -0.7), (-1.2, -0.3), (0.9, -0.3)),
+    "missile": ((1.6, 0.0), (0.9, 0.45), (-1.1, 0.45), (-1.6, 0.95), (-1.6, -0.95), (-1.1, -0.45), (0.9, -0.45)),
     "other": ((1.0, 0.0), (0.0, 1.0), (-1.0, 0.0), (0.0, -1.0)),
 }
 
@@ -335,17 +336,22 @@ def _markers(draw: Any, canvas: _Canvas, markers: Sequence[Marker]) -> None:
         _glyph(draw, canvas.xy(marker.lon, marker.lat), marker.kind)
 
 
-def _footer(draw: Any, canvas: _Canvas, now: datetime) -> None:
+def _footer(draw: Any, canvas: _Canvas, now: datetime, credit: str = "") -> None:
+    """«Станом на …» on the left; the data credits, small, on the right (OCHA's licence, NEPTUN's terms)."""
     font = _font(13)
     if font is None:
         return
     local = now.astimezone(KYIV)
     text = f"Станом на {local.day} {MONTHS[local.month - 1]} о {local:%H:%M}"
     draw.text((PAD * SCALE, canvas.height - PAD * SCALE // 2), text, font=font, fill=TEXT, anchor="ls")
+    small = _font(9)
+    credits = " · ".join(part for part in (BORDERS_CREDIT, credit) if part)
+    draw.text((canvas.width - PAD * SCALE, canvas.height - PAD * SCALE // 2), credits, font=small, fill=DIM_TEXT,
+              anchor="rs")
 
 
 def render(level_of: Callable[[str], str], oblast: Optional[str], chosen: Sequence[str] = (),
-           markers: Sequence[Marker] = (), now: Optional[datetime] = None) -> Optional[bytes]:
+           markers: Sequence[Marker] = (), now: Optional[datetime] = None, credit: str = "") -> Optional[bytes]:
     """PNG of the levels, or None when the borders are missing (never a guessed shape)."""
     from PIL import Image, ImageDraw
 
@@ -371,7 +377,7 @@ def render(level_of: Callable[[str], str], oblast: Optional[str], chosen: Sequen
     else:
         labels.regions(oblasts(), 11)
     _markers(draw, canvas, markers)  # on top of the labels: a threat is never hidden under a name
-    _footer(draw, canvas, now or datetime.now(timezone.utc))
+    _footer(draw, canvas, now or datetime.now(timezone.utc), credit)
     image = image.resize((canvas.width // SCALE, canvas.height // SCALE), Image.LANCZOS)
     out = io.BytesIO()
     image.save(out, format="PNG", optimize=True)

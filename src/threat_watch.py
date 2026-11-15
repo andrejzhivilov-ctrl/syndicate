@@ -29,11 +29,9 @@ logger = structlog.get_logger(__name__)
 
 CHANNEL = "kpszsu"
 INTERVAL_S = 60
-MAP_GAP_S = 180  # at most one threat map this often, however busy the night
+MAP_GAP_S = 50  # a map after every card; rounds are a minute apart, so this only stops doubles
 MARKER_TTL_S = 30 * 60
 PLACES_PATH = Path(__file__).with_name("alert_places.json")
-ICON = "🛰️"
-NOTE = "Значки — біля населених пунктів з повідомлень Повітряних сил; це не трек."
 
 #: Oblast alarm id -> how the Air Force names it («на Дніпропетровщину», «з Київщини», «Буковина»).
 REGION_STEMS: Dict[str, Tuple[str, ...]] = {
@@ -110,7 +108,7 @@ def is_urgent(text: str) -> bool:
 
 
 def urgent_notice(number: int, text: str) -> str:
-    return f"{URGENT_HEADING}\n{text}\nhttps://t.me/{CHANNEL}/{number}"
+    return f"{URGENT_HEADING}\n{text}"  # no link or source (operator, 15.11.2026)
 
 
 def marker(text: str, oblast: str) -> Optional[Marker]:
@@ -200,8 +198,8 @@ def summary(posts: List[Tuple[int, str]]) -> Optional[str]:
     if not by_kind:
         return None
     lines = [f"{KIND_ICONS[kind]} {', '.join(names)}" for kind, names in by_kind.items()]
-    return (f"{ICON} Повітряні сили — загрози зараз:\n" + "\n".join(lines) +
-            f"\nОбери область у /regions — і я надсилатиму повідомлення повністю та з картою.\nhttps://t.me/{CHANNEL}")
+    return ("⚠️ УВАГА! ЗАГРОЗИ ЗАРАЗ:\n" + "\n".join(lines) +
+            "\nОбери область у /regions — і я надсилатиму картку з картою.")
 
 
 def new_posts(page: str, last: Optional[int]) -> Tuple[List[Tuple[int, str]], Optional[int]]:
@@ -248,16 +246,33 @@ async def refresh_live(transport: Any = None, now: Optional[float] = None) -> No
 
 
 def map_markers(oblast: str, now: Optional[float] = None) -> Tuple[List[Marker], str]:
-    """NEPTUN's placed threats when its snapshot is fresh, with its attribution; else the Air Force signs."""
+    """The Air Force signs of the last half hour plus NEPTUN's placed threats when its snapshot is fresh.
+
+    The second value is the credit printed small inside the picture: NEPTUN's terms ask for it
+    whenever its data is shown; the message itself carries no source (operator, 15.11.2026).
+    """
     now = time.time() if now is None else now
+    signs = recent_markers(oblast, now)
     live = neptun.markers(_live["data"], alert_map.full_name(oblast)) if now - _live["at"] < LIVE_TTL_S else None
-    if live is not None:
-        return live, neptun.ATTRIBUTION
-    return recent_markers(oblast, now), NOTE
+    if not live:
+        return signs, ""
+    near = {(sign.kind, round(sign.lon, 1), round(sign.lat, 1)) for sign in signs}
+    extra = [sign for sign in live if (sign.kind, round(sign.lon, 1), round(sign.lat, 1)) not in near]
+    return signs + extra, neptun.CREDIT
 
 
-def quote(number: int, text: str) -> str:
-    return f"{ICON} Повітряні сили:\n{text}\nhttps://t.me/{CHANNEL}/{number}"
+LEVEL_HEADINGS = {"R": "🔴 УВАГА! ПОВІТРЯНА ТРИВОГА — ЧЕРВОНИЙ РІВЕНЬ", "Y": "🟡 УВАГА! НЕБЕЗПЕКА — ЖОВТИЙ РІВЕНЬ",
+                  "P": "🟡 УВАГА! НЕБЕЗПЕКА — ЖОВТИЙ РІВЕНЬ", "N": "⚠️ УВАГА! ЗАГРОЗА"}
+
+
+def threat_card(level: str, territory: str, texts: List[str], phrase: str) -> str:
+    """The threat as one card, like the alert cards: level, the watched territory, what flies, a phrase.
+
+    The Air Force's words are kept as they are; no link, no source, no explanation (operator, 15.11.2026).
+    """
+    flying = "\n".join(texts)
+    return f"{LEVEL_HEADINGS.get(level, LEVEL_HEADINGS['N'])}\n📍 {territory}\n{flying}\n💬 {phrase}"
+
 
 
 class ThreatWatch:
@@ -289,13 +304,25 @@ class ThreatWatch:
         owner = await self._gateway.owner_user_id()
         if not owner:
             return sent
-        await self._gateway.send(self._bot, owner, "\n\n".join(quote(number, text) for number, text, _o in relevant))
         for _number, text, oblast in relevant:
             sign = marker(text, oblast)
             if sign:
                 remember(oblast, sign, now)
-        await self._send_map(owner, sorted({oblast for _n, _t, oblast in relevant}), now)
+        for oblast in sorted({oblast for _n, _t, oblast in relevant}):  # a card, then its map
+            places = [place for place in chosen or [] if alert_map.oblast_of(place) == oblast]
+            texts = [text for _n, text, home in relevant if home == oblast]
+            await self._gateway.send(self._bot, owner, self._card(oblast, places, texts))
+            await self._send_map(owner, [oblast], now, places)
         return sent + len(relevant)
+
+    def _card(self, oblast: str, places: List[str], texts: List[str]) -> str:
+        from src.alert_phrases import DEFAULT_BAG
+        from src.alert_watch import _label
+
+        order = {"N": 0, "P": 1, "Y": 2, "R": 3}
+        level = max((self._alerts.level_of(place) for place in places or [oblast]), key=lambda lv: order.get(lv, 0))
+        territory = ", ".join(_label(place) for place in places) or alert_map.full_name(oblast)
+        return threat_card(level, territory, texts, DEFAULT_BAG.draw("red" if level == "R" else "yellow"))
 
     async def _send_urgent(self, urgent: List[Tuple[int, str]]) -> int:
         """Each country-wide warning at once, in its own message, whatever region is chosen."""
@@ -321,21 +348,23 @@ class ThreatWatch:
         await self._gateway.send(self._bot, owner, text)
         return count
 
-    async def _send_map(self, owner: str, oblasts: List[str], now: Optional[float]) -> None:
+    async def _send_map(self, owner: str, oblasts: List[str], now: Optional[float], chosen: List[str]) -> None:
+        """The picture right after the card, with no caption; credits are printed small inside it."""
         now = time.time() if now is None else now
         send = getattr(self._gateway, "send_photo", None)
         if send is None or now - self._map_sent_at < MAP_GAP_S:
             return
         self._map_sent_at = now
         for oblast in oblasts:
-            signs, note = map_markers(oblast, now)
+            signs, credit = map_markers(oblast, now)
             try:
-                png = await asyncio.to_thread(alert_map.render, self._alerts.level_of, oblast, (), signs)
-            except Exception as exc:  # noqa: BLE001 - the quotes have gone; a map is extra
+                png = await asyncio.to_thread(alert_map.render, self._alerts.level_of, oblast, chosen, signs,
+                                              None, credit)
+            except Exception as exc:  # noqa: BLE001 - the card has gone; a map is extra
                 logger.warning("threat_map_failed", error_type=type(exc).__name__)
                 continue
             if png:
-                await send(self._bot, owner, png, f"{alert_map.caption(oblast)}\n{note}")
+                await send(self._bot, owner, png, "")
 
     async def _send_forecasts(self, oblasts: List[str]) -> int:
         """Unofficial forecasts of attacks from NEPTUN's channel feed, each as an urgent notice.

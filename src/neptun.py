@@ -25,7 +25,8 @@ from src.alert_map import Marker
 logger = structlog.get_logger(__name__)
 
 BASE = "https://neptun.in.ua"
-ATTRIBUTION = "Дані: Карта повітряних тривог — NEPTUN (neptun.in.ua), не офіційна тривога"
+ATTRIBUTION = "Дані: NEPTUN (neptun.in.ua)"  # the shortest credit their terms allow; Andrii wants no sources
+CREDIT = "Дані: NEPTUN · neptun.in.ua"  # printed small inside the map picture
 #: NEPTUN's type -> our sign. FPV and reconnaissance are front-line noise for a home map: no sign.
 KINDS = {"uav": "drone", "missile": "missile", "ballistic": "missile", "kab": "kab"}
 CONFIDENT = {"medium", "high"}
@@ -96,7 +97,7 @@ def forecasts(data: Optional[Dict[str, Any]], seen: List[str]) -> Tuple[List[Dic
 
 
 def forecast_notice(message: Dict[str, Any], heading: str) -> str:
-    return (f"{heading}\n⚠️ Неофіційно — {message.get('channel')}:\n{message.get('text')}\n{ATTRIBUTION}")
+    return f"{heading}\n⚠️ Неофіційно — {message.get('text')}\n{ATTRIBUTION}"
 
 
 async def messages(transport: Any = None) -> Optional[Dict[str, Any]]:
