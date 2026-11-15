@@ -83,6 +83,7 @@ def test_country_wide_warnings_go_at_once_as_an_urgent_notice_whatever_the_choic
 def test_first_read_sets_the_mark_then_new_posts_are_quoted_with_a_map(tmp_path, monkeypatch):
     monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
     tw._markers.clear()
+    tw._live.update(at=0.0, data=None)  # no NEPTUN snapshot left from another test
     gateway = _Gateway()
     watch = tw.ThreatWatch(gateway, "alice", _Alerts(), transport=_page((10, KABS)))
     assert asyncio.run(watch.run_once(["332"], now=1000.0)) == 0 and gateway.sent == []  # old posts stay old

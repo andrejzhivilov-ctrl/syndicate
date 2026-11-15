@@ -82,6 +82,7 @@ def test_forecasts_are_new_unofficial_and_said_once_across_channels():
 
 
 def test_the_watch_sends_forecasts_after_the_first_read_and_maps_use_neptun(tmp_path, monkeypatch):
+    tw._live.update(at=0.0, data=None)
     monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
     gateway = _Gateway()
     watch = tw.ThreatWatch(gateway, "alice", _Alerts(), transport=_api(messages={"messages": []}))
