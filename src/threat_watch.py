@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Optional, Pattern, Tuple
 
 import structlog
 
-from src import alert_map, water_outages
+from src import alert_map, neptun, water_outages
 from src.alert_map import Marker
 from src.data_paths import ensure_dir
 
@@ -214,6 +214,48 @@ def new_posts(page: str, last: Optional[int]) -> Tuple[List[Tuple[int, str]], Op
     return [(number, text) for number, text in found if number > last], newest
 
 
+FORECASTS_PER_HOUR = 6  # unofficial forecasts repeat across channels: a cap keeps the urgent ones urgent
+
+
+def _neptun_path() -> Path:
+    return ensure_dir("threats") / "neptun.json"
+
+
+def _read_neptun() -> Dict[str, Any]:
+    try:
+        data = json.loads(_neptun_path().read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _write_neptun(data: Dict[str, Any]) -> None:
+    path = _neptun_path()
+    spare = path.with_suffix(".tmp")
+    spare.write_text(json.dumps(data), encoding="utf-8")
+    spare.replace(path)
+
+
+LIVE_TTL_S = 3 * 60  # NEPTUN's snapshot is fetched every round; older than this it is not shown
+_live: Dict[str, Any] = {"at": 0.0, "data": None}
+
+
+async def refresh_live(transport: Any = None, now: Optional[float] = None) -> None:
+    """Keep NEPTUN's latest threat snapshot for the maps; a failed fetch keeps the old one to age out."""
+    data = await neptun.threats(transport)
+    if data is not None:
+        _live.update(at=time.time() if now is None else now, data=data)
+
+
+def map_markers(oblast: str, now: Optional[float] = None) -> Tuple[List[Marker], str]:
+    """NEPTUN's placed threats when its snapshot is fresh, with its attribution; else the Air Force signs."""
+    now = time.time() if now is None else now
+    live = neptun.markers(_live["data"], alert_map.full_name(oblast)) if now - _live["at"] < LIVE_TTL_S else None
+    if live is not None:
+        return live, neptun.ATTRIBUTION
+    return recent_markers(oblast, now), NOTE
+
+
 def quote(number: int, text: str) -> str:
     return f"{ICON} Повітряні сили:\n{text}\nhttps://t.me/{CHANNEL}/{number}"
 
@@ -224,18 +266,21 @@ class ThreatWatch:
         self._map_sent_at = 0.0
         self._summary_sent_at = 0.0
         self._waiting: List[Tuple[int, str]] = []  # posts for the next summary, when no oblast is chosen
+        self._forecast_times: List[float] = []
 
     async def run_once(self, chosen: Optional[List[str]], now: Optional[float] = None) -> int:
+        oblasts = watched_oblasts(chosen)
+        await refresh_live(self._transport, now)
+        forecast_count = await self._send_forecasts(oblasts)
         page = await water_outages.fetch_channel(CHANNEL, self._transport)
         if page is None:
-            return 0
+            return forecast_count
         posts, newest = new_posts(page, _last_seen())
         if newest is not None:
             _save_last(newest)
         urgent = [(number, text) for number, text in posts if is_urgent(text)]
         posts = [post for post in posts if post not in urgent]
-        sent = await self._send_urgent(urgent)
-        oblasts = watched_oblasts(chosen)
+        sent = forecast_count + await self._send_urgent(urgent)
         if not oblasts:
             return sent + await self._summarise(posts, now)
         relevant = [(number, text, oblast) for number, text in posts for oblast in oblasts if concerns(text, oblast)]
@@ -283,14 +328,39 @@ class ThreatWatch:
             return
         self._map_sent_at = now
         for oblast in oblasts:
+            signs, note = map_markers(oblast, now)
             try:
-                png = await asyncio.to_thread(alert_map.render, self._alerts.level_of, oblast, (),
-                                              recent_markers(oblast, now))
+                png = await asyncio.to_thread(alert_map.render, self._alerts.level_of, oblast, (), signs)
             except Exception as exc:  # noqa: BLE001 - the quotes have gone; a map is extra
                 logger.warning("threat_map_failed", error_type=type(exc).__name__)
                 continue
             if png:
-                await send(self._bot, owner, png, f"{alert_map.caption(oblast)}\n{NOTE}")
+                await send(self._bot, owner, png, f"{alert_map.caption(oblast)}\n{note}")
+
+    async def _send_forecasts(self, oblasts: List[str]) -> int:
+        """Unofficial forecasts of attacks from NEPTUN's channel feed, each as an urgent notice.
+
+        The first read only remembers what is there. A forecast naming only other oblasts than the
+        chosen ones is skipped; one naming no place concerns everyone. At most FORECASTS_PER_HOUR.
+        """
+        data = await neptun.messages(self._transport)
+        state = _read_neptun()
+        found, seen = neptun.forecasts(data, state.get("seen", []))
+        _write_neptun({"seen": seen, "ready": True})
+        if not state.get("ready"):
+            return 0
+        now = time.time()
+        self._forecast_times = [t for t in self._forecast_times if now - t < 3600]
+        wanted = [m for m in found if not oblasts or not oblasts_named(str(m.get("text")))
+                  or set(oblasts_named(str(m.get("text")))) & set(oblasts)]
+        wanted = wanted[: max(FORECASTS_PER_HOUR - len(self._forecast_times), 0)]
+        owner = await self._gateway.owner_user_id() if wanted else None
+        if not owner:
+            return 0
+        for message in wanted:
+            await self._gateway.send(self._bot, owner, neptun.forecast_notice(message, URGENT_HEADING))
+            self._forecast_times.append(now)
+        return len(wanted)
 
     async def loop(self, chosen_places: Any) -> None:
         logger.info("threat_watch_started", interval_s=INTERVAL_S)
