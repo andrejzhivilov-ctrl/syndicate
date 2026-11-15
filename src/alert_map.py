@@ -38,7 +38,7 @@ AROUND = 0.15  # an oblast map also shows this share of its size around it
 KYIV = ZoneInfo("Europe/Kyiv")
 BACKGROUND = (30, 33, 43)
 QUIET = (58, 62, 79)
-FILL = {"R": (138, 30, 46), "Y": (201, 162, 39)}  # alert burgundy (operator, 15.11.2026)  # anything else (quiet, «part of») is QUIET
+FILL = {"R": (138, 30, 46), "Y": (201, 162, 39)}  # burgundy alert (operator, 15.11.2026); the rest is QUIET
 LINE = {"community": (70, 74, 92), "district": (88, 93, 114), "oblast": (24, 26, 34),
         "focus": (210, 214, 226), "chosen": (110, 170, 255)}
 WIDTHS = {"community": 1, "district": 1, "oblast": 2, "focus": 3, "chosen": 3}
