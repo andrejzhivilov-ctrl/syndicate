@@ -386,7 +386,7 @@ def _note_target(agent: str, path: str, suffix: str = ".md") -> Tuple[Optional[P
     own = (root / NOTE_DIRS[agent]).resolve()
     # 16.11.2026: prompts and SOUL name paths with the folder in front ("Health_Coach/Щоденник/…");
     # inside the own folder that prefix would nest a second Health_Coach.
-    path = path.strip().lstrip("/")
+    path = path.strip()  # an absolute path stays absolute and is refused below
     if path.startswith(NOTE_DIRS[agent] + "/"):
         path = path[len(NOTE_DIRS[agent]) + 1:]
     target = (own / path).resolve()
