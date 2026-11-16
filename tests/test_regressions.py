@@ -5304,7 +5304,7 @@ def test_air_force_posts_reach_alice_only_for_the_chosen_oblast_and_are_quoted_w
     lines = card.split("\n")
     # Live 15.11: threat cards opened like alert cards and read as extra alerts — «НЕБЕЗПЕКА» first.
     assert lines[0] == "⚠️ НЕБЕЗПЕКА" and lines[1] == "⚪ Тривоги зараз немає"
-    assert lines[2] == "📍 Дніпро, Дніпровський район" and lines[3] == "🏍 Реактивний БпЛА на Дніпро зі сходу."
+    assert lines[2] == "📍 Дніпро, Дніпровський район" and lines[3] == "✈️ Реактивний БпЛА на Дніпро зі сходу."
     assert lines[4].startswith("💬 ") and "http" not in card and "ТРИВОГА" not in lines[0]
 
 
@@ -5344,3 +5344,17 @@ def test_map_command_answers_with_the_oblast_status_on_request(tmp_path):
     watch.handle(_air(UP["332"], "Red"))  # the district of м. Дніпро
     text = oblast_status(path)
     assert text.startswith("🗺️ Дніпропетровська область зараз:") and "🔴 Дніпровський район" in text
+
+
+def test_threat_messages_show_aircraft_not_the_channels_moped_and_motorbike():
+    # Operator, 16.11.2026: «мопед для шахеду, а мотоцикли для … реактивного — постав відповідні значки».
+    from src import threat_watch as tw
+
+    shahed, jet = "🛵 БпЛА на Дніпро з півночі", "🏍️ Реактивний БпЛА на Дніпро зі сходу."
+    card = tw.threat_card("R", "Дніпро", [shahed, jet], "фраза")
+    update = tw.update_card([jet], "фраза")
+    for text in (card, update, tw.urgent_notice(1, "🏍 Реактивні БпЛА масовано")):
+        assert "🛵" not in text and "🏍" not in text
+    assert "🛩️ БпЛА на Дніпро з півночі" in card and "✈️ Реактивний БпЛА" in card and "✈️" in update
+    assert tw.kind_of(shahed) == "drone" and tw.kind_of(jet) == "jet"  # kinds still read from the original
+    assert tw.summary([(1, "🛵 БпЛА на Сумщину")]).split("\n")[1] == "🛩️ Сумська"

@@ -93,7 +93,8 @@ def test_first_read_sets_the_mark_then_new_posts_are_quoted_with_a_map(tmp_path,
     card = gateway.sent[0].split("\n")  # 15.11: a card, then its picture with no caption
     assert card[0] == "⚠️ НЕБЕЗПЕКА" and card[1] == "⚪ Тривоги зараз немає"
     assert card[2] == "📍 Дніпро, Дніпровський район"  # 15.11: short, not the whole lineage
-    assert card[3] == "🛵 БпЛА на Дніпро з півночі" and card[4].startswith("💬 ") and len(gateway.sent) == 1
+    assert card[3] == "🛩️ БпЛА на Дніпро з півночі"  # 16.11: an aircraft, not the channel's moped
+    assert card[4].startswith("💬 ") and len(gateway.sent) == 1
     red = tw.threat_card("R", "м. Дніпро", ["🚀 Бандероль курсом на Нікополь"], "фраза")
     assert red.split("\n")[:2] == ["⚠️ НЕБЕЗПЕКА", "🔴 Зараз червоний рівень тривоги"]
     png, caption = gateway.photos[0]
@@ -134,7 +135,7 @@ def test_no_choice_gives_a_short_list_of_oblasts_at_most_every_five_minutes(tmp_
     watch._transport = _page((1, KABS), (2, KOZELETS), (3, KHARKIV), (4, KOROSTEN), (5, "💣 КАБи на Донеччину"))
     assert asyncio.run(watch.run_once(None, now=1060.0)) == 4
     text = gateway.sent[0]
-    assert "🏍 Чернігівська, Харківська, Житомирська, Київська" in text and "💣 Донецька" in text
+    assert "✈️ Чернігівська, Харківська, Житомирська, Київська" in text and "💣 Донецька" in text
     assert "/regions" in text and gateway.photos == []
     watch._transport = _page((6, "💣 КАБи на Сумщину"))
     asyncio.run(watch.run_once(None, now=1120.0))
