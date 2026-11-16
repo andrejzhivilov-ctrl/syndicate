@@ -23,7 +23,7 @@ logger = structlog.get_logger(__name__)
 SOURCES_PATH = Path(__file__).with_name("learning_sources.json")
 #: Agents with scheduled jobs, and the kinds each may run.
 AGENT_KINDS: Dict[str, frozenset] = {
-    "trainer": frozenset({"reminder", "checkin", "learning", "morning_brief", "reflection"}),
+    "trainer": frozenset({"reminder", "checkin", "learning", "morning_brief", "reflection", "research"}),
 }
 #: Each agent's folder in Obsidian; the morning brief is a note Andrii edits there.
 OBSIDIAN_DIRS = {"trainer": "Health_Coach"}
@@ -31,11 +31,29 @@ PLAN_NOTE = "План_дня.md"
 MAX_TEXT = 1000
 #: Telegram allows 4096 characters; the brief stays under it.
 MAX_BRIEF = 3500
+#: A night job answers exactly this when nothing needs Andrii: it is written down, not sent (16.11.2026).
+QUIET = "ТИХО"
+NIGHT_TURN_TIMEOUT_S = 1200
+#: Daily at 04:00 (Andrii, 16.11.2026): learn from the day, write it down, wake Andrii only when needed.
 REFLECTION_PROMPT = (
-    "Тижнева саморефлексія. Прочитай learning_inbox (нове з підключених джерел за тиждень) і свою пам'ять "
-    "про Андрія. Коротко: 1) що нового й достовірного, з джерелом; 2) що це змінює в його програмі, "
-    "харчуванні чи відновленні; 3) що запам'ятати і який скіл запропонувати Андрію на погодження. "
-    "Нічого не вигадуй: якщо нового немає або даних про прогрес бракує, так і скажи."
+    "Щоденна рефлексія. Переглянь розмови з Андрієм за минулу добу (session_search), свою пам'ять і "
+    "learning_inbox. 1) Онови пам'ять лише перевіреними фактами про Андрія: прогрес, самопочуття, що "
+    "спрацювало й ні. 2) Запиши підсумок через note_write у Health_Coach/Щоденник/Рефлексія/<РРРР-ММ-ДД>.md: "
+    "у властивостях summary на 1-2 рядки, далі коротко. 3) Якщо ти тричі робив одне й те саме, створи скіл: "
+    "звичайний створюй сам, а скіл про ліки, препарати, дози, аналізи, гроші чи безпеку лише пропонуй Андрію. "
+    "Нічого не вигадуй. Якщо Андрію нічого не треба вирішувати чи знати зранку, відповідай рівно: " + QUIET
+)
+#: Sundays at 03:15, after the connected feeds (Andrii, 16.11.2026): fresh research, authoritative only.
+RESEARCH_PROMPT = (
+    "Недільне навчання. 1) Прочитай learning_inbox: нове з підключених джерел за тиждень. 2) Через web_search "
+    "знайди свіжі (за останні 3 місяці) дослідження про тренування, харчування, відновлення, сон, добавки й "
+    "гормональне здоров'я. Лише авторитетне: PubMed або NIH, Cochrane, рецензовані журнали (BJSM, JISSN, MSSE, "
+    "AJCN, Sports Medicine), позиції ISSN і ACSM, ВООЗ. Без блогів, магазинів, реклами й переказів. Перш ніж "
+    "писати, відкрий джерело через web_fetch. 3) Кожне корисне дослідження: конспект через note_write у "
+    "Health_Coach/Дослідження/<коротка назва>.md: посилання, дата, дизайн (RCT, метааналіз, огляд), вибірка, "
+    "висновок, що це змінює для Андрія; summary у властивостях. 4) Нове знання, що повторюватиметься, оформи "
+    "скілом за правилами рефлексії. Без посилання нічого не пиши. Андрію коротко 3-5 пунктів, що нового й "
+    "де нотатки; якщо нічого вартого немає, відповідай рівно: " + QUIET
 )
 MAX_ITEMS = 50
 MAX_ITEM_TEXT = 4000
@@ -124,15 +142,19 @@ async def _deliver(agent: str, text: str, gateway: Any, missing: str) -> Dict[st
             **({} if sent else {"reason": missing if not text else "telegram_unavailable"})}
 
 
-async def _reflection(agent: str, gateway: Any) -> Dict[str, Any]:
-    """The weekly self-review is one Hermes turn; without Hermes it is reported, not faked."""
+async def _hermes_turn(agent: str, prompt: str, gateway: Any, missing: str) -> Dict[str, Any]:
+    """A night job is one Hermes turn; without Hermes it is reported, not faked. «ТИХО» is not sent."""
     from src import hermes_gateway
 
     owner = await gateway.owner_user_id() if gateway else None
     if agent not in hermes_gateway.enabled_agents() or not owner:
         return {"status": "unavailable", "sent": False, "reason": "hermes_not_enabled" if owner else "no_owner"}
-    reply = await hermes_gateway.hermes_chat(agent, REFLECTION_PROMPT, owner)
-    return await _deliver(agent, str(reply.get("response") or ""), gateway, "reflection_failed")
+    # Searching and writing notes at night takes longer than a chat turn.
+    reply = await hermes_gateway.hermes_chat(agent, prompt, owner, timeout_s=NIGHT_TURN_TIMEOUT_S)
+    text = str(reply.get("response") or "").strip()
+    if text.strip(" .!«»\"'") == QUIET:
+        return {"status": "ok", "sent": False, "reason": "nothing_for_owner"}
+    return await _deliver(agent, text, gateway, missing)
 
 
 async def handle(agent: str, payload: Any, gateway: Any) -> Dict[str, Any]:
@@ -145,7 +167,9 @@ async def handle(agent: str, payload: Any, gateway: Any) -> Dict[str, Any]:
     elif kind == "morning_brief":
         result = await _deliver(agent, plan_note(agent) or "", gateway, "plan_note_missing")
     elif kind == "reflection":
-        result = await _reflection(agent, gateway)
+        result = await _hermes_turn(agent, REFLECTION_PROMPT, gateway, "reflection_failed")
+    elif kind == "research":
+        result = await _hermes_turn(agent, RESEARCH_PROMPT, gateway, "research_failed")
     else:
         result = await _deliver(agent, str(payload.get("text") or "").strip()[:MAX_TEXT], gateway, "empty_text")
     return result

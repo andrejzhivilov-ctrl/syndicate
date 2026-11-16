@@ -355,7 +355,7 @@ async def mcp_reply(agent: str, message: Mapping[str, Any], orchestrator: Any) -
 
 
 async def hermes_chat(agent: str, text: str, owner: str, lessons: str = "", *,
-                      transport: Any = None) -> Dict[str, Any]:
+                      transport: Any = None, timeout_s: float = CHAT_TIMEOUT_S) -> Dict[str, Any]:
     """One turn in the agent's Hermes. ``unavailable`` lets the caller use the direct path."""
     screened = _screen(agent, text)
     if screened is not None:
@@ -366,7 +366,7 @@ async def hermes_chat(agent: str, text: str, owner: str, lessons: str = "", *,
     headers = {"Authorization": f"Bearer {agent_token(agent)}", "X-Hermes-Session-Key": f"telegram-{owner}"}
     url = os.environ.get("EVA_HERMES_URL_TEMPLATE", "http://{agent}-hermes:8642").format(agent=agent)
     try:
-        async with httpx.AsyncClient(timeout=CHAT_TIMEOUT_S, transport=transport) as client:
+        async with httpx.AsyncClient(timeout=timeout_s, transport=transport) as client:
             response = await client.post(f"{url}/v1/chat/completions", headers=headers,
                                          json={"model": "hermes-agent", "messages": messages})
             response.raise_for_status()

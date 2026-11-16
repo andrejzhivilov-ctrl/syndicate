@@ -5378,3 +5378,43 @@ def test_light_work_on_haiku_hydrogen_replaces_flash_sam_and_fin_on_anthropic():
     for agent, tiers in AGENT_PROFILES.items():
         for tier in tiers.values():
             assert not any("DEEPSEEK" in key or "QWEN" in key for _t, key in tier), agent
+
+
+def test_alex_reflects_daily_at_four_researches_on_sunday_and_stays_quiet_when_nothing_is_new(tmp_path, monkeypatch):
+    # Andrii, 16.11.2026: reflection every day at 04:00, the internet on Sundays at 03:00; a night with
+    # nothing for him is written down, not sent.
+    import asyncio
+
+    from src import agent_jobs, agent_schedule, hermes_gateway
+
+    assert agent_schedule.JOBS["alex_reflection"].cron == "0 4 * * *"
+    assert agent_schedule.JOBS["alex_learning"].cron == "0 3 * * 0"
+    assert agent_schedule.JOBS["alex_research"].cron == "15 3 * * 0"
+    assert "PubMed" in agent_jobs.RESEARCH_PROMPT and "web_fetch" in agent_jobs.RESEARCH_PROMPT
+    monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("EVA_HERMES_AGENTS", "trainer")
+    replies = iter(["ТИХО", "Нове: 2 дослідження, нотатки в Health_Coach/Дослідження."])
+    seen = {}
+
+    async def hermes_chat(agent, text, owner, **options):
+        seen.update(options)
+        return {"status": "completed", "response": next(replies)}
+
+    class _Gateway:
+        def __init__(self):
+            self.sent = []
+
+        async def owner_user_id(self):
+            return "1"
+
+        async def send(self, agent, chat, text):
+            self.sent.append(text)
+            return True
+
+    monkeypatch.setattr(hermes_gateway, "hermes_chat", hermes_chat)
+    gateway = _Gateway()
+    quiet = asyncio.run(agent_jobs.handle("trainer", {"kind": "reflection"}, gateway))
+    assert quiet == {"status": "ok", "sent": False, "reason": "nothing_for_owner"} and gateway.sent == []
+    news = asyncio.run(agent_jobs.handle("trainer", {"kind": "research"}, gateway))
+    assert news["sent"] and gateway.sent == ["Нове: 2 дослідження, нотатки в Health_Coach/Дослідження."]
+    assert seen["timeout_s"] > hermes_gateway.CHAT_TIMEOUT_S
