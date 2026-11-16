@@ -128,6 +128,21 @@ def describe(intervals: List[Interval]) -> str:
     return ", ".join(f"{_clock(a)}–{_clock(b)}" + ("" if certain else " (можливо)") for a, b, certain in intervals)
 
 
+def day_lines(intervals: List[Interval]) -> List[str]:
+    """The whole day in turns (operator, 15.11.2026): 🔴 when the power is off, 🟢 when it is on."""
+    if not intervals:
+        return ["🟢 весь день без відключень"]
+    lines, minute = [], 0
+    for start, end, certain in sorted(intervals):
+        if start > minute:
+            lines.append(f"🟢 {_clock(minute)}–{_clock(start)}")
+        lines.append(f"🔴 {_clock(start)}–{_clock(end)}" + ("" if certain else " (можливо)"))
+        minute = max(minute, end)
+    if minute < 24 * 60:
+        lines.append(f"🟢 {_clock(minute)}–24:00")
+    return lines
+
+
 # ── the choice and the state ──────────────────────────────────────────────────────────────
 
 
@@ -273,7 +288,8 @@ def _where(source: str, group: str) -> str:
 def schedule_text(source: str, group: str, data: Dict[str, Any], now: datetime) -> str:
     plan = schedule(data, group, now)
     head = f"{ICON} Світло, {_where(source, group)}"
-    lines = [f"{_day_name(date, now)}: {describe(spans)}" for date, spans in sorted(plan.items())]
+    lines = [line for date, spans in sorted(plan.items())
+             for line in [f"{_day_name(date, now).capitalize()}:", *day_lines(spans)]]
     if not lines:
         lines = [f"черги {group} у графіку немає; перевір номер на сайті обленерго"]
     stamp = updated_at(data)
@@ -341,19 +357,40 @@ def check(source: str, group: str, data: Dict[str, Any], now: datetime) -> List[
     plan = schedule(data, group, now)
     running = _current(plan, now)
     extended = _extension(state.get("current"), running)
-    signature = json.dumps({"choice": [source, group], "plan": plan}, sort_keys=True)
+    days = {date: spans for date, spans in json.loads(json.dumps(plan)).items()}
+    known = state.get("days", {}) if state.get("choice") == [source, group] else {}
+    if "days" not in state and state.get("signature"):
+        known = days  # the state of the earlier version: what it last sent is what is here now
     messages = []
     if extended:
         messages.append(extended)  # in the dark, the new end time matters more than the whole table
-    elif signature != state.get("signature"):
+    elif changed(known, days):
         text = schedule_text(source, group, data, now)
         messages.append(text.replace(f"{ICON} Світло", f"{ICON} {say('power_changed')}\nСвітло", 1))
     sent = [key for key in state.get("warned", []) if key[:10] >= now.date().isoformat()]
     for key, text in _warnings(plan, now, sent):
         messages.append(text)
         sent.append(key)
-    _write("state.json", {"signature": signature, "warned": sent, "current": running})
+    today = now.date().isoformat()
+    remembered = {date: spans for date, spans in {**known, **days}.items() if date >= today}
+    _write("state.json", {"choice": [source, group], "days": remembered, "warned": sent, "current": running})
     return messages
+
+
+def changed(known: Dict[str, Any], days: Dict[str, Any]) -> bool:
+    """Only a real change of the group's schedule is news (operator, 15.11.2026).
+
+    The day rolling over (tomorrow becomes today), a new upload with the same hours, or a newly
+    published day without outages are not; a day whose hours differ from what was sent, or a new
+    day with outages, is.
+    """
+    for date, spans in days.items():
+        if date in known:
+            if known[date] != spans:
+                return True
+        elif spans:
+            return True
+    return False
 
 
 async def run_once(gateway: Any, bot: str, transport: Any = None, now: Optional[datetime] = None) -> int:

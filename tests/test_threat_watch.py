@@ -91,16 +91,38 @@ def test_first_read_sets_the_mark_then_new_posts_are_quoted_with_a_map(tmp_path,
     watch._transport = _page((10, KABS), (11, KOZELETS), (12, "🛵 БпЛА на Дніпро з півночі"))
     assert asyncio.run(watch.run_once(["332"], now=1060.0)) == 1
     card = gateway.sent[0].split("\n")  # 15.11: a card, then its picture with no caption
-    assert card[0] == "⚠️ УВАГА! ЗАГРОЗА" and card[1].startswith("📍 м. Дніпро")
-    assert card[2] == "🛵 БпЛА на Дніпро з півночі" and card[3].startswith("💬 ") and len(gateway.sent) == 1
+    assert card[0] == "⚠️ НЕБЕЗПЕКА" and card[1] == "⚪ Тривоги зараз немає"
+    assert card[2] == "📍 Дніпро, Дніпровський район"  # 15.11: short, not the whole lineage
+    assert card[3] == "🛵 БпЛА на Дніпро з півночі" and card[4].startswith("💬 ") and len(gateway.sent) == 1
+    red = tw.threat_card("R", "м. Дніпро", ["🚀 Бандероль курсом на Нікополь"], "фраза")
+    assert red.split("\n")[:2] == ["⚠️ НЕБЕЗПЕКА", "🔴 Зараз червоний рівень тривоги"]
     png, caption = gateway.photos[0]
     assert png.startswith(b"\x89PNG") and caption == ""
     assert len(tw.recent_markers("9", now=1060.0)) == 1 and tw.recent_markers("9", now=1060.0 + tw.MARKER_TTL_S) == []
 
-    # Busy night: the quotes keep coming, the map at most every MAP_GAP_S.
+    # 15.11: a post about the oblast, not the chosen city, is not sent; it still goes on the map.
     watch._transport = _page((13, KABS))
     asyncio.run(watch.run_once(["332"], now=1100.0))
-    assert len(gateway.sent) == 2 and len(gateway.photos) == 1
+    assert len(gateway.sent) == 1 and len(gateway.photos) == 1
+    # The next threat to the city in the same story: a short update, no heading, no map.
+    watch._transport = _page((14, "🚀 Ракета на Дніпро"))
+    asyncio.run(watch.run_once(["332"], now=1200.0))
+    update = gateway.sent[1].split("\n")
+    assert update[0] == "➕ 🚀 Ракета на Дніпро" and update[1].removeprefix("💬 ") in tw.STAY
+    assert len(gateway.photos) == 1
+    # Long after, with no alert: a new story gets the full card again.
+    watch._transport = _page((15, "🛵 БпЛА на Дніпро"))
+    asyncio.run(watch.run_once(["332"], now=1200.0 + tw.EPISODE_IDLE_S))
+    assert gateway.sent[2].startswith("⚠️ НЕБЕЗПЕКА") and len(gateway.photos) == 2
+
+
+def test_a_post_counts_for_me_only_when_it_names_a_place_inside_my_community():
+    # Operator, 15.11.2026: nothing flying at my city or community — nothing to tell me.
+    assert tw.for_me("🏍 Реактивний БпЛА на Дніпро зі сходу.", "9", ["332"])
+    assert tw.for_me("🛵 БпЛА з Павлограда на Дніпро", "9", ["332"])  # the second name is mine
+    assert not tw.for_me("💣 КАБи на Дніпропетровщину", "9", ["332"])
+    assert not tw.for_me("🚀 Бандероль курсом на Нікополь", "9", ["332"])
+    assert tw.for_me("💣 КАБи на Дніпропетровщину", "9", ["9"])  # the whole oblast chosen: the oblast rule
 
 
 def test_no_choice_gives_a_short_list_of_oblasts_at_most_every_five_minutes(tmp_path, monkeypatch):

@@ -4774,7 +4774,8 @@ def test_alert_notices_follow_the_chosen_district_and_community(tmp_path):
     assert sent_after(_air(other_district)) == ""
     assert sent_after(_air(sibling, "Red")) == ""  # a neighbouring community is not this one
     assert sent_after(_air(sibling)) == ""
-    assert "Тульчинська територіальна громада, Тульчинський район" in sent_after(_air(oblast, "Yellow"))  # covered whole
+    # 15.11: the place is short — «Тульчинська громада, Тульчинський район», not the whole lineage.
+    assert "📍 Тульчинська громада, Тульчинський район\n" in sent_after(_air(oblast, "Yellow"))  # covered whole
     assert "ВІДБІЙ" in sent_after(_air(oblast))
     assert "ЧЕРВОН" in sent_after(_air(community, "Red"))
     assert "ВІДБІЙ" in sent_after(_air(community))
@@ -5284,7 +5285,7 @@ def test_air_force_posts_reach_alice_only_for_the_chosen_oblast_and_are_quoted_w
 
     monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
     posts = [(0, "⚠ Увага! Загроза для прифронтових областей"), (1, "💣 КАБи на Дніпропетровщину"),
-             (2, "🏍 Чернігівщина: Реактивний БпЛА курсом на Козелець.")]
+             (2, "🏍 Чернігівщина: Реактивний БпЛА курсом на Козелець."), (3, "🏍 Реактивний БпЛА на Дніпро зі сходу.")]
 
     def page(numbers):
         body = "".join(f'<div data-post="kpszsu/{n}"><div class="tgme_widget_message_text">{t}</div></div>'
@@ -5295,10 +5296,51 @@ def test_air_force_posts_reach_alice_only_for_the_chosen_oblast_and_are_quoted_w
     alerts = type("Alerts", (), {"level_of": staticmethod(lambda _p: "N")})()
     watch = threat_watch.ThreatWatch(gateway, "alice", alerts, transport=page({0}))
     asyncio.run(watch.run_once(["332"]))  # sets the mark at the post already there
-    watch._transport = page({1, 2})
+    watch._transport = page({1, 2, 3})
     asyncio.run(watch.run_once(["332"]))
     # 15.11: one card — level, the watched territory, what flies word for word, a phrase; no link.
+    # The oblast-wide КАБ post and the Чернігівщина one are not about Дніпро: not sent.
     [card] = [text for _a, _c, text in gateway.sent]
     lines = card.split("\n")
-    assert lines[0] == "⚠️ УВАГА! ЗАГРОЗА" and lines[1].startswith("📍 м. Дніпро")
-    assert lines[2] == "💣 КАБи на Дніпропетровщину" and lines[3].startswith("💬 ") and "http" not in card
+    # Live 15.11: threat cards opened like alert cards and read as extra alerts — «НЕБЕЗПЕКА» first.
+    assert lines[0] == "⚠️ НЕБЕЗПЕКА" and lines[1] == "⚪ Тривоги зараз немає"
+    assert lines[2] == "📍 Дніпро, Дніпровський район" and lines[3] == "🏍 Реактивний БпЛА на Дніпро зі сходу."
+    assert lines[4].startswith("💬 ") and "http" not in card and "ТРИВОГА" not in lines[0]
+
+
+def test_occupied_areas_come_from_the_official_list_and_liberated_places_stay_unpainted():
+    # Operator, 15.11.2026: dark burgundy for occupied territory, from the official TOT list only.
+    from src import alert_map
+
+    data = json.loads((REPO_ROOT / "src" / "alert_occupied.json").read_text(encoding="utf-8"))
+    assert "z0380-25" in data["source"] and data["settlements"] > 3000 and data["areas"]
+    def in_ring(lon, lat, ring):
+        hit = False
+        for (x0, y0), (x1, y1) in zip(ring, ring[1:] + ring[:1], strict=True):
+            if (y0 > lat) != (y1 > lat) and lon < x0 + (lat - y0) * (x1 - x0) / (y1 - y0):
+                hit = not hit
+        return hit
+
+    def inside(lon, lat):
+        return any(in_ring(lon, lat, ring) for _box, ring in alert_map.occupied())
+
+    assert inside(34.10, 44.95)  # Сімферополь
+    assert not inside(32.62, 46.64)  # Херсон, liberated 11.11.2022
+    assert not inside(31.29, 51.50)  # Чернігів, never occupied
+
+
+def test_map_command_answers_with_the_oblast_status_on_request(tmp_path):
+    # Operator, 15.11.2026: nearby districts are not pushed; «команду для запиту» instead.
+    from src.agent_chat import pool_command
+    from src.alert_watch import AlertWatch, oblast_status, regions_reply
+
+    assert pool_command({"text": "/карта"}) == ("/map", "")
+    path = tmp_path / "state.json"
+    assert "Регіон не вибрано" in oblast_status(path)
+    regions_reply("332", path)
+    watch = AlertWatch(_AlertGateway(), path=path)
+    from src.alert_watch import UP
+
+    watch.handle(_air(UP["332"], "Red"))  # the district of м. Дніпро
+    text = oblast_status(path)
+    assert text.startswith("🗺️ Дніпропетровська область зараз:") and "🔴 Дніпровський район" in text

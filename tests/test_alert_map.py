@@ -57,3 +57,50 @@ def test_a_guided_bomb_has_its_own_sign():
     png = alert_map.render(lambda _p: "R", "9", [], [Marker("kab", 35.0, 48.4), Marker("drone", 35.9, 48.5), Marker("jet", 34.6, 48.1),
                                                          Marker("missile", 33.4, 47.9)])
     assert png and png.startswith(b"\x89PNG")
+
+
+def _docx(path, rows):
+    """A minimal .docx with one table, like the TOT annexes on zakon.rada.gov.ua."""
+    import zipfile
+
+    w = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+    cells = "".join("<w:tr>" + "".join(f"<w:tc><w:p><w:r><w:t>{c}</w:t></w:r></w:p></w:tc>" for c in row) + "</w:tr>"
+                    for row in rows)
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("word/document.xml", f'<w:document xmlns:w="{w}"><w:body><w:tbl>{cells}</w:tbl></w:body></w:document>')
+
+
+def test_only_settlements_occupied_now_count_and_whole_communities_are_told_apart(tmp_path):
+    # Operator, 15.11.2026: occupied areas from the official list; an end date means liberated.
+    from tools import build_occupied as bo
+
+    occ = "Тимчасово окупована Російською Федерацією територія України"
+    _docx(tmp_path / "a.docx", [
+        ["область", "район", "громада", "пункт", "код", "тип", "початок", "кінець", "так/ні"],
+        ["Донецька", "Бахмутський", "Бахмутська", "с. Андріївка", "UA14020010030085322", occ, "30.11.2022", "14.09.2023", "Ні"],
+        ["Донецька", "Бахмутський", "Бахмутська", "м. Бахмут", "UA14020010010012345", occ, "20.05.2023", "", "Ні"],
+        ["Донецька", "Донецький", "Донецька", "м. Донецьк", "UA14060010010054321", occ, "07.04.2014", "", "Ні"],
+        ["Дніпропетровська", "Криворізький", "Грушівська", "с. Грушівка", "UA12060090010097136",
+         "Територія можливих бойових дій", "27.09.2024", "", "Так"],
+    ])
+    occupied = bo.occupied_now(bo.table_rows(tmp_path / "a.docx"))
+    assert occupied == {"UA1402001001", "UA1406001001"}  # Андріївка was liberated; Грушівка never occupied
+    settlements = [{"properties": {"adm3_pcode": code[:9], "adm4_pcode": code}}
+                   for code in ("UA1402001001", "UA1402001003", "UA1406001001")]
+    whole, partial = bo.split(settlements, occupied)
+    assert whole == {"UA1406001"} and partial == {"UA1402001001"}
+
+
+def test_occupied_areas_are_painted_dark_burgundy_over_any_level():
+    from io import BytesIO
+
+    from PIL import Image
+
+    assert alert_map.occupied(), "src/alert_occupied.json is part of the repository"
+    png = alert_map.render(lambda _p: "R", "28")
+    image = Image.open(BytesIO(png)).convert("RGB")
+    canvas = alert_map._Canvas(alert_map._view("28"))
+    points = [(38.20, 47.50), (37.95, 47.75), (38.45, 47.80), (37.70, 47.45), (38.60, 48.10)]  # occupied since 2014
+    hits = sum(image.getpixel((int(canvas.xy(*p)[0] / alert_map.SCALE), int(canvas.xy(*p)[1] / alert_map.SCALE)))
+               == alert_map.OCCUPIED for p in points)
+    assert hits >= 3  # a label or a border may cover a point, the area stays burgundy

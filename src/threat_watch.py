@@ -23,6 +23,7 @@ import structlog
 
 from src import alert_map, neptun, water_outages
 from src.alert_map import Marker
+from src.alert_phrases import PhraseBag
 from src.data_paths import ensure_dir
 
 logger = structlog.get_logger(__name__)
@@ -96,6 +97,27 @@ def concerns(text: str, oblast: str) -> bool:
     if oblast in named:
         return True
     return not named and settlement(text, oblast) is not None
+
+
+def settlements(text: str, oblast: str) -> List[List[float]]:
+    """Every settlement of this oblast the text names: «з Павлограда на Дніпро» names both."""
+    pattern = _settlements(oblast)
+    return [places()[oblast][found.group(1)] for found in pattern.finditer(text)] if pattern else []
+
+
+def for_me(text: str, oblast: str, chosen: List[str]) -> bool:
+    """Whether a post is about the chosen place itself, not just somewhere in its oblast.
+
+    Operator, 15.11.2026: «якщо конкретно в те місто чи в ту громаду де я знаходжусь нічого не летить …
+    повідомляти не потрібно». A place chosen as a whole oblast keeps the oblast rule; for a district or
+    a community the post must name a settlement inside its border.
+    """
+    if not concerns(text, oblast):
+        return False
+    if any(place == oblast for place in chosen):
+        return True
+    points = settlements(text, oblast)
+    return any(alert_map.contains(place, lon, lat) for place in chosen for lon, lat in points)
 
 
 def kind_of(text: str) -> str:
@@ -261,17 +283,41 @@ def map_markers(oblast: str, now: Optional[float] = None) -> Tuple[List[Marker],
     return signs + extra, neptun.CREDIT
 
 
-LEVEL_HEADINGS = {"R": "🔴 УВАГА! ПОВІТРЯНА ТРИВОГА — ЧЕРВОНИЙ РІВЕНЬ", "Y": "🟡 УВАГА! НЕБЕЗПЕКА — ЖОВТИЙ РІВЕНЬ",
-                  "P": "🟡 УВАГА! НЕБЕЗПЕКА — ЖОВТИЙ РІВЕНЬ", "N": "⚠️ УВАГА! ЗАГРОЗА"}
+#: A threat card must not look like an alert card (live 15.11.2026: two threat cards read as two more
+#: alerts). It always opens with «НЕБЕЗПЕКА»; the alert level of the place is its own line.
+THREAT_HEADING = "⚠️ НЕБЕЗПЕКА"
+LEVEL_LINES = {"R": "🔴 Зараз червоний рівень тривоги", "Y": "🟡 Зараз жовтий рівень тривоги",
+               "P": "🟡 Зараз тривога в частині регіону", "N": "⚪ Тривоги зараз немає"}
+
+
+EPISODE_IDLE_S = 40 * 60  # with no alert, threats this close together are one story
+#: Said with an update during the same alert (operator, 15.11.2026: «не покидаємо укриття поки
+#: лаптєногі не заспокоюються»), in the voice of the alert bank.
+STAY = (
+    "Не покидаємо укриття, поки лаптєногі не заспокоюються.",
+    "Сидимо далі: у ваньки ще не скінчились бляшанки.",
+    "Відбою не було — дві стіни нікуди не відпускаємо.",
+    "Півні ще кукурікають. Чай з термоса, телефон на зарядку, з укриття не виходимо.",
+    "Друга серія того самого фільму. Залишаємось у безпечному місці.",
+    "Болото ще не видихнуло. Тримаємось подалі від вікон.",
+    "Ванька не вгамовується — і ми не розслабляємось.",
+    "Небо ще зайняте. Коридор — наш найкращий друг.",
+)
+STAY_BAG = PhraseBag({"stay": STAY})
+
+
+def update_card(texts: List[str], phrase: str) -> str:
+    """A further threat during the same alert: no heading, no place, no map — only what is new."""
+    return "➕ " + "\n➕ ".join(texts) + f"\n💬 {phrase}"
 
 
 def threat_card(level: str, territory: str, texts: List[str], phrase: str) -> str:
-    """The threat as one card, like the alert cards: level, the watched territory, what flies, a phrase.
+    """Danger, the level, the watched territory, what flies, a phrase (operator, 15.11.2026).
 
-    The Air Force's words are kept as they are; no link, no source, no explanation (operator, 15.11.2026).
+    The Air Force's words are kept as they are; no link, no source, no explanation.
     """
     flying = "\n".join(texts)
-    return f"{LEVEL_HEADINGS.get(level, LEVEL_HEADINGS['N'])}\n📍 {territory}\n{flying}\n💬 {phrase}"
+    return f"{THREAT_HEADING}\n{LEVEL_LINES.get(level, LEVEL_LINES['N'])}\n📍 {territory}\n{flying}\n💬 {phrase}"
 
 
 
@@ -282,6 +328,7 @@ class ThreatWatch:
         self._summary_sent_at = 0.0
         self._waiting: List[Tuple[int, str]] = []  # posts for the next summary, when no oblast is chosen
         self._forecast_times: List[float] = []
+        self._episodes: Dict[str, Tuple[float, str]] = {}  # oblast -> (last card, level then)
 
     async def run_once(self, chosen: Optional[List[str]], now: Optional[float] = None) -> int:
         oblasts = watched_oblasts(chosen)
@@ -298,30 +345,53 @@ class ThreatWatch:
         sent = forecast_count + await self._send_urgent(urgent)
         if not oblasts:
             return sent + await self._summarise(posts, now)
-        relevant = [(number, text, oblast) for number, text in posts for oblast in oblasts if concerns(text, oblast)]
-        if not relevant:
-            return sent
-        owner = await self._gateway.owner_user_id()
+        for _number, text in posts:  # every sign of the oblast goes on the map, asked for or not
+            for oblast in oblasts:
+                sign = marker(text, oblast) if concerns(text, oblast) else None
+                if sign:
+                    remember(oblast, sign, now)
+        mine = [(number, text, oblast) for number, text in posts for oblast in oblasts
+                if for_me(text, oblast, self._places(chosen, oblast))]
+        owner = await self._gateway.owner_user_id() if mine else None
         if not owner:
             return sent
-        for _number, text, oblast in relevant:
-            sign = marker(text, oblast)
-            if sign:
-                remember(oblast, sign, now)
-        for oblast in sorted({oblast for _n, _t, oblast in relevant}):  # a card, then its map
-            places = [place for place in chosen or [] if alert_map.oblast_of(place) == oblast]
-            texts = [text for _n, text, home in relevant if home == oblast]
-            await self._gateway.send(self._bot, owner, self._card(oblast, places, texts))
-            await self._send_map(owner, [oblast], now, places)
-        return sent + len(relevant)
+        now = time.time() if now is None else now
+        for oblast in sorted({oblast for _n, _t, oblast in mine}):
+            places = self._places(chosen, oblast)
+            texts = [text for _n, text, home in mine if home == oblast]
+            if self._in_episode(oblast, places, now):  # the same alert: a short update, no map
+                await self._gateway.send(self._bot, owner, update_card(texts, STAY_BAG.draw("stay")))
+            else:  # the first threat of an alert: the card, then its map
+                await self._gateway.send(self._bot, owner, self._card(oblast, places, texts))
+                await self._send_map(owner, [oblast], now, places)
+            self._episodes[oblast] = (now, self._level(oblast, places))
+            logger.info("threat_card", oblast=oblast, posts=[n for n, _t, home in mine if home == oblast])
+        return sent + len(mine)
+
+    @staticmethod
+    def _places(chosen: Optional[List[str]], oblast: str) -> List[str]:
+        return [place for place in chosen or [] if alert_map.oblast_of(place) == oblast]
+
+    def _level(self, oblast: str, places: List[str]) -> str:
+        order = {"N": 0, "P": 1, "Y": 2, "R": 3}
+        return max((self._alerts.level_of(place) for place in places or [oblast]), key=lambda lv: order.get(lv, 0))
+
+    def _in_episode(self, oblast: str, places: List[str], now: float) -> bool:
+        """Still the same alert: one was sent and either the alert goes on or it was not long ago."""
+        if oblast not in self._episodes:
+            return False
+        last, level_then = self._episodes[oblast]
+        level = self._level(oblast, places)
+        if level_then == "N" and level != "N":
+            return False  # an alert began since the last card: that is a new story
+        return level != "N" or now - last < EPISODE_IDLE_S
 
     def _card(self, oblast: str, places: List[str], texts: List[str]) -> str:
         from src.alert_phrases import DEFAULT_BAG
-        from src.alert_watch import _label
+        from src.alert_watch import short_label
 
-        order = {"N": 0, "P": 1, "Y": 2, "R": 3}
-        level = max((self._alerts.level_of(place) for place in places or [oblast]), key=lambda lv: order.get(lv, 0))
-        territory = ", ".join(_label(place) for place in places) or alert_map.full_name(oblast)
+        level = self._level(oblast, places)
+        territory = ", ".join(short_label(place) for place in places) or alert_map.full_name(oblast)
         return threat_card(level, territory, texts, DEFAULT_BAG.draw("red" if level == "R" else "yellow"))
 
     async def _send_urgent(self, urgent: List[Tuple[int, str]]) -> int:

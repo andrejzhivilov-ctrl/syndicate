@@ -44,9 +44,25 @@ def test_first_read_sets_the_mark_then_only_new_water_posts_are_sent_once(tmp_pa
     pages["vinvoda_info"] = _page((10, "Аварія, немає води на Замостю"), (11, "Новини підприємства"),
                                   (12, "Припинено водопостачання на вул. Келецька до 18:00"))
     sent = asyncio.run(wo.new_notices("Вінницька", transport))
-    assert len(sent) == 1 and sent[0].startswith("🚰 ") and "Вінницька (@vinvoda_info)" in sent[0]
-    assert "t.me/vinvoda_info/12" in sent[0]
+    assert len(sent) == 1 and sent[0].startswith("🚰 ") and "📍 Вінницька\n" in sent[0]
+    assert "t.me" not in sent[0] and "@vinvoda_info" not in sent[0]  # 15.11: no channel, no link
     assert asyncio.run(wo.new_notices("Вінницька", transport)) == []
+
+
+def test_water_is_news_only_when_its_state_changes(tmp_path, monkeypatch):
+    # Operator, 15.11.2026: «навіть якщо зміни написали, але статус не змінився, то присилати не потрібно».
+    monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path))
+    asyncio.run(wo.reply("Вінницька"))
+    pages = {"vinvoda_info": _page((1, "Новини підприємства")), "VinnytsiaODA": _page()}
+    transport = httpx.MockTransport(lambda r: httpx.Response(200, text=pages[r.url.path.rsplit("/", 1)[1]]))
+    asyncio.run(wo.new_notices("Вінницька", transport))
+    pages["vinvoda_info"] = _page((2, "Аварія, немає води на Замостю"), (3, "Оновлення: аварія на Замостю, води немає"))
+    assert len(asyncio.run(wo.new_notices("Вінницька", transport))) == 1  # the update says the same: one message
+    pages["vinvoda_info"] = _page((4, "Подачу води на Замостю відновлено"))
+    assert "відновлено" in asyncio.run(wo.new_notices("Вінницька", transport))[0]
+    pages["vinvoda_info"] = _page((5, "Водопостачання відновлено повністю"))
+    assert asyncio.run(wo.new_notices("Вінницька", transport)) == []  # still on: no news
+    assert wo.status_of("Припинено водопостачання до 18:00") == "off"
 
 
 def test_missing_regions_and_lookalikes_are_never_guessed(tmp_path, monkeypatch):

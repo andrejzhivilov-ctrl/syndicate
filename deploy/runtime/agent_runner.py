@@ -59,7 +59,8 @@ from src import power_outages  # noqa: E402
 from src import water_outages  # noqa: E402
 from src.threat_watch import ThreatWatch  # noqa: E402
 from src.alert_watch import ALERT_BOT  # noqa: E402
-from src.alert_watch import AlertWatch, chosen_places  # noqa: E402
+from src.alert_watch import AlertWatch, chosen_places, current_map  # noqa: E402
+from src.agent_chat import pool_command  # noqa: E402
 from src import hermes_gateway  # noqa: E402
 from src import media_vision  # noqa: E402
 from src.agent_schedule import AgentSchedule, enabled_from_env  # noqa: E402
@@ -1306,14 +1307,21 @@ async def telegram_webhook(
         _VOICE_TASKS.add(task)
         task.add_done_callback(_VOICE_TASKS.discard)
         return {"ok": True}
+    await _telegram_text(state, gateway, agent_id, message)
+    return {"ok": True}
+
+
+async def _telegram_text(state: AppState, gateway: Any, agent_id: str, message: Dict[str, Any]) -> None:
+    """A typed message: the reply, Alice's map after /карта, and a voice copy when one was asked for."""
     text = await _telegram_reply(state, agent_id, message, message["text"])
     await gateway.send(agent_id, message["chat_id"], text)
+    if agent_id == ALERT_BOT and (pool_command({"text": message["text"]}) or ("",))[0] == "/map":
+        await _send_current_map(gateway, agent_id, message["chat_id"])
     if wants_voice(message["text"]):
         # Synthesis can outlast Telegram's webhook wait, like a voice note.
         task = asyncio.create_task(_voice_on_request(state, agent_id, message["chat_id"], message["text"], text))
         _VOICE_TASKS.add(task)
         task.add_done_callback(_VOICE_TASKS.discard)
-    return {"ok": True}
 
 
 #: Running voice-note tasks (a bare create_task result can be garbage-collected).
@@ -1402,6 +1410,16 @@ async def _telegram_media(state: AppState, agent_id: str, message: Dict[str, Any
     except Exception as exc:  # noqa: BLE001 - a background task must not die silently
         logger.error("telegram_media_failed", agent_id=agent_id, error_type=type(exc).__name__)
         await gateway.send(agent_id, chat_id, f"⛔ [{agent_id}] не вдалося обробити файл.")
+
+
+async def _send_current_map(gateway: Any, agent_id: str, chat_id: str) -> None:
+    """/карта: the picture after the text; a map that cannot be drawn is simply not sent."""
+    try:
+        png = await current_map()
+        if png:
+            await gateway.send_photo(agent_id, chat_id, png, "")
+    except Exception as exc:  # noqa: BLE001 - the status text has already gone
+        logger.warning("telegram_map_failed", agent_id=agent_id, error_type=type(exc).__name__)
 
 
 async def _voice_on_request(state: AppState, agent_id: str, chat_id: str, asked: str, reply: str) -> None:

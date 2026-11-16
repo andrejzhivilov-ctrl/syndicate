@@ -201,7 +201,7 @@ def _fill(draw: Any, canvas: _Canvas, level_of: Callable[[str], str]) -> None:
         return depths[ident], -(box[2] - box[0]) * (box[3] - box[1])
 
     for ident in sorted(visible, key=order):
-        colour = OCCUPIED if ident in occupied() else FILL.get(level_of(ident), QUIET)
+        colour = FILL.get(level_of(ident), QUIET)
         for ring in shapes()[ident]:
             draw.polygon(canvas.points(ring), fill=colour)
 
@@ -219,15 +219,39 @@ def _short(name: str) -> str:
 
 
 @lru_cache(maxsize=1)
-def occupied() -> frozenset:
-    """Alarm ids of communities wholly in the official list of occupied territories (Мінрозвитку).
+def occupied() -> List[Tuple[Box, Ring]]:
+    """Occupied areas from the official list (tools/build_occupied.py), each ring with its box.
 
-    Built by tools/build_occupied.py; with no file the map paints none as occupied rather than guess.
+    With no file the map paints nothing as occupied rather than guess.
     """
     try:
-        return frozenset(json.loads(OCCUPIED_PATH.read_text(encoding="utf-8")).get("occupied", []))
+        areas = json.loads(OCCUPIED_PATH.read_text(encoding="utf-8")).get("areas", [])
     except (OSError, ValueError, AttributeError):
-        return frozenset()
+        return []
+    return [(box, ring) for ring in areas if (box := _box([ring])) is not None]
+
+
+def _occupied(draw: Any, canvas: _Canvas) -> None:
+    """Dark burgundy over any alert level: occupation is not a level, it is a fact on the ground."""
+    for box, ring in occupied():
+        if _overlaps(box, canvas.box):
+            draw.polygon(canvas.points(ring), fill=OCCUPIED)
+
+
+def _in_ring(lon: float, lat: float, ring: Ring) -> bool:
+    inside = False
+    for (x0, y0), (x1, y1) in zip(ring, ring[1:] + ring[:1], strict=True):
+        if (y0 > lat) != (y1 > lat) and lon < x0 + (lat - y0) * (x1 - x0) / (y1 - y0):
+            inside = not inside
+    return inside
+
+
+def contains(ident: str, lon: float, lat: float) -> bool:
+    """Whether a point lies within a region's border (False when the border is unknown)."""
+    box = _box_of(ident)
+    if box is None or not (box[0] <= lon <= box[2] and box[1] <= lat <= box[3]):
+        return False
+    return any(_in_ring(lon, lat, ring) for ring in shapes()[ident])
 
 
 def full_name(ident: str) -> str:
@@ -362,6 +386,7 @@ def render(level_of: Callable[[str], str], oblast: Optional[str], chosen: Sequen
     image = Image.new("RGB", (canvas.width, canvas.height), BACKGROUND)
     draw = ImageDraw.Draw(image)
     _fill(draw, canvas, level_of)
+    _occupied(draw, canvas)
     if oblast:
         _outline(draw, canvas, "community", [c for d in children(oblast) for c in children(d)])
         _outline(draw, canvas, "district", children(oblast))

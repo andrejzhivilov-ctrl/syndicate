@@ -163,6 +163,55 @@ def _label(place: str) -> str:
     return ", ".join(NAMES[region] for region in _lineage(place))
 
 
+def _short_name(name: str) -> str:
+    """«м. Дніпро та Дніпровська територіальна громада» → «Дніпро»; «Тульчинська …громада» → «Тульчинська громада»."""
+    city = re.match(r"м\.\s*(.+?)\s+та\s+", name)
+    if city:
+        return city.group(1)
+    return name.replace(" територіальна громада", " громада").replace(" область", " обл.")
+
+
+def short_label(place: str) -> str:
+    """The place in a card, short (operator, 15.11.2026): «Дніпро, Дніпровський район»."""
+    line = _lineage(place)
+    if len(line) == 1:
+        return _short_name(NAMES[place]).replace(" обл.", " область")
+    return f"{_short_name(NAMES[line[0]])}, {NAMES[line[1]]}" if len(line) > 2 else _short_name(NAMES[place])
+
+
+def oblast_status(path: Optional[Path] = None) -> str:
+    """/карта: the levels of the districts of the chosen oblasts, now — on request, never pushed."""
+    regions = (read_snapshot(path) or {}).get("regions") or {}
+    oblasts = sorted({alert_map.oblast_of(place) for place in chosen_places(path) or []} - {None})
+    if not oblasts:
+        return "🗺️ Регіон не вибрано: /regions Дніпро — і тут буде стан твоєї області."
+    blocks = []
+    for oblast in oblasts:
+        levels = {district: _level(regions, district) for district in alert_map.children(oblast)}
+        red = [NAMES[d] for d, lv in levels.items() if lv == "R"]
+        yellow = [NAMES[d] for d, lv in levels.items() if lv in ("Y", "P")]
+        lines = [f"🗺️ {NAMES[oblast]} зараз:"]
+        lines += [f"🔴 {', '.join(red)}"] if red else []
+        lines += [f"🟡 {', '.join(yellow)}"] if yellow else []
+        lines += [] if red or yellow else ["⚪ тривог немає"]
+        blocks.append("\n".join(lines))
+    return "\n\n".join(blocks)
+
+
+async def current_map(path: Optional[Path] = None) -> Optional[bytes]:
+    """/карта: the map of the first chosen oblast with the threat signs of the last half hour."""
+    from src.threat_watch import map_markers
+
+    regions = (read_snapshot(path) or {}).get("regions") or {}
+    chosen = chosen_places(path) or []
+    oblast = next((alert_map.oblast_of(place) for place in chosen if alert_map.oblast_of(place)), None)
+    if oblast is None:
+        return None
+    signs, credit = map_markers(oblast)
+    return await asyncio.to_thread(alert_map.render, lambda place: _level(regions, place), oblast, chosen, signs,
+                                   None, credit)
+
+
 def _entries(places: List[str]) -> List[str]:
     return [f"{place} — {_label(place)}" for place in sorted(places, key=_label)]
 
@@ -387,7 +436,10 @@ class AlertWatch:
         for place, tracker in self._trackers.items():
             note = tracker.update(_level(self._regions, place))
             if note:
-                self._pending.append(card(tracker.kind, _label(place), note))
+                self._pending.append(card(tracker.kind, short_label(place), note))
+                # What was announced and why, so a later question «why three messages?» has an answer.
+                logger.info("alert_notice", place=place, kind=tracker.kind, level=_level(self._regions, place),
+                            active=sorted(r for r in self._regions if place in _lineage(r) or r in _lineage(place)))
                 oblast = alert_map.oblast_of(place)
                 if oblast:
                     self._map_places.setdefault(oblast, []).append(place)

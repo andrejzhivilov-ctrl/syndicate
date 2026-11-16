@@ -1733,7 +1733,7 @@ class EvaOrchestrator:
             from src.obsidian_archivist import chat_command
 
             result = await asyncio.to_thread(chat_command, agent_id, command[0], command[1])
-        elif command is not None and command[0] in {"/rates", "/weather", "/alerts", "/regions", "/svitlo", "/voda"}:
+        elif command is not None and command[0] in {"/rates", "/weather", "/alerts", "/regions", "/svitlo", "/voda", "/map"}:
             result = {"agent": agent_id, **await self._public_command(command[0], command[1])}
         elif command is not None and command[0] == "/lesson":
             from src.agent_chat import lesson_reply
@@ -1762,6 +1762,10 @@ class EvaOrchestrator:
             from src.alert_watch import regions_reply
 
             return regions_reply(argument)
+        if name == "/map":  # the text here; the runner sends the picture after it
+            from src.alert_watch import oblast_status
+
+            return {"status": "completed", "reply": oblast_status()}
         if name == "/svitlo":
             from src import power_outages
 

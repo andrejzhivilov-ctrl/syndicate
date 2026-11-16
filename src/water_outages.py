@@ -60,7 +60,7 @@ MISSING = ("Миколаївська", "Рівненська", "Сумська")
 #: Water utility channels: every water post counts, the place filter applies to administrations only.
 WATER_UTILITIES = {"vinvoda_info", "vodokanal_cv_ua", "infoxvodokanal"}
 _WATER = re.compile(r"вод(а|и|у|ою|опостач|опровід|оканал)|без води", re.IGNORECASE)
-_OUTAGE = re.compile(r"відключ|припин|не буде|немає|відсутн|аварі|пориву|тиск|ремонт|обмежен|графік|подач",
+_OUTAGE = re.compile(r"відключ|припин|не буде|немає|відсутн|аварі|пориву|тиск|ремонт|обмежен|графік|подач|відновл",
                      re.IGNORECASE)
 _ID = re.compile(r'^(?P<channel>[^"/]+)/(?P<number>\d+)"')
 _TEXT = re.compile(r'<div class="tgme_widget_message_text[^"]*"[^>]*>(?P<text>.*?)</div>', re.S)
@@ -160,13 +160,28 @@ def relevant(channel: str, text: str) -> bool:
 def _quote(region: str, channel: str, number: int, text: str) -> str:
     body = text if len(text) <= QUOTE_CHARS else text[:QUOTE_CHARS].rsplit(" ", 1)[0] + "…"
     where = f"{region}, {place()}" if place() else region
-    return f"{ICON} {say('water')}\n{where} (@{channel}):\n{body}\nhttps://t.me/{channel}/{number}"
+    return f"{ICON} {say('water')}\n📍 {where}\n{body}"  # no channel or link (operator, 15.11.2026)
+
+
+_RESTORED = re.compile(r"відновлен|відновили|відновлюєть|вода (?:вже )?є|подач\w* (?:води )?відновл|дали воду|"
+                       r"з'явиться|запрацюва|в штатному режимі", re.IGNORECASE)
+
+
+def status_of(text: str) -> str:
+    """«on» when a post says the water is back, «off» when it says it is (or will be) off."""
+    return "on" if _RESTORED.search(text) else "off"
 
 
 async def new_notices(region: str, transport: Any = None) -> List[str]:
-    """Water posts newer than the last seen one per channel; the first read only sets the mark."""
+    """Water posts newer than the last seen one per channel; the first read only sets the mark.
+
+    Only a change of the state is news (operator, 15.11.2026): after «води не буде» another post
+    about the same outage is not sent; «подачу відновлено» is, and then the next outage again.
+    """
     state = _read("state.json")
-    seen = state.get("seen", {}) if state.get("region") == region else {}
+    same = state.get("region") == region
+    seen = state.get("seen", {}) if same else {}
+    status = state.get("status") if same else None
     messages = []
     for channel in CHANNELS[region]:
         page = await fetch_channel(channel, transport)
@@ -174,12 +189,14 @@ async def new_notices(region: str, transport: Any = None) -> List[str]:
             continue
         found = posts(page)
         last = seen.get(channel)
-        if last is not None:
-            messages += [_quote(region, channel, number, text) for chan, number, text in found
-                         if number > last and relevant(channel, text) and chan.lower() == channel.lower()]
+        for chan, number, text in found if last is not None else []:
+            if number > last and chan.lower() == channel.lower() and relevant(channel, text):
+                if status_of(text) != status:
+                    status = status_of(text)
+                    messages.append(_quote(region, channel, number, text))
         if found:
             seen[channel] = max(number for _c, number, _t in found)
-    _write("state.json", {"region": region, "seen": seen})
+    _write("state.json", {"region": region, "seen": seen, "status": status})
     return messages
 
 
