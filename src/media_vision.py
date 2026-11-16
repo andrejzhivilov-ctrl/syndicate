@@ -20,7 +20,7 @@ from src.pii import PIIRedactor
 
 logger = structlog.get_logger(__name__)
 
-VISION_MODEL_KEY = "OR_GEMINI_FLASH"  # takes image and video on OpenRouter (checked 06.11.2026)
+VISION_MODEL_KEY = "OR_GEMINI_HYDROGEN"  # image and video in (06.11: 3.8 Flash; 16.11: Hydrogen replaces it)
 MEDIA = "media_view"
 MAX_IMAGE_BYTES = 10_000_000
 MAX_VIDEO_BYTES = 20_000_000  # what a Telegram bot may download

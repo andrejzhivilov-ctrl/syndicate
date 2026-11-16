@@ -5358,3 +5358,23 @@ def test_threat_messages_show_aircraft_not_the_channels_moped_and_motorbike():
     assert "🛩️ БпЛА на Дніпро з півночі" in card and "✈️ Реактивний БпЛА" in card and "✈️" in update
     assert tw.kind_of(shahed) == "drone" and tw.kind_of(jet) == "jet"  # kinds still read from the original
     assert tw.summary([(1, "🛵 БпЛА на Сумщину")]).split("\n")[1] == "🛩️ Сумська"
+
+
+def test_light_work_on_haiku_hydrogen_replaces_flash_sam_and_fin_on_anthropic():
+    # Andrii, 16.11.2026: Haiku where the work is light, Hydrogen instead of Gemini 3.8 Flash,
+    # no DeepSeek or Qwen thinking for an agent; Sam carries the system; Fin stays Anthropic-only (04.11).
+    from src import hermes_gateway, material_sorter, media_vision, video_digest
+    from src.llm_router import AGENT_PROFILES, BASE, HEAVY
+    from src.model_registry import DEFAULTS, model_for
+
+    assert AGENT_PROFILES["trainer"][BASE][0] == ("openrouter", "OR_CLAUDE_HAIKU")
+    assert AGENT_PROFILES["eva"][BASE][0] == ("openrouter", "OR_CLAUDE_HAIKU")
+    assert AGENT_PROFILES["sam"][BASE][0][1] == "OR_CLAUDE_SONNET" and AGENT_PROFILES["sam"][HEAVY][0][1] == "OR_CLAUDE_OPUS"
+    assert all(key.startswith(("OR_CLAUDE", "ANTHROPIC")) for tier in AGENT_PROFILES["fin"].values() for _t, key in tier)
+    for key in (hermes_gateway.LEARNING_MODEL_KEY, material_sorter.MODEL_KEY, video_digest.SUMMARY_MODEL_KEY):
+        assert model_for(key) == "anthropic/claude-haiku-5.5"
+    assert model_for(media_vision.VISION_MODEL_KEY) == "google/gemini-4-hydrogen"
+    assert "gemini-3.8-flash" not in DEFAULTS.values() and not any("qwen" in model for model in DEFAULTS.values())
+    for agent, tiers in AGENT_PROFILES.items():
+        for tier in tiers.values():
+            assert not any("DEEPSEEK" in key or "QWEN" in key for _t, key in tier), agent

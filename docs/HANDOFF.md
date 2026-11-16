@@ -4157,3 +4157,12 @@ Vault і БД агент не стартував**. Погодинне приб�
 - `threat_watch.restyle` міняє значки лише у показаному тексті: у картці, оновленні «➕», негайному повідомленні, неофіційному прогнозі та списку областей. Тип загрози й далі визначається з оригінального тексту.
 - Тести: `test_threat_watch` (дві перевірки виводу оновлено, бо змінилась вимога), регресія `test_threat_messages_show_aircraft_not_the_channels_moped_and_motorbike`.
 - Не перевірено: вигляд у Telegram до розгортання.
+
+## 16.11.2026 — мізки агентів: Haiku для легкого, Hydrogen замість 3.8 Flash, Сем на Sonnet і Opus (feat/models-haiku-hydrogen)
+
+- Андрій вирішив: Haiku 5.5 там, де робота легка (Алекс, Єва, фонові задачі); Gemini 4 Hydrogen замінює 3.8 Flash; DeepSeek і Qwen більше не думають за агентів. Сем тягне систему: Sonnet 5.5 основний, Opus 5.5 друга думка. Фін лише на Anthropic (рішення 04.11, у коді досі був DeepSeek).
+- Реєстр: `OR_GEMINI_HYDROGEN`, `OR_CLAUDE_OPUS`; прибрано `OR_GEMINI_FLASH`, `OR_DEEPSEEK_FLASH`, `OR_QWEN_MAX`; `OPENROUTER_FAST` → Hydrogen.
+- Фон на Haiku: навчання Hermes, сортування Єви, конспекти відео. Зір (`media_vision`) на Hydrogen.
+- Тести: три перевірки старих моделей оновлено, бо змінилась вимога; регресія `test_light_work_on_haiku_hydrogen_replaces_flash_sam_and_fin_on_anthropic`.
+- План до 30.11 (Алекс, Єва, Маршал, Сем): `docs/PLAN_30_11.md`.
+- Не перевірено: живі виклики Hydrogen і Opus через OpenRouter (ID звірено з публічним списком OpenRouter 16.11). `gemini-2.5-pro` (`GEMINI_PRO`) з 01.12 Google перенаправляє на 3.8 Flash — не чіпав.

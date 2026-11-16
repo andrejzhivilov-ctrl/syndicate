@@ -38,10 +38,11 @@ Candidate = Tuple[str, str]
 
 _CLAUDE_HAIKU: Sequence[Candidate] = (("openrouter", "OR_CLAUDE_HAIKU"), ("anthropic", "ANTHROPIC_DIRECTOR"))
 _CLAUDE_SONNET: Sequence[Candidate] = (("openrouter", "OR_CLAUDE_SONNET"), ("anthropic", "ANTHROPIC_PRIMARY"))
-_DEEPSEEK_FLASH: Sequence[Candidate] = (("openrouter", "OR_DEEPSEEK_FLASH"),)
-# OpenRouter first: on 27.10 the direct Gemini key answered 503/timeout for
-# gemini-3.8-flash, while OpenRouter served it; direct 3.5-flash is the backup.
-_GEMINI_FLASH: Sequence[Candidate] = (("openrouter", "OR_GEMINI_FLASH"), ("gemini", "GEMINI_FLASH_LATEST"))
+_CLAUDE_OPUS: Sequence[Candidate] = (("openrouter", "OR_CLAUDE_OPUS"),) + tuple(_CLAUDE_SONNET)
+# Andrii, 16.11.2026: Haiku where the work is light, Gemini 4 Hydrogen (replaces 3.8 Flash) and
+# Sonnet where it is harder; DeepSeek and Qwen no longer think for an agent. OpenRouter first
+# (27.10: the direct Gemini key timed out), direct 3.5-flash as the backup.
+_GEMINI_HYDROGEN: Sequence[Candidate] = (("openrouter", "OR_GEMINI_HYDROGEN"), ("gemini", "GEMINI_FLASH_LATEST"))
 _GEMINI_ARGON: Sequence[Candidate] = (("openrouter", "OR_GEMINI_ARGON"),)
 
 #: agent_id -> {tier: candidates in order}. Covers the seven agents, the old agents now part of them, plus the
@@ -52,21 +53,23 @@ AGENT_PROFILES: Dict[str, Dict[str, Sequence[Candidate]]] = {
     "kodex": {BASE: _CLAUDE_HAIKU, HEAVY: tuple(_GEMINI_ARGON) + tuple(_CLAUDE_SONNET)},
     "marshal": {BASE: (("openrouter", "OR_GPT_LUNA"),), HEAVY: (("openrouter", "OR_GPT_SOL"),) + tuple(_CLAUDE_SONNET)},
     # Intelligence & finance wing
-    "sonar": {BASE: _GEMINI_FLASH, HEAVY: (("openrouter", "OR_SONAR_DEEP_RESEARCH"),)},
-    "fin": {BASE: _DEEPSEEK_FLASH, HEAVY: _GEMINI_ARGON},
-    "sam": {BASE: _DEEPSEEK_FLASH, HEAVY: (("openrouter", "OR_DEEPSEEK_PRO"),)},
-    "jack": {BASE: _DEEPSEEK_FLASH, HEAVY: _CLAUDE_HAIKU},
-    "scout": {BASE: _GEMINI_FLASH, HEAVY: (("openrouter", "OR_GROK"),)},
+    "sonar": {BASE: _GEMINI_HYDROGEN, HEAVY: (("openrouter", "OR_SONAR_DEEP_RESEARCH"),)},
+    # Fin: Anthropic only, the most sensitive data (Andrii, 04.11.2026).
+    "fin": {BASE: _CLAUDE_HAIKU, HEAVY: _CLAUDE_SONNET},
+    # Sam carries the system (16.11.2026): Sonnet thinks, Opus is the second opinion. Numbers come from code.
+    "sam": {BASE: _CLAUDE_SONNET, HEAVY: _CLAUDE_OPUS},
+    "jack": {BASE: _CLAUDE_SONNET, HEAVY: _CLAUDE_OPUS},
+    "scout": {BASE: _GEMINI_HYDROGEN, HEAVY: (("openrouter", "OR_GROK"),)},
     # Commerce & media wing
     "oscar": {BASE: _CLAUDE_HAIKU, HEAVY: _CLAUDE_SONNET},
     "tyler": {BASE: _CLAUDE_HAIKU, HEAVY: _CLAUDE_SONNET},
-    "ray": {BASE: _DEEPSEEK_FLASH, HEAVY: _CLAUDE_SONNET},
-    "dex": {BASE: _DEEPSEEK_FLASH, HEAVY: _CLAUDE_SONNET},
+    "ray": {BASE: _CLAUDE_HAIKU, HEAVY: _CLAUDE_SONNET},
+    "dex": {BASE: _CLAUDE_HAIKU, HEAVY: _CLAUDE_SONNET},
     # LifeOps & academy wing
     "doc": {BASE: _CLAUDE_HAIKU, HEAVY: _CLAUDE_SONNET},
     "trainer": {BASE: _CLAUDE_HAIKU, HEAVY: _CLAUDE_SONNET},
     "kira": {BASE: _CLAUDE_HAIKU, HEAVY: _CLAUDE_SONNET},
-    "atlas": {BASE: _GEMINI_FLASH, HEAVY: (("openrouter", "OR_SONAR_PRO"),)},
+    "atlas": {BASE: _GEMINI_HYDROGEN, HEAVY: (("openrouter", "OR_SONAR_PRO"),)},
     # Not a director, but shares Eva's desk.
     "office_copilot": {BASE: _CLAUDE_HAIKU, HEAVY: _CLAUDE_SONNET},
 }

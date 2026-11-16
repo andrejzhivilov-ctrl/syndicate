@@ -38,7 +38,7 @@ def test_everything_heading_for_a_provider_is_masked_and_uses_a_registry_model()
     out = gateway.provider_body("trainer", gateway.CHAT, body)
     assert "test@example.com" not in json.dumps(out, ensure_ascii=False)
     assert out["model"] != "anything-the-container-says" and "haiku" in out["model"]
-    assert "deepseek" in gateway.provider_body("trainer", gateway.LEARNING, body)["model"]
+    assert "claude-haiku" in gateway.provider_body("trainer", gateway.LEARNING, body)["model"]  # 16.11: Haiku, not DeepSeek
     assert out["usage"] == {"include": True}
 
 

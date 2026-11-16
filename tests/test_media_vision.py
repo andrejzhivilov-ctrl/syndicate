@@ -64,7 +64,7 @@ def test_vision_call_sends_the_file_and_the_masked_caption_and_returns_what_was_
                                        limit=limit, transport=httpx.MockTransport(provider)))
     assert done == {"status": "ok", "description": "Йогурт грецький 2%, білок 8,5 г на 100 г."}
     body = seen["body"]
-    assert body["model"] == "google/gemini-3.8-flash"
+    assert body["model"] == "google/gemini-4-hydrogen"  # 16.11: replaces 3.8 Flash
     text, image = body["messages"][0]["content"]
     assert image == {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + base64.b64encode(b"jpeg-bytes").decode()}}
     assert "не вигадуй" in text["text"] and "test@example.com" not in text["text"] and "Підпис Андрія" in text["text"]

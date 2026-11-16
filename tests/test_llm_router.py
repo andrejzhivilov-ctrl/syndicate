@@ -153,4 +153,4 @@ def test_routed_clients_are_bounded_and_send_no_temperature_to_claude():
 def test_google_flash_goes_through_openrouter_first():
     from src.llm_router import AGENT_PROFILES
 
-    assert AGENT_PROFILES["sonar"][BASE][0] == ("openrouter", "OR_GEMINI_FLASH")
+    assert AGENT_PROFILES["sonar"][BASE][0] == ("openrouter", "OR_GEMINI_HYDROGEN")  # 16.11: replaces 3.8 Flash

@@ -43,7 +43,7 @@ AGENT_ACTIONS: Dict[str, Tuple[str, ...]] = {
 CHAT = "chat"
 LEARNING = "learning"
 #: Background memory and skill review runs on the cheapest registered model.
-LEARNING_MODEL_KEY = "OR_DEEPSEEK_FLASH"
+LEARNING_MODEL_KEY = "OR_CLAUDE_HAIKU"
 DEFAULT_LEARNING_BUDGET_USD = 10.0
 MAX_TOOL_CHARS = 12_000
 CHAT_TIMEOUT_S = 150
