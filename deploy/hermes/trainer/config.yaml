@@ -26,14 +26,15 @@ mcp_servers:
       Authorization: Bearer ${SYNDICATE_TOKEN}
     timeout: 120
 
-# Learning is automatic: memory is written without asking, a new skill waits for Andrii.
+# Learning is automatic (Andrii, 16.11.2026): memory and ordinary skills are written without asking;
+# a sensitive skill (medicines, doses, tests, money, security) goes to Andrii as buttons (src/skill_approval.py).
 memory:
   memory_enabled: true
   user_profile_enabled: true
   write_approval: false
   nudge_interval: 20
 skills:
-  write_approval: true
+  write_approval: false
   creation_nudge_interval: 25
   # Hub skills assigned in the Trainer's profile, mounted read-only by docker-compose.hermes.yml.
   external_dirs: [/opt/syndicate-skills]

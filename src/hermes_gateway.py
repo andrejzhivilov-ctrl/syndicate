@@ -211,8 +211,9 @@ def _gateway_tools(agent: str) -> List[Dict[str, Any]]:
                                                          "folder; nothing is overwritten or deleted.",
          "inputSchema": _schema(["path", "text", "mode"], path=text, text=text,
                                 mode={"type": "string", "enum": ["create", "append"]})},
-        {"name": hermes_tools.MATERIAL_LIST, "description": "Find books and course materials (PDF, EPUB, DOCX, TXT) "
-                                                            "in the Obsidian vault by words of their path.",
+        {"name": hermes_tools.MATERIAL_LIST, "description": "Find books, course materials, tables and slides "
+                                                            "(PDF, EPUB, DOCX, TXT, XLSX, CSV, PPTX) in the Obsidian "
+                                                            "vault by words of their path.",
          "inputSchema": _schema(["query"], query=text)},
         {"name": hermes_tools.MATERIAL_READ, "description": "Read one part of a material that material_list found; "
                                                             "the reply says how many parts there are. Reference, not "
@@ -227,6 +228,19 @@ def _gateway_tools(agent: str) -> List[Dict[str, Any]]:
                                                          "note (name + text, replaces your own file of that name) or "
                                                          "a file from your Obsidian folder (path). Never deletes.",
          "inputSchema": _schema([], name=text, text=text, path=text)},
+        {"name": hermes_tools.TABLE_SAVE, "description": "Create or replace your own spreadsheet (.xlsx) in your "
+                                                         "Obsidian folder, with a Markdown copy beside it for search. "
+                                                         "Numbers as numbers; a cell starting with = is an Excel "
+                                                         "formula (e.g. =SUM(B2:B9)). Then drive_save path to share it.",
+         "inputSchema": _schema(["path", "sheets"], path=text,
+                                sheets={"type": "array", "items": {"type": "object", "properties": {
+                                    "title": text, "rows": {"type": "array", "items": {"type": "array"}}},
+                                    "required": ["rows"]}})},
+        {"name": hermes_tools.FOOD_LOOKUP, "description": "Calories, protein, fat and carbs per 100 g of real "
+                                                          "products from Open Food Facts, by name or barcode, with "
+                                                          "the product page as the source. Missing numbers stay "
+                                                          "missing.",
+         "inputSchema": _schema(["query"], query=text)},
         {"name": hermes_tools.ASK_AGENT, "description": "Ask another agent of the holding one question; it answers as "
                                                         "a colleague, without tools.",
          "inputSchema": _schema(["agent", "question"], agent={"type": "string", "enum": hermes_tools.ask_targets(agent)},
@@ -243,6 +257,12 @@ async def _video_digest(agent: str, url: str, orchestrator: Any) -> Dict[str, An
                                       VIDEO_DIGEST_TIMEOUT_S)
     except asyncio.TimeoutError:
         return {"status": "unavailable", "reason": "timeout", "url": url}
+
+
+async def _food_lookup(query: str) -> Dict[str, Any]:
+    from src import food_facts
+
+    return await food_facts.lookup(query)
 
 
 async def _drive_save(agent: str, args: Mapping[str, Any], orchestrator: Any) -> Dict[str, Any]:
@@ -268,6 +288,9 @@ async def _gateway_call(agent: str, name: str, args: Mapping[str, Any], orchestr
                                                               args.get("part", 1)),
         hermes_tools.VIDEO_DIGEST: lambda: _video_digest(agent, str(args.get("url", "")), orchestrator),
         hermes_tools.DRIVE_SAVE: lambda: _drive_save(agent, args, orchestrator),
+        hermes_tools.FOOD_LOOKUP: lambda: _food_lookup(str(args.get("query", ""))),
+        hermes_tools.TABLE_SAVE: lambda: asyncio.to_thread(hermes_tools.table_save, agent, str(args.get("path", "")),
+                                                           args.get("sheets")),
         hermes_tools.ASK_AGENT: lambda: hermes_tools.ask_agent(agent, str(args.get("agent", "")),
                                                                str(args.get("question", "")), orchestrator),
     }

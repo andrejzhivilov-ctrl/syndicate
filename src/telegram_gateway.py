@@ -212,17 +212,18 @@ class TelegramGateway:
         token = (secret or {}).get("bot_token")
         return token if isinstance(token, str) and token else None
 
-    async def send(self, agent_id: str, chat_id: str, text: str) -> bool:
+    async def send(self, agent_id: str, chat_id: str, text: str, markup: Optional[Dict[str, Any]] = None) -> bool:
+        """A message from this bot; ``markup`` adds inline buttons (16.11.2026: skill approval)."""
         token = await self.bot_token(agent_id)
         if not token:
             logger.warning("telegram_send_no_token", agent_id=agent_id)
             return False
+        body: Dict[str, Any] = {"chat_id": chat_id, "text": text[:MAX_TEXT], "disable_web_page_preview": True}
+        if markup:
+            body["reply_markup"] = markup
         try:
             async with httpx.AsyncClient(timeout=15, transport=self._transport, follow_redirects=False) as client:
-                response = await client.post(
-                    f"{TELEGRAM_API}/bot{token}/sendMessage",
-                    json={"chat_id": chat_id, "text": text[:MAX_TEXT], "disable_web_page_preview": True},
-                )
+                response = await client.post(f"{TELEGRAM_API}/bot{token}/sendMessage", json=body)
             if response.status_code != 200:
                 logger.warning("telegram_send_failed", agent_id=agent_id, status=response.status_code)
                 return False

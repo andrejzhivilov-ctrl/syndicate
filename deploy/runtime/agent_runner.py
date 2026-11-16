@@ -65,6 +65,8 @@ from src.agent_chat import pool_command  # noqa: E402
 from src import hermes_gateway  # noqa: E402
 from src import media_vision  # noqa: E402
 from src import telegram_files  # noqa: E402
+from src import agent_folders  # noqa: E402
+from src import skill_approval  # noqa: E402
 from src.obsidian_notes import vault_dir_from_env  # noqa: E402
 from src.agent_schedule import AgentSchedule, enabled_from_env  # noqa: E402
 from src.telegram_gateway import (  # noqa: E402
@@ -447,11 +449,27 @@ def _start_schedule() -> None:
     enabled, unknown = enabled_from_env()
     if unknown:
         logger.warning("schedule_unknown_jobs_ignored", jobs=unknown)
+    _lay_out_agent_folders()
     if enabled:
         schedule = AgentSchedule(app_state.telegram_gateway, enabled)
         app_state.schedule_task = asyncio.create_task(schedule.loop())
     else:
         logger.info("schedule_off", hint="SYNDICATE_SCHEDULE is empty")
+
+
+def _lay_out_agent_folders() -> None:
+    """16.11.2026: each agent's Obsidian folder and its map exist before the agent writes; nothing is changed."""
+    root = vault_dir_from_env()
+    if root is None:
+        return
+    for agent in agent_folders.LAYOUT:
+        try:
+            created = agent_folders.ensure(agent, root)
+        except OSError as exc:
+            logger.warning("agent_folders_failed", agent=agent, error_type=type(exc).__name__)
+            continue
+        if created:
+            logger.info("agent_folders_created", agent=agent, created=created)
 
 
 async def _stop_background_loops() -> None:
@@ -1302,6 +1320,8 @@ async def telegram_webhook(
         logger.warning("telegram_non_owner_dropped", agent_id=agent_id)
         return {"ok": True}
 
+    if message["kind"] == "callback" and await _skill_decision(state, gateway, agent_id, message):
+        return {"ok": True}
     handler = _FILE_HANDLERS.get(message["kind"])
     if handler is not None:
         # Download + speech-to-text or vision + reply can outlast Telegram's webhook wait;
@@ -1318,6 +1338,7 @@ async def _telegram_text(state: AppState, gateway: Any, agent_id: str, message: 
     """A typed message: the reply, Alice's map after /карта, and a voice copy when one was asked for."""
     text = await _telegram_reply(state, agent_id, message, message["text"])
     await gateway.send(agent_id, message["chat_id"], text)
+    await _skill_buttons(gateway, agent_id, message)
     if agent_id == ALERT_BOT and (pool_command({"text": message["text"]}) or ("",))[0] == "/map":
         await _send_current_map(gateway, agent_id, message["chat_id"])
     if wants_voice(message["text"]):
@@ -1355,10 +1376,32 @@ async def _telegram_reply(state: AppState, agent_id: str, message: Dict[str, Any
     }
     try:
         outcome = await state.orchestrator.handle_webhook(source=f"telegram_{agent_id}", payload=payload)
-        return reply_text(agent_id, outcome)
+        # 16.11.2026: a sensitive skill comes as a marker; it becomes buttons after the reply.
+        reply, message["skills"] = skill_approval.split(agent_id, reply_text(agent_id, outcome))
+        return reply
     except Exception as exc:  # noqa: BLE001
         logger.error("Telegram handling failed", agent_id=agent_id, error_type=type(exc).__name__)
         return f"⛔ [{agent_id}] внутрішня помилка обробки."
+
+
+async def _skill_buttons(gateway: Any, agent_id: str, message: Dict[str, Any]) -> None:
+    """One message with «Погодити» / «Відхилити» per sensitive skill the reply proposed."""
+    for proposal in message.pop("skills", None) or []:
+        text, markup = skill_approval.question(proposal)
+        await gateway.send(agent_id, message["chat_id"], text, markup)
+
+
+async def _skill_decision(state: AppState, gateway: Any, agent_id: str, message: Dict[str, Any]) -> bool:
+    """A button press on a skill proposal: recorded, then the agent hears the decision. False if not ours."""
+    decided = skill_approval.decide(agent_id, message["text"])
+    if decided is None:
+        return False
+    await gateway.send(agent_id, message["chat_id"], decided["notice"])
+    if decided["status"] == "decided":
+        reply = await _telegram_reply(state, agent_id, message, decided["turn"])
+        await gateway.send(agent_id, message["chat_id"], reply)
+        await _skill_buttons(gateway, agent_id, message)
+    return True
 
 
 async def _telegram_voice(state: AppState, agent_id: str, message: Dict[str, Any]) -> None:
@@ -1380,6 +1423,7 @@ async def _telegram_voice(state: AppState, agent_id: str, message: Dict[str, Any
         logger.info("telegram_voice_transcribed", agent_id=agent_id, provider=provider)
         reply = await _telegram_reply(state, agent_id, message, heard)
         await gateway.send(agent_id, chat_id, f"🎙 «{heard[:300]}»\n\n{reply}")
+        await _skill_buttons(gateway, agent_id, message)
         # Text by default (operator, 29.10): voice only when the note asks for it.
         if wants_voice(heard):
             await _voice_answer(state, agent_id, chat_id, heard, reply, keys)
@@ -1412,6 +1456,7 @@ async def _telegram_media(state: AppState, agent_id: str, message: Dict[str, Any
         if message["mime"].startswith("video/"):
             turn += await _video_sound(state, data)
         await gateway.send(agent_id, chat_id, await _telegram_reply(state, agent_id, message, turn))
+        await _skill_buttons(gateway, agent_id, message)
     except Exception as exc:  # noqa: BLE001 - a background task must not die silently
         logger.error("telegram_media_failed", agent_id=agent_id, error_type=type(exc).__name__)
         await gateway.send(agent_id, chat_id, f"⛔ [{agent_id}] не вдалося обробити файл.")
@@ -1446,6 +1491,7 @@ async def _telegram_file(state: AppState, agent_id: str, message: Dict[str, Any]
         logger.info("telegram_file_taken", agent_id=agent_id, kind=result.get("kind"), status=result["status"])
         turn = telegram_files.prompt(result, name, message["text"])
         await gateway.send(agent_id, chat_id, await _telegram_reply(state, agent_id, message, turn))
+        await _skill_buttons(gateway, agent_id, message)
     except Exception as exc:  # noqa: BLE001 - a background task must not die silently
         logger.error("telegram_file_failed", agent_id=agent_id, error_type=type(exc).__name__)
         await gateway.send(agent_id, chat_id, f"⛔ [{agent_id}] не вдалося обробити файл.")
