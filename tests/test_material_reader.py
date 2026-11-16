@@ -113,11 +113,11 @@ def test_a_long_book_is_read_part_by_part(vault, tmp_path):
 def test_a_scan_or_a_bad_file_is_reported_never_guessed(vault, tmp_path, monkeypatch):
     (vault / "scan.pdf").write_bytes(_blank_pdf())
     (vault / "broken.epub").write_bytes(b"not a zip")
-    (vault / "notes.xlsx").write_bytes(b"x")
+    (vault / "notes.odt").write_bytes(b"x")
     cache = tmp_path / "c"
     assert reader.read_material(vault, "scan.pdf", cache_dir=cache)["reason"] == "no_text_layer"
     assert reader.read_material(vault, "broken.epub", cache_dir=cache)["reason"] == "damaged_file"
-    assert reader.read_material(vault, "notes.xlsx", cache_dir=cache)["reason"] == "unsupported_format"
+    assert reader.read_material(vault, "notes.odt", cache_dir=cache)["reason"] == "unsupported_format"  # 16.11: xlsx is read now
     (vault / "big.epub").write_bytes(_epub(["x" * 5000]))
     monkeypatch.setattr(reader, "MAX_UNZIPPED_BYTES", 1000)
     assert reader.read_material(vault, "big.epub", cache_dir=cache)["reason"] == "too_large_unpacked"

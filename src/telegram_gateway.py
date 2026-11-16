@@ -77,8 +77,9 @@ def _media(message: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
 def _attachment(message: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
     """A document or audio file that is not a photo or video (16.11.2026): PDF, tables, slides, audio."""
     found = next((message.get(key) for key in ("document", "audio") if isinstance(message.get(key), Mapping)), None)
-    if found is None or not isinstance(found.get("file_id"), str):
-        return None
+    if found is None or not isinstance(found.get("file_id"), str) \
+            or not (found.get("mime_type") or found.get("file_name")):
+        return None  # a file with neither a type nor a name is not guessed
     return {"file_id": found["file_id"], "mime": str(found.get("mime_type") or ""),
             "file_name": str(found.get("file_name") or found.get("title") or "")[:200],
             "file_size": int(found.get("file_size") or 0), "duration": int(found.get("duration") or 0)}

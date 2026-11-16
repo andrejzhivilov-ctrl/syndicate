@@ -36,7 +36,8 @@ def test_photos_videos_and_captions_reach_the_agent_as_file_references():
     assert extract_message(_update(video_note={"file_id": "round", "duration": 20}))["mime"] == "video/mp4"
     assert extract_message(_update(document={"file_id": "d", "mime_type": "image/png"}))["mime"] == "image/png"
 
-    assert extract_message(_update(document={"file_id": "d", "mime_type": "application/pdf"})) is None
+    # 16.11.2026: a PDF is no longer ignored; it is a file to keep and read (src/telegram_files.py).
+    assert extract_message(_update(document={"file_id": "d", "mime_type": "application/pdf"}))["kind"] == "file"
     assert extract_message(_update(document={"file_id": "d"})) is None  # no type is not guessed
     assert extract_message(_update(sticker={"file_id": "s"})) is None
     assert extract_message(_update(text="привіт"))["kind"] == "message"
