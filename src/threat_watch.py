@@ -129,8 +129,19 @@ def is_urgent(text: str) -> bool:
     return bool(URGENT.search(text))
 
 
+#: The Air Force marks a Shahed with a moped and a jet Shahed with a motorbike; Alice shows aircraft
+#: instead (operator, 16.11.2026). Only what is shown changes: kinds are read from the original text.
+SHOWN_ICONS = (("🛵️", "🛩️"), ("🛵", "🛩️"), ("🏍️", "✈️"), ("🏍", "✈️"))
+
+
+def restyle(text: str) -> str:
+    for theirs, ours in SHOWN_ICONS:
+        text = text.replace(theirs, ours)
+    return text
+
+
 def urgent_notice(number: int, text: str) -> str:
-    return f"{URGENT_HEADING}\n{text}"  # no link or source (operator, 15.11.2026)
+    return f"{URGENT_HEADING}\n{restyle(text)}"  # no link or source (operator, 15.11.2026)
 
 
 def marker(text: str, oblast: str) -> Optional[Marker]:
@@ -180,7 +191,7 @@ def watched_oblasts(chosen: Optional[List[str]]) -> List[str]:
     return sorted({oblast for oblast in found if oblast})
 
 
-KIND_ICONS = {"drone": "🛵", "jet": "🏍", "missile": "🚀", "kab": "💣", "other": "⚠️"}
+KIND_ICONS = {"drone": "🛩️", "jet": "✈️","missile": "🚀", "kab": "💣", "other": "⚠️"}
 SUMMARY_GAP_S = 300  # with no oblast chosen: one short list at most every five minutes
 
 
@@ -308,7 +319,7 @@ STAY_BAG = PhraseBag({"stay": STAY})
 
 def update_card(texts: List[str], phrase: str) -> str:
     """A further threat during the same alert: no heading, no place, no map — only what is new."""
-    return "➕ " + "\n➕ ".join(texts) + f"\n💬 {phrase}"
+    return "➕ " + "\n➕ ".join(restyle(text) for text in texts) + f"\n💬 {phrase}"
 
 
 def threat_card(level: str, territory: str, texts: List[str], phrase: str) -> str:
@@ -316,7 +327,7 @@ def threat_card(level: str, territory: str, texts: List[str], phrase: str) -> st
 
     The Air Force's words are kept as they are; no link, no source, no explanation.
     """
-    flying = "\n".join(texts)
+    flying = "\n".join(restyle(text) for text in texts)
     return f"{THREAT_HEADING}\n{LEVEL_LINES.get(level, LEVEL_LINES['N'])}\n📍 {territory}\n{flying}\n💬 {phrase}"
 
 
@@ -457,7 +468,7 @@ class ThreatWatch:
         if not owner:
             return 0
         for message in wanted:
-            await self._gateway.send(self._bot, owner, neptun.forecast_notice(message, URGENT_HEADING))
+            await self._gateway.send(self._bot, owner, restyle(neptun.forecast_notice(message, URGENT_HEADING)))
             self._forecast_times.append(now)
         return len(wanted)
 
