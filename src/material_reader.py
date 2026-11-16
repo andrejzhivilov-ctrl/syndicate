@@ -21,7 +21,8 @@ from xml.etree import ElementTree
 
 from src.data_paths import data_dir
 
-EXTENSIONS = frozenset({"pdf", "epub", "docx", "txt", "md"})
+#: 16.11.2026: tables (xlsx, csv) and slides (pptx) too, as Markdown rows and slide text.
+EXTENSIONS = frozenset({"pdf", "epub", "docx", "txt", "md", "xlsx", "csv", "pptx"})
 PART_CHARS = 8_000
 MAX_FILE_BYTES = 60 * 1024 * 1024
 MAX_TEXT_CHARS = 3_000_000
@@ -110,12 +111,83 @@ def _epub(data: bytes) -> str:
     return "\n\n".join(chapter.strip() for chapter in chapters if chapter.strip())
 
 
+def _row(cells: Any) -> str:
+    """One table row as Markdown; empty rows give nothing."""
+    values = ["" if cell is None else str(cell).replace("|", "/").replace("\n", " ").strip() for cell in cells]
+    return "| " + " | ".join(values) + " |" if any(values) else ""
+
+
 def _docx(data: bytes) -> str:
     _checked_zip(data)
     import docx
 
     document = docx.Document(io.BytesIO(data))
-    return "\n".join(paragraph.text for paragraph in document.paragraphs)
+    text = [paragraph.text for paragraph in document.paragraphs]
+    for number, table in enumerate(document.tables, 1):  # 16.11.2026: tables were dropped before
+        rows = [_row(cell.text for cell in row.cells) for row in table.rows]
+        text += [f"\n[таблиця {number}]", *[row for row in rows if row]]
+    return "\n".join(text)
+
+
+def _xlsx(data: bytes) -> str:
+    """Every sheet as Markdown rows, computed values rather than formulas (16.11.2026)."""
+    _checked_zip(data)
+    from openpyxl import load_workbook
+
+    try:
+        book = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+    except Exception as exc:  # noqa: BLE001 - openpyxl raises many kinds for a broken file
+        raise MaterialError("damaged_file") from exc
+    sheets = []
+    for sheet in book.worksheets:
+        rows = [line for line in (_row(row) for row in sheet.iter_rows(values_only=True)) if line]
+        if rows:
+            sheets.append(f"[аркуш «{sheet.title}»]\n" + "\n".join(rows))
+    book.close()
+    return "\n\n".join(sheets)
+
+
+def _csv(data: bytes) -> str:
+    import csv
+
+    raw = data.decode("utf-8-sig", errors="strict") if _is_utf8(data) else data.decode("cp1251", errors="replace")
+    try:
+        dialect = csv.Sniffer().sniff(raw[:4096], delimiters=",;\t")
+    except csv.Error:
+        dialect = csv.excel
+    rows = [_row(row) for row in csv.reader(io.StringIO(raw), dialect)]
+    return "\n".join(row for row in rows if row)
+
+
+def _is_utf8(data: bytes) -> bool:
+    try:
+        data.decode("utf-8-sig")
+        return True
+    except UnicodeDecodeError:
+        return False
+
+
+def _pptx(data: bytes) -> str:
+    """Slide by slide: titles, text, tables and the speaker's notes (16.11.2026)."""
+    _checked_zip(data)
+    from pptx import Presentation
+
+    try:
+        deck = Presentation(io.BytesIO(data))
+    except Exception as exc:  # noqa: BLE001 - python-pptx raises many kinds for a broken file
+        raise MaterialError("damaged_file") from exc
+    slides = []
+    for number, slide in enumerate(deck.slides, 1):
+        lines = [f"[слайд {number}]"]
+        for shape in slide.shapes:
+            if getattr(shape, "has_text_frame", False) and shape.text_frame.text.strip():
+                lines.append(shape.text_frame.text.strip())
+            if getattr(shape, "has_table", False):
+                lines += [row for row in (_row(cell.text for cell in r.cells) for r in shape.table.rows) if row]
+        if slide.has_notes_slide and slide.notes_slide.notes_text_frame.text.strip():
+            lines.append("Нотатки доповідача: " + slide.notes_slide.notes_text_frame.text.strip())
+        slides.append("\n".join(lines))
+    return "\n\n".join(slides)
 
 
 def _pdf(data: bytes) -> str:
@@ -143,6 +215,7 @@ def _plain(data: bytes) -> str:
 
 _EXTRACTORS: Dict[str, Callable[[bytes], str]] = {
     "pdf": _pdf, "epub": _epub, "docx": _docx, "txt": _plain, "md": _plain,
+    "xlsx": _xlsx, "csv": _csv, "pptx": _pptx,
 }
 
 

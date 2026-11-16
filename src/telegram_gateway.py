@@ -74,6 +74,16 @@ def _media(message: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
             "duration": int(found.get("duration") or 0)}
 
 
+def _attachment(message: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
+    """A document or audio file that is not a photo or video (16.11.2026): PDF, tables, slides, audio."""
+    found = next((message.get(key) for key in ("document", "audio") if isinstance(message.get(key), Mapping)), None)
+    if found is None or not isinstance(found.get("file_id"), str):
+        return None
+    return {"file_id": found["file_id"], "mime": str(found.get("mime_type") or ""),
+            "file_name": str(found.get("file_name") or found.get("title") or "")[:200],
+            "file_size": int(found.get("file_size") or 0), "duration": int(found.get("duration") or 0)}
+
+
 def extract_message(update: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
     """Reduce a Telegram update to the few fields an agent may see."""
     if not isinstance(update, Mapping):
@@ -99,7 +109,8 @@ def extract_message(update: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
     sender = message.get("from") or {}
     chat = message.get("chat") or {}
     text = message.get("text")
-    voice = message.get("voice") or message.get("audio")
+    # 16.11.2026: an audio file (a lecture, a recording) is a file to keep and transcribe, not a voice note.
+    voice = message.get("voice")
     if sender.get("id") is not None and chat.get("id") is not None and isinstance(voice, Mapping) \
             and isinstance(voice.get("file_id"), str):
         # Only the file reference: the audio is fetched later with the bot token.
@@ -121,6 +132,12 @@ def extract_message(update: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
         return {"kind": "media", "user_id": str(sender["id"]), "chat_id": str(chat["id"]),
                 "chat_type": chat.get("type", ""), "text": caption[:1000] if isinstance(caption, str) else "",
                 "message_id": message.get("message_id"), **media}
+    attached = _attachment(message)
+    if attached is not None and sender.get("id") is not None and chat.get("id") is not None:
+        caption = message.get("caption")
+        return {"kind": "file", "user_id": str(sender["id"]), "chat_id": str(chat["id"]),
+                "chat_type": chat.get("type", ""), "text": caption[:1000] if isinstance(caption, str) else "",
+                "message_id": message.get("message_id"), **attached}
     if sender.get("id") is None or chat.get("id") is None or not isinstance(text, str):
         return None
     return {

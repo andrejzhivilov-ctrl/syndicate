@@ -19,6 +19,7 @@ import json
 import logging
 import os
 import sys
+import tempfile
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -63,6 +64,8 @@ from src.alert_watch import AlertWatch, chosen_places, current_map  # noqa: E402
 from src.agent_chat import pool_command  # noqa: E402
 from src import hermes_gateway  # noqa: E402
 from src import media_vision  # noqa: E402
+from src import telegram_files  # noqa: E402
+from src.obsidian_notes import vault_dir_from_env  # noqa: E402
 from src.agent_schedule import AgentSchedule, enabled_from_env  # noqa: E402
 from src.telegram_gateway import (  # noqa: E402
     TelegramGateway,
@@ -1299,10 +1302,10 @@ async def telegram_webhook(
         logger.warning("telegram_non_owner_dropped", agent_id=agent_id)
         return {"ok": True}
 
-    if message["kind"] in ("voice", "media"):
+    handler = _FILE_HANDLERS.get(message["kind"])
+    if handler is not None:
         # Download + speech-to-text or vision + reply can outlast Telegram's webhook wait;
         # answer 200 now so Telegram does not redeliver the file.
-        handler = _telegram_voice if message["kind"] == "voice" else _telegram_media
         task = asyncio.create_task(handler(state, agent_id, message))
         _VOICE_TASKS.add(task)
         task.add_done_callback(_VOICE_TASKS.discard)
@@ -1406,10 +1409,50 @@ async def _telegram_media(state: AppState, agent_id: str, message: Dict[str, Any
                                else media_vision.NOT_SEEN)
             return
         turn = media_vision.turn_text(message["mime"], seen["description"], message["text"])
+        if message["mime"].startswith("video/"):
+            turn += await _video_sound(state, data)
         await gateway.send(agent_id, chat_id, await _telegram_reply(state, agent_id, message, turn))
     except Exception as exc:  # noqa: BLE001 - a background task must not die silently
         logger.error("telegram_media_failed", agent_id=agent_id, error_type=type(exc).__name__)
         await gateway.send(agent_id, chat_id, f"⛔ [{agent_id}] не вдалося обробити файл.")
+
+
+async def _video_sound(state: AppState, data: bytes) -> str:
+    """16.11.2026: a video is heard as well as seen; its speech goes to the agent as timed text."""
+    with tempfile.TemporaryDirectory() as work:
+        source = Path(work) / "video"
+        source.write_bytes(data)
+        heard = await telegram_files.transcribe(source, await _voice_keys(state))
+    if heard["status"] != "ok":
+        return f"\n\nЗвук відео не розшифровано ({heard['reason']})."
+    return f"\n\nЩо говорять у відео (розшифровка Groq Whisper):\n{heard['text'][:telegram_files.EXCERPT_CHARS]}"
+
+
+async def _telegram_file(state: AppState, agent_id: str, message: Dict[str, Any]) -> None:
+    """Owner's document, table, slides or audio (16.11.2026): kept in Obsidian, read or transcribed, answered."""
+    gateway, chat_id = state.telegram_gateway, message["chat_id"]
+    try:
+        refused = telegram_files.refusal(agent_id, message)
+        root = vault_dir_from_env()
+        if refused or root is None:
+            await gateway.send(agent_id, chat_id, refused or "⚠️ Сховище Obsidian недоступне, файл не збережено.")
+            return
+        data = await gateway.download_file(agent_id, message["file_id"], telegram_files.MAX_BYTES)
+        if data is None:
+            await gateway.send(agent_id, chat_id, "⚠️ Не вдалося отримати файл з Telegram.")
+            return
+        name = message["file_name"] or "файл"
+        result = await telegram_files.take(agent_id, root, name, message["mime"], data, await _voice_keys(state))
+        logger.info("telegram_file_taken", agent_id=agent_id, kind=result.get("kind"), status=result["status"])
+        turn = telegram_files.prompt(result, name, message["text"])
+        await gateway.send(agent_id, chat_id, await _telegram_reply(state, agent_id, message, turn))
+    except Exception as exc:  # noqa: BLE001 - a background task must not die silently
+        logger.error("telegram_file_failed", agent_id=agent_id, error_type=type(exc).__name__)
+        await gateway.send(agent_id, chat_id, f"⛔ [{agent_id}] не вдалося обробити файл.")
+
+
+#: Messages that carry a file: handled in the background after Telegram gets its 200.
+_FILE_HANDLERS = {"voice": _telegram_voice, "media": _telegram_media, "file": _telegram_file}
 
 
 async def _send_current_map(gateway: Any, agent_id: str, chat_id: str) -> None:
