@@ -4187,3 +4187,12 @@ Vault і БД агент не стартував**. Погодинне приб�
 - Розшифровка в чаті потребує `groq_api_key` (внесений 10.11); лекції з Drive — Deepgram, ключа ще немає.
 - Живий прогін на сервері не робився: потрібні злиття, розгортання `syndicate-agent` і перезапуск `trainer-hermes` (новий config і SOUL).
 - Нагадування 1.12 про Storage Box і Deepgram — задача Claude Code `storage-box-reminder-dec-1`.
+
+## 18.11.2026 — перевірка Алекса після розгортання #115; повтор запитів до Open Food Facts (fix/food-lookup-retry)
+
+- Сервер на `4b5399a`, `syndicate-agent` здоровий, `trainer-hermes` перезапущено: новий SOUL і `skills.write_approval: false` у контейнері. Алекс бачить 18 інструментів, серед них `table_save` і `food_lookup`; думає на `anthropic/claude-haiku-5.5`.
+- Тека `Health_Coach` з розділами й `Карта.md` створилась при старті (`agent_folders_created`). Вхід Google для запису в Drive живий.
+- Open Food Facts із сервера в одну секунду відповідав 200 і 503: `food_lookup` тепер повторює запит до 3 разів на 429/502/503/504 і пише код у причину. Живий прогін після виправлення: гречка 329 ккал/100 г.
+- `SYNDICATE_SCHEDULE` досі лише `alex_drive_mirror,eva_sort_materials`: щоденні задачі Алекса не ввімкнені.
+- У журналі одна відмова 401 на `/cockpit` через Cloudflare (головна сторінка домену веде на cockpit) — захист спрацював, витоку немає.
+- Не перевірено: справжня розмова з Алексом у Telegram, файл із чату, кнопки скілів.
