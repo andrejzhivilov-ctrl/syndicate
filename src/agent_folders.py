@@ -16,6 +16,15 @@ LAYOUT: Dict[str, Tuple[str, Tuple[str, ...]]] = {
         "Щоденник/Самопочуття", "Програми", "Харчування/Рецепти", "Харчування/Продукти", "Аналізи",
         "Добавки", "Психологія", "Дослідження", "Конспекти/Відео", "Таблиці", "Матеріали",
     )),
+    # 18.11.2026: the holding inbox and each agent's materials, so Eva has somewhere to route to.
+    # The full layout of each agent comes with that agent's rollout.
+    "eva": ("00_Inbox", ("Вхідні", "На перевірку")),
+    "eva_base": ("09_База_Знань", ("Матеріали",)),
+    "sam": ("Сем", ("Матеріали",)),
+    "tyler": ("Тайлер", ("Матеріали",)),
+    "fin": ("Фін", ("Матеріали",)),
+    "kira": ("Кіра", ("Матеріали",)),
+    "marshal": ("Маршал", ("Матеріали",)),
 }
 MAP_NOTE = "Карта.md"
 TRAINER_MAP = """---

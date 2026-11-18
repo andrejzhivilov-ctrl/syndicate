@@ -41,6 +41,14 @@ MAX_FILES_PER_RUN = 10  # the rest arrives on the next run
 MAX_DEPTH = 5
 #: Alex's own service account (scripts/syndicate_vault.py set-google-sa trainer <file>).
 KEY_PATH = "agents/trainer/google"
+#: 18.11.2026: one inbox for the whole holding. Andrii drops anything into Eva's "Вхідні" (shared with
+#: Eva's own service account); it lands in 00_Inbox/Вхідні and Eva routes it to the agent it belongs to
+#: (src/inbox_router.py). Alex's own "Вхідні" keeps working as before.
+#: agent -> (Vault key path, target folder in the vault, state file).
+MIRRORS: Dict[str, Tuple[str, Tuple[str, ...], str]] = {
+    "trainer": (KEY_PATH, TARGET_DIR, "state.json"),
+    "eva": ("agents/eva/google", ("00_Inbox", "Вхідні"), "eva.json"),
+}
 
 
 class DriveClient(Protocol):
@@ -80,19 +88,19 @@ def _local_name(item: Dict[str, Any]) -> Optional[str]:
     return None if mime.startswith("application/vnd.google-apps.") else name
 
 
-def _state_path() -> Path:
-    return ensure_dir("drive_mirror") / "state.json"
+def _state_path(agent: str = "trainer") -> Path:
+    return ensure_dir("drive_mirror") / MIRRORS[agent][2]
 
 
-def _load_state() -> Dict[str, Dict[str, str]]:
+def _load_state(agent: str = "trainer") -> Dict[str, Dict[str, str]]:
     try:
-        return json.loads(_state_path().read_text(encoding="utf-8"))
+        return json.loads(_state_path(agent).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
 
 
-def _save_state(state: Dict[str, Dict[str, str]]) -> None:
-    path = _state_path()
+def _save_state(state: Dict[str, Dict[str, str]], agent: str = "trainer") -> None:
+    path = _state_path(agent)
     temp = path.with_suffix(".tmp")
     temp.write_text(json.dumps(state, ensure_ascii=False, indent=1), encoding="utf-8")
     os.replace(temp, path)
@@ -135,13 +143,13 @@ def _copy(client: DriveClient, item: Dict[str, Any], target: Path, relative: str
     return "copied"
 
 
-def mirror(client: DriveClient, vault_root: Path) -> Dict[str, Any]:
+def mirror(client: DriveClient, vault_root: Path, agent: str = "trainer") -> Dict[str, Any]:
     """One pass: copy new or changed files; report everything that was not copied."""
     folder_id = client.find_folder(FOLDER_NAME)
     if not folder_id:
         return {"status": "unavailable", "reason": "drive_folder_not_shared", "folder": FOLDER_NAME}
-    target = vault_root.joinpath(*TARGET_DIR)
-    state = _load_state()
+    target = vault_root.joinpath(*MIRRORS[agent][1])
+    state = _load_state(agent)
     counts = {"copied": 0, "unchanged": 0, "skipped_native": 0, "too_large": 0, "failed": 0, "deferred": 0}
     seen = set()
     for prefix, item in walk(client, folder_id):
@@ -152,7 +160,7 @@ def mirror(client: DriveClient, vault_root: Path) -> Dict[str, Any]:
         if verdict == "copy":
             verdict = _copy(client, item, target, relative, state)
         counts[verdict] += 1
-    _save_state(state)
+    _save_state(state, agent)
     removed = len(set(state) - seen)
     status = "ok" if counts["failed"] == 0 else "partial"
     return {"status": status, **counts, "removed_in_drive_kept": removed, "folder": FOLDER_NAME}
@@ -206,7 +214,7 @@ class GoogleDrive:
                 _, done = downloader.next_chunk()
 
 
-async def run(vault_client: Any) -> Dict[str, Any]:
+async def run(vault_client: Any, agent: str = "trainer") -> Dict[str, Any]:
     """The scheduled job: key from Vault, vault from the environment, one mirror pass."""
     import asyncio
 
@@ -216,7 +224,7 @@ async def run(vault_client: Any) -> Dict[str, Any]:
     if root is None:
         return {"status": "unavailable", "reason": "obsidian_vault_not_mounted"}
     try:
-        secret = await vault_client.get_secret(secret_path(KEY_PATH)) if vault_client else None
+        secret = await vault_client.get_secret(secret_path(MIRRORS[agent][0])) if vault_client else None
     except Exception as exc:  # noqa: BLE001
         return {"status": "unavailable", "reason": f"vault_read_failed: {type(exc).__name__}"}
     raw = (secret or {}).get("service_account_json")
@@ -226,4 +234,4 @@ async def run(vault_client: Any) -> Dict[str, Any]:
         client = GoogleDrive(json.loads(raw))
     except Exception as exc:  # noqa: BLE001 - a malformed key is reported, not raised
         return {"status": "unavailable", "reason": f"service_account_invalid: {type(exc).__name__}"}
-    return await asyncio.to_thread(mirror, client, root)
+    return await asyncio.to_thread(mirror, client, root, agent)

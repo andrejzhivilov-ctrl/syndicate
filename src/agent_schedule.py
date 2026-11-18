@@ -75,8 +75,11 @@ JOBS: Dict[str, Job] = {job.name: job for job in (
         "scp root@169.58.178.154:/data/backups/offsite/latest.tar.gpg E:\\syndicate-backup.tar.gpg\n"
         "Розшифрувати можна лише твоїм приватним ключем GPG. Не тримай ключ на тому самому SSD."),
     # Three minutes after each mirror run: Eva shelves what arrived and rewrites the catalog.
+    # 18.11.2026: the holding inbox — Andrii's files for any agent, from Eva's "Вхідні" on Drive.
+    Job("eva_drive_inbox", "*/10 * * * *", "eva", "drive_mirror",
+        "Єва: вхідні для всього холдингу з Google Drive у Obsidian"),
     Job("eva_sort_materials", "3,13,23,33,43,53 * * * *", "eva", "sort_materials",
-        "Єва: розбір нових матеріалів Алекса і каталог"),
+        "Єва: вхідні по агентах, матеріали по темах, каталоги"),
 )}
 
 
@@ -92,7 +95,7 @@ async def _owner_reminder(job: Job, gateway: Any) -> Dict[str, Any]:
 async def _drive_mirror(job: Job, gateway: Any) -> Dict[str, Any]:
     from src import drive_mirror
 
-    return await drive_mirror.run(getattr(gateway, "vault", None))
+    return await drive_mirror.run(getattr(gateway, "vault", None), job.agent if job.agent in drive_mirror.MIRRORS else "trainer")
 
 
 async def _transcribe(job: Job, gateway: Any) -> Dict[str, Any]:
@@ -104,7 +107,14 @@ async def _transcribe(job: Job, gateway: Any) -> Dict[str, Any]:
 async def _sort_materials(job: Job, gateway: Any) -> Dict[str, Any]:
     from src import material_sorter
 
-    return await material_sorter.run(gateway, "trainer")
+    from src import inbox_router
+
+    # 18.11.2026: first the holding inbox goes to its owners, then every agent's folder is shelved.
+    routed = await inbox_router.run(gateway)
+    shelved = {agent: await material_sorter.run(gateway, agent) for agent in material_sorter.SHELVES}
+    failed = [agent for agent, result in shelved.items() if result.get("status") not in ("ok", None)]
+    return {"status": "ok" if not failed else "partial", "routed": routed, "shelved": shelved,
+            **({"failed_agents": failed} if failed else {})}
 
 
 #: Jobs that run local code instead of an agent.

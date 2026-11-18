@@ -211,6 +211,7 @@ def test_alex_keeps_the_times_and_feeds_he_had_in_n8n():
         "alex_drive_mirror": ("*/10 * * * *", "drive_mirror"),
         "alex_transcribe": ("5,35 * * * *", "transcribe"),
         "andrii_ssd_backup": ("30 20 * * 0", "owner_reminder"),
+        "eva_drive_inbox": ("*/10 * * * *", "drive_mirror"),  # 18.11.2026: the holding inbox
         "eva_sort_materials": ("3,13,23,33,43,53 * * * *", "sort_materials"),
     }
     assert all(job.text for job in sched.JOBS.values() if job.kind in ("checkin", "reminder", "owner_reminder"))

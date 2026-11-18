@@ -21,7 +21,11 @@ from src import material_reader, video_digest
 logger = structlog.get_logger(__name__)
 
 #: Agents that keep files from their chat, and where (the folder Eva shelves from).
-MATERIALS: Dict[str, tuple] = {"trainer": ("Health_Coach", "Матеріали")}
+MATERIALS: Dict[str, tuple] = {
+    "trainer": ("Health_Coach", "Матеріали"),
+    # 18.11.2026: whatever Andrii sends to Eva's bot goes to the holding inbox; Eva routes it (src/inbox_router.py).
+    "eva": ("00_Inbox", "Вхідні"),
+}
 MAX_BYTES = 20 * 1024 * 1024  # Telegram getFile limit for bots
 AUDIO = frozenset({"mp3", "m4a", "ogg", "oga", "opus", "wav", "aac", "flac", "amr", "wma"})
 VIDEO = frozenset({"mp4", "mov", "mkv", "webm", "avi", "m4v"})
