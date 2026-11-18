@@ -66,7 +66,7 @@ def test_a_document_or_audio_file_is_a_file_and_a_voice_note_stays_a_voice_note(
 def test_a_file_is_refused_with_the_reason_and_never_cut():
     assert telegram_files.refusal("trainer", {"file_size": 30_000_000, "file_name": "x.pdf"}) == telegram_files.TOO_BIG
     assert "не читаю" in telegram_files.refusal("trainer", {"file_size": 10, "file_name": "x.exe"})
-    assert telegram_files.refusal("eva", {"file_size": 10, "file_name": "x.pdf"}) is not None
+    assert telegram_files.refusal("sam", {"file_size": 10, "file_name": "x.pdf"}) is not None  # 18.11: Eva takes files now
     assert telegram_files.refusal("trainer", {"file_size": 10, "file_name": "x.pptx"}) is None
 
 

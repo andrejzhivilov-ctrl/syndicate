@@ -10,8 +10,9 @@ from src import agent_folders, agent_schedule, drive_mirror, inbox_router, mater
 
 def _asker(answers):
     async def ask(prompt):
+        item = prompt.split("Назва:", 1)[1]  # only the file, not the list of agents
         for word, agent in answers.items():
-            if word in prompt:
+            if word in item:
                 return json.dumps({"agent": agent})
         return "не знаю"
     return ask
