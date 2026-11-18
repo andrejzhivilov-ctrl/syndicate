@@ -7,6 +7,7 @@ numbers is listed as such, never filled in (AGENTS.md §1).
 """
 from __future__ import annotations
 
+import asyncio
 import re
 from typing import Any, Dict, List, Optional
 
@@ -39,22 +40,39 @@ def per_100g(product: Dict[str, Any]) -> Dict[str, Any]:
             "url": PAGE_URL.format(code=code) if code else ""}
 
 
+#: Live 18.11.2026: the same search from the server answered 200 and 503 a second apart. Open Food
+#: Facts sheds load with 503 and 429; a short wait and another try usually gets the answer.
+RETRY_STATUSES = frozenset({429, 502, 503, 504})
+ATTEMPTS = 3
+RETRY_PAUSE_S = 1.5
+
+
+async def _get(client: httpx.AsyncClient, url: str, params: Dict[str, Any]) -> httpx.Response:
+    for attempt in range(1, ATTEMPTS + 1):
+        response = await client.get(url, params=params)
+        if response.status_code not in RETRY_STATUSES or attempt == ATTEMPTS:
+            return response
+        await asyncio.sleep(RETRY_PAUSE_S * attempt)
+    return response  # unreachable; keeps type checkers calm
+
+
 async def lookup(query: str, transport: Any = None) -> Dict[str, Any]:
     """Products matching a name, or the one product of a barcode; honest when nothing is found."""
     query = query.strip()
     if not query or len(query) > 200:
         return {"status": "error", "error": "empty_or_too_long"}
+    barcode = bool(BARCODE.match(query))
+    url = PRODUCT_URL.format(code=query) if barcode else SEARCH_URL
+    params = {"fields": FIELDS} if barcode else {"search_terms": query, "search_simple": 1, "json": 1,
+                                                 "page_size": MAX_RESULTS, "fields": FIELDS}
     try:
         async with httpx.AsyncClient(timeout=TIMEOUT_S, headers=HEADERS, transport=transport) as client:
-            if BARCODE.match(query):
-                response = await client.get(PRODUCT_URL.format(code=query), params={"fields": FIELDS})
-                response.raise_for_status()
-                found: List[Dict[str, Any]] = [response.json()["product"]] if response.json().get("product") else []
-            else:
-                response = await client.get(SEARCH_URL, params={"search_terms": query, "search_simple": 1,
-                                                                "json": 1, "page_size": MAX_RESULTS, "fields": FIELDS})
-                response.raise_for_status()
-                found = response.json().get("products") or []
+            response = await _get(client, url, params)
+        if response.status_code != 200:
+            return {"status": "unavailable", "reason": f"open_food_facts_http_{response.status_code}"}
+        data = response.json()
+        found: List[Dict[str, Any]] = ([data["product"]] if data.get("product") else []) if barcode \
+            else (data.get("products") or [])
     except (httpx.HTTPError, ValueError, KeyError) as exc:
         return {"status": "unavailable", "reason": f"open_food_facts_{type(exc).__name__}"}
     products = [per_100g(product) for product in found[:MAX_RESULTS]]

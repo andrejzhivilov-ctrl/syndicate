@@ -82,3 +82,14 @@ def test_kbju_comes_from_open_food_facts_with_the_source_and_gaps_stay_gaps():
     assert asyncio.run(food_facts.lookup("щось", empty))["reason"] == "not_found"
     down = httpx.MockTransport(lambda request: httpx.Response(503, text="down"))
     assert asyncio.run(food_facts.lookup("гречка", down))["status"] == "unavailable"
+
+
+def test_open_food_facts_is_asked_again_when_it_sheds_load(monkeypatch):
+    # Live 18.11.2026: 200 and 503 a second apart from the same server.
+    monkeypatch.setattr(food_facts, "RETRY_PAUSE_S", 0)
+    answers = iter([httpx.Response(503, text="busy"), httpx.Response(200, json={"products": [
+        {"code": "1", "product_name": "Рис", "nutriments": {"energy-kcal_100g": 130}}]})])
+    found = asyncio.run(food_facts.lookup("рис", httpx.MockTransport(lambda request: next(answers))))
+    assert found["status"] == "ok" and found["products"][0]["name"] == "Рис"
+    always = httpx.MockTransport(lambda request: httpx.Response(503, text="busy"))
+    assert asyncio.run(food_facts.lookup("рис", always))["reason"] == "open_food_facts_http_503"
