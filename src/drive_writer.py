@@ -31,7 +31,9 @@ TOKEN_URL = "https://oauth2.googleapis.com/token"
 FILES_URL = "https://www.googleapis.com/drive/v3/files"
 UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3/files"
 FOLDER_MIME = "application/vnd.google-apps.folder"
-FOLDERS = {"trainer": "SYNDICATE Алекс — від Алекса"}
+FOLDERS = {"trainer": "SYNDICATE Алекс — від Алекса",
+           # 18.11.2026: originals that came through the chat, kept on Drive once their Markdown exists.
+           "eva": "SYNDICATE Єва — оригінали"}
 OWN_VAULT_DIRS = {"trainer": "Health_Coach"}
 TEXT_TYPES = {".md": "text/markdown", ".txt": "text/plain", ".csv": "text/csv"}
 FILE_TYPES = {**TEXT_TYPES, ".pdf": "application/pdf", ".json": "application/json",
@@ -130,6 +132,18 @@ class DriveWriter:
         reply = response.json()
         return {"status": "ok", "action": action, "name": reply.get("name", name), "link": reply.get("webViewLink"),
                 "folder": FOLDERS[self.agent]}
+
+    async def save_bytes(self, name: str, data: bytes, mime: str = "application/octet-stream") -> Dict[str, Any]:
+        """An original file into the agent's folder (src/material_markdown.py); the reply carries its id."""
+        async with httpx.AsyncClient(timeout=max(TIMEOUT_S, 600), transport=self._transport) as client:
+            folder = await self.folder_id(client)
+            metadata = json.dumps({"name": name, "parents": [folder]})
+            files = {"metadata": (None, metadata, "application/json; charset=UTF-8"), "file": (name, data, mime)}
+            response = await client.post(UPLOAD_URL, headers=await self._headers(client),
+                                         params={"fields": "id,name,size,md5Checksum", "uploadType": "multipart"},
+                                         files=files)
+            response.raise_for_status()
+            return response.json()
 
     async def save_text(self, name: str, text: str) -> Dict[str, Any]:
         if not text.strip() or len(text) > MAX_TEXT_CHARS:

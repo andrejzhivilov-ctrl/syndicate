@@ -80,6 +80,9 @@ JOBS: Dict[str, Job] = {job.name: job for job in (
         "Єва: вхідні для всього холдингу з Google Drive у Obsidian"),
     Job("eva_sort_materials", "3,13,23,33,43,53 * * * *", "eva", "sort_materials",
         "Єва: вхідні по агентах, матеріали по темах, каталоги"),
+    # 18.11.2026: shelved materials become Markdown cards; originals go to Drive and leave the server.
+    Job("eva_markdown", "6,16,26,36,46,56 * * * *", "eva", "to_markdown",
+        "Єва: матеріали в Markdown, оригінали на Google Drive", timeout_s=1800),
 )}
 
 
@@ -118,8 +121,14 @@ async def _sort_materials(job: Job, gateway: Any) -> Dict[str, Any]:
 
 
 #: Jobs that run local code instead of an agent.
+async def _to_markdown(job: Job, gateway: Any) -> Dict[str, Any]:
+    from src import material_markdown
+
+    return await material_markdown.run(gateway)
+
+
 LOCAL_JOBS = {"drive_mirror": _drive_mirror, "transcribe": _transcribe, "owner_reminder": _owner_reminder,
-              "sort_materials": _sort_materials}
+              "sort_materials": _sort_materials, "to_markdown": _to_markdown}
 
 
 def enabled_from_env(raw: Optional[str] = None) -> Tuple[List[str], List[str]]:

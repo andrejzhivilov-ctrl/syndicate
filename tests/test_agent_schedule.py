@@ -213,6 +213,7 @@ def test_alex_keeps_the_times_and_feeds_he_had_in_n8n():
         "andrii_ssd_backup": ("30 20 * * 0", "owner_reminder"),
         "eva_drive_inbox": ("*/10 * * * *", "drive_mirror"),  # 18.11.2026: the holding inbox
         "eva_sort_materials": ("3,13,23,33,43,53 * * * *", "sort_materials"),
+        "eva_markdown": ("6,16,26,36,46,56 * * * *", "to_markdown"),  # 18.11.2026: Markdown, originals to Drive
     }
     assert all(job.text for job in sched.JOBS.values() if job.kind in ("checkin", "reminder", "owner_reminder"))
     urls = feeds.feeds_for("trainer")
