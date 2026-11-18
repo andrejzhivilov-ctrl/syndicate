@@ -38,7 +38,7 @@ def test_everything_heading_for_a_provider_is_masked_and_uses_a_registry_model()
     out = gateway.provider_body("trainer", gateway.CHAT, body)
     assert "test@example.com" not in json.dumps(out, ensure_ascii=False)
     assert out["model"] != "anything-the-container-says" and "haiku" in out["model"]
-    assert "deepseek" in gateway.provider_body("trainer", gateway.LEARNING, body)["model"]
+    assert "claude-haiku" in gateway.provider_body("trainer", gateway.LEARNING, body)["model"]  # 16.11: Haiku, not DeepSeek
     assert out["usage"] == {"include": True}
 
 
@@ -90,7 +90,8 @@ def test_tools_refuse_what_was_not_granted_and_mask_results():
     names = {tool["name"] for tool in listed["result"]["tools"]}
     assert names == {"agent_action", "hub_search", "hub_read", "obsidian_search", "obsidian_read", "learning_inbox",
                      "web_search", "web_fetch", "archive_search", "archive_read", "note_write", "ask_agent",
-                     "material_list", "material_read", "video_digest", "drive_save"}
+                     "material_list", "material_read", "video_digest", "drive_save",
+                     "table_save", "food_lookup"}  # 16.11.2026: own tables, KBJU from Open Food Facts
 
     denied = asyncio.run(gateway.mcp_reply("trainer", _call("agent_action", action="place_trade"), orchestrator))
     text = denied["result"]["content"][0]["text"]

@@ -56,10 +56,13 @@ JOBS: Dict[str, Job] = {job.name: job for job in (
     Job("alex_measurements", "30 7 * * 1", "trainer", "reminder", "Алекс: тижневі заміри",
         "Понеділок — тижневі заміри: вага натщесерце після туалету, талія, груди, стегна, фото в тих "
         "самих умовах. Надішли Тренеру, він внесе в щоденник."),
-    Job("alex_learning", "0 4 * * 1", "trainer", "learning",
+    # Andrii, 16.11.2026: the internet on Sundays at 03:00, reflection every day at 04:00.
+    Job("alex_learning", "0 3 * * 0", "trainer", "learning",
         "Алекс: нове з підключених джерел за тиждень"),
-    Job("alex_reflection", "0 5 * * 1", "trainer", "reflection",
-        "Алекс: тижнева саморефлексія (один виклик Hermes)"),
+    Job("alex_research", "15 3 * * 0", "trainer", "research",
+        "Алекс: свіжі авторитетні дослідження з інтернету (один хід Hermes)", timeout_s=1500),
+    Job("alex_reflection", "0 4 * * *", "trainer", "reflection",
+        "Алекс: щоденна рефлексія (один хід Hermes)", timeout_s=1500),
     Job("alex_drive_mirror", "*/10 * * * *", "trainer", "drive_mirror",
         "Алекс: нові матеріали з Google Drive у Obsidian"),
     # One lecture a run: ffmpeg cuts the audio, Deepgram transcribes it; an hour of video needs minutes.

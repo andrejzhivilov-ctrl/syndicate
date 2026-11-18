@@ -74,6 +74,17 @@ def _media(message: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
             "duration": int(found.get("duration") or 0)}
 
 
+def _attachment(message: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
+    """A document or audio file that is not a photo or video (16.11.2026): PDF, tables, slides, audio."""
+    found = next((message.get(key) for key in ("document", "audio") if isinstance(message.get(key), Mapping)), None)
+    if found is None or not isinstance(found.get("file_id"), str) \
+            or not (found.get("mime_type") or found.get("file_name")):
+        return None  # a file with neither a type nor a name is not guessed
+    return {"file_id": found["file_id"], "mime": str(found.get("mime_type") or ""),
+            "file_name": str(found.get("file_name") or found.get("title") or "")[:200],
+            "file_size": int(found.get("file_size") or 0), "duration": int(found.get("duration") or 0)}
+
+
 def extract_message(update: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
     """Reduce a Telegram update to the few fields an agent may see."""
     if not isinstance(update, Mapping):
@@ -99,7 +110,8 @@ def extract_message(update: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
     sender = message.get("from") or {}
     chat = message.get("chat") or {}
     text = message.get("text")
-    voice = message.get("voice") or message.get("audio")
+    # 16.11.2026: an audio file (a lecture, a recording) is a file to keep and transcribe, not a voice note.
+    voice = message.get("voice")
     if sender.get("id") is not None and chat.get("id") is not None and isinstance(voice, Mapping) \
             and isinstance(voice.get("file_id"), str):
         # Only the file reference: the audio is fetched later with the bot token.
@@ -121,6 +133,12 @@ def extract_message(update: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
         return {"kind": "media", "user_id": str(sender["id"]), "chat_id": str(chat["id"]),
                 "chat_type": chat.get("type", ""), "text": caption[:1000] if isinstance(caption, str) else "",
                 "message_id": message.get("message_id"), **media}
+    attached = _attachment(message)
+    if attached is not None and sender.get("id") is not None and chat.get("id") is not None:
+        caption = message.get("caption")
+        return {"kind": "file", "user_id": str(sender["id"]), "chat_id": str(chat["id"]),
+                "chat_type": chat.get("type", ""), "text": caption[:1000] if isinstance(caption, str) else "",
+                "message_id": message.get("message_id"), **attached}
     if sender.get("id") is None or chat.get("id") is None or not isinstance(text, str):
         return None
     return {
@@ -194,17 +212,18 @@ class TelegramGateway:
         token = (secret or {}).get("bot_token")
         return token if isinstance(token, str) and token else None
 
-    async def send(self, agent_id: str, chat_id: str, text: str) -> bool:
+    async def send(self, agent_id: str, chat_id: str, text: str, markup: Optional[Dict[str, Any]] = None) -> bool:
+        """A message from this bot; ``markup`` adds inline buttons (16.11.2026: skill approval)."""
         token = await self.bot_token(agent_id)
         if not token:
             logger.warning("telegram_send_no_token", agent_id=agent_id)
             return False
+        body: Dict[str, Any] = {"chat_id": chat_id, "text": text[:MAX_TEXT], "disable_web_page_preview": True}
+        if markup:
+            body["reply_markup"] = markup
         try:
             async with httpx.AsyncClient(timeout=15, transport=self._transport, follow_redirects=False) as client:
-                response = await client.post(
-                    f"{TELEGRAM_API}/bot{token}/sendMessage",
-                    json={"chat_id": chat_id, "text": text[:MAX_TEXT], "disable_web_page_preview": True},
-                )
+                response = await client.post(f"{TELEGRAM_API}/bot{token}/sendMessage", json=body)
             if response.status_code != 200:
                 logger.warning("telegram_send_failed", agent_id=agent_id, status=response.status_code)
                 return False

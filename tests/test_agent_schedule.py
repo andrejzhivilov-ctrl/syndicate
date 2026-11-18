@@ -203,8 +203,10 @@ def test_alex_keeps_the_times_and_feeds_he_had_in_n8n():
         "alex_morning_plan": ("0 8 * * *", "morning_brief"),
         "alex_checkin": ("30 21 * * *", "checkin"),
         "alex_measurements": ("30 7 * * 1", "reminder"),
-        "alex_learning": ("0 4 * * 1", "learning"),
-        "alex_reflection": ("0 5 * * 1", "reflection"),
+        # 16.11.2026, Andrii: the internet on Sundays at 03:00 (feeds, then research), reflection daily at 04:00.
+        "alex_learning": ("0 3 * * 0", "learning"),
+        "alex_research": ("15 3 * * 0", "research"),
+        "alex_reflection": ("0 4 * * *", "reflection"),
         # 10.11.2026: materials from Andrii's Google Drive folder, not an n8n job.
         "alex_drive_mirror": ("*/10 * * * *", "drive_mirror"),
         "alex_transcribe": ("5,35 * * * *", "transcribe"),

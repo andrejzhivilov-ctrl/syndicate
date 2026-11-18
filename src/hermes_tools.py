@@ -45,11 +45,13 @@ NOTE_WRITE, ASK_AGENT = "note_write", "ask_agent"
 MATERIAL_LIST, MATERIAL_READ = "material_list", "material_read"
 VIDEO_DIGEST = "video_digest"
 DRIVE_SAVE = "drive_save"
+TABLE_SAVE = "table_save"
+FOOD_LOOKUP = "food_lookup"
 
 #: agent id -> gateway tools it may call. Default deny.
 TOOL_GRANTS: Dict[str, Tuple[str, ...]] = {
     "trainer": (WEB_SEARCH, WEB_FETCH, ARCHIVE_SEARCH, ARCHIVE_READ, NOTE_WRITE, ASK_AGENT,
-                MATERIAL_LIST, MATERIAL_READ, VIDEO_DIGEST, DRIVE_SAVE),
+                MATERIAL_LIST, MATERIAL_READ, VIDEO_DIGEST, DRIVE_SAVE, TABLE_SAVE, FOOD_LOOKUP),
 }
 #: Calls per agent per UTC day. Sonar costs about $0.006 a search (06.11.2026).
 DAILY_LIMITS: Dict[str, int] = {WEB_SEARCH: 30, WEB_FETCH: 60, ARCHIVE_SEARCH: 100, ARCHIVE_READ: 100,
@@ -60,6 +62,10 @@ DAILY_LIMITS: Dict[str, int] = {WEB_SEARCH: 30, WEB_FETCH: 60, ARCHIVE_SEARCH: 1
                                 VIDEO_DIGEST: 30,
                                 # Own files in Andrii's Drive (drive.file), free within Google quotas.
                                 DRIVE_SAVE: 50,
+                                # Own spreadsheets (16.11.2026): local, free.
+                                TABLE_SAVE: 30,
+                                # Open Food Facts, free and open (16.11.2026).
+                                FOOD_LOOKUP: 100,
                                 # Photos and videos sent to the bot (src/media_vision.py), ~1-2 cents a minute of video.
                                 "media_view": 40}
 #: The agent's own Obsidian folder, the only place ``note_write`` writes.
@@ -371,15 +377,20 @@ def material_read(path: str, part: Any) -> Dict[str, Any]:
 # ── note_write: own Obsidian folder only ───────────────────────────────────────────────
 
 
-def _note_target(agent: str, path: str) -> Tuple[Optional[Path], str]:
+def _note_target(agent: str, path: str, suffix: str = ".md") -> Tuple[Optional[Path], str]:
     from src.obsidian_notes import vault_dir_from_env
 
     root = vault_dir_from_env()
     if root is None or agent not in NOTE_DIRS:
         return None, "vault_unavailable"
     own = (root / NOTE_DIRS[agent]).resolve()
+    # 16.11.2026: prompts and SOUL name paths with the folder in front ("Health_Coach/Щоденник/…");
+    # inside the own folder that prefix would nest a second Health_Coach.
+    path = path.strip()  # an absolute path stays absolute and is refused below
+    if path.startswith(NOTE_DIRS[agent] + "/"):
+        path = path[len(NOTE_DIRS[agent]) + 1:]
     target = (own / path).resolve()
-    if own not in target.parents or target.suffix.lower() != ".md":
+    if own not in target.parents or target.suffix.lower() != suffix:
         return None, "outside_own_folder"
     return target, f"{NOTE_DIRS[agent]}/{target.relative_to(own).as_posix()}"
 
@@ -415,6 +426,80 @@ def note_write(agent: str, path: str, text: str, mode: str) -> Dict[str, Any]:
     if log is not None:
         log.record(agent, mode, relative)
     return {"status": "ok", "mode": mode, "path": relative}
+
+
+# ── table_save: the agent's own spreadsheets (16.11.2026) ──────────────────────────────
+
+MAX_TABLE_SHEETS = 10
+MAX_TABLE_ROWS = 2_000
+MAX_TABLE_COLUMNS = 50
+
+
+def _cell(value: Any) -> Any:
+    """Numbers stay numbers and «=…» stays a formula, so sums of calories are computed by Excel."""
+    if isinstance(value, bool) or value is None:
+        return value
+    if isinstance(value, (int, float)):
+        return value
+    return str(value)[:1000]
+
+
+def _markdown_copy(sheets: List[Mapping[str, Any]], xlsx_path: str) -> str:
+    out = [f"---\ntable: \"{xlsx_path}\"\nsummary: \"Копія таблиці для пошуку; змінюється разом з нею\"\n---"]
+    for sheet in sheets:
+        rows = [["" if cell is None else str(cell).replace("|", "/") for cell in row] for row in sheet["rows"]]
+        out.append(f"\n## {sheet['title']}\n")
+        if rows:
+            width = max(len(row) for row in rows)
+            rows = [row + [""] * (width - len(row)) for row in rows]
+            out += ["| " + " | ".join(rows[0]) + " |", "|" + " --- |" * width]
+            out += ["| " + " | ".join(row) + " |" for row in rows[1:]]
+    return "\n".join(out) + "\n"
+
+
+def _clean_sheets(sheets: Any) -> Optional[List[Dict[str, Any]]]:
+    if not isinstance(sheets, list) or not 0 < len(sheets) <= MAX_TABLE_SHEETS:
+        return None
+    clean = []
+    for number, sheet in enumerate(sheets, 1):
+        rows = sheet.get("rows") if isinstance(sheet, Mapping) else None
+        if not isinstance(rows, list) or len(rows) > MAX_TABLE_ROWS \
+                or not all(isinstance(row, list) and len(row) <= MAX_TABLE_COLUMNS for row in rows):
+            return None
+        title = str(sheet.get("title") or f"Аркуш {number}")
+        title = "".join(ch for ch in title if ch not in "[]:*?/\\")[:31] or f"Аркуш {number}"
+        clean.append({"title": title, "rows": [[_cell(cell) for cell in row] for row in rows]})
+    return clean
+
+
+def table_save(agent: str, path: str, sheets: Any) -> Dict[str, Any]:
+    """Write an .xlsx in the agent's own folder and a Markdown copy beside it; the agent's tables only.
+
+    A table is the agent's working file (a diary, a meal plan), so saving again replaces it. The
+    Markdown copy is what search and cheap reading use; drive_save puts the .xlsx on Andrii's Drive.
+    """
+    from openpyxl import Workbook
+
+    clean = _clean_sheets(sheets)
+    if clean is None:
+        return {"status": "error", "error": "bad_sheets", "limits": {"sheets": MAX_TABLE_SHEETS,
+                "rows": MAX_TABLE_ROWS, "columns": MAX_TABLE_COLUMNS}}
+    target, relative = _note_target(agent, path, ".xlsx")
+    if target is None:
+        return {"status": "refused", "reason": relative, "hint": "path inside your folder, ending in .xlsx"}
+    book = Workbook()
+    book.remove(book.active)
+    for sheet in clean:
+        page = book.create_sheet(sheet["title"])
+        for row in sheet["rows"]:
+            page.append(row)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    existed = target.exists()
+    book.save(target)
+    copy = target.with_suffix(".md")
+    copy.write_text(_markdown_copy(clean, relative), encoding="utf-8")
+    return {"status": "ok", "action": "replaced" if existed else "created", "path": relative,
+            "markdown": relative[:-len(".xlsx")] + ".md", "sheets": [sheet["title"] for sheet in clean]}
 
 
 # ── ask_agent: one question, the direct path, no tools ─────────────────────────────────

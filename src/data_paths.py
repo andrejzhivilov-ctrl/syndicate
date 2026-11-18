@@ -47,6 +47,8 @@ DIRS = {
     "power": "power_outages",
     "water": "water_outages",
     "threats": "threat_watch",
+    # Skill proposals and Andrii's decisions for Eva's report (src/skill_approval.py, 16.11.2026).
+    "skills": "skill_approval",
 }
 
 

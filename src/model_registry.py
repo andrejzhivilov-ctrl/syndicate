@@ -14,7 +14,7 @@ DEFAULTS = {
     # Direct Gemini key (27.10): 2.5-pro/2.5-flash answer 404 "no longer available
     # to new users"; 3.5-flash and 2.5-flash-lite answer. Prefer OpenRouter for Google.
     "GEMINI_FAST": "gemini-3.5-flash",
-    "OPENROUTER_FAST": "google/gemini-3.8-flash",
+    "OPENROUTER_FAST": "google/gemini-4-hydrogen",
     "OPENROUTER_DIRECTOR": "anthropic/claude-sonnet-5.5",
     "OPENAI_PRIMARY": "gpt-4o",
     # Owner's Telegram voice notes (src/voice_reply.py); listed by our key on 28.10.
@@ -30,11 +30,12 @@ DEFAULTS = {
     # verified against OpenRouter's public model list by tools/check_models.py.
     "OR_CLAUDE_HAIKU": "anthropic/claude-haiku-5.5",
     "OR_CLAUDE_SONNET": "anthropic/claude-sonnet-5.5",
-    "OR_DEEPSEEK_FLASH": "deepseek/deepseek-v4.1-flash",
+    "OR_CLAUDE_OPUS": "anthropic/claude-opus-5.5",
     "OR_DEEPSEEK_PRO": "deepseek/deepseek-v4-pro",
-    "OR_QWEN_MAX": "qwen/qwen3.8-max-0902",
     "OR_GEMINI_ARGON": "google/gemini-4-argon",
-    "OR_GEMINI_FLASH": "google/gemini-3.8-flash",
+    # 16.11.2026: Gemini 4 Hydrogen (out 12.11) replaces 3.8 Flash. $1.50/$7.50 per 1M tokens,
+    # takes images, video and audio. Light work stays on Haiku 5.5 ($0.10/$0.50).
+    "OR_GEMINI_HYDROGEN": "google/gemini-4-hydrogen",
     "OR_GPT_LUNA": "openai/gpt-6-luna",
     "OR_GPT_SOL": "openai/gpt-6.1-sol",
     "OR_GROK": "x-ai/grok-4.7",

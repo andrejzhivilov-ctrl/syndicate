@@ -36,7 +36,7 @@ from src.vault_paths import secret_path
 logger = structlog.get_logger(__name__)
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-MODEL_KEY = "OR_DEEPSEEK_FLASH"
+MODEL_KEY = "OR_CLAUDE_HAIKU"
 UNSURE = "Інше на перевірку"
 COURSES = "Курси"
 DUPLICATES = "_Дублікати"

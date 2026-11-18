@@ -36,7 +36,8 @@ def test_photos_videos_and_captions_reach_the_agent_as_file_references():
     assert extract_message(_update(video_note={"file_id": "round", "duration": 20}))["mime"] == "video/mp4"
     assert extract_message(_update(document={"file_id": "d", "mime_type": "image/png"}))["mime"] == "image/png"
 
-    assert extract_message(_update(document={"file_id": "d", "mime_type": "application/pdf"})) is None
+    # 16.11.2026: a PDF is no longer ignored; it is a file to keep and read (src/telegram_files.py).
+    assert extract_message(_update(document={"file_id": "d", "mime_type": "application/pdf"}))["kind"] == "file"
     assert extract_message(_update(document={"file_id": "d"})) is None  # no type is not guessed
     assert extract_message(_update(sticker={"file_id": "s"})) is None
     assert extract_message(_update(text="привіт"))["kind"] == "message"
@@ -64,7 +65,7 @@ def test_vision_call_sends_the_file_and_the_masked_caption_and_returns_what_was_
                                        limit=limit, transport=httpx.MockTransport(provider)))
     assert done == {"status": "ok", "description": "Йогурт грецький 2%, білок 8,5 г на 100 г."}
     body = seen["body"]
-    assert body["model"] == "google/gemini-3.8-flash"
+    assert body["model"] == "google/gemini-4-hydrogen"  # 16.11: replaces 3.8 Flash
     text, image = body["messages"][0]["content"]
     assert image == {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + base64.b64encode(b"jpeg-bytes").decode()}}
     assert "не вигадуй" in text["text"] and "test@example.com" not in text["text"] and "Підпис Андрія" in text["text"]

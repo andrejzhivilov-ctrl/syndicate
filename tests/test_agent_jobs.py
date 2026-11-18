@@ -96,7 +96,7 @@ def test_weekly_reflection_needs_hermes_and_says_so(tmp_path, monkeypatch):
     monkeypatch.setenv("EVA_HERMES_AGENTS", "trainer")
     asked = {}
 
-    async def hermes_chat(agent, text, owner):
+    async def hermes_chat(agent, text, owner, **_options):
         asked.update(agent=agent, owner=owner, text=text)
         return {"status": "completed", "response": "Нового з джерел немає."}
 
