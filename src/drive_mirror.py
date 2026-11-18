@@ -199,6 +199,14 @@ class GoogleDrive:
     def children(self, folder_id: str) -> List[Dict[str, Any]]:
         return self._list(f"'{folder_id}' in parents and trashed = false")
 
+    def exists(self, file_id: str) -> bool:
+        """The original is still on Drive and not in the trash (checked before the vault copy goes)."""
+        try:
+            meta = self._drive.files().get(fileId=file_id, fields="id,trashed", supportsAllDrives=True).execute()
+        except Exception:  # noqa: BLE001 - not found or no access: treat as absent, keep the copy
+            return False
+        return bool(meta.get("id")) and not meta.get("trashed")
+
     def download(self, item: Dict[str, Any], dest: Path) -> None:
         from googleapiclient.http import MediaIoBaseDownload
 

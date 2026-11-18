@@ -210,6 +210,9 @@ def render_catalog(folder: Path, state: Dict[str, Any]) -> str:
         lines += [f"## {topic}", "", "| Файл | Назва | Мова | Про що | Додано |", "|---|---|---|---|---|"]
         for entry in sorted(by_topic[topic], key=lambda item: item["path"]):
             path = entry["path"]
+            # 18.11.2026: once a file has its Markdown card the card is what to read; the original may be on Drive.
+            if (folder / (path + ".md")).is_file() and not path.endswith(".md"):
+                path += ".md"
             transcript = " (є розшифровка)" if (folder / (path + TRANSCRIPT_SUFFIX)).is_file() else ""
             lines.append(f"| [[{path}]]{transcript} | {entry.get('title') or ''} | {entry.get('language') or ''} "
                          f"| {entry.get('summary') or ''} | {entry.get('added', '')} |")
