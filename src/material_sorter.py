@@ -47,7 +47,26 @@ SHELVES: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {
         "Тренування", "Харчування", "Рецепти", "Відновлення і сон", "Добавки",
         "Анатомія і біомеханіка", "Медичне (довідково)", "Мотивація і звички",
     )),
+    # 18.11.2026: the holding inbox (src/inbox_router.py) feeds every agent's materials.
+    "sam": (("Сем", "Матеріали"), (
+        "Форекс", "Криптовалюта", "Акції", "Ф'ючерси і метали", "Ставки на спорт і кіберспорт",
+        "Ризик-менеджмент", "Психологія трейдингу", "Стратегії і бектести",
+    )),
+    "tyler": (("Тайлер", "Матеріали"), (
+        "Мерч", "Партнерський маркетинг", "Pinterest", "Instagram і TikTok", "YouTube", "Контент і відео",
+        "Реклама", "Продажі",
+    )),
+    "fin": (("Фін", "Матеріали"), ("Бюджет", "Податки", "Банки і платежі", "Облік")),
+    "kira": (("Кіра", "Матеріали"), ("Англійська", "Психологія", "Навчання", "Мислення")),
+    "marshal": (("Маршал", "Матеріали"), ("Захист даних", "Сервери і мережі", "OPSEC", "Загрози")),
+    "eva": (("09_База_Знань", "Матеріали"), (
+        "AI-інструменти", "Організація", "Подорожі", "Документи", "Технології", "Різне корисне",
+    )),
 }
+#: Whose library Eva is shelving, in the classification prompt.
+LIBRARIES = {"trainer": "тренера Алекса", "sam": "трейдера Сема", "tyler": "Тайлера (бізнес і контент)",
+             "fin": "фінансиста Фіна", "kira": "Кіри (навчання)", "marshal": "Маршала (безпека)",
+             "eva": "спільну базу знань холдингу"}
 MAX_PER_RUN = 20
 DAILY_MODEL_CALLS = 200
 EXCERPT_CHARS = 1500
@@ -103,9 +122,10 @@ def excerpt(path: Path) -> str:
 
 
 def _prompt(name: str, text: str, topics: Tuple[str, ...]) -> str:
+    library = next((LIBRARIES[agent] for agent, (_dir, shelf) in SHELVES.items() if shelf == topics), "агента")
     listed = "\n".join(f"- {topic}" for topic in topics)
     return (
-        "Ти Єва, впорядковуєш бібліотеку тренера. Визнач тему файлу лише з цього списку:\n"
+        f"Ти Єва, впорядковуєш бібліотеку {library}. Визнач тему файлу лише з цього списку:\n"
         f"{listed}\nЯкщо жодна не підходить або ти не впевнена, відповідай «{UNSURE}».\n"
         "Відповідь лише JSON: {\"topic\": \"...\", \"title\": \"коротка назва\", "
         "\"language\": \"uk|ru|en|інша\", \"summary\": \"одне речення\"}.\n"
@@ -271,7 +291,7 @@ def eva_message(agent: str, result: Dict[str, Any]) -> Optional[str]:
     """What Eva tells Andrii after a run; None when nothing moved."""
     if not result.get("moved"):
         return None
-    lines = [f"Розібрала нові матеріали ({agent}): {result['moved']}."]
+    lines = [f"Розібрала нові матеріали ({LIBRARIES.get(agent, agent)}): {result['moved']}."]
     lines += [f"• {item}" for item in result.get("sorted", [])[:10]]
     if result.get("courses"):
         lines.append("Курси: " + ", ".join(result["courses"]))
