@@ -42,6 +42,24 @@ def test_each_item_goes_to_its_owner_and_the_rest_waits_for_andrii(tmp_path, mon
     assert "Сем" in text and "На перевірку" in text
 
 
+def test_a_mixed_folder_is_split_file_by_file_and_keeps_its_name(tmp_path, monkeypatch):
+    """19.11.2026: «Книжки» held psychology books, recipes, a trading archive and voice notes."""
+    monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path / "data"))
+    mixed = tmp_path / "00_Inbox" / "Вхідні" / "Книжки"
+    (mixed / "Фромм").mkdir(parents=True)
+    (mixed / "Фромм" / "Здорове суспільство.txt").write_text("психологія", encoding="utf-8")
+    (mixed / "lunch-boxes.txt").write_text("рецепти", encoding="utf-8")
+    (mixed / "трейдинг.rar").write_bytes(b"Rar!")
+    (mixed / "29.10.2026 22.34.m4a").write_bytes(b"\x00")
+    asker = _asker({"Книжки (тека": "unsure", "Здорове": "kira", "lunch": "trainer", "трейдинг": "sam"})
+    result = asyncio.run(inbox_router.route(tmp_path, asker))
+    assert (tmp_path / "Кіра/Матеріали/Книжки/Фромм/Здорове суспільство.txt").is_file()
+    assert (tmp_path / "Health_Coach/Матеріали/Книжки/lunch-boxes.txt").is_file()
+    assert (tmp_path / "Сем/Матеріали/Книжки/трейдинг.rar").is_file()
+    assert (tmp_path / "00_Inbox/На перевірку/Книжки/29.10.2026 22.34.m4a").is_file()
+    assert result["unsure"] == ["Книжки/29.10.2026 22.34.m4a"] and not mixed.exists()
+
+
 def test_without_a_key_nothing_is_guessed_and_nothing_is_overwritten(tmp_path, monkeypatch):
     monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path / "data"))
     inbox = tmp_path / "00_Inbox" / "Вхідні"

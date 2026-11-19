@@ -22,7 +22,8 @@ from xml.etree import ElementTree
 from src.data_paths import data_dir
 
 #: 16.11.2026: tables (xlsx, csv) and slides (pptx) too, as Markdown rows and slide text.
-EXTENSIONS = frozenset({"pdf", "epub", "docx", "txt", "md", "xlsx", "csv", "pptx"})
+#: 19.11.2026: old Word 97–2003 books (.doc) through antiword.
+EXTENSIONS = frozenset({"pdf", "epub", "doc", "docx", "txt", "md", "xlsx", "csv", "pptx"})
 PART_CHARS = 8_000
 MAX_FILE_BYTES = 60 * 1024 * 1024
 MAX_TEXT_CHARS = 3_000_000
@@ -190,6 +191,28 @@ def _pptx(data: bytes) -> str:
     return "\n\n".join(slides)
 
 
+def _doc(data: bytes) -> str:
+    """Word 97–2003 through antiword (UTF-8 out, so Cyrillic survives); without the tool the reason is said."""
+    import shutil
+    import subprocess
+    import tempfile
+
+    tool = shutil.which("antiword")
+    if tool is None:
+        raise MaterialError("doc_reader_missing")
+    with tempfile.TemporaryDirectory(dir=data_dir()) as scratch:  # the container's root is read-only
+        source = Path(scratch) / "book.doc"
+        source.write_bytes(data)
+        try:
+            done = subprocess.run([tool, "-m", "UTF-8.txt", "-w", "0", str(source)], capture_output=True,
+                                  timeout=120, check=False)
+        except subprocess.TimeoutExpired as exc:
+            raise MaterialError("damaged_file") from exc
+    if done.returncode != 0:
+        raise MaterialError("damaged_file")
+    return done.stdout.decode("utf-8", errors="replace")
+
+
 def _pdf(data: bytes) -> str:
     from pypdf import PdfReader
     from pypdf.errors import PdfReadError
@@ -214,7 +237,7 @@ def _plain(data: bytes) -> str:
 
 
 _EXTRACTORS: Dict[str, Callable[[bytes], str]] = {
-    "pdf": _pdf, "epub": _epub, "docx": _docx, "txt": _plain, "md": _plain,
+    "pdf": _pdf, "epub": _epub, "doc": _doc, "docx": _docx, "txt": _plain, "md": _plain,
     "xlsx": _xlsx, "csv": _csv, "pptx": _pptx,
 }
 

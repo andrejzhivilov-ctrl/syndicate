@@ -118,3 +118,32 @@ def test_a_recording_takes_its_transcript_into_the_card_and_unshelved_files_wait
     assert "Ризик на угоду 1%." in card and "source: x" not in card and not transcript.exists()
     assert path.exists()  # no way to Drive: the original stays
     assert not (folder / "новий.pdf.md").exists()
+
+
+def test_an_old_word_book_is_read_through_antiword_and_its_old_card_is_redone(tmp_path, monkeypatch):
+    """19.11.2026: Bradbury and Yalom came as Word 97 .doc and were «not supported»."""
+    import shutil
+    import subprocess
+
+    from src import material_reader
+
+    monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path / "data"))
+    folder, book, _state = _shelf(tmp_path, "Ялом.doc", b"\xd0\xcf\x11\xe0 old word")
+    mm.card_path(book).write_text("---\n---\n\nВміст не розпізнано: unsupported_format. Оригінал: сервер.",
+                                  encoding="utf-8")
+    silent = book.with_name("екран.mp4")
+    silent.write_bytes(b"\x00")
+    mm.card_path(silent).write_text("Вміст не розпізнано: no_speech_heard.", encoding="utf-8")
+    assert mm.pending(folder) == [book]  # the book is retried, a silent recording is not
+
+    monkeypatch.setattr(shutil, "which", lambda _name: None)
+    with __import__("pytest").raises(material_reader.MaterialError, match="doc_reader_missing"):
+        material_reader.extract_text("doc", book.read_bytes())
+
+    def antiword(args, **_kwargs):
+        assert args[1:3] == ["-m", "UTF-8.txt"]
+        return subprocess.CompletedProcess(args, 0, stdout="Екзистенційна психотерапія".encode(), stderr=b"")
+
+    monkeypatch.setattr(shutil, "which", lambda _name: "/usr/bin/antiword")
+    monkeypatch.setattr(subprocess, "run", antiword)
+    assert material_reader.extract_text("doc", book.read_bytes()) == "Екзистенційна психотерапія"

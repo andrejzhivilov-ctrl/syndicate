@@ -139,12 +139,48 @@ async def _owner(item: Path, asker: Optional[Asker]) -> Optional[str]:
         return None
 
 
+def _folder_files(folder: Path) -> List[Path]:
+    return sorted(path for path in folder.rglob("*") if path.is_file() and not path.name.startswith(".")
+                  and not path.name.endswith((TRANSCRIPT_SUFFIX, ".part")))
+
+
+def _prune(folder: Path) -> None:
+    """Remove the directories a split left empty (never a file)."""
+    for directory in sorted((p for p in folder.rglob("*") if p.is_dir()), key=lambda p: len(p.parts), reverse=True):
+        if not any(directory.iterdir()):
+            directory.rmdir()
+    if folder.is_dir() and not any(folder.iterdir()):
+        folder.rmdir()
+
+
+async def _split(folder: Path, root: Path, asker: Optional[Asker], report: Dict[str, Any]) -> None:
+    """A mixed folder (19.11.2026: Andrii's «Книжки» held books, recipes, voice notes and a trading archive)
+    has no single owner, so each file goes to its own, keeping the folder's name as a subfolder there."""
+    for path in _folder_files(folder):
+        agent = await _owner(path, asker)
+        relative = path.parent.relative_to(folder.parent)
+        base = root.joinpath(*(UNSURE if agent is None else ROUTES[agent][0]))
+        move(path, base / relative)
+        if agent is None:
+            report["unsure"].append(f"{folder.name}/{path.name}")
+        else:
+            report["routed"].append(f"{folder.name}/{path.name} → {NAMES[agent]}")
+    _prune(folder)
+    if folder.exists():  # what is left (a file still arriving) waits for the next run
+        report.setdefault("waiting", []).append(folder.name)
+
+
 async def route(root: Path, asker: Optional[Asker]) -> Dict[str, Any]:
-    """One pass over the inbox: every item to its owner's materials, or to «На перевірку»."""
+    """One pass over the inbox: every item to its owner's materials, or to «На перевірку».
+
+    A folder goes whole when one owner fits; a folder nobody owns as a whole is split file by file."""
     inbox = root.joinpath(*INBOX)
     report: Dict[str, Any] = {"status": "ok", "routed": [], "unsure": []}
     for item in arrivals(inbox)[:MAX_PER_RUN]:
         agent = await _owner(item, asker)
+        if agent is None and asker is not None and item.is_dir() and len(_folder_files(item)) > 1:
+            await _split(item, root, asker, report)
+            continue
         if agent is None:
             move(item, root.joinpath(*UNSURE))
             report["unsure"].append(item.name)
