@@ -27,7 +27,7 @@ from src.data_paths import ensure_dir
 from src.llm_router import AGENT_PROFILES, BASE
 from src.model_registry import model_for
 from src.agent_jobs import AGENT_KINDS, learning_inbox
-from src.obsidian_notes import reference_for, vault_dir_from_env
+from src.obsidian_notes import vault_dir_from_env
 from src.pii import PIIRedactor
 from src.sensitive import is_military
 
@@ -46,6 +46,8 @@ LEARNING = "learning"
 LEARNING_MODEL_KEY = "OR_CLAUDE_HAIKU"
 DEFAULT_LEARNING_BUDGET_USD = 10.0
 MAX_TOOL_CHARS = 12_000
+#: obsidian_read gives at most this much of one note; a longer card is read with material_read.
+NOTE_READ_CHARS = 10_000
 CHAT_TIMEOUT_S = 150
 #: Captions take seconds; an hour of audio through Groq about a minute. Longer is cut off.
 VIDEO_DIGEST_TIMEOUT_S = 120
@@ -184,7 +186,8 @@ def _tools(agent: str) -> List[Dict[str, Any]]:
          "inputSchema": _schema(["query"], query=text)},
         {"name": "hub_read", "description": "Read one hub entry by the id hub_search gave.",
          "inputSchema": _schema(["id"], id=text)},
-        {"name": "obsidian_search", "description": "Search the whole Obsidian vault, read-only.",
+        {"name": "obsidian_search", "description": "Search the whole Obsidian vault by words, own folder first; "
+                                                   "each hit comes with its summary. Read-only.",
          "inputSchema": _schema(["query"], query=text)},
         {"name": "obsidian_read", "description": "Read one Markdown note by its path inside the vault.",
          "inputSchema": _schema(["path"], path=text)},
@@ -304,7 +307,13 @@ def _read_note(path: str) -> str:
     target = (root / path).resolve()
     if root.resolve() not in target.parents or target.suffix.lower() != ".md" or not target.is_file():
         return "Такої нотатки немає."
-    return target.read_text(encoding="utf-8", errors="replace")
+    text = target.read_text(encoding="utf-8", errors="replace")
+    if len(text) <= NOTE_READ_CHARS:
+        return text
+    # 19.11.2026: a card can hold a whole book; the head (summary, analysis) first, the rest part by part.
+    rest = len(text) - NOTE_READ_CHARS
+    return (text[:NOTE_READ_CHARS] + f"\n\n[…далі ще {rest} символів. Читай повністю через "
+            f"material_read з path={path!r}, частина за частиною.]")
 
 
 async def _hub_search(agent: str, query: str) -> Any:
@@ -331,8 +340,12 @@ async def _run_tool(agent: str, name: str, args: Mapping[str, Any], orchestrator
     if name == "hub_read":
         return await _hub_read(agent, str(args.get("id", "")))
     if name == "obsidian_search":
-        found = await asyncio.to_thread(reference_for, str(args.get("query", "")), vault_dir_from_env())
-        return found or "Нічого не знайдено."
+        # 19.11.2026: a real search, not the chat reference that waited for the word «нотатки».
+        from src.hermes_tools import NOTE_DIRS
+        from src.obsidian_notes import search_notes
+
+        return await asyncio.to_thread(search_notes, str(args.get("query", "")), vault_dir_from_env(),
+                                       NOTE_DIRS.get(agent, ""))
     if name == "obsidian_read":
         return await asyncio.to_thread(_read_note, str(args.get("path", "")))
     if name == "learning_inbox" and agent in AGENT_KINDS:

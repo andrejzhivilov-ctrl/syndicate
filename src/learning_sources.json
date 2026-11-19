@@ -1,11 +1,13 @@
 {
-  "_comment": "Hosts Andrii connected as learning sources per agent (docs/agents/TRAINER_KNOWLEDGE_SOURCES.md). Subdomains match. Empty: nothing is accepted.",
+  "_comment": "Hosts Andrii connected as learning sources per agent (docs/agents/TRAINER_KNOWLEDGE_SOURCES.md). Subdomains match. Empty: nothing is accepted. 19.11.2026: YouTube (the channels in src/learning_feeds.json) and Stronger by Science.",
   "trainer": [
     "pubmed.ncbi.nlm.nih.gov",
     "examine.com",
     "labdoor.com",
     "journals.lww.com",
     "endocrine.org",
-    "frontiersin.org"
+    "frontiersin.org",
+    "strongerbyscience.com",
+    "youtube.com"
   ]
 }

@@ -1792,7 +1792,7 @@ class EvaOrchestrator:
 
     def media_keys(self) -> Dict[str, str]:
         """Keys the video digest needs (src/video_digest.py); absent ones stay absent."""
-        names = ("groq_api_key", "deepgram_api_key")
+        names = ("groq_api_key", "deepgram_api_key", "gemini_api_key")  # 19.11: Gemini watches YouTube links
         keys = {name: str(self._llm_config[name]) for name in names if self._llm_config.get(name)}
         if self.openrouter_key():
             keys["openrouter_api_key"] = self.openrouter_key()

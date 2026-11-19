@@ -135,3 +135,63 @@ def obsidian_reference(agent_id: str, text: str) -> Optional[str]:
     except Exception as exc:  # noqa: BLE001 - reference is optional context, chat must go on
         logger.warning("obsidian_reference_failed", agent=agent_id, error_type=type(exc).__name__)
         return "Не вдалося прочитати сховище Obsidian. Не вигадуй вміст нотаток."
+
+
+# ── search for agents (19.11.2026) ────────────────────────────────────────────────────────
+#
+# The chat reference above answers only when a message speaks about notes. An agent's
+# ``obsidian_search`` always means "search", so it must not wait for such a word; it must see
+# big cards (a whole book as Markdown) by their head, prefer the agent's own folder, and give
+# each hit's summary so the agent decides what to open without reading it.
+
+SEARCH_HEAD_BYTES = 60_000
+SEARCH_LIMIT = 8
+OWN_FOLDER_BONUS = 4
+_FRONT = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
+
+
+def _head(path: Path) -> str:
+    try:
+        with path.open("r", encoding="utf-8", errors="replace") as stream:
+            return stream.read(SEARCH_HEAD_BYTES)
+    except OSError:
+        return ""
+
+
+def _summary(text: str) -> str:
+    front = _FRONT.match(text)
+    if front:
+        found = re.search(r'^summary:\s*"?(.*?)"?\s*$', front.group(1), re.MULTILINE)
+        if found and found.group(1).strip():
+            return found.group(1).strip()[:300]
+    body = _FRONT.sub("", text).strip()
+    return re.sub(r"\s+", " ", body)[:300]
+
+
+def search_notes(query: str, root: Optional[Path], own: str = "", limit: int = SEARCH_LIMIT) -> str:
+    """Notes matching the words of a query, best first, each with its path and summary."""
+    if root is None:
+        return "Сховище Obsidian недоступне."
+    terms = {_stem(w.lower().strip("'’-")) for w in _WORD_RE.findall(query)}
+    if not terms:
+        return "Порожній запит: напиши, що шукати."
+    scored = []
+    for _mtime, path in _notes(root):
+        relative = path.relative_to(root).as_posix()
+        head = _head(path).lower()
+        title = path.stem.lower()
+        front = (_FRONT.match(head).group(1) if _FRONT.match(head) else "")
+        score = sum((4 if term in title else 0) + (3 if term in front else 0) + min(head.count(term), 5)
+                    for term in terms)
+        if score and own and relative.startswith(own.rstrip("/") + "/"):
+            score += OWN_FOLDER_BONUS
+        if score >= MIN_SCORE:
+            scored.append((score, relative, path))
+    if not scored:
+        return f"За запитом «{query}» у нотатках нічого не знайдено."
+    scored.sort(key=lambda item: -item[0])
+    lines = [f"Знайдено {len(scored)}; найкращі {min(limit, len(scored))}. Відкривай obsidian_read (нотатка) "
+             "або material_read частинами (великий текст):"]
+    for _score_value, relative, path in scored[:limit]:
+        lines.append(f"- {relative} — {_summary(_head(path))}")
+    return "\n".join(lines)
