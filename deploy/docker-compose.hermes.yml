@@ -132,7 +132,7 @@ services:
     pids_limit: 256
 
   # The agents' code sandbox (19.11.2026): run_python goes here. No secrets, no env file, no volumes,
-  # only the internal hermes_net (no route out), read-only, unprivileged, with time and memory caps.
+  # only the internal hermes_net (no route out), read-only, a plain user, with time and memory caps.
   code-sandbox:
     build: ./sandbox
     restart: unless-stopped
