@@ -27,6 +27,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import httpx
 import structlog
 
+from src import archive_unpack
 from src.data_paths import ensure_dir
 from src.material_reader import EXTENSIONS, TRANSCRIPT_SUFFIX, MaterialError, extract_text
 from src.model_registry import model_for
@@ -112,6 +113,8 @@ def excerpt(path: Path) -> str:
     ext = path.suffix.lower().lstrip(".")
     transcript = path.with_name(path.name + TRANSCRIPT_SUFFIX)
     try:
+        if archive_unpack.is_archive(path):
+            return archive_unpack.sample(path)[:EXCERPT_CHARS]  # route an archive by what it holds
         if ext in MEDIA and transcript.is_file():
             return transcript.read_text(encoding="utf-8", errors="replace")[:EXCERPT_CHARS]
         if ext in EXTENSIONS:

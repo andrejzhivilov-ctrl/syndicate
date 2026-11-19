@@ -26,7 +26,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import structlog
 
-from src import lecture_transcriber, material_reader, media_vision, telegram_files
+from src import archive_unpack, lecture_transcriber, material_reader, media_vision, telegram_files
 from src.data_paths import ensure_dir
 
 logger = structlog.get_logger(__name__)
@@ -81,7 +81,7 @@ RETRY_REASONS = ("unsupported_format", "doc_reader_missing")
 
 
 def _retry(path: Path) -> bool:
-    if path.suffix.lower().lstrip(".") not in TEXT:
+    if path.suffix.lower().lstrip(".") not in TEXT and not archive_unpack.is_archive(path):
         return False
     try:
         head = card_path(path).read_text(encoding="utf-8")[:2000]
@@ -121,6 +121,8 @@ async def _image_text(path: Path, keys: Dict[str, Any]) -> Dict[str, Any]:
 async def content(path: Path, keys: Dict[str, Any]) -> Dict[str, Any]:
     """The Markdown body of one file, or why there is none (never a guess)."""
     ext = path.suffix.lower().lstrip(".")
+    if archive_unpack.is_archive(path):  # 19.11.2026: opened into «<name> (архів)», each file carded on its own
+        return {**await asyncio.to_thread(archive_unpack.unpack, path), "kind": "archive"}
     if ext in TEXT:
         try:
             text = await asyncio.to_thread(material_reader.extract_text, ext, path.read_bytes())
@@ -305,7 +307,8 @@ async def convert_one(path: Path, entry: Dict[str, Any], keys: Dict[str, Any], m
     if body["status"] == "ok" and keys.get("openrouter_api_key"):
         body = await with_analysis(body, keys["openrouter_api_key"])
     if body["status"] != "ok" and body.get("reason") in ("monthly_minutes_cap", "no_groq_key", "model_key_unavailable",
-                                                          "daily_limit_reached", "transcription_failed", "vision_failed"):
+                                                          "daily_limit_reached", "transcription_failed", "vision_failed",
+                                                          *archive_unpack.LATER):
         return {"file": path.name, "status": "later", "reason": body.get("reason")}  # try again next run
     placed = await place_original(path, mirrored, checker, uploader, mover, parts) if body["status"] == "ok" \
         else {"where": "сервер (вміст не розпізнано, оригінал лишається)", "remove": False}
