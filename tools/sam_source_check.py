@@ -11,6 +11,9 @@ async def probe(key):
         result = await asyncio.wait_for(read(key), timeout=25)
     except asyncio.TimeoutError:
         result = {"status": "unavailable", "reason": "timeout"}
+    if key == "fiat_books" and result["status"] == "ok":
+        return {"source": key, "status": "ok", "pairs": [r["pair"] for r in result["data"]],
+                "retrieved_at": result["retrieved_at"]}
     return {"source": key, "status": result["status"], "reason": result.get("reason"),
             "retrieved_at": result.get("retrieved_at")}
 
@@ -27,7 +30,7 @@ async def spot_candles(venue):
 
 
 async def main():
-    for row in await asyncio.gather(*(probe(key) for key in URLS), spot_candles("binance"), spot_candles("bybit")):
+    for row in await asyncio.gather(*(probe(key) for key, url in URLS.items() if url.startswith("https://")), spot_candles("binance"), spot_candles("bybit")):
         print(json.dumps(row, ensure_ascii=True))
 
 

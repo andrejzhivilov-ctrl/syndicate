@@ -14,9 +14,11 @@ TREND_SCRIPT = ("async function run(client) { const data = await client.search.t
                 "return 'SAM_COINS=' + data.coins.slice(0, 15).map(x => x.item.id).join(','); }")
 MCP = "https://mcp.api.coingecko.com/mcp"
 URLS = {
+    "ibkr_fx": "local:ibkr-paper-fx",
     "crypto_trending": MCP,
     "binance_btc_book": "https://data-api.binance.vision/api/v3/ticker/bookTicker?symbol=BTCUSDT",
     "bybit_btc_book": "https://api.bybit.com/v5/market/orderbook?category=spot&symbol=BTCUSDT&limit=1",
+    "fiat_books": "https://api.kraken.com/0/public/Ticker",
     "btc_book": "https://api.kraken.com/0/public/Depth?pair=XBTUSD&count=1",
     "usd_uah": "https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?valcode=USD&json",
     "fed_news": "https://www.federalreserve.gov/feeds/press_all.xml",
@@ -128,6 +130,34 @@ def _spot_top(source, data):
             "ask_size_btc": prices[3], "exchange_time_ms": timestamp_ms}
 
 
+FIAT_PAIR = re.compile(r"Z?(USD|EUR|GBP|JPY|CHF|CAD|AUD|NZD|SEK|NOK)Z?(USD|EUR|GBP|JPY|CHF|CAD|AUD|NZD|SEK|NOK)")
+
+
+async def _fiat_books(client, body):
+    data = json.loads(body)
+    if data["error"]:
+        raise ValueError("exchange_error")
+    candidates = {k: v for k, v in data["result"].items() if FIAT_PAIR.fullmatch(k)}
+    if not candidates:
+        return []
+    # Kraken's legacy asset prefixes collide with token names such as ZCHF.
+    host = "https://api.kraken.com/0/public/AssetPairs"
+    raw, _ = await _read(client, "GET", host, params={"pair": ",".join(candidates)})
+    catalog = json.loads(raw)
+    if catalog["error"]:
+        raise ValueError("pair_metadata_unavailable")
+    rows = []
+    for symbol, item in candidates.items():
+        pair = catalog["result"].get(symbol, {}).get("wsname", "")
+        if not re.fullmatch(r"(?:USD|EUR|GBP|JPY|CHF|CAD|AUD|NZD|SEK|NOK)/(?:USD|EUR|GBP|JPY|CHF|CAD|AUD|NZD|SEK|NOK)", pair):
+            continue
+        bid, ask, high, low = map(float, (item["b"][0], item["a"][0], item["h"][1], item["l"][1]))
+        if pair[:3] != pair[-3:] and all(math.isfinite(n) for n in (bid, ask, high, low)) and 0 < bid <= ask and 0 < low <= high:
+            rows.append({"pair": pair, "bid": bid, "ask": ask,
+                         "spread_bp": 20000 * (ask - bid) / (ask + bid), "range_24h_pct": 100 * (high / low - 1)})
+    return sorted(rows, key=lambda row: row["range_24h_pct"], reverse=True)
+
+
 def _scoreboard(data):
     return {"events": [{"id": e["id"], "name": e["name"], "scheduled_at": e["date"],
                         "status": e.get("status", {}).get("type", {}).get("name")}
@@ -155,6 +185,9 @@ def _digest(key, body, now):
 
 
 async def read(source, transport=None):
+    if source == "ibkr_fx":
+        from src.sam_fx_board import snapshot
+        return snapshot()
     url = URLS.get(source)
     if not url:
         return {"status": "error", "reason": "unknown_source", "sources": sorted(URLS)}
@@ -164,7 +197,8 @@ async def read(source, transport=None):
                 result = await _trending(client)
             else:
                 body, _ = await _read(client, "GET", url)
-                result = _digest(source, body, datetime.now(timezone.utc))
+                result = (await _fiat_books(client, body) if source == "fiat_books"
+                          else _digest(source, body, datetime.now(timezone.utc)))
         if not result:
             raise ValueError("empty_result")
     except (httpx.HTTPError, ValueError, TypeError, KeyError, IndexError, AttributeError) as exc:
