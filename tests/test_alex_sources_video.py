@@ -49,7 +49,7 @@ def test_gemini_watches_a_youtube_link_itself_and_the_note_has_its_moments(tmp_p
     assert result["status"] == "ok" and result["text_from"] == "gemini" and "gemini-4-hydrogen" in asked["model"]
     assert asked["uri"] == "https://www.youtube.com/watch?v=abc"
     note = (tmp_path / result["note"]).read_text(encoding="utf-8")
-    assert "Об'єм тренувань" in note and '"channel": "Jeff Nippard"' in note
+    assert "Об'єм тренувань" in note and 'channel: "Jeff Nippard"' in note
     moments = next(tmp_path.rglob("*.розшифровка.md")).read_text(encoding="utf-8")
     assert "10-20 підходів" in moments
 
