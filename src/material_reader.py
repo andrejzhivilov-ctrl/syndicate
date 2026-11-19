@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 from xml.etree import ElementTree
 
-from src.data_paths import data_dir
+from src.data_paths import data_dir, ensure_dir
 
 #: 16.11.2026: tables (xlsx, csv) and slides (pptx) too, as Markdown rows and slide text.
 #: 19.11.2026: old Word 97–2003 books (.doc) through antiword.
@@ -200,7 +200,7 @@ def _doc(data: bytes) -> str:
     tool = shutil.which("antiword")
     if tool is None:
         raise MaterialError("doc_reader_missing")
-    with tempfile.TemporaryDirectory(dir=data_dir()) as scratch:  # the container's root is read-only
+    with tempfile.TemporaryDirectory(dir=ensure_dir("materials")) as scratch:  # the container's root is read-only
         source = Path(scratch) / "book.doc"
         source.write_bytes(data)
         try:
