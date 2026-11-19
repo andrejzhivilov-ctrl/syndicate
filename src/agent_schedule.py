@@ -24,7 +24,7 @@ from zoneinfo import ZoneInfo
 
 import structlog
 
-from src import learning_feeds, agent_jobs
+from src import learning_feeds, agent_jobs, sam_prompts
 from src.alert_watch import ALERT_BOT
 from src.data_paths import ensure_dir
 from src.proactive import cron_matches
@@ -83,6 +83,21 @@ JOBS: Dict[str, Job] = {job.name: job for job in (
     # 18.11.2026: shelved materials become Markdown cards; originals go to Drive and leave the server.
     Job("eva_markdown", "6,16,26,36,46,56 * * * *", "eva", "to_markdown",
         "Єва: матеріали в Markdown, оригінали на Google Drive", timeout_s=1800),
+    # Sam on paper (Andrii, 19.11.2026): the engine is code, no model, every minute; reports and research are
+    # Hermes turns. Nights are quiet: only the morning report tells Andrii what happened.
+    Job("sam_paper_mark", "* * * * *", "sam", "sam_mark", "Сем: стопи й цілі паперових угод"),
+    Job("sam_scalp", "* * * * *", "sam", "sam_scalp", "Сем: скальпінг на папері"),
+    Job("sam_tournament", "*/5 * * * *", "sam", "sam_tournament", "Сем: турнір стратегій на папері", timeout_s=600),
+    Job("sam_morning", "0 8 * * *", "sam", "report", "Сем: ранковий звіт", sam_prompts.MORNING, timeout_s=1500),
+    Job("sam_london", "45 9 * * 1-5", "sam", "report", "Сем: перед Лондоном", sam_prompts.LONDON, timeout_s=900),
+    Job("sam_new_york", "15 15 * * 1-5", "sam", "report", "Сем: перед Нью-Йорком", sam_prompts.NEW_YORK, timeout_s=900),
+    Job("sam_evening", "0 21 * * *", "sam", "report", "Сем: вечірній звіт", sam_prompts.EVENING, timeout_s=1500),
+    Job("sam_bets", "0 11 * * *", "sam", "report", "Сем: ставки дня на папері", sam_prompts.BETS, timeout_s=1500),
+    Job("sam_crypto_projects", "0 13 * * *", "sam", "report", "Сем: нові крипто-проекти", sam_prompts.CRYPTO_PROJECTS,
+        timeout_s=1500),
+    Job("sam_reflection", "30 4 * * *", "sam", "report", "Сем: нічна рефлексія", sam_prompts.REFLECTION, timeout_s=1500),
+    Job("sam_weekly", "0 18 * * 0", "sam", "report", "Сем: тижневий огляд", sam_prompts.WEEKLY, timeout_s=1500),
+    Job("sam_monthly", "0 10 1 * *", "sam", "report", "Сем: місячний огляд", sam_prompts.MONTHLY, timeout_s=1500),
 )}
 
 
@@ -121,6 +136,28 @@ async def _sort_materials(job: Job, gateway: Any) -> Dict[str, Any]:
 
 
 #: Jobs that run local code instead of an agent.
+def _fetch_rows(source: str, symbol: str, timeframe: str, limit: int) -> List[Any]:
+    from src import market_data
+
+    if source == market_data.YAHOO:
+        return market_data._yahoo(symbol, timeframe, limit)
+    return market_data._crypto(source, symbol, timeframe, limit)
+
+
+async def _sam_engine(job: Job, gateway: Any) -> Dict[str, Any]:
+    """Marking, scalping and the tournament: deterministic code over public candles, one ledger lock."""
+    from src import sam_paper, sam_strategies
+
+    def work(ledger: Dict[str, Any]) -> Dict[str, Any]:
+        if job.kind == "sam_mark":
+            return {"closed": len(sam_strategies.mark_open(ledger, _fetch_rows))}
+        names = ["scalp_1m"] if job.kind == "sam_scalp" else [n for n in sam_strategies.STRATEGIES if n != "scalp_1m"]
+        return {"opened": len(sam_strategies.run(ledger, _fetch_rows, names))}
+
+    result = await asyncio.to_thread(sam_paper.transact, work)
+    return {"status": "ok", **result}
+
+
 async def _to_markdown(job: Job, gateway: Any) -> Dict[str, Any]:
     from src import material_markdown
 
@@ -128,7 +165,8 @@ async def _to_markdown(job: Job, gateway: Any) -> Dict[str, Any]:
 
 
 LOCAL_JOBS = {"drive_mirror": _drive_mirror, "transcribe": _transcribe, "owner_reminder": _owner_reminder,
-              "sort_materials": _sort_materials, "to_markdown": _to_markdown}
+              "sort_materials": _sort_materials, "to_markdown": _to_markdown,
+              "sam_mark": _sam_engine, "sam_scalp": _sam_engine, "sam_tournament": _sam_engine}
 
 
 def enabled_from_env(raw: Optional[str] = None) -> Tuple[List[str], List[str]]:
