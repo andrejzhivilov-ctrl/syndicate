@@ -3,12 +3,15 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from datetime import datetime, timezone
 
 import httpx
 
 from src.learning_feeds import parse_feed
 
+TREND_SCRIPT = ("async function run(client) { const data = await client.search.trending.get(); "
+                "return 'SAM_COINS=' + data.coins.slice(0, 15).map(x => x.item.id).join(','); }")
 MCP = "https://mcp.api.coingecko.com/mcp"
 URLS = {
     "crypto_trending": MCP,
@@ -17,7 +20,9 @@ URLS = {
     "fed_news": "https://www.federalreserve.gov/feeds/press_all.xml",
     "ecb_news": "https://www.ecb.europa.eu/rss/press.html",
     "cme_video": "https://www.youtube.com/feeds/videos.xml?channel_id=UCLC4PuFlyKwK03Sc29YLEGQ",
-    "nba_games": "https://cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_00.json",
+    "nba_games": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard",
+    "atp_events": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard",
+    "epl_events": "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard",
     "dota_results": "https://api.opendota.com/api/proMatches",
     "football_archive": "https://raw.githubusercontent.com/statsbomb/open-data/master/data/competitions.json",
 }
@@ -76,13 +81,14 @@ async def _trending(client):
                                      "clientInfo": {"name": "syndicate-paper", "version": "1"}}, 1)
     headers["MCP-Protocol-Version"] = hello["protocolVersion"]
     await send("notifications/initialized", {})
-    result = await send("tools/call", {"name": "trending_search", "arguments": {}}, 2)
+    result = await send("tools/call", {"name": "execute", "arguments": {"code": TREND_SCRIPT}}, 2)
     if result.get("isError") or not result.get("content"):
         raise ValueError("mcp_trending_unavailable")
     text = "\n".join(c.get("text", "") for c in result["content"] if c.get("type") == "text")
-    if not text.strip():
+    match = re.search(r"SAM_COINS=([a-z0-9-]+(?:,[a-z0-9-]+)*)", text)
+    if not match:
         raise ValueError("empty_trending")
-    return {"research_excerpt": text[:8000], "truncated": len(text) > 8000}
+    return {"coin_ids": match.group(1).split(",")}
 
 
 def _book(data, now):
@@ -97,13 +103,10 @@ def _book(data, now):
             "ask_updated": ask[2], "oldest_level_age_s": now.timestamp() - min(int(bid[2]), int(ask[2]))}
 
 
-def _nba(data):
-    board = data["scoreboard"]
-    return {"game_date": board["gameDate"], "games": [
-        {"id": g["gameId"], "status": g["gameStatusText"],
-         "home": g["homeTeam"]["teamTricode"], "away": g["awayTeam"]["teamTricode"],
-         "home_score": g["homeTeam"]["score"], "away_score": g["awayTeam"]["score"]}
-        for g in board["games"][:20]]}
+def _scoreboard(data):
+    return {"events": [{"id": e["id"], "name": e["name"], "scheduled_at": e["date"],
+                        "status": e.get("status", {}).get("type", {}).get("name")}
+                       for e in data["events"][:30]]}
 
 
 def _digest(key, body, now):
@@ -112,8 +115,8 @@ def _digest(key, body, now):
                  "published": e["when"].isoformat() if e["when"] else None}
                 for e in parse_feed(body)[:8] if e["title"] and e["url"]]
     data = json.loads(body)
-    if key == "nba_games":
-        return _nba(data)
+    if key in {"nba_games", "atp_events", "epl_events"}:
+        return _scoreboard(data)
     if key == "btc_book":
         return _book(data, now)
     if key == "usd_uah":
@@ -138,6 +141,7 @@ async def read(source, transport=None):
         if not result:
             raise ValueError("empty_result")
     except (httpx.HTTPError, ValueError, TypeError, KeyError, IndexError, AttributeError) as exc:
-        return {"status": "unavailable", "source": source, "url": url, "reason": type(exc).__name__}
+        reason = (f"http_{exc.response.status_code}" if isinstance(exc, httpx.HTTPStatusError) else type(exc).__name__)
+        return {"status": "unavailable", "source": source, "url": url, "reason": reason}
     return {"status": "ok", "source": source, "url": url, "retrieved_at": datetime.now(timezone.utc).isoformat(),
             "research_only": True, "data": result}

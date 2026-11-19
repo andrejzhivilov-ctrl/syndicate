@@ -5,7 +5,7 @@ import json
 import httpx
 
 from src import hermes_tools
-from src.sam_public_sources import read
+from src.sam_public_sources import TREND_SCRIPT, read
 
 
 def run(source, handler):
@@ -37,10 +37,10 @@ def test_mcp_session_and_result():
         assert request.headers["mcp-session-id"] == "demo"
         if msg["method"] == "notifications/initialized":
             return httpx.Response(202)
-        assert msg["params"] == {"name": "trending_search", "arguments": {}}
+        assert msg["params"] == {"name": "execute", "arguments": {"code": TREND_SCRIPT}}
         return httpx.Response(200, headers={"Content-Type": "text/event-stream"},
-                              text='data: {"id":2,"result":{"content":[{"type":"text","text":"sample"}]}}\n\n')
-    assert run("crypto_trending", provider)["data"]["research_excerpt"] == "sample"
+                              text='data: {"id":2,"result":{"content":[{"type":"text","text":"SAM_COINS=test-coin"}]}}\n\n')
+    assert run("crypto_trending", provider)["data"]["coin_ids"] == ["test-coin"]
     assert calls == ["initialize", "notifications/initialized", "tools/call"]
 
 
