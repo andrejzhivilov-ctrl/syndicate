@@ -133,17 +133,27 @@ def _spot_top(source, data):
 FIAT_PAIR = re.compile(r"Z?(USD|EUR|GBP|JPY|CHF|CAD|AUD|NZD|SEK|NOK)Z?(USD|EUR|GBP|JPY|CHF|CAD|AUD|NZD|SEK|NOK)")
 
 
-def _fiat_books(data):
+async def _fiat_books(client, body):
+    data = json.loads(body)
     if data["error"]:
         raise ValueError("exchange_error")
+    candidates = {k: v for k, v in data["result"].items() if FIAT_PAIR.fullmatch(k)}
+    if not candidates:
+        return []
+    # Kraken's legacy asset prefixes collide with token names such as ZCHF.
+    host = "https://api.kraken.com/0/public/AssetPairs"
+    raw, _ = await _read(client, "GET", host, params={"pair": ",".join(candidates)})
+    catalog = json.loads(raw)
+    if catalog["error"]:
+        raise ValueError("pair_metadata_unavailable")
     rows = []
-    for symbol, item in data["result"].items():
-        match = FIAT_PAIR.fullmatch(symbol)
-        if not match:
+    for symbol, item in candidates.items():
+        pair = catalog["result"].get(symbol, {}).get("wsname", "")
+        if not re.fullmatch(r"(?:USD|EUR|GBP|JPY|CHF|CAD|AUD|NZD|SEK|NOK)/(?:USD|EUR|GBP|JPY|CHF|CAD|AUD|NZD|SEK|NOK)", pair):
             continue
         bid, ask, high, low = map(float, (item["b"][0], item["a"][0], item["h"][1], item["l"][1]))
-        if all(math.isfinite(n) for n in (bid, ask, high, low)) and 0 < bid <= ask and 0 < low <= high:
-            rows.append({"pair": "/".join(match.groups()), "bid": bid, "ask": ask,
+        if pair[:3] != pair[-3:] and all(math.isfinite(n) for n in (bid, ask, high, low)) and 0 < bid <= ask and 0 < low <= high:
+            rows.append({"pair": pair, "bid": bid, "ask": ask,
                          "spread_bp": 20000 * (ask - bid) / (ask + bid), "range_24h_pct": 100 * (high / low - 1)})
     return sorted(rows, key=lambda row: row["range_24h_pct"], reverse=True)
 
@@ -164,8 +174,6 @@ def _digest(key, body, now):
         return _spot_top(key, data)
     if key in {"nba_games", "atp_events", "epl_events"}:
         return _scoreboard(data)
-    if key == "fiat_books":
-        return _fiat_books(data)
     if key == "btc_book":
         return _book(data, now)
     if key == "usd_uah":
@@ -189,7 +197,8 @@ async def read(source, transport=None):
                 result = await _trending(client)
             else:
                 body, _ = await _read(client, "GET", url)
-                result = _digest(source, body, datetime.now(timezone.utc))
+                result = (await _fiat_books(client, body) if source == "fiat_books"
+                          else _digest(source, body, datetime.now(timezone.utc)))
         if not result:
             raise ValueError("empty_result")
     except (httpx.HTTPError, ValueError, TypeError, KeyError, IndexError, AttributeError) as exc:
