@@ -50,6 +50,7 @@ FOOD_LOOKUP = "food_lookup"
 #: 19.11.2026: code in the isolated sandbox (deploy/sandbox) and public market candles (src/market_data.py).
 RUN_PYTHON = "run_python"
 MARKET_DATA = "market_data"
+PUBLIC_RESEARCH = "public_research"
 #: Sam's paper ledger (src/sam_paper.py): trades and bets with no real money (19.11.2026).
 PAPER_TRADE, PAPER_BET = "paper_trade", "paper_bet"
 
@@ -60,7 +61,7 @@ TOOL_GRANTS: Dict[str, Tuple[str, ...]] = {
     # Sam (19.11.2026): research, his own notes and tables, market data and the sandbox for the maths.
     # Nothing here trades: orders stay with Andrii's buttons (NEVER_AUTO_ACT, HITL).
     "sam": (WEB_SEARCH, WEB_FETCH, ARCHIVE_SEARCH, ARCHIVE_READ, NOTE_WRITE, ASK_AGENT,
-            MATERIAL_LIST, MATERIAL_READ, VIDEO_DIGEST, TABLE_SAVE, RUN_PYTHON, MARKET_DATA, PAPER_TRADE, PAPER_BET),
+            MATERIAL_LIST, MATERIAL_READ, VIDEO_DIGEST, TABLE_SAVE, RUN_PYTHON, MARKET_DATA, PUBLIC_RESEARCH, PAPER_TRADE, PAPER_BET),
 }
 #: Per-agent caps above the common ones: Sam reads markets all day (Andrii, 19.11.2026: he must work autonomously).
 AGENT_LIMITS: Dict[str, Dict[str, int]] = {"sam": {"web_search": 80, "web_fetch": 200, "market_data": 1000,
@@ -79,7 +80,7 @@ DAILY_LIMITS: Dict[str, int] = {WEB_SEARCH: 30, WEB_FETCH: 60, ARCHIVE_SEARCH: 1
                                 # Open Food Facts, free and open (16.11.2026).
                                 FOOD_LOOKUP: 100,
                                 # The sandbox runs on this server and public candles are free (19.11.2026).
-                                RUN_PYTHON: 100, MARKET_DATA: 300,
+                                RUN_PYTHON: 100, MARKET_DATA: 300, PUBLIC_RESEARCH: 100,
                                 # Paper only, local and free.
                                 PAPER_TRADE: 500, PAPER_BET: 200,
                                 # Photos and videos sent to the bot (src/media_vision.py), ~1-2 cents a minute of video.

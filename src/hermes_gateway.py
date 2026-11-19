@@ -21,7 +21,7 @@ from typing import Any, AsyncIterator, Dict, List, Mapping, Optional, Tuple
 import httpx
 import structlog
 
-from src import hermes_tools
+from src import hermes_tools, sam_public_sources
 from src.agent_chat import MILITARY_NOTE, _screen
 from src.data_paths import ensure_dir
 from src.llm_router import AGENT_PROFILES, BASE
@@ -255,6 +255,8 @@ def _gateway_tools(agent: str) -> List[Dict[str, Any]]:
          "inputSchema": _schema(["code"], code=text, datasets={"type": "array", "items": text},
                                 timeout={"type": "integer", "minimum": 1, "maximum": 300},
                                 save={"type": "boolean"})},
+        {"name": hermes_tools.PUBLIC_RESEARCH, "description": "Read-only public research; source dates differ from retrieval time.",
+         "inputSchema": _schema(["source"], source={"type": "string", "enum": sorted(sam_public_sources.URLS)})},
         {"name": hermes_tools.MARKET_DATA, "description": "Public OHLCV candles: crypto from binance/bybit/okx/kraken "
                                                           "(BTC/USDT), forex, metals, futures, indices and stocks from "
                                                           "yahoo (EURUSD=X, GC=F, CL=F, ^GSPC, SPY). Gives a summary "
@@ -352,6 +354,7 @@ async def _gateway_call(agent: str, name: str, args: Mapping[str, Any], orchestr
         hermes_tools.TABLE_SAVE: lambda: asyncio.to_thread(hermes_tools.table_save, agent, str(args.get("path", "")),
                                                            args.get("sheets")),
         hermes_tools.RUN_PYTHON: lambda: _run_python(agent, args),
+        hermes_tools.PUBLIC_RESEARCH: lambda: sam_public_sources.read(str(args.get("source", ""))),
         hermes_tools.MARKET_DATA: lambda: _market_data(args),
         hermes_tools.PAPER_TRADE: lambda: asyncio.to_thread(_sam_paper().trade_tool, dict(args)),
         hermes_tools.PAPER_BET: lambda: asyncio.to_thread(_sam_paper().bet_tool, dict(args)),
