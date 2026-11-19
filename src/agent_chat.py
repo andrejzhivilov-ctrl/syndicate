@@ -78,13 +78,18 @@ def system_prompt(agent_id: str) -> str:
     return f"Ти — {name}, {role} холдингу SYNDICATE. {voice}\n{_RULES}"
 
 
+#: Slash words the agent itself answers (its SOUL describes them), so they go to it as chat text.
+#: 19.11.2026: Andrii's «/звіт», «/звіт крипта», «/звіт <проєкт>» for Sam.
+TEXT_COMMANDS = frozenset({"/start", "/звіт"})
+
+
 def chat_text(payload: Dict[str, Any]) -> Optional[str]:
     """The user's free text, or None for commands (they keep their own handlers)."""
     text = payload.get("text")
     if not isinstance(text, str) or not text.strip():
         return None
     stripped = text.strip()
-    if stripped.startswith("/") and stripped.split()[0].split("@")[0] != "/start":
+    if stripped.startswith("/") and stripped.split()[0].split("@")[0].lower() not in TEXT_COMMANDS:
         return None
     return stripped
 

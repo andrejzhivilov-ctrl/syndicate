@@ -54,6 +54,9 @@ def test_every_director_has_a_ukrainian_persona_with_the_no_action_rule():
 def test_commands_keep_their_handlers_but_start_and_text_are_chat():
     assert chat_text({"text": "/status"}) is None
     assert chat_text({"text": "/start"}) == "/start"
+    # 19.11.2026: Sam answers «/звіт …» himself (his SOUL), so it reaches him as text.
+    assert chat_text({"text": "/звіт крипта"}) == "/звіт крипта"
+    assert chat_text({"text": "/Звіт@sam_bot BTC"}) == "/Звіт@sam_bot BTC"
     assert chat_text({"text": "  Привіт  "}) == "Привіт"
     assert chat_text({"text": ""}) is None
 
