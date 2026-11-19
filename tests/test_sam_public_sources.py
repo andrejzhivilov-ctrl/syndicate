@@ -85,6 +85,12 @@ def test_fiat_board_excludes_tokens_and_crossed_quotes():
     market = {"a": ["1.1"], "b": ["1.09"], "h": ["2", "1.2"], "l": ["1", "1.0"]}
     payload = {"error": [], "result": {"ZEURZUSD": market, "USDTUSD": market,
                                        "USDJPY": {**market, "a": ["0.2"]}}}
-    rows = run("fiat_books", lambda _: httpx.Response(200, json=payload))["data"]
+    payload["result"]["ZCHFUSD"] = market
+    def provider(request):
+        if request.url.path.endswith("AssetPairs"):
+            return httpx.Response(200, json={"error": [], "result": {
+                "ZEURZUSD": {"wsname": "EUR/USD"}, "ZCHFUSD": {"wsname": "ZCHF/USD"}, "USDJPY": {"wsname": "USD/JPY"}}})
+        return httpx.Response(200, json=payload)
+    rows = run("fiat_books", provider)["data"]
     assert [row["pair"] for row in rows] == ["EUR/USD"]
     assert round(rows[0]["range_24h_pct"], 4) == 20
