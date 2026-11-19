@@ -25,8 +25,8 @@ def _resolver(host):
 def test_only_granted_agents_get_the_tools_and_the_hermes_toolsets_stay_off():
     assert set(tools.granted("trainer")) == {"web_search", "web_fetch", "archive_search", "archive_read",
                                              "note_write", "ask_agent", "material_list", "material_read", "video_digest", "drive_save",
-                                             "table_save", "food_lookup"}  # 16.11.2026
-    assert tools.granted("sam") == () and tools.granted("nobody") == ()
+                                             "table_save", "food_lookup", "run_python"}  # 16.11, 19.11: sandbox
+    assert tools.granted("tyler") == () and tools.granted("nobody") == ()  # 19.11: Sam has tools now
     config = (ROOT / "deploy" / "hermes" / "trainer" / "config.yaml").read_text(encoding="utf-8")
     off = re.search(r"disabled_toolsets: \[([^\]]*)\]", config)
     assert off and {"terminal", "file", "web", "browser", "code_execution", "delegation", "computer_use"} <= {
@@ -146,7 +146,7 @@ def test_notes_go_only_to_the_own_folder_and_never_overwrite(tmp_path, monkeypat
         assert tools.note_write("trainer", path, "x", "create")["reason"] == "outside_own_folder", path
     assert not (vault / "Finance" / "x.md").exists()
     assert tools.note_write("trainer", "x.md", "x", "overwrite")["error"] == "unknown_mode"
-    assert tools.note_write("sam", "x.md", "x", "create")["reason"] == "vault_unavailable"
+    assert tools.note_write("tyler", "x.md", "x", "create")["reason"] == "vault_unavailable"  # 19.11: Sam has a folder now
 
     log = (tmp_path / "data" / "obsidian_activity" / "activity.jsonl").read_text(encoding="utf-8").splitlines()
     assert [json.loads(line)["action"] for line in log] == ["create", "append"]

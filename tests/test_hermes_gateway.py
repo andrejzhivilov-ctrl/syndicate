@@ -17,7 +17,7 @@ def test_a_token_works_for_one_agent_only(monkeypatch):
     assert gateway.token_ok("trainer", f"Bearer {token}")
     assert not gateway.token_ok("trainer", "Bearer wrong")
     assert not gateway.token_ok("trainer", None)
-    assert not gateway.token_ok("sam", f"Bearer {token}")  # not on Hermes yet
+    assert not gateway.token_ok("sam", f"Bearer {token}")  # another agent's token does not open Sam
     monkeypatch.setattr(gateway, "_MASTER", {"key": None})
     assert not gateway.token_ok("trainer", f"Bearer {token}")  # no master, no entry
 
@@ -25,8 +25,8 @@ def test_a_token_works_for_one_agent_only(monkeypatch):
 def test_enabled_agents_come_from_the_server_and_only_known_ones(monkeypatch):
     monkeypatch.delenv("EVA_HERMES_AGENTS", raising=False)
     assert gateway.enabled_agents() == []
-    monkeypatch.setenv("EVA_HERMES_AGENTS", "trainer, sam")
-    assert gateway.enabled_agents() == ["trainer"]
+    monkeypatch.setenv("EVA_HERMES_AGENTS", "trainer, sam, tyler")  # 19.11.2026: Sam joined Hermes
+    assert gateway.enabled_agents() == ["sam", "trainer"]
 
 
 def test_everything_heading_for_a_provider_is_masked_and_uses_a_registry_model():
@@ -91,7 +91,7 @@ def test_tools_refuse_what_was_not_granted_and_mask_results():
     assert names == {"agent_action", "hub_search", "hub_read", "obsidian_search", "obsidian_read", "learning_inbox",
                      "web_search", "web_fetch", "archive_search", "archive_read", "note_write", "ask_agent",
                      "material_list", "material_read", "video_digest", "drive_save",
-                     "table_save", "food_lookup"}  # 16.11.2026: own tables, KBJU from Open Food Facts
+                     "table_save", "food_lookup", "run_python"}  # 16.11: tables, KBJU; 19.11: the sandbox
 
     denied = asyncio.run(gateway.mcp_reply("trainer", _call("agent_action", action="place_trade"), orchestrator))
     text = denied["result"]["content"][0]["text"]
