@@ -51,7 +51,7 @@ def run(code: str, files: dict, timeout: int) -> dict:
             (root / name).write_text(str(text), encoding="utf-8")
         before = {path.name for path in root.iterdir()}
         env = {"PATH": "/usr/local/bin:/usr/bin:/bin", "HOME": work, "MPLBACKEND": "Agg", "PYTHONIOENCODING": "utf-8",
-               "MPLCONFIGDIR": work}
+               "MPLCONFIGDIR": str(root / ".mpl")}  # its font cache stays out of the files handed back
         try:
             done = subprocess.run([sys.executable, "-I", "-c", code], cwd=work, env=env, capture_output=True,
                                   text=True, timeout=timeout, preexec_fn=_limits)
