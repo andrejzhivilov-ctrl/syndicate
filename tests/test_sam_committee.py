@@ -62,9 +62,9 @@ def test_size_comes_from_atr_risk_and_asset_cap():
 
 
 def test_daily_drawdown_stops_new_risk_and_flat_signal_does_nothing():
-    assert daily_guard(10_000, 9_800)["blocked"] is True and daily_guard(10_000, 9_900)["blocked"] is False
-    assert daily_guard(1001, 980.98)["blocked"] is True  # exactly 2%: float alone would let it through
-    blocked = position_size({"strength": 0.9, "rationale": "x"}, equity=9_790, equity_start_of_day=10_000,
+    assert daily_guard(10_000, 9_700)["blocked"] is True and daily_guard(10_000, 9_800)["blocked"] is False  # −3% (19.11)
+    assert daily_guard(1001, 970.97)["blocked"] is True  # exactly 3% blocks (Decimal, not float)
+    blocked = position_size({"strength": 0.9, "rationale": "x"}, equity=9_690, equity_start_of_day=10_000,
                             price=100, atr=1)
     assert blocked["status"] == "blocked" and blocked["reason"] == "daily_drawdown_limit" and blocked["units"] == 0
     flat = position_size({"strength": 0, "rationale": "x"}, equity=10_000, equity_start_of_day=10_000, price=1, atr=1)
