@@ -61,12 +61,28 @@ def configure(ws):
     ws.column_dimensions["A"].width = 48
 
 
+def currency_headers(ws, unit):
+    for c in ws[1]:
+        c.value = c.value.replace("$", unit) if isinstance(c.value, str) else c.value
+
+
+def instrument_options(ws, desk):
+    # Each trade journal has a distinct instrument universe.
+    for rule in ws.data_validations.dataValidation:
+        if str(rule.sqref).startswith("C2:"):
+            choices = {"Форекс":"Спот FX,CFD", "Крипта":"Спот,Дериватив", "Інвестиції":"Акції,Облігації,ETF,Сировина,Ф’ючерси"}
+            rule.formula1 = '"' + choices[desk] + '"'
+
+
 def journal(ws, desk, unit, idx):
     is_bet = desk == "Ставки"
     if is_bet:
         core.bets(ws)
         extra = ["Спорт", "Майданчик", "Обґрунтування до дії", "Джерело / URL", "Час даних", "Коли теза хибна",
                  "Урок після результату", "Виплата покеру з урахуванням рейку", "ID новини", "Стан запису"]
+        for rule in ws.data_validations.dataValidation:
+            if str(rule.sqref).startswith("K2:"):
+                rule.formula1 = '"Відкрита,Виграш,Програш,Повернення,Скасована,Розраховано"'
         options(ws, "Q", SPORTS)
         options(ws, "R", ["VBET", "Parimatch", "Інший", "Паперовий стіл"])
     else:
@@ -74,16 +90,11 @@ def journal(ws, desk, unit, idx):
         extra = ["Горизонт / стратегія", "Джерело / URL", "Час даних", "Коли теза хибна", "Урок після результату",
                  "Плече", "ID новини", "Спред + прослизання у витратах", "Стан запису"]
         options(ws, "W", MODES)
-        # Each trade journal has a distinct instrument universe.
-        for rule in ws.data_validations.dataValidation:
-            if str(rule.sqref).startswith("C2:"):
-                choices = {"Форекс":"Спот FX,CFD", "Крипта":"Спот,Дериватив", "Інвестиції":"Акції,Облігації,ETF,Сировина,Ф’ючерси"}
-                rule.formula1 = '"' + choices[desk] + '"'
+        instrument_options(ws, desk)
     old = len(core.BET if is_bet else core.TRADE)
     for j, val in enumerate(extra, old+1):
         ws.cell(1, j, val)
-    for c in ws[1]:
-        c.value = c.value.replace("$", unit) if isinstance(c.value, str) else c.value
+    currency_headers(ws, unit)
     capital = f"'Налаштування'!$F${idx}"
     for i in range(2, LAST+1):
         if is_bet:
@@ -97,10 +108,6 @@ def journal(ws, desk, unit, idx):
                 cell.value = cell.value.replace(core.DEP, capital)
             ws[f"AE{i}"] = f'=IF(A{i}="","",IF(AND(Q{i}<>"",X{i}<>"",ISNUMBER(Y{i}),Y{i}<=B{i},Z{i}<>"",W{i}<>"",AB{i}>=1,AB{i}<=\'Налаштування\'!$B$12,R{i}<>"",D{i}<>"",C{i}<>""),"Описано","Доповнити"))'
             ws[f"Y{i}"].number_format = core.TIME
-    if is_bet:
-        for rule in ws.data_validations.dataValidation:
-            if str(rule.sqref).startswith("K2:"):
-                rule.formula1 = '"Відкрита,Виграш,Програш,Повернення,Скасована,Розраховано"'
     ws.auto_filter.ref = ws.dimensions
     style(ws)
     for col in (["S","T","V","W"] if is_bet else ["Q","X","Z","AA"]):
@@ -170,6 +177,10 @@ def analytics(ws, desk, idx):
     missing = f',COUNT({threshold}11)=0' if bet else ""
     ws["B42"] = f'=IF(OR(COUNT({START},{min_count},{threshold}10)<3{missing}),"Потрібні критерії",IF(TODAY()<C39+1,"Триває",IF(D39=0,"Немає даних",IF(AND(D39>={min_count},I39<={threshold}10{clv}),"Пройдено","Не пройдено"))))'
     style(ws)
+    add_analytics_charts(ws)
+
+
+def add_analytics_charts(ws):
     for col in range(12,24):
         ws.column_dimensions[letter(col)].hidden = True
     for chart_type, col, title, anchor in [(LineChart,11,"Баланс після закриття дня","A45"),(BarChart,5,"Денний результат","F45")]:
