@@ -67,3 +67,15 @@ def test_spot_venues_preserve_clock_and_reject_bad_quotes():
     assert run("bybit_btc_book", bybit)["data"]["exchange_time_ms"] == 123000
     data["retCode"] = 10006
     assert run("bybit_btc_book", bybit)["status"] == "unavailable"
+
+
+def test_binance_public_spot_candles(monkeypatch):
+    from src import market_data
+
+    def get(url, *, params, timeout):
+        assert url == "https://data-api.binance.vision/api/v3/klines"
+        assert params == {"symbol": "BTCUSDT", "interval": "1m", "limit": 1000}
+        return httpx.Response(200, request=httpx.Request("GET", url),
+                              json=[[123000, "10", "12", "9", "11", "5", 182999]])
+    monkeypatch.setattr(market_data.httpx, "get", get)
+    assert market_data._crypto("binance", "BTC/USDT", "1m", 2000) == [[123000, 10, 12, 9, 11, 5]]

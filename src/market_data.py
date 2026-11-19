@@ -12,6 +12,8 @@ import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List
 
+import httpx
+
 from src.code_sandbox import dataset_dir
 
 CRYPTO = ("binance", "bybit", "okx", "kraken")
@@ -26,6 +28,14 @@ SYMBOL = re.compile(r"^[A-Za-z0-9=^./:_-]{1,30}$")
 
 
 def _crypto(source: str, symbol: str, timeframe: str, limit: int) -> List[List[Any]]:
+    if source == "binance" and re.fullmatch(r"[A-Z0-9]+/USDT", symbol):
+        # Spot-only public host. Futures and other symbol conventions stay on CCXT.
+        response = httpx.get("https://data-api.binance.vision/api/v3/klines",
+                             params={"symbol": symbol.replace("/", ""), "interval": timeframe,
+                                     "limit": min(limit, 1000)}, timeout=20)
+        response.raise_for_status()
+        return [[int(row[0]), *(float(n) for n in row[1:6])] for row in response.json()]
+
     import ccxt
 
     exchange = getattr(ccxt, source)({"timeout": 20_000, "enableRateLimit": True})

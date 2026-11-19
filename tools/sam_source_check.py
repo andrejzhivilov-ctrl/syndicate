@@ -16,7 +16,7 @@ async def probe(key):
 
 
 async def spot_candles(venue):
-    """Exercise the same CCXT call as market_data without replacing Sam's saved dataset."""
+    """Exercise the same public exchange call as market_data without replacing Sam's saved dataset."""
     try:
         rows = await asyncio.wait_for(asyncio.to_thread(_crypto, venue, "BTC/USDT", "1m", 2), timeout=30)
         if not rows:
