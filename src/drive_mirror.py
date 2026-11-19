@@ -52,6 +52,9 @@ MIRRORS: Dict[str, Tuple[str, Tuple[str, ...], str]] = {
     "trainer": (KEY_PATH, TARGET_DIR, "state.json"),
     "eva": ("agents/eva/google", ("00_Inbox", "Вхідні"), "eva.json"),
 }
+#: 19.11.2026: Andrii's inbox for the whole holding is SYNDICATE/«Вхідні на опрацювання» (Eva made it there);
+#: Alex keeps his own «Вхідні».
+INBOX_NAMES: Dict[str, str] = {"eva": "Вхідні на опрацювання"}
 
 
 class DriveClient(Protocol):
@@ -148,9 +151,10 @@ def _copy(client: DriveClient, item: Dict[str, Any], target: Path, relative: str
 
 def mirror(client: DriveClient, vault_root: Path, agent: str = "trainer") -> Dict[str, Any]:
     """One pass: copy new or changed files; report everything that was not copied."""
-    folder_id = client.find_folder(FOLDER_NAME)
+    name = INBOX_NAMES.get(agent, FOLDER_NAME)
+    folder_id = client.find_folder(name)
     if not folder_id:
-        return {"status": "unavailable", "reason": "drive_folder_not_shared", "folder": FOLDER_NAME}
+        return {"status": "unavailable", "reason": "drive_folder_not_shared", "folder": name}
     target = vault_root.joinpath(*MIRRORS[agent][1])
     state = _load_state(agent)
     counts = {"copied": 0, "unchanged": 0, "skipped_native": 0, "too_large": 0, "failed": 0, "deferred": 0}
@@ -166,7 +170,7 @@ def mirror(client: DriveClient, vault_root: Path, agent: str = "trainer") -> Dic
     _save_state(state, agent)
     removed = len(set(state) - seen)
     status = "ok" if counts["failed"] == 0 else "partial"
-    return {"status": status, **counts, "removed_in_drive_kept": removed, "folder": FOLDER_NAME}
+    return {"status": status, **counts, "removed_in_drive_kept": removed, "folder": name}
 
 
 # ── the real Drive, read only ─────────────────────────────────────────────────────────────

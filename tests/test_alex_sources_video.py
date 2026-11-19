@@ -89,3 +89,20 @@ def test_a_confirmed_drive_original_is_moved_into_syndicate_by_the_obsidian_path
     state = {"files": {"Форекс/a.txt": {"path": "Форекс/a.txt", "topic": "Форекс"}}}
     asyncio.run(mm.convert_folder(folder, state, {}, mirrored, yes, None, mover, ("Сем", "Матеріали")))
     assert moved == [("d1", ("Сем", "Матеріали", "Форекс"))] and not path.exists()
+
+
+def test_eva_reads_the_holding_inbox_by_its_own_name_and_alex_keeps_his(tmp_path, monkeypatch):
+    # Andrii, 19.11.2026: SYNDICATE/«Вхідні на опрацювання» for the holding; Alex keeps «Вхідні».
+    from src import drive_mirror
+
+    monkeypatch.setenv("EVA_DATA_DIR", str(tmp_path / "data"))
+    asked = []
+
+    class _Drive:
+        def find_folder(self, name):
+            asked.append(name)
+            return None
+
+    assert drive_mirror.mirror(_Drive(), tmp_path, "eva")["folder"] == "Вхідні на опрацювання"
+    assert drive_mirror.mirror(_Drive(), tmp_path, "trainer")["folder"] == "Вхідні"
+    assert asked == ["Вхідні на опрацювання", "Вхідні"]
