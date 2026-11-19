@@ -33,6 +33,9 @@ logger = structlog.get_logger(__name__)
 FOLDER_NAME = "Вхідні"
 TARGET_DIR = ("Health_Coach", "Матеріали")
 SCOPE = "https://www.googleapis.com/auth/drive.readonly"
+#: 19.11.2026: Eva files originals inside Andrii's SYNDICATE folder on Drive (move only, never delete).
+WRITE_SCOPE = "https://www.googleapis.com/auth/drive"
+ROOT_FOLDER = "SYNDICATE"
 FOLDER_MIME = "application/vnd.google-apps.folder"
 DOC_MIME = "application/vnd.google-apps.document"
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -174,11 +177,11 @@ class GoogleDrive:
 
     _FIELDS = "nextPageToken, files(id, name, mimeType, md5Checksum, modifiedTime, size)"
 
-    def __init__(self, service_account_info: Dict[str, Any]) -> None:
+    def __init__(self, service_account_info: Dict[str, Any], scope: str = SCOPE) -> None:
         from google.oauth2.service_account import Credentials
         from googleapiclient.discovery import build
 
-        credentials = Credentials.from_service_account_info(service_account_info, scopes=[SCOPE])
+        credentials = Credentials.from_service_account_info(service_account_info, scopes=[scope])
         self._drive = build("drive", "v3", credentials=credentials, cache_discovery=False)
 
     def _list(self, query: str) -> List[Dict[str, Any]]:
@@ -198,6 +201,32 @@ class GoogleDrive:
 
     def children(self, folder_id: str) -> List[Dict[str, Any]]:
         return self._list(f"'{folder_id}' in parents and trashed = false")
+
+    def _child_folder(self, parent: str, name: str) -> str:
+        escaped = name.replace("\\", "\\\\").replace("'", "\\'")
+        found = self._list(f"'{parent}' in parents and name = '{escaped}' and mimeType = '{FOLDER_MIME}' "
+                           "and trashed = false")
+        if found:
+            return str(found[0]["id"])
+        made = self._drive.files().create(body={"name": name, "mimeType": FOLDER_MIME, "parents": [parent]},
+                                          fields="id", supportsAllDrives=True).execute()
+        return str(made["id"])
+
+    def file_under(self, file_id: str, parts: Tuple[str, ...]) -> bool:
+        """Move a file into SYNDICATE/<parts> (folders made as needed). Nothing is copied or deleted."""
+        root = self.find_folder(ROOT_FOLDER)
+        if not root:
+            return False
+        target = root
+        for part in parts:
+            target = self._child_folder(target, part)
+        meta = self._drive.files().get(fileId=file_id, fields="parents", supportsAllDrives=True).execute()
+        current = ",".join(meta.get("parents") or [])
+        if current == target:
+            return True
+        self._drive.files().update(fileId=file_id, addParents=target, removeParents=current, fields="id",
+                                   supportsAllDrives=True).execute()
+        return True
 
     def exists(self, file_id: str) -> bool:
         """The original is still on Drive and not in the trash (checked before the vault copy goes)."""

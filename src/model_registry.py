@@ -44,6 +44,8 @@ DEFAULTS = {
     "OR_SONAR_PRO": "perplexity/sonar-pro",
     "OR_SONAR_DEEP_RESEARCH": "perplexity/sonar-deep-research",
     "GEMINI_FLASH_LATEST": "gemini-3.5-flash",
+    # 19.11.2026: Gemini watches a YouTube link itself (src/video_digest.py), so the server block on yt-dlp does not matter.
+    "GEMINI_VIDEO": "gemini-4-hydrogen",
 }
 
 

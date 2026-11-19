@@ -1,9 +1,16 @@
 {
-  "_comment": "RSS/Atom feeds the schedule reads for each agent's weekly learning (moved from the n8n workflow on 05.11.2026). A feed's links must also be on a host in src/learning_sources.json, or the items are refused.",
+  "_comment": "RSS/Atom feeds the schedule reads for each agent's weekly learning (moved from the n8n workflow on 05.11.2026). A feed's links must also be on a host in src/learning_sources.json, or the items are refused. 19.11.2026: YouTube channels from docs/agents/TRAINER_KNOWLEDGE_SOURCES.md; on Sunday Alex digests the best new videos with Gemini (src/video_digest.py).",
   "trainer": [
     "https://pubmed.ncbi.nlm.nih.gov/rss/search/1DOWGEXM0L6N-g69sm5REljY8QCTlluV-ecIShwYU7vd_OAQAb/?limit=15&utm_campaign=pubmed-2&fc=20261103113328",
     "https://pubmed.ncbi.nlm.nih.gov/rss/search/1fYfMzmpBkCeYUrKpE1OmpkjbxBhHgXro-jbQnj45kFBadHYYc/?limit=15&utm_campaign=pubmed-2&fc=20261103113345",
     "https://pubmed.ncbi.nlm.nih.gov/rss/search/1lQlR_8mqnm-USQ-UBLoK_5lOGTpaJ7J9fL-p76o77qTWsw9a-/?limit=15&utm_campaign=pubmed-2&fc=20261103113400",
-    "https://www.frontiersin.org/journals/physiology/rss"
+    "https://www.frontiersin.org/journals/physiology/rss",
+    "https://www.strongerbyscience.com/feed/",
+    "https://www.youtube.com/feeds/videos.xml?channel_id=UCy5E4aFQdeX9cvRC4sttsSw",
+    "https://www.youtube.com/feeds/videos.xml?channel_id=UC68TLK0mAEzUyHx5x5k-S1Q",
+    "https://www.youtube.com/feeds/videos.xml?channel_id=UCfQgsKhHjSyRLOp9mnffqVg",
+    "https://www.youtube.com/feeds/videos.xml?channel_id=UC2D2CMWXMOVWx7giW1n3LIg",
+    "https://www.youtube.com/feeds/videos.xml?channel_id=UCoR7CHkMETs3ByOv74OAbFw",
+    "https://www.youtube.com/feeds/videos.xml?channel_id=UCyPYQTT20IgzVw92LDvtClw"
   ]
 }

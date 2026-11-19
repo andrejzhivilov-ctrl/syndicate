@@ -217,7 +217,7 @@ def test_alex_keeps_the_times_and_feeds_he_had_in_n8n():
     }
     assert all(job.text for job in sched.JOBS.values() if job.kind in ("checkin", "reminder", "owner_reminder"))
     urls = feeds.feeds_for("trainer")
-    assert len(urls) == 4
+    assert len(urls) == 11  # 19.11.2026: + Stronger by Science and six YouTube channels
     connected = connected_sources("trainer")
     for url in urls:
         host = httpx.URL(url).host

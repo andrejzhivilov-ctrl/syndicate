@@ -80,6 +80,8 @@ def _link(entry: ET.Element) -> str:
 
 def _entry(entry: ET.Element) -> Dict[str, Any]:
     body = _child(entry, "description", "summary", "content")
+    if body is None:  # 19.11.2026: a YouTube feed keeps it in media:group/media:description
+        body = next((node for node in entry.iter() if _local(node.tag) == "description"), None)
     date = _child(entry, "pubDate", "published", "updated", "date")
     return {"url": _link(entry), "title": _plain(_text(_child(entry, "title")))[:200],
             "text": _plain(_text(body))[:MAX_TEXT], "when": _when(_text(date))}
@@ -107,6 +109,8 @@ def fresh_items(entries: List[Dict[str, Any]], now: datetime) -> List[Dict[str, 
         url, when = item["url"], item["when"]
         if not url or not item["text"] or url in seen or (when is not None and when < now - WINDOW):
             continue
+        if "/shorts/" in url or "#shorts" in item["title"].lower():
+            continue  # a 30-second clip teaches nothing worth a digest
         seen.add(url)
         out.append({"url": url, "title": item["title"], "text": item["text"]})
     return out[:MAX_ITEMS]
