@@ -20,7 +20,11 @@ LAYOUT: Dict[str, Tuple[str, Tuple[str, ...]]] = {
     # The full layout of each agent comes with that agent's rollout.
     "eva": ("00_Inbox", ("Вхідні", "На перевірку")),
     "eva_base": ("09_База_Знань", ("Матеріали",)),
-    "sam": ("Сем", ("Матеріали",)),
+    # 19.11.2026: Sam's rollout on Hermes.
+    "sam": ("Сем", (
+        "Стратегії", "Журнал/Паперовий", "Ринки/Форекс і метали", "Ринки/Крипта", "Ринки/Акції й ф'ючерси",
+        "Ставки", "Дослідження", "Конспекти/Відео", "Таблиці", "Матеріали", "База",
+    )),
     "tyler": ("Тайлер", ("Матеріали",)),
     "fin": ("Фін", ("Матеріали",)),
     "kira": ("Кіра", ("Матеріали",)),
@@ -46,7 +50,45 @@ tags: [алекс, карта]
 
 Як шукати дешево: спершу ця карта й `Матеріали/Каталог.md`, далі `summary` у властивостях нотатки, і лише тоді весь текст.
 """
-MAPS = {"trainer": TRAINER_MAP}
+SAM_MAP = """---
+summary: "Де що лежить у теці Сема; читай спершу це"
+tags: [сем, карта]
+---
+
+# Карта теки Сема
+
+- **База/** — правила, які встановив Андрій: ризик ($100-протокол), HITL і кнопки, операційна модель, перемикач виконання, шорт-ліст брокерів. Їх лише читаєш.
+- **Стратегії/** — кожна стратегія окремою нотаткою: правила входу й виходу, ринок, таймфрейм, результати бектесту з джерелом даних.
+- **Журнал/Паперовий/** — паперові угоди й ставки по днях (`РРРР-ММ-ДД.md`); `Журнал/Уроки.md` — негативні уроки.
+- **Ринки/** — нотатки по форексу й металах, крипті, акціях і ф'ючерсах.
+- **Ставки/** — моделі й журнал ставок (CLV, маржа, дробовий Келлі).
+- **Дослідження/**, **Конспекти/** (і **Конспекти/Відео/**) — що вивчено, з посиланнями.
+- **Таблиці/** — графіки й таблиці з run_python і table_save.
+- **Матеріали/** — що Андрій закинув; Єва розкладає й веде `Матеріали/Каталог.md`.
+"""
+MAPS = {"trainer": TRAINER_MAP, "sam": SAM_MAP}
+#: Rules Andrii already set for an agent (repo docs), copied into its Obsidian folder once, read-only for it.
+BASE_DOCS: Dict[str, Tuple[str, Tuple[str, ...]]] = {
+    "sam": ("База", ("SAM_RISK_BLOCKS.md", "SAM_HITL_CONTRACT.md", "SAM_OPERATING_MODEL.md",
+                     "SAM_EXECUTION_SWITCH.md", "SAM_BROKER_SHORTLIST_2026-10-10.md", "SAM_ROLE_BOUNDARIES.md")),
+}
+DOCS_ROOT = Path(__file__).resolve().parents[1] / "sam_core"
+
+
+def _copy_base(agent: str, root: Path) -> List[str]:
+    if agent not in BASE_DOCS:
+        return []
+    folder, names = BASE_DOCS[agent]
+    target_dir = root / LAYOUT[agent][0] / folder
+    copied = []
+    for name in names:
+        source, target = DOCS_ROOT / name, target_dir / name
+        if source.is_file() and not target.exists():
+            target_dir.mkdir(parents=True, exist_ok=True)
+            target.write_text("---\nandrii_protected: true\nsource: \"repo sam_core/" + name + "\"\n---\n\n"
+                              + source.read_text(encoding="utf-8"), encoding="utf-8")
+            copied.append(f"{LAYOUT[agent][0]}/{folder}/{name}")
+    return copied
 
 
 def ensure(agent: str, root: Path) -> List[str]:
@@ -64,4 +106,4 @@ def ensure(agent: str, root: Path) -> List[str]:
     if agent in MAPS and not note.exists():
         note.write_text(MAPS[agent], encoding="utf-8")
         created.append(f"{own}/{MAP_NOTE}")
-    return created
+    return created + _copy_base(agent, root)

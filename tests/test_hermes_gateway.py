@@ -176,19 +176,45 @@ def test_trainer_tools_reach_the_model_without_the_search_bridge():
     assert config["tools"]["tool_search"]["enabled"] == "off"
 
 
-def test_trainer_hermes_mounts_exactly_its_profile_skills():
-    """A skill assigned in the profile but not mounted would silently never reach the Trainer."""
+def _service_block(compose: str, service: str) -> str:
+    """One service of the compose file, up to the next service or top-level key."""
+    import re
+
+    found = re.search(rf"^  {re.escape(service)}:\n(.*?)(?=^  [\w-]+:\n|^\S)", compose, re.MULTILINE | re.DOTALL)
+    assert found, service
+    return found.group(1)
+
+
+def _assert_mounts_match_profile(agent: str, service: str):
     import json
     import re
     from pathlib import Path
 
     root = Path(__file__).resolve().parent.parent
-    profile = json.loads((root / "config/agents/trainer.profile.json").read_text(encoding="utf-8"))
+    profile = json.loads((root / f"config/agents/{agent}.profile.json").read_text(encoding="utf-8"))
     catalog = {item["id"]: item for item in json.loads(
         (root / "config/skill_library.json").read_text(encoding="utf-8"))["skills"]}
-    compose = (root / "deploy/docker-compose.hermes.yml").read_text(encoding="utf-8")
-    mounts = dict((name, source) for source, name in re.findall(r"- \.\./(\S+):/opt/syndicate-skills/([\w-]+):ro", compose))
+    block = _service_block((root / "deploy/docker-compose.hermes.yml").read_text(encoding="utf-8"), service)
+    mounts = dict((name, source) for source, name in re.findall(r"- \.\./(\S+):/opt/syndicate-skills/([\w-]+):ro", block))
     assert set(mounts) == set(profile["reference_skills"])
     for name, source in mounts.items():
         assert catalog[name]["resources"]["SKILL.md"] == f"{source}/SKILL.md"
         assert (root / source / "SKILL.md").is_file()
+
+
+def test_trainer_hermes_mounts_exactly_its_profile_skills():
+    """A skill assigned in the profile but not mounted would silently never reach the Trainer.
+    19.11.2026: checked per service, since Sam now has his own (requirement changed)."""
+    _assert_mounts_match_profile("trainer", "trainer-hermes")
+
+
+def test_sam_hermes_mounts_exactly_his_profile_skills_and_the_sandbox_has_no_way_out():
+    from pathlib import Path
+
+    _assert_mounts_match_profile("sam", "sam-hermes")
+    compose = (Path(__file__).resolve().parent.parent / "deploy/docker-compose.hermes.yml").read_text(encoding="utf-8")
+    sandbox = _service_block(compose, "code-sandbox")
+    assert "hermes_net" in sandbox and "env_file" not in sandbox and "volumes" not in sandbox
+    assert "read_only: true" in sandbox and "cap_drop" in sandbox
+    sam = _service_block(compose, "sam-hermes")
+    assert "/etc/syndicate/hermes-sam.env" in sam and "read_only: true" in sam

@@ -48,7 +48,7 @@ TRANSCRIPT_CHARS_FOR_SUMMARY = 60_000
 #: request for it got HTTP 429 while the original was already saved).
 SUB_LANGS = ["uk-orig", "ru-orig", "en-orig", "uk", "ru", "en"]
 #: Agent -> its notes folder for video digests.
-NOTES = {"trainer": ("Health_Coach", "Конспекти", "Відео")}
+NOTES = {"trainer": ("Health_Coach", "Конспекти", "Відео"), "sam": ("Сем", "Конспекти", "Відео")}
 TEMPLATE = """Ти робиш конспект відео для другого мозку агента «{agent}». Прибери воду, рекламу,
 заклики підписатися й повтори. Пиши українською, коротко й по суті. Нічого не вигадуй:
 лише те, що є в розшифровці; чого немає, того не пиши.

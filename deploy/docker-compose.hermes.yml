@@ -45,6 +45,110 @@ services:
     cpus: 1.0
     pids_limit: 256
 
+
+  # Sam (19.11.2026, Andrii approved the compose change): the same isolation as the Trainer.
+  sam-hermes:
+    image: nousresearch/hermes-agent@sha256:d27689bc6e8581ec884a7227c9101fdaebf6c853cff8859020dac14f21452b4d
+    command: ["gateway", "run"]
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    cap_add:   # the image starts as root only to prepare /opt/data, the agent runs as uid 10000
+      - CHOWN
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
+      - FOWNER
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,nosuid,size=128m
+      - /run:rw,nosuid,exec,size=16m
+    environment:
+      API_SERVER_ENABLED: "true"
+      API_SERVER_HOST: 0.0.0.0
+      HERMES_DASHBOARD: "0"
+    env_file:
+      - /etc/syndicate/hermes-sam.env   # API_SERVER_KEY, SYNDICATE_TOKEN
+    volumes:
+      - sam_hermes_data:/opt/data
+      - ./hermes/sam/config.yaml:/opt/data/config.yaml:ro
+      - ./hermes/sam/SOUL.md:/opt/data/SOUL.md:ro
+      # Sam's hub skills (config/agents/sam.profile.json reference_skills), read-only.
+      - ../skills/vendor/K-Dense-AI/scientific-agent-skills/skills/scientific-critical-thinking:/opt/syndicate-skills/scientific-critical-thinking:ro
+      - ../skills/vendor/HKUDS/Vibe-Trading/agent/src/skills/behavioral-finance:/opt/syndicate-skills/behavioral-finance:ro
+      - ../skills/vendor/affaan-m/ECC/skills/market-research:/opt/syndicate-skills/market-research:ro
+      - ../skills/vendor/marian2js/trading-skills/skills/idea-discovery/catalyst-map:/opt/syndicate-skills/catalyst-map:ro
+      - ../skills/vendor/marian2js/trading-skills/skills/idea-discovery/watchlist-review:/opt/syndicate-skills/watchlist-review:ro
+      - ../skills/vendor/marian2js/trading-skills/skills/market-context/macro-event-analysis:/opt/syndicate-skills/macro-event-analysis:ro
+      - ../skills/vendor/marian2js/trading-skills/skills/market-context/market-regime-analysis:/opt/syndicate-skills/market-regime-analysis:ro
+      - ../skills/vendor/marian2js/trading-skills/skills/position-oversight/position-management:/opt/syndicate-skills/position-management:ro
+      - ../skills/vendor/marian2js/trading-skills/skills/review-learning/journal-pattern-analyzer:/opt/syndicate-skills/journal-pattern-analyzer:ro
+      - ../skills/vendor/marian2js/trading-skills/skills/review-learning/post-trade-review:/opt/syndicate-skills/post-trade-review:ro
+      - ../skills/vendor/marian2js/trading-skills/skills/thesis-validation/evidence-gap-check:/opt/syndicate-skills/evidence-gap-check:ro
+      - ../skills/vendor/marian2js/trading-skills/skills/thesis-validation/thesis-validation:/opt/syndicate-skills/thesis-validation:ro
+      - ../skills/vendor/marian2js/trading-skills/skills/trade-construction/execution-plan-check:/opt/syndicate-skills/execution-plan-check:ro
+      - ../skills/vendor/marian2js/trading-skills/skills/trade-construction/portfolio-concentration:/opt/syndicate-skills/portfolio-concentration:ro
+      - ../skills/vendor/marian2js/trading-skills/skills/trade-construction/position-sizing:/opt/syndicate-skills/position-sizing:ro
+      - ../skills/vendor/marian2js/trading-skills/skills/trade-construction/risk-reward-sanity-check:/opt/syndicate-skills/risk-reward-sanity-check:ro
+      - ../skills/vendor/marian2js/trading-skills/skills/workflows/portfolio-risk-review:/opt/syndicate-skills/portfolio-risk-review:ro
+      - ../skills/vendor/marian2js/trading-skills/skills/workflows/post-trade-debrief:/opt/syndicate-skills/post-trade-debrief:ro
+      - ../skills/vendor/marian2js/trading-skills/skills/workflows/pre-trade-check:/opt/syndicate-skills/pre-trade-check:ro
+      - ../skills/vendor/tradermonty/claude-trading-skills/skills/backtest-expert:/opt/syndicate-skills/backtest-expert:ro
+      - ../skills/vendor/tradermonty/claude-trading-skills/skills/crypto-regime-analyzer:/opt/syndicate-skills/crypto-regime-analyzer:ro
+      - ../skills/vendor/tradermonty/claude-trading-skills/skills/cot-contrarian-detector:/opt/syndicate-skills/cot-contrarian-detector:ro
+      - ../skills/vendor/tradermonty/claude-trading-skills/skills/news-reaction-failure-analyzer:/opt/syndicate-skills/news-reaction-failure-analyzer:ro
+      - ../skills/vendor/tradermonty/claude-trading-skills/skills/contrarian-setup-gate:/opt/syndicate-skills/contrarian-setup-gate:ro
+      - ../skills/vendor/tradermonty/claude-trading-skills/skills/macro-regime-detector:/opt/syndicate-skills/macro-regime-detector:ro
+      - ../skills/vendor/tradermonty/claude-trading-skills/skills/drawdown-circuit-breaker:/opt/syndicate-skills/drawdown-circuit-breaker:ro
+      - ../skills/vendor/tradermonty/claude-trading-skills/skills/pre-trade-discipline-gate:/opt/syndicate-skills/pre-trade-discipline-gate:ro
+      - ../skills/vendor/tradermonty/claude-trading-skills/skills/trader-memory-core:/opt/syndicate-skills/trader-memory-core:ro
+      - ../skills/vendor/tradermonty/claude-trading-skills/skills/signal-postmortem:/opt/syndicate-skills/signal-postmortem:ro
+      - ../skills/vendor/tradermonty/claude-trading-skills/skills/weekly-performance-digest:/opt/syndicate-skills/weekly-performance-digest:ro
+      - ../skills/vendor/tradermonty/claude-trading-skills/skills/trade-performance-coach:/opt/syndicate-skills/trade-performance-coach:ro
+      - ../skills/vendor/tradermonty/claude-trading-skills/skills/futures-position-sizer:/opt/syndicate-skills/futures-position-sizer:ro
+      - ../skills/vendor/tradermonty/claude-trading-skills/skills/strategy-pivot-designer:/opt/syndicate-skills/strategy-pivot-designer:ro
+      - ../skills/vendor/tradermonty/claude-trading-skills/skills/scenario-analyzer:/opt/syndicate-skills/scenario-analyzer:ro
+      - ../skills/vendor/tradermonty/claude-trading-skills/skills/technical-analyst:/opt/syndicate-skills/technical-analyst:ro
+      - ../skills/vendor/tradermonty/claude-trading-skills/skills/market-news-analyst:/opt/syndicate-skills/market-news-analyst:ro
+      - ../skills/vendor/tradermonty/claude-trading-skills/skills/mt5-robot-tester:/opt/syndicate-skills/mt5-robot-tester:ro
+      - ../skills/vendor/tradermonty/claude-trading-skills/skills/us-market-bubble-detector:/opt/syndicate-skills/us-market-bubble-detector:ro
+      - ../skills/vendor/Jakeschincariol/day-trader-skill/trader-timemachine:/opt/syndicate-skills/trader-timemachine:ro
+      - ../skills/vendor/Jakeschincariol/day-trader-skill/trader-risk:/opt/syndicate-skills/trader-risk:ro
+      - ../skills/vendor/Jakeschincariol/day-trader-skill/trader-budget:/opt/syndicate-skills/trader-budget:ro
+      - ../skills/vendor/Jakeschincariol/day-trader-skill/trader-exit:/opt/syndicate-skills/trader-exit:ro
+      - ../skills/vendor/Shubhamkumartrichy/claude-trading-skills-india/skills/fibonacci-trading:/opt/syndicate-skills/fibonacci-trading:ro
+      - ../skills/vendor/Shubhamkumartrichy/claude-trading-skills-india/skills/multi-timeframe-analysis:/opt/syndicate-skills/multi-timeframe-analysis:ro
+      - ../skills/vendor/Shubhamkumartrichy/claude-trading-skills-india/skills/rsi-divergence:/opt/syndicate-skills/rsi-divergence:ro
+      - ../skills/vendor/Shubhamkumartrichy/claude-trading-skills-india/skills/trailing-stops:/opt/syndicate-skills/trailing-stops:ro
+      - ../skills/vendor/kepano/obsidian-skills/skills/obsidian-markdown:/opt/syndicate-skills/obsidian-markdown:ro
+      - ../skills/vendor/kepano/obsidian-skills/skills/obsidian-bases:/opt/syndicate-skills/obsidian-bases:ro
+      - ../skills/vendor/kepano/obsidian-skills/skills/json-canvas:/opt/syndicate-skills/json-canvas:ro
+    networks:
+      - hermes_net
+    mem_limit: 1g
+    cpus: 1.0
+    pids_limit: 256
+
+  # The agents' code sandbox (19.11.2026): run_python goes here. No secrets, no env file, no volumes,
+  # only the internal hermes_net (no route out), read-only, unprivileged, with time and memory caps.
+  code-sandbox:
+    build: ./sandbox
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=512m
+    networks:
+      - hermes_net
+    mem_limit: 2g
+    cpus: 2.0
+    pids_limit: 128
+
 networks:
   hermes_net:
     external: true
@@ -52,3 +156,4 @@ networks:
 
 volumes:
   trainer_hermes_data: {}
+  sam_hermes_data: {}

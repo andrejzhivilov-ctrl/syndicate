@@ -39,6 +39,9 @@ AGENT_ACTIONS: Dict[str, Tuple[str, ...]] = {
     # recipe_plan stays out until Andrii's recipe base is connected: it has no data.
     "trainer": ("training_protocol", "workout_plan", "exercise_search", "nutrition_plan",
                 "shopping_list", "supplement_protocol", "habit_tracker", "active_recovery"),
+    # Sam (19.11.2026): the deterministic confluence/risk engine scores a setup and checks portfolio risk.
+    # trade_decision stays out: a decision is Andrii's button, not the agent's call.
+    "sam": ("evaluate_setup", "portfolio_risk"),
 }
 CHAT = "chat"
 LEARNING = "learning"
@@ -244,6 +247,20 @@ def _gateway_tools(agent: str) -> List[Dict[str, Any]]:
                                                           "the product page as the source. Missing numbers stay "
                                                           "missing.",
          "inputSchema": _schema(["query"], query=text)},
+        {"name": hermes_tools.RUN_PYTHON, "description": "Run Python (numpy, pandas, scipy, matplotlib, openpyxl) in "
+                                                         "an isolated sandbox with no internet and no secrets. Pass "
+                                                         "datasets from market_data by id; files the code writes come "
+                                                         "back, and save=true puts charts and tables into your own "
+                                                         "Obsidian folder. Use it for every calculation.",
+         "inputSchema": _schema(["code"], code=text, datasets={"type": "array", "items": text},
+                                timeout={"type": "integer", "minimum": 1, "maximum": 300},
+                                save={"type": "boolean"})},
+        {"name": hermes_tools.MARKET_DATA, "description": "Public OHLCV candles: crypto from binance/bybit/okx/kraken "
+                                                          "(BTC/USDT), forex, metals, futures, indices and stocks from "
+                                                          "yahoo (EURUSD=X, GC=F, CL=F, ^GSPC, SPY). Gives a summary "
+                                                          "and a dataset id for run_python. Read-only, no trading.",
+         "inputSchema": _schema(["source", "symbol"], source=text, symbol=text, timeframe=text,
+                                limit={"type": "integer", "minimum": 1, "maximum": 2000})},
         {"name": hermes_tools.ASK_AGENT, "description": "Ask another agent of the holding one question; it answers as "
                                                         "a colleague, without tools.",
          "inputSchema": _schema(["agent", "question"], agent={"type": "string", "enum": hermes_tools.ask_targets(agent)},
@@ -262,6 +279,23 @@ async def _video_digest(agent: str, url: str, orchestrator: Any) -> Dict[str, An
         return {"status": "unavailable", "reason": "timeout", "url": url}
 
 
+async def _run_python(agent: str, args: Mapping[str, Any]) -> Dict[str, Any]:
+    from src import code_sandbox
+
+    root = vault_dir_from_env()
+    own = root / hermes_tools.NOTE_DIRS[agent] / "Таблиці" if root is not None and agent in hermes_tools.NOTE_DIRS else None
+    datasets = [str(item) for item in args.get("datasets") or [] if isinstance(item, (str, int))]
+    return await code_sandbox.run(str(args.get("code", "")), datasets, int(args.get("timeout") or 60),
+                                  save_to=own if args.get("save") else None, vault_root=root)
+
+
+async def _market_data(args: Mapping[str, Any]) -> Dict[str, Any]:
+    from src import market_data
+
+    return await market_data.candles(str(args.get("source", "")), str(args.get("symbol", "")),
+                                     str(args.get("timeframe") or "1h"), int(args.get("limit") or 500))
+
+
 async def _food_lookup(query: str) -> Dict[str, Any]:
     from src import food_facts
 
@@ -278,7 +312,7 @@ async def _drive_save(agent: str, args: Mapping[str, Any], orchestrator: Any) ->
 
 async def _gateway_call(agent: str, name: str, args: Mapping[str, Any], orchestrator: Any) -> Any:
     if not hermes_tools.DailyLimit().take(agent, name):
-        return {"status": "unavailable", "reason": "daily_limit_reached", "limit": hermes_tools.DAILY_LIMITS[name]}
+        return {"status": "unavailable", "reason": "daily_limit_reached", "limit": hermes_tools.AGENT_LIMITS.get(agent, {}).get(name, hermes_tools.DAILY_LIMITS[name])}
     calls = {
         hermes_tools.WEB_SEARCH: lambda: hermes_tools.web_search(str(args.get("query", "")), orchestrator.openrouter_key()),
         hermes_tools.WEB_FETCH: lambda: hermes_tools.web_fetch(str(args.get("url", ""))),
@@ -294,6 +328,8 @@ async def _gateway_call(agent: str, name: str, args: Mapping[str, Any], orchestr
         hermes_tools.FOOD_LOOKUP: lambda: _food_lookup(str(args.get("query", ""))),
         hermes_tools.TABLE_SAVE: lambda: asyncio.to_thread(hermes_tools.table_save, agent, str(args.get("path", "")),
                                                            args.get("sheets")),
+        hermes_tools.RUN_PYTHON: lambda: _run_python(agent, args),
+        hermes_tools.MARKET_DATA: lambda: _market_data(args),
         hermes_tools.ASK_AGENT: lambda: hermes_tools.ask_agent(agent, str(args.get("agent", "")),
                                                                str(args.get("question", "")), orchestrator),
     }
