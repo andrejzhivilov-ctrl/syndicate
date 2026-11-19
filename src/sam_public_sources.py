@@ -14,6 +14,7 @@ TREND_SCRIPT = ("async function run(client) { const data = await client.search.t
                 "return 'SAM_COINS=' + data.coins.slice(0, 15).map(x => x.item.id).join(','); }")
 MCP = "https://mcp.api.coingecko.com/mcp"
 URLS = {
+    "ibkr_fx": "local:ibkr-paper-fx",
     "crypto_trending": MCP,
     "binance_btc_book": "https://data-api.binance.vision/api/v3/ticker/bookTicker?symbol=BTCUSDT",
     "bybit_btc_book": "https://api.bybit.com/v5/market/orderbook?category=spot&symbol=BTCUSDT&limit=1",
@@ -155,6 +156,9 @@ def _digest(key, body, now):
 
 
 async def read(source, transport=None):
+    if source == "ibkr_fx":
+        from src.sam_fx_board import snapshot
+        return snapshot()
     url = URLS.get(source)
     if not url:
         return {"status": "error", "reason": "unknown_source", "sources": sorted(URLS)}

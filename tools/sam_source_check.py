@@ -27,7 +27,7 @@ async def spot_candles(venue):
 
 
 async def main():
-    for row in await asyncio.gather(*(probe(key) for key in URLS), spot_candles("binance"), spot_candles("bybit")):
+    for row in await asyncio.gather(*(probe(key) for key, url in URLS.items() if url.startswith("https://")), spot_candles("binance"), spot_candles("bybit")):
         print(json.dumps(row, ensure_ascii=True))
 
 
