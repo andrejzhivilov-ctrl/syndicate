@@ -17,6 +17,7 @@ URLS = {
     "fed_news": "https://www.federalreserve.gov/feeds/press_all.xml",
     "ecb_news": "https://www.ecb.europa.eu/rss/press.html",
     "cme_video": "https://www.youtube.com/feeds/videos.xml?channel_id=UCLC4PuFlyKwK03Sc29YLEGQ",
+    "nba_games": "https://cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_00.json",
     "dota_results": "https://api.opendota.com/api/proMatches",
     "football_archive": "https://raw.githubusercontent.com/statsbomb/open-data/master/data/competitions.json",
 }
@@ -96,12 +97,23 @@ def _book(data, now):
             "ask_updated": ask[2], "oldest_level_age_s": now.timestamp() - min(int(bid[2]), int(ask[2]))}
 
 
+def _nba(data):
+    board = data["scoreboard"]
+    return {"game_date": board["gameDate"], "games": [
+        {"id": g["gameId"], "status": g["gameStatusText"],
+         "home": g["homeTeam"]["teamTricode"], "away": g["awayTeam"]["teamTricode"],
+         "home_score": g["homeTeam"]["score"], "away_score": g["awayTeam"]["score"]}
+        for g in board["games"][:20]]}
+
+
 def _digest(key, body, now):
     if key in {"fed_news", "ecb_news", "cme_video"}:
         return [{"title": e["title"], "url": e["url"],
                  "published": e["when"].isoformat() if e["when"] else None}
                 for e in parse_feed(body)[:8] if e["title"] and e["url"]]
     data = json.loads(body)
+    if key == "nba_games":
+        return _nba(data)
     if key == "btc_book":
         return _book(data, now)
     if key == "usd_uah":
