@@ -16,9 +16,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # ffmpeg is required by the Content Factory (video compositing, silence
-# generation, duration probing); antiword reads old Word .doc books (19.11.2026).
+# generation, duration probing); antiword reads old Word .doc books and unar opens zip/rar/7z archives (19.11.2026).
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg antiword wget ca-certificates fonts-dejavu-core unzip \
+    && apt-get install -y --no-install-recommends ffmpeg antiword unar wget ca-certificates fonts-dejavu-core unzip \
     && rm -rf /var/lib/apt/lists/*
 
 # rclone serves the Obsidian vault over WebDAV to Andrii's devices
