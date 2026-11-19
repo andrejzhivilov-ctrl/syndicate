@@ -2,6 +2,7 @@
 import asyncio
 import json
 
+from src.market_data import _crypto
 from src.sam_public_sources import URLS, read
 
 
@@ -14,8 +15,19 @@ async def probe(key):
             "retrieved_at": result.get("retrieved_at")}
 
 
+async def spot_candles(venue):
+    """Exercise the same public exchange call as market_data without replacing Sam's saved dataset."""
+    try:
+        rows = await asyncio.wait_for(asyncio.to_thread(_crypto, venue, "BTC/USDT", "1m", 2), timeout=30)
+        if not rows:
+            raise ValueError("no_candles")
+        return {"source": venue + "_candles", "status": "ok", "rows": len(rows), "last_open_ms": rows[-1][0]}
+    except Exception as exc:  # Report each venue independently, including regional/network failures.
+        return {"source": venue + "_candles", "status": "unavailable", "reason": type(exc).__name__}
+
+
 async def main():
-    for row in await asyncio.gather(*(probe(key) for key in URLS)):
+    for row in await asyncio.gather(*(probe(key) for key in URLS), spot_candles("binance"), spot_candles("bybit")):
         print(json.dumps(row, ensure_ascii=True))
 
 

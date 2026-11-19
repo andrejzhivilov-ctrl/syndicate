@@ -49,3 +49,33 @@ def test_empty_news_and_archive_not_live():
     result = run("football_archive", lambda _: httpx.Response(200, json=[{
         "competition_id": 1, "season_id": 2, "competition_name": "Demo", "season_name": "Fixture"}]))
     assert result["research_only"] and result["data"][0]["season_id"] == 2
+
+
+def test_spot_venues_preserve_clock_and_reject_bad_quotes():
+    ticker = {"symbol": "BTCUSDT", "bidPrice": "100", "askPrice": "101", "bidQty": "2", "askQty": "3"}
+    def binance(request):
+        assert request.url.host == "data-api.binance.vision"
+        return httpx.Response(200, json=ticker)
+    quote = run("binance_btc_book", binance)["data"]
+    assert quote["exchange_time_ms"] is None and quote["ask_size_btc"] == 3
+    ticker["askPrice"] = "99"
+    assert run("binance_btc_book", binance)["status"] == "unavailable"
+    data = {"retCode": 0, "result": {"s": "BTCUSDT", "b": [["100", "2"]], "a": [["101", "3"]], "ts": 123000}}
+    def bybit(request):
+        assert request.url.params["category"] == "spot"
+        return httpx.Response(200, json=data)
+    assert run("bybit_btc_book", bybit)["data"]["exchange_time_ms"] == 123000
+    data["retCode"] = 10006
+    assert run("bybit_btc_book", bybit)["status"] == "unavailable"
+
+
+def test_binance_public_spot_candles(monkeypatch):
+    from src import market_data
+
+    def get(url, *, params, timeout):
+        assert url == "https://data-api.binance.vision/api/v3/klines"
+        assert params == {"symbol": "BTCUSDT", "interval": "1m", "limit": 1000}
+        return httpx.Response(200, request=httpx.Request("GET", url),
+                              json=[[123000, "10", "12", "9", "11", "5", 182999]])
+    monkeypatch.setattr(market_data.httpx, "get", get)
+    assert market_data._crypto("binance", "BTC/USDT", "1m", 2000) == [[123000, 10, 12, 9, 11, 5]]

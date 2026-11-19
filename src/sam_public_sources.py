@@ -15,6 +15,8 @@ TREND_SCRIPT = ("async function run(client) { const data = await client.search.t
 MCP = "https://mcp.api.coingecko.com/mcp"
 URLS = {
     "crypto_trending": MCP,
+    "binance_btc_book": "https://data-api.binance.vision/api/v3/ticker/bookTicker?symbol=BTCUSDT",
+    "bybit_btc_book": "https://api.bybit.com/v5/market/orderbook?category=spot&symbol=BTCUSDT&limit=1",
     "btc_book": "https://api.kraken.com/0/public/Depth?pair=XBTUSD&count=1",
     "usd_uah": "https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?valcode=USD&json",
     "fed_news": "https://www.federalreserve.gov/feeds/press_all.xml",
@@ -103,6 +105,29 @@ def _book(data, now):
             "ask_updated": ask[2], "oldest_level_age_s": now.timestamp() - min(int(bid[2]), int(ask[2]))}
 
 
+def _spot_top(source, data):
+    if source == "bybit_btc_book":
+        if data["retCode"] != 0:
+            raise ValueError("exchange_error")
+        book = data["result"]
+        symbol = book["s"]
+        bid, bid_size = book["b"][0]
+        ask, ask_size = book["a"][0]
+        timestamp_ms = int(book["ts"])
+        if timestamp_ms <= 0:
+            raise ValueError("invalid_timestamp")
+    else:
+        symbol = data["symbol"]
+        bid, bid_size = data["bidPrice"], data["bidQty"]
+        ask, ask_size = data["askPrice"], data["askQty"]
+        timestamp_ms = None  # REST bookTicker has no exchange timestamp.
+    prices = [float(n) for n in (bid, ask, bid_size, ask_size)]
+    if symbol != "BTCUSDT" or not all(math.isfinite(n) and n > 0 for n in prices) or prices[0] > prices[1]:
+        raise ValueError("invalid_spot_quote")
+    return {"pair": "BTC/USDT", "bid": prices[0], "ask": prices[1], "bid_size_btc": prices[2],
+            "ask_size_btc": prices[3], "exchange_time_ms": timestamp_ms}
+
+
 def _scoreboard(data):
     return {"events": [{"id": e["id"], "name": e["name"], "scheduled_at": e["date"],
                         "status": e.get("status", {}).get("type", {}).get("name")}
@@ -115,6 +140,8 @@ def _digest(key, body, now):
                  "published": e["when"].isoformat() if e["when"] else None}
                 for e in parse_feed(body)[:8] if e["title"] and e["url"]]
     data = json.loads(body)
+    if key in {"binance_btc_book", "bybit_btc_book"}:
+        return _spot_top(key, data)
     if key in {"nba_games", "atp_events", "epl_events"}:
         return _scoreboard(data)
     if key == "btc_book":
