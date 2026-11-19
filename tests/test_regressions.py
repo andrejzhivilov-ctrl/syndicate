@@ -4975,7 +4975,7 @@ def test_alex_gets_the_internet_only_through_the_gateway():
 
     assert hermes_tools.check_url("http://169.254.169.254/latest/meta-data/") == "address_not_public"
     assert hermes_tools.check_url("http://10.0.0.1/") == "address_not_public"
-    assert "ask_agent" in hermes_tools.granted("trainer") and hermes_tools.granted("sam") == ()
+    assert "ask_agent" in hermes_tools.granted("trainer") and hermes_tools.granted("tyler") == ()  # 19.11.2026: Sam has tools now
     compose = (REPO_ROOT / "deploy" / "docker-compose.hermes.yml").read_text(encoding="utf-8")
     assert "hermes_net" in compose and "ports:" not in compose and "docker.sock" not in compose
 
@@ -5064,7 +5064,7 @@ def test_alex_can_read_a_book_from_the_vault_in_parts():
 
     assert {tools.MATERIAL_LIST, tools.MATERIAL_READ} <= set(tools.granted("trainer"))
     assert {tools.MATERIAL_LIST, tools.MATERIAL_READ} <= {tool["name"] for tool in _tools("trainer")}
-    assert tools.granted("sam") == ()
+    assert tools.granted("tyler") == ()  # 19.11.2026: Sam has tools now
     assert not any(hasattr(tools, name) for name in ("material_write", "material_delete"))
 
 
