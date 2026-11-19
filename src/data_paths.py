@@ -49,6 +49,8 @@ DIRS = {
     "threats": "threat_watch",
     # Public candles Sam fetched, kept as datasets for run_python (src/market_data.py, 19.11.2026).
     "market_data": "market_data",
+    # Sam's paper ledger: trades, bets, the strategy tournament (src/sam_paper.py, 19.11.2026).
+    "sam_paper": "sam_paper",
     # Skill proposals and Andrii's decisions for Eva's report (src/skill_approval.py, 16.11.2026).
     "skills": "skill_approval",
 }
