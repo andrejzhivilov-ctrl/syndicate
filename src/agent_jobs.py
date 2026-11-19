@@ -24,6 +24,8 @@ SOURCES_PATH = Path(__file__).with_name("learning_sources.json")
 #: Agents with scheduled jobs, and the kinds each may run.
 AGENT_KINDS: Dict[str, frozenset] = {
     "trainer": frozenset({"reminder", "checkin", "learning", "morning_brief", "reflection", "research"}),
+    # Sam (19.11.2026): every scheduled turn is a report whose prompt is the job text (src/sam_prompts.py).
+    "sam": frozenset({"report"}),
 }
 #: Each agent's folder in Obsidian; the morning brief is a note Andrii edits there.
 OBSIDIAN_DIRS = {"trainer": "Health_Coach"}
@@ -170,6 +172,8 @@ async def handle(agent: str, payload: Any, gateway: Any) -> Dict[str, Any]:
         result = await _deliver(agent, plan_note(agent) or "", gateway, "plan_note_missing")
     elif kind == "reflection":
         result = await _hermes_turn(agent, REFLECTION_PROMPT, gateway, "reflection_failed")
+    elif kind == "report":
+        result = await _hermes_turn(agent, str(payload.get("text") or ""), gateway, "report_failed")
     elif kind == "research":
         result = await _hermes_turn(agent, RESEARCH_PROMPT, gateway, "research_failed")
     else:

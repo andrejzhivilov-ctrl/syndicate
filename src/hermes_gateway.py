@@ -261,6 +261,23 @@ def _gateway_tools(agent: str) -> List[Dict[str, Any]]:
                                                           "and a dataset id for run_python. Read-only, no trading.",
          "inputSchema": _schema(["source", "symbol"], source=text, symbol=text, timeframe=text,
                                 limit={"type": "integer", "minimum": 1, "maximum": 2000})},
+        {"name": hermes_tools.PAPER_TRADE, "description": "Your paper account (no real money): action=status gives "
+                                                          "balances and every strategy's statistics; action=open "
+                                                          "(account trading|crypto|invest, strategy, source, symbol, "
+                                                          "side long|short, entry, stop, target, risk, reason); "
+                                                          "action=close (id, price). Size and limits come from the code.",
+         "inputSchema": _schema(["action"], action=text, account=text, strategy=text, source=text, symbol=text,
+                                side=text, entry={"type": "number"}, stop={"type": "number"}, target={"type": "number"},
+                                risk={"type": "number"}, timeframe=text, reason=text, id=text, price={"type": "number"})},
+        {"name": hermes_tools.PAPER_BET, "description": "Your paper betting bank (no real money): action=status; "
+                                                        "action=place (strategy, sport, event, market, selection, odds, "
+                                                        "probability, bookmaker, fair_odds) — stake is a quarter Kelly "
+                                                        "capped at 2%, a bet without positive expectation is refused; "
+                                                        "action=settle (id, won true|false|null, closing_odds).",
+         "inputSchema": _schema(["action"], action=text, strategy=text, sport=text, event=text, market=text,
+                                selection=text, odds={"type": "number"}, probability={"type": "number"}, bookmaker=text,
+                                fair_odds={"type": "number"}, id=text, won={"type": ["boolean", "null"]},
+                                closing_odds={"type": "number"})},
         {"name": hermes_tools.ASK_AGENT, "description": "Ask another agent of the holding one question; it answers as "
                                                         "a colleague, without tools.",
          "inputSchema": _schema(["agent", "question"], agent={"type": "string", "enum": hermes_tools.ask_targets(agent)},
@@ -287,6 +304,12 @@ async def _run_python(agent: str, args: Mapping[str, Any]) -> Dict[str, Any]:
     datasets = [str(item) for item in args.get("datasets") or [] if isinstance(item, (str, int))]
     return await code_sandbox.run(str(args.get("code", "")), datasets, int(args.get("timeout") or 60),
                                   save_to=own if args.get("save") else None, vault_root=root)
+
+
+def _sam_paper() -> Any:
+    from src import sam_paper
+
+    return sam_paper
 
 
 async def _market_data(args: Mapping[str, Any]) -> Dict[str, Any]:
@@ -330,6 +353,8 @@ async def _gateway_call(agent: str, name: str, args: Mapping[str, Any], orchestr
                                                            args.get("sheets")),
         hermes_tools.RUN_PYTHON: lambda: _run_python(agent, args),
         hermes_tools.MARKET_DATA: lambda: _market_data(args),
+        hermes_tools.PAPER_TRADE: lambda: asyncio.to_thread(_sam_paper().trade_tool, dict(args)),
+        hermes_tools.PAPER_BET: lambda: asyncio.to_thread(_sam_paper().bet_tool, dict(args)),
         hermes_tools.ASK_AGENT: lambda: hermes_tools.ask_agent(agent, str(args.get("agent", "")),
                                                                str(args.get("question", "")), orchestrator),
     }

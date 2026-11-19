@@ -71,9 +71,23 @@ def pending(folder: Path) -> List[Path]:
         name = path.name
         if name.endswith((CARD_SUFFIX, material_reader.TRANSCRIPT_SUFFIX, ".part")) or name in SKIP_NAMES:
             continue
-        if not card_path(path).exists():
+        if not card_path(path).exists() or _retry(path):
             found.append(path)
     return found
+
+
+#: 19.11.2026: a card that said «format not supported» is redone once the format is (old Word .doc books).
+RETRY_REASONS = ("unsupported_format", "doc_reader_missing")
+
+
+def _retry(path: Path) -> bool:
+    if path.suffix.lower().lstrip(".") not in TEXT:
+        return False
+    try:
+        head = card_path(path).read_text(encoding="utf-8")[:2000]
+    except OSError:
+        return False
+    return any(f"Вміст не розпізнано: {reason}" in head for reason in RETRY_REASONS)
 
 
 # ── content ───────────────────────────────────────────────────────────────────────────────

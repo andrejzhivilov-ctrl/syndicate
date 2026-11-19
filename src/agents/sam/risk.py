@@ -18,7 +18,7 @@ from decimal import ROUND_DOWN, Decimal
 from typing import Any, Dict, Mapping
 
 MAX_RISK_PER_TRADE = 0.01
-MAX_DAILY_DRAWDOWN = 0.02
+MAX_DAILY_DRAWDOWN = 0.03  # Andrii 19.11.2026: the day stops at −3%, the same as on paper
 ATR_MULTIPLE = 2.0
 ASSET_CAP = {"equity": 0.05}
 DEFAULT_ASSET_CAP = 0.10
@@ -52,7 +52,7 @@ def model_signal(payload: Mapping[str, Any]) -> Dict[str, Any]:
 
 
 def daily_guard(equity_start: float, equity_now: float, limit: float = MAX_DAILY_DRAWDOWN) -> Dict[str, Any]:
-    """Decimal arithmetic, so a loss of exactly 2% blocks (binary float would land just below)."""
+    """Decimal arithmetic, so a loss of exactly the limit blocks (binary float would land just below)."""
     start = Decimal(str(_num(equity_start, "equity_start", 0.0, strict_low=True)))
     now = Decimal(str(_num(equity_now, "equity_now", 0.0)))
     drawdown = max(Decimal("0"), (start - now) / start)

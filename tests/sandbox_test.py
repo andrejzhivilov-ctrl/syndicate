@@ -235,7 +235,7 @@ async def run_sandbox_suite():
     from src.proactive import cron_matches
 
     start = _dt(2026, 11, 2, tzinfo=_tz.utc)  # a Monday
-    minutes = [start + _td(minutes=m) for m in range(7 * 24 * 60)]
+    minutes = [start + _td(minutes=m) for m in range(31 * 24 * 60)]  # a month: monthly jobs exist (Sam, 19.11)
     for job in JOBS.values():
         assert any(cron_matches(job.cron, m) for m in minutes), f"{job.name} never fires"
     assert enabled_from_env("") == ([], [])

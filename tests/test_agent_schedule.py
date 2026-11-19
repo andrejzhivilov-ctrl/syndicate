@@ -214,6 +214,13 @@ def test_alex_keeps_the_times_and_feeds_he_had_in_n8n():
         "eva_drive_inbox": ("*/10 * * * *", "drive_mirror"),  # 18.11.2026: the holding inbox
         "eva_sort_materials": ("3,13,23,33,43,53 * * * *", "sort_materials"),
         "eva_markdown": ("6,16,26,36,46,56 * * * *", "to_markdown"),  # 18.11.2026: Markdown, originals to Drive
+        # 19.11.2026: Sam on paper — the engine every minute, reports and research as Hermes turns.
+        "sam_paper_mark": ("* * * * *", "sam_mark"), "sam_scalp": ("* * * * *", "sam_scalp"),
+        "sam_tournament": ("*/5 * * * *", "sam_tournament"), "sam_morning": ("0 8 * * *", "report"),
+        "sam_london": ("45 9 * * 1-5", "report"), "sam_new_york": ("15 15 * * 1-5", "report"),
+        "sam_evening": ("0 21 * * *", "report"), "sam_bets": ("0 11 * * *", "report"),
+        "sam_crypto_projects": ("0 13 * * *", "report"), "sam_reflection": ("30 4 * * *", "report"),
+        "sam_weekly": ("0 18 * * 0", "report"), "sam_monthly": ("0 10 1 * *", "report"),
     }
     assert all(job.text for job in sched.JOBS.values() if job.kind in ("checkin", "reminder", "owner_reminder"))
     urls = feeds.feeds_for("trainer")
