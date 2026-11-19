@@ -18,6 +18,7 @@ URLS = {
     "crypto_trending": MCP,
     "binance_btc_book": "https://data-api.binance.vision/api/v3/ticker/bookTicker?symbol=BTCUSDT",
     "bybit_btc_book": "https://api.bybit.com/v5/market/orderbook?category=spot&symbol=BTCUSDT&limit=1",
+    "fiat_books": "https://api.kraken.com/0/public/Ticker",
     "btc_book": "https://api.kraken.com/0/public/Depth?pair=XBTUSD&count=1",
     "usd_uah": "https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?valcode=USD&json",
     "fed_news": "https://www.federalreserve.gov/feeds/press_all.xml",
@@ -129,6 +130,24 @@ def _spot_top(source, data):
             "ask_size_btc": prices[3], "exchange_time_ms": timestamp_ms}
 
 
+FIAT_PAIR = re.compile(r"Z?(USD|EUR|GBP|JPY|CHF|CAD|AUD|NZD|SEK|NOK)Z?(USD|EUR|GBP|JPY|CHF|CAD|AUD|NZD|SEK|NOK)")
+
+
+def _fiat_books(data):
+    if data["error"]:
+        raise ValueError("exchange_error")
+    rows = []
+    for symbol, item in data["result"].items():
+        match = FIAT_PAIR.fullmatch(symbol)
+        if not match:
+            continue
+        bid, ask, high, low = map(float, (item["b"][0], item["a"][0], item["h"][1], item["l"][1]))
+        if all(math.isfinite(n) for n in (bid, ask, high, low)) and 0 < bid <= ask and 0 < low <= high:
+            rows.append({"pair": "/".join(match.groups()), "bid": bid, "ask": ask,
+                         "spread_bp": 20000 * (ask - bid) / (ask + bid), "range_24h_pct": 100 * (high / low - 1)})
+    return sorted(rows, key=lambda row: row["range_24h_pct"], reverse=True)
+
+
 def _scoreboard(data):
     return {"events": [{"id": e["id"], "name": e["name"], "scheduled_at": e["date"],
                         "status": e.get("status", {}).get("type", {}).get("name")}
@@ -145,6 +164,8 @@ def _digest(key, body, now):
         return _spot_top(key, data)
     if key in {"nba_games", "atp_events", "epl_events"}:
         return _scoreboard(data)
+    if key == "fiat_books":
+        return _fiat_books(data)
     if key == "btc_book":
         return _book(data, now)
     if key == "usd_uah":
