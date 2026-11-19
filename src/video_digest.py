@@ -352,21 +352,30 @@ async def _gemini_digest(url: str, agent: str, keys: Dict[str, str], root: Path,
             "minutes": 0, "digest": summary}
 
 
+async def _try_gemini(url: str, agent: str, keys: Dict[str, str], root: Path, transport: Any) -> Optional[Dict[str, Any]]:
+    """A YouTube link watched by Gemini; None means: go on with captions and audio."""
+    if not (keys.get("gemini_api_key") and is_youtube(url)):
+        return None
+    try:
+        return await _gemini_digest(public_url(url), agent, keys, root, transport)
+    except DigestError as exc:
+        if str(exc) in ("not_a_web_link", "private_address"):
+            return {"status": "unavailable", "reason": str(exc), "url": url}
+        logger.warning("gemini_digest_failed", reason=str(exc))
+    except (httpx.HTTPError, KeyError, IndexError, ValueError, OSError) as exc:
+        logger.warning("gemini_digest_failed", error_type=type(exc).__name__)
+    return None
+
+
 async def digest(url: str, agent: str, keys: Dict[str, str], root: Optional[Path], *,
                  fetcher: Fetcher = fetch, transport: Any = None) -> Dict[str, Any]:
     if agent not in NOTES:
         return {"status": "error", "error": "unknown_agent", "available_agents": sorted(NOTES)}
     if root is None:
         return {"status": "unavailable", "reason": "obsidian_vault_not_mounted"}
-    if keys.get("gemini_api_key") and is_youtube(url):
-        try:
-            return await _gemini_digest(public_url(url), agent, keys, root, transport)
-        except DigestError as exc:
-            if str(exc) in ("not_a_web_link", "private_address"):
-                return {"status": "unavailable", "reason": str(exc), "url": url}
-            logger.warning("gemini_digest_failed", reason=str(exc))
-        except (httpx.HTTPError, KeyError, IndexError, ValueError, OSError) as exc:
-            logger.warning("gemini_digest_failed", error_type=type(exc).__name__)  # captions and audio are next
+    watched = await _try_gemini(url, agent, keys, root, transport)
+    if watched is not None:
+        return watched
     if not keys.get("openrouter_api_key"):
         return {"status": "unavailable", "reason": "no_summary_model_key"}
     work = ensure_dir("video_work") / uuid.uuid4().hex
