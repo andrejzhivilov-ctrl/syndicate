@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="uk"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Сем · Ринковий огляд</title>
+<style>
+:root{color-scheme:dark;font:16px/1.55 "Segoe UI",sans-serif;background:#10191b;color:#e0edeb}body{margin:auto;max-width:1040px;padding:4vw}header,section{border-bottom:1px solid #395052;padding:18px 0}h1{font-size:clamp(30px,5vw,55px);line-height:1.15;margin:.3em 0}h2{font-size:22px}select,button{font:inherit;background:#203636;color:white;padding:6px 12px;border:1px solid #527471;border-radius:6px}a{color:#96e1c1}nav{display:flex;gap:1.4em;flex-wrap:wrap}.quotes{display:flex;gap:3em;flex-wrap:wrap}.quotes strong{display:block;font-size:32px;font-variant-numeric:tabular-nums}small,time{color:#acbfbd}canvas{width:100%;height:180px}li{margin:12px 0}#network{color:#f3cc8c}
+</style>
+<header><small>SYNDICATE / СЕМ</small><h1>Ринковий огляд</h1><nav><a id="book" hidden target="_blank" rel="noopener">Відкрити журнали й аналітику</a><a href="https://www.federalreserve.gov/newsevents.htm">ФРС</a><a href="https://www.ecb.europa.eu/press/html/index.en.html">ЄЦБ</a><a href="https://smida.gov.ua/">SMIDA</a></nav></header>
+<section><h2>Спот · Binance</h2><label>Інструмент <select id="pair"><option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option></select></label>
+<p id="network" aria-live="polite">З’єднання…</p><div class="quotes"><div>Покупці · bid<strong id="bid">—</strong></div><div>Продавці · ask<strong id="ask">—</strong></div><div>Спред<strong id="spread">—</strong></div></div>
+<p><small>Середина спреду за останні 120 отриманих котирувань · USDT</small></p><canvas id="chart" role="img" aria-label="Графік середини спреду"></canvas><small id="stamp">Очікуємо перше котирування.</small></section>
+<section><h2>Новини</h2><label>Стрічка <select id="topic"><option value="bitcoin OR ethereum">Крипта</option><option value="forex OR central bank">Валюти та ставки</option><option value="Ukraine grain OR Ukraine steel">Українське зерно й метал</option></select></label> <button id="refresh">Оновити</button><p id="newsStatus" aria-live="polite"></p><ul id="news"></ul><small>GDELT · час публікації та джерело кожної новини перевіряються окремо.</small></section>
+<script>
+"use strict";
+const el=id=>document.getElementById(id);
+const sheet=new URLSearchParams(location.search).get("sheet") || "SHEET_ID_PLACEHOLDER";
+if (/^[\w-]{30,100}$/.test(sheet)) { el("book").href="https://docs.google.com/spreadsheets/d/"+sheet+"/edit"; el("book").hidden=false; }
+let socket, retry, last=0, points=[], attempt=0;
+const price=new Intl.NumberFormat("uk-UA",{maximumFractionDigits:6});
+function draw(){
+ const canvas=el("chart");const width=Math.max(300,canvas.clientWidth);canvas.width=width;canvas.height=180;
+ const ctx=canvas.getContext("2d");if(points.length<2)return;
+ const lo=Math.min(...points),hi=Math.max(...points);
+ ctx.beginPath();points.forEach((p,i)=>{let x=8+i*(width-16)/(points.length-1),y=165-(p-lo)*145/(hi-lo||1);if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y)});
+ ctx.strokeStyle="#88dfb9";ctx.lineWidth=2;ctx.stroke();
+}
+function clearQuote(){for(const id of ["bid","ask","spread"])el(id).textContent="—";}
+function connect(){
+ clearTimeout(retry);
+ if(socket){socket.onclose=null;socket.onmessage=null;socket.close();}
+ points=[];last=0;clearQuote();draw();el("stamp").textContent="Очікуємо новий потік.";
+ el("network").textContent="З’єднання…";
+ const sym=el("pair").value.toLowerCase();
+ socket=new WebSocket("wss://data-stream.binance.vision/ws/"+sym+"@bookTicker");
+ socket.onmessage=e=>{
+   let d;try{d=JSON.parse(e.data)}catch{return}
+   const b=Number(d.b),a=Number(d.a);
+   if(d.s!==sym.toUpperCase()||!(b>0&&a>=b))return;
+   last=Date.now();attempt=0;el("network").textContent="Потік активний";
+   el("bid").textContent=price.format(b);el("ask").textContent=price.format(a);el("spread").textContent=price.format(a-b);
+   el("stamp").textContent="Час отримання у Києві "+new Date(last).toLocaleTimeString("uk-UA",{timeZone:"Europe/Kyiv"})+" · джерело Binance Spot";
+   points.push((a+b)/2);if(points.length>120)points.shift();draw();
+ };
+ socket.onclose=()=>{last=0;clearQuote();el("network").textContent="Потік недоступний · повторюємо з’єднання";retry=setTimeout(connect,Math.min(60000,2000*2**Math.min(5,attempt++)))};
+}
+setInterval(()=>{if(last&&Date.now()-last>10000){el("network").textContent="Котирування застаріле";clearQuote()}},2000);
+el("pair").onchange=connect;window.addEventListener("resize",draw);
+let sequence=0;
+async function news(){
+ const seq=++sequence;const url=new URL("https://api.gdeltproject.org/api/v2/doc/doc");
+ const query=el("topic").value;
+ url.search=new URLSearchParams({query:"("+query+")",mode:"artlist",format:"json",maxrecords:"8",sort:"datedesc",timespan:"1d"});
+ el("newsStatus").textContent="Завантаження…";el("news").replaceChildren();
+ try{const response=await fetch(url,{signal:AbortSignal.timeout(12000)});if(!response.ok)throw Error();
+ const data=await response.json();if(seq!==sequence)return;
+ for(const art of data.articles||[]){let link;try{link=new URL(art.url)}catch{continue}if(!["https:","http:"].includes(link.protocol))continue;
+ const li=document.createElement("li"),a=document.createElement("a"),s=document.createElement("small");
+ a.href=link.href;a.target="_blank";a.rel="noopener noreferrer";a.textContent=art.title;s.textContent=" · "+link.hostname+" · "+(art.seendate||"час невідомий");li.append(a,s);el("news").append(li)}
+ el("newsStatus").textContent=el("news").children.length?"Оновлено "+new Date().toLocaleTimeString("uk-UA"):"За запитом новин немає.";
+ }catch{if(seq===sequence)el("newsStatus").textContent="Агрегатор зараз недоступний. Офіційні першоджерела відкриваються вгорі."}
+}
+el("topic").onchange=news;el("refresh").onclick=news;setInterval(news,600000);connect();news();
+</script></html>
