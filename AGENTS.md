@@ -7,6 +7,9 @@ Codex, Claude Code тощо). Якщо ти агент — почни звідс
 Floor 10 Marshal/безпека). Python 3.11, FastAPI, LangGraph, PostgreSQL+pgvector, Redis,
 HashiCorp Vault. Оператор-людина — Andrii.
 
+**Обов'язково прочитай також `docs/OPERATOR_RULES.md`** — ролі, секрети, конфіденційність, HITL і заборони
+Андрія. Вони діють для всіх інструментів нарівні з цим файлом.
+
 ---
 
 ## 0. Перед початком роботи
