@@ -57,6 +57,8 @@ PAPER_TRADE, PAPER_BET = "paper_trade", "paper_bet"
 STRATEGY = "strategy"
 #: Target first or stop first: 10 000 replays from the instrument's own bars (src/sam_montecarlo.py, 20.11.2026).
 TRADE_ODDS = "trade_odds"
+#: What big players, officials and crowds do on every market (src/sam_pulse.py, 20.11.2026).
+PULSE = "pulse"
 
 #: agent id -> gateway tools it may call. Default deny.
 TOOL_GRANTS: Dict[str, Tuple[str, ...]] = {
@@ -66,7 +68,7 @@ TOOL_GRANTS: Dict[str, Tuple[str, ...]] = {
     # Nothing here trades: orders stay with Andrii's buttons (NEVER_AUTO_ACT, HITL).
     "sam": (WEB_SEARCH, WEB_FETCH, ARCHIVE_SEARCH, ARCHIVE_READ, NOTE_WRITE, ASK_AGENT,
             MATERIAL_LIST, MATERIAL_READ, VIDEO_DIGEST, TABLE_SAVE, RUN_PYTHON, MARKET_DATA, PUBLIC_RESEARCH, PAPER_TRADE, PAPER_BET,
-            STRATEGY, TRADE_ODDS),
+            STRATEGY, TRADE_ODDS, PULSE),
 }
 #: Per-agent caps above the common ones: Sam reads markets all day (Andrii, 19.11.2026: he must work autonomously).
 AGENT_LIMITS: Dict[str, Dict[str, int]] = {"sam": {"web_search": 80, "web_fetch": 200, "market_data": 1000,
@@ -92,6 +94,8 @@ DAILY_LIMITS: Dict[str, int] = {WEB_SEARCH: 30, WEB_FETCH: 60, ARCHIVE_SEARCH: 1
                                 STRATEGY: 300,
                                 # Local numpy over public candles, free.
                                 TRADE_ODDS: 300,
+                                # Free public sources; X inside it is paid and capped per month in sam_pulse.
+                                PULSE: 100,
                                 # Photos and videos sent to the bot (src/media_vision.py), ~1-2 cents a minute of video.
                                 "media_view": 40}
 #: The agent's own Obsidian folder, the only place ``note_write`` writes.

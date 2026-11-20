@@ -299,6 +299,16 @@ def _gateway_tools(agent: str) -> List[Dict[str, Any]]:
                                 timeframe=text, side=text, entry={"type": "number"}, stop={"type": "number"},
                                 target={"type": "number"}, horizon={"type": "integer", "minimum": 1, "maximum": 500},
                                 replays={"type": "integer", "minimum": 100, "maximum": 20000})},
+        {"name": hermes_tools.PULSE, "description": "Market pulse from primary sources: action=digest [market "
+                                                    "macro|commodities|crypto|stocks|sports] gives the latest "
+                                                    "snapshots (CFTC positions of large traders, central banks, FRED, "
+                                                    "EIA, economic calendar, SEC insiders, crypto funding and longs, "
+                                                    "stablecoins, fear index, Polymarket, news, injuries, line moves, "
+                                                    "Reddit, Telegram, X); read (source) fetches one now; sources lists "
+                                                    "them with what each needs; x (question, handles) is a paid X "
+                                                    "search under a monthly cap. Context, never a signal by itself.",
+         "inputSchema": _schema(["action"], action=text, market=text, source=text, question=text,
+                                handles={"type": "array", "items": {"type": "string"}, "maxItems": 20})},
         {"name": hermes_tools.ASK_AGENT, "description": "Ask another agent of the holding one question; it answers as "
                                                         "a colleague, without tools.",
          "inputSchema": _schema(["agent", "question"], agent={"type": "string", "enum": hermes_tools.ask_targets(agent)},
@@ -337,6 +347,12 @@ async def _trade_odds(args: Mapping[str, Any]) -> Dict[str, Any]:
     from src import sam_montecarlo
 
     return await sam_montecarlo.tool(dict(args))
+
+
+async def _pulse(args: Mapping[str, Any], orchestrator: Any) -> Dict[str, Any]:
+    from src import sam_pulse
+
+    return await sam_pulse.tool(dict(args), getattr(orchestrator, "_vault_client", None))
 
 
 async def _strategy(args: Mapping[str, Any]) -> Dict[str, Any]:
@@ -391,6 +407,7 @@ async def _gateway_call(agent: str, name: str, args: Mapping[str, Any], orchestr
         hermes_tools.PAPER_BET: lambda: asyncio.to_thread(_sam_paper().bet_tool, dict(args)),
         hermes_tools.STRATEGY: lambda: _strategy(args),
         hermes_tools.TRADE_ODDS: lambda: _trade_odds(args),
+        hermes_tools.PULSE: lambda: _pulse(args, orchestrator),
         hermes_tools.ASK_AGENT: lambda: hermes_tools.ask_agent(agent, str(args.get("agent", "")),
                                                                str(args.get("question", "")), orchestrator),
     }

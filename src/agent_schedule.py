@@ -101,6 +101,8 @@ JOBS: Dict[str, Job] = {job.name: job for job in (
     # 20.11.2026: the catalog's gate is code, not a model turn. Ideas from the night are tested every morning;
     # on the 1st every paper strategy is tested again on fresh data before the monthly review.
     Job("sam_backtest_ideas", "30 5 * * *", "sam", "sam_backtest_ideas", "Сем: бектест нових ідей", timeout_s=1500),
+    # 20.11.2026, Andrii: the pulse of every market from primary sources; X (paid) only in the 07:40 run.
+    Job("sam_pulse", "40 7,14,20 * * *", "sam", "sam_pulse", "Сем: пульс ринків з першоджерел", timeout_s=600),
     Job("sam_rebacktest", "0 6 1 * *", "sam", "sam_rebacktest", "Сем: повторний бектест каталогу", timeout_s=3000),
     # 20.11.2026, Andrii: the Second Brain keeps everything, is searchable by meaning, and Eva clears it monthly.
     Job("brain_index", "*/15 * * * *", "eva", "brain_index", "Second Brain: індекс пошуку за змістом", timeout_s=840),
@@ -185,6 +187,13 @@ async def _sam_backtests(job: Job, gateway: Any) -> Dict[str, Any]:
         result = await asyncio.to_thread(sam_catalog.backtest, sid, _fetch_history, "schedule")
         moved[sid] = result.get("now") or result.get("reason", "unavailable")
     return {"status": "ok", "tested": len(ids), "result": moved}
+async def _sam_pulse(job: Job, gateway: Any) -> Dict[str, Any]:
+    from src import sam_pulse
+
+    hour = datetime.now(TIMEZONE).hour
+    return await sam_pulse.run_job(getattr(gateway, "vault", None), with_x=hour == sam_pulse.X_HOUR)
+
+
 async def _brain_index(job: Job, gateway: Any) -> Dict[str, Any]:
     from src import brain_index
 
@@ -207,7 +216,7 @@ LOCAL_JOBS = {"drive_mirror": _drive_mirror, "transcribe": _transcribe, "owner_r
               "sort_materials": _sort_materials, "to_markdown": _to_markdown,
               "sam_mark": _sam_engine, "sam_scalp": _sam_engine, "sam_tournament": _sam_engine,
               "sam_backtest_ideas": _sam_backtests, "sam_rebacktest": _sam_backtests,
-              "brain_index": _brain_index, "brain_audit": _brain_audit}
+              "sam_pulse": _sam_pulse, "brain_index": _brain_index, "brain_audit": _brain_audit}
 
 
 def enabled_from_env(raw: Optional[str] = None) -> Tuple[List[str], List[str]]:

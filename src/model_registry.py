@@ -39,6 +39,8 @@ DEFAULTS = {
     "OR_GPT_LUNA": "openai/gpt-6-luna",
     "OR_GPT_SOL": "openai/gpt-6.1-sol",
     "OR_GROK": "x-ai/grok-4.7",
+    # 20.11.2026: Sam reads X through xAI x_search ($5 per 1000 posts + tokens); the cheapest Grok on the price list.
+    "XAI_X_SEARCH": "grok-4.20-0309-non-reasoning",
     # Gateway web search (src/hermes_tools.py): $1/M tokens + $0.005 a search on 06.11.2026.
     "OR_SONAR": "perplexity/sonar",
     "OR_SONAR_PRO": "perplexity/sonar-pro",
