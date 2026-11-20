@@ -53,6 +53,8 @@ MARKET_DATA = "market_data"
 PUBLIC_RESEARCH = "public_research"
 #: Sam's paper ledger (src/sam_paper.py): trades and bets with no real money (19.11.2026).
 PAPER_TRADE, PAPER_BET = "paper_trade", "paper_bet"
+#: Sam's strategy catalog: list, read, propose, backtest, archive (src/sam_catalog.py, 20.11.2026).
+STRATEGY = "strategy"
 
 #: agent id -> gateway tools it may call. Default deny.
 TOOL_GRANTS: Dict[str, Tuple[str, ...]] = {
@@ -61,7 +63,8 @@ TOOL_GRANTS: Dict[str, Tuple[str, ...]] = {
     # Sam (19.11.2026): research, his own notes and tables, market data and the sandbox for the maths.
     # Nothing here trades: orders stay with Andrii's buttons (NEVER_AUTO_ACT, HITL).
     "sam": (WEB_SEARCH, WEB_FETCH, ARCHIVE_SEARCH, ARCHIVE_READ, NOTE_WRITE, ASK_AGENT,
-            MATERIAL_LIST, MATERIAL_READ, VIDEO_DIGEST, TABLE_SAVE, RUN_PYTHON, MARKET_DATA, PUBLIC_RESEARCH, PAPER_TRADE, PAPER_BET),
+            MATERIAL_LIST, MATERIAL_READ, VIDEO_DIGEST, TABLE_SAVE, RUN_PYTHON, MARKET_DATA, PUBLIC_RESEARCH, PAPER_TRADE, PAPER_BET,
+            STRATEGY),
 }
 #: Per-agent caps above the common ones: Sam reads markets all day (Andrii, 19.11.2026: he must work autonomously).
 AGENT_LIMITS: Dict[str, Dict[str, int]] = {"sam": {"web_search": 80, "web_fetch": 200, "market_data": 1000,
@@ -83,6 +86,8 @@ DAILY_LIMITS: Dict[str, int] = {WEB_SEARCH: 30, WEB_FETCH: 60, ARCHIVE_SEARCH: 1
                                 RUN_PYTHON: 100, MARKET_DATA: 300, PUBLIC_RESEARCH: 100,
                                 # Paper only, local and free.
                                 PAPER_TRADE: 500, PAPER_BET: 200,
+                                # A backtest reads public candles and costs nothing but time (20.11.2026).
+                                STRATEGY: 300,
                                 # Photos and videos sent to the bot (src/media_vision.py), ~1-2 cents a minute of video.
                                 "media_view": 40}
 #: The agent's own Obsidian folder, the only place ``note_write`` writes.

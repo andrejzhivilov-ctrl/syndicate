@@ -1,0 +1,23 @@
+{
+  "id": "levels_15m",
+  "title": "Рівні вчорашнього дня",
+  "author": "andrii",
+  "status": "paper",
+  "timeframe": "15m",
+  "style": "day",
+  "risk": 0.01,
+  "markets": [
+    "crypto",
+    "trading"
+  ],
+  "min_bars": 40,
+  "hypothesis": "Закриття за вчорашнім максимумом чи мінімумом продовжує рух: рівні дня видно всім учасникам.",
+  "long": "cross_up(close, day_high())",
+  "short": "cross_down(close, day_low())",
+  "stop_long": "day_high() - atr(14)",
+  "stop_short": "day_low() + atr(14)",
+  "source": "Андрій, 19.11.2026: його спосіб торгівлі від рівнів",
+  "rr": 2.5,
+  "parent": null,
+  "created": "2026-11-20"
+}
