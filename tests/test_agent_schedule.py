@@ -223,6 +223,8 @@ def test_alex_keeps_the_times_and_feeds_he_had_in_n8n():
         "sam_weekly": ("0 18 * * 0", "report"), "sam_monthly": ("0 10 1 * *", "report"),
         # 20.11.2026, Andrii: Sam learns daily, weekly, monthly — the catalog's gate is code, not a model turn.
         "sam_backtest_ideas": ("30 5 * * *", "sam_backtest_ideas"), "sam_rebacktest": ("0 6 1 * *", "sam_rebacktest"),
+        # 20.11.2026, Andrii: everything in the Second Brain, searchable by meaning, Eva's audit every month.
+        "brain_index": ("*/15 * * * *", "brain_index"), "eva_brain_audit": ("0 7 1 * *", "brain_audit"),
     }
     assert all(job.text for job in sched.JOBS.values() if job.kind in ("checkin", "reminder", "owner_reminder"))
     urls = feeds.feeds_for("trainer")
