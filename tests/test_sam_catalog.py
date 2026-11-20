@@ -52,9 +52,9 @@ def test_the_backtest_enters_on_the_next_open_and_counts_the_stop_first():
     frame.iloc[2, frame.columns.get_loc("open")] = 100.5
     frame.iloc[2, frame.columns.get_loc("high")] = 110.0  # target and stop both inside bar 2
     frame.iloc[2, frame.columns.get_loc("low")] = 90.0
-    first = sam_backtest.simulate(spec, frame, "crypto")[0]
+    first = sam_backtest.simulate(spec, frame, "trading")[0]  # 3 bps: the timing, not the cost gate, is tested
     assert first["entry_bar"] == 1 and first["entry"] == frame["open"].iloc[1]  # bar 0's signal, bar 1's open
-    second = sam_backtest.simulate(spec, frame.iloc[1:], "crypto")[0]
+    second = sam_backtest.simulate(spec, frame.iloc[1:], "trading")[0]
     assert second["entry"] == 100.5 and second["why"] == "stop" and second["r"] < -1  # worse case and costs
 
 
