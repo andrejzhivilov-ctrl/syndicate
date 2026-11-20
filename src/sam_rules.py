@@ -162,30 +162,45 @@ def _eval(node: ast.AST, frame: pd.DataFrame) -> Any:
         if node.id in BARS:
             return frame[node.id].astype(float)
         raise RuleError(f"{node.id} is a function: write {node.id}(...)")
-    if isinstance(node, ast.Call):
-        _arity, impl = FUNCTIONS[node.func.id]  # type: ignore[union-attr]
-        args = [_eval(a, frame) if not isinstance(a, ast.Constant) else a.value for a in node.args]
-        return impl(frame, *args)
-    if isinstance(node, ast.BinOp):
-        return _BINARY[type(node.op)](_eval(node.left, frame), _eval(node.right, frame))
-    if isinstance(node, ast.UnaryOp):
-        value = _eval(node.operand, frame)
-        return -value if isinstance(node.op, ast.USub) else ~_bool(value, frame)
-    if isinstance(node, ast.BoolOp):
-        values = [_bool(_eval(v, frame), frame) for v in node.values]
-        out = values[0]
-        for value in values[1:]:
-            out = (out & value) if isinstance(node.op, ast.And) else (out | value)
-        return out
-    if isinstance(node, ast.Compare):
-        left, out = _eval(node.left, frame), None
-        for op, right_node in zip(node.ops, node.comparators):
-            right = _eval(right_node, frame)
-            part = _bool(_COMPARE[type(op)](_series(left, frame), right), frame)
-            out = part if out is None else out & part
-            left = right
-        return out
-    raise RuleError(f"{type(node).__name__} is not allowed")
+    handler = _NODES.get(type(node))
+    if handler is None:
+        raise RuleError(f"{type(node).__name__} is not allowed")
+    return handler(node, frame)
+
+
+def _call(node: ast.Call, frame: pd.DataFrame) -> Any:
+    _arity, impl = FUNCTIONS[node.func.id]  # type: ignore[attr-defined]
+    args = [_eval(a, frame) if not isinstance(a, ast.Constant) else a.value for a in node.args]
+    return impl(frame, *args)
+
+
+def _unary(node: ast.UnaryOp, frame: pd.DataFrame) -> Any:
+    value = _eval(node.operand, frame)
+    return -value if isinstance(node.op, ast.USub) else ~_bool(value, frame)
+
+
+def _boolop(node: ast.BoolOp, frame: pd.DataFrame) -> Any:
+    values = [_bool(_eval(v, frame), frame) for v in node.values]
+    out = values[0]
+    for value in values[1:]:
+        out = (out & value) if isinstance(node.op, ast.And) else (out | value)
+    return out
+
+
+def _compare(node: ast.Compare, frame: pd.DataFrame) -> Any:
+    left, out = _eval(node.left, frame), None
+    for op, right_node in zip(node.ops, node.comparators, strict=True):
+        right = _eval(right_node, frame)
+        part = _bool(_COMPARE[type(op)](_series(left, frame), right), frame)
+        out = part if out is None else out & part
+        left = right
+    return out
+
+
+_NODES: Dict[type, Callable[[Any, pd.DataFrame], Any]] = {
+    ast.Call: _call, ast.UnaryOp: _unary, ast.BoolOp: _boolop, ast.Compare: _compare,
+    ast.BinOp: lambda node, frame: _BINARY[type(node.op)](_eval(node.left, frame), _eval(node.right, frame)),
+}
 
 
 def _bool(value: Any, frame: pd.DataFrame) -> pd.Series:

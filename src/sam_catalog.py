@@ -88,19 +88,12 @@ def status_of(sid: str, spec: Optional[Mapping[str, Any]] = None, saved: Optiona
     return (saved.get(sid) or {}).get("status") or spec.get("status") or "idea"
 
 
-def validate(spec: Mapping[str, Any]) -> List[str]:
-    """Every problem with a spec, in words Sam can act on; empty when it may enter the catalog."""
+def _choice(spec: Mapping[str, Any], key: str, allowed: Tuple[str, ...]) -> List[str]:
+    return [] if spec.get(key) in allowed else [f"{key}: один з {', '.join(allowed)}"]
+
+
+def _numbers(spec: Mapping[str, Any]) -> List[str]:
     problems = []
-    if not ID.match(str(spec.get("id", ""))):
-        problems.append("id: 3–48 малих латинських літер, цифр або _")
-    if not str(spec.get("title", "")).strip() or not str(spec.get("hypothesis", "")).strip():
-        problems.append("title і hypothesis обов'язкові: чому стратегія має працювати")
-    if spec.get("author") not in AUTHORS:
-        problems.append(f"author: один з {', '.join(AUTHORS)}")
-    if spec.get("timeframe") not in TIMEFRAMES:
-        problems.append(f"timeframe: один з {', '.join(TIMEFRAMES)}")
-    if spec.get("style") not in STYLES:
-        problems.append(f"style: один з {', '.join(STYLES)}")
     markets = spec.get("markets")
     if not isinstance(markets, list) or not markets or any(m not in MARKETS for m in markets):
         problems.append(f"markets: список з {', '.join(MARKETS)}")
@@ -109,15 +102,29 @@ def validate(spec: Mapping[str, Any]) -> List[str]:
         problems.append(f"risk: частка рахунку від 0 до {MAX_RISK}")
     if not isinstance(rr, (int, float)) or rr < MIN_RR:
         problems.append(f"rr: щонайменше {MIN_RR} (правило Андрія)")
-    if not spec.get("long") and not spec.get("short"):
-        problems.append("потрібне правило long або short")
-    for side in ("long", "short"):
-        if spec.get(side):
-            for key in (side, f"stop_{side}"):
-                why = sam_rules.check(spec.get(key)) if spec.get(key) else "правило стопу обов'язкове"
-                if why:
-                    problems.append(f"{key}: {why}")
     return problems
+
+
+def _rules(spec: Mapping[str, Any]) -> List[str]:
+    if not spec.get("long") and not spec.get("short"):
+        return ["потрібне правило long або short"]
+    problems = []
+    for side in ("long", "short"):
+        for key in ((side, f"stop_{side}") if spec.get(side) else ()):
+            why = sam_rules.check(spec.get(key)) if spec.get(key) else "правило стопу обов'язкове"
+            if why:
+                problems.append(f"{key}: {why}")
+    return problems
+
+
+def validate(spec: Mapping[str, Any]) -> List[str]:
+    """Every problem with a spec, in words Sam can act on; empty when it may enter the catalog."""
+    problems = [] if ID.match(str(spec.get("id", ""))) else ["id: 3–48 малих латинських літер, цифр або _"]
+    if not str(spec.get("title", "")).strip() or not str(spec.get("hypothesis", "")).strip():
+        problems.append("title і hypothesis обов'язкові: чому стратегія має працювати")
+    for key, allowed in (("author", AUTHORS), ("timeframe", TIMEFRAMES), ("style", STYLES)):
+        problems += _choice(spec, key, allowed)
+    return problems + _numbers(spec) + _rules(spec)
 
 
 def _event(saved: Dict[str, Any], sid: str, status: str, why: str, by: str, backtest: Optional[Dict] = None) -> None:
