@@ -2,7 +2,7 @@
   "id": "scalp_5m",
   "title": "Скальп EMA 9/21 на 5m",
   "author": "claude",
-  "status": "paper",
+  "status": "idea",
   "timeframe": "5m",
   "style": "scalp",
   "risk": 0.005,
@@ -15,7 +15,7 @@
   "short": "cross_down(ema(close, 9), ema(close, 21))",
   "stop_long": "close - 1.5 * atr(14)",
   "stop_short": "close + 1.5 * atr(14)",
-  "source": "Андрій, 20.11.2026: скальп переїжджає з 1m на 5m, комісії ф'ючерсів, стоп не ближче межі комісій",
+  "source": "Claude, 20.11.2026: перевірка, чи скальп на 5m кращий за 1m (живий бектест 20.11: 63 угоди, PF 0.64 — ранковий бектест вирішить)",
   "rr": 2.5,
   "parent": "scalp_1m",
   "created": "2026-11-20"

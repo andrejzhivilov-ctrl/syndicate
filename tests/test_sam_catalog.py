@@ -111,7 +111,7 @@ def test_a_broken_rule_never_stops_the_tournament_and_sam_has_the_tool(tmp_path,
     assert hermes_tools.STRATEGY in hermes_tools.granted("sam")
     assert agent_schedule.JOBS["sam_backtest_ideas"].cron == "30 5 * * *"
     assert agent_schedule.JOBS["sam_rebacktest"].cron == "0 6 1 * *"
-    # 20.11.2026: the 1m scalp is archived (fees above its stop); the 5m scalp runs in the tournament
-    assert "scalp_1m" not in sam_catalog.active() and "scalp_5m" in sam_catalog.active(exclude=("1m",))
+    # 20.11.2026: the 1m scalp stays on paper with the fee floor; the 5m variant waits as an idea for its test
+    assert "scalp_1m" in sam_catalog.active("1m") and "scalp_5m" not in sam_catalog.active()
     with pytest.raises(sam_rules.RuleError):
         sam_rules.evaluate("nonsense(close)", _trend(50))
