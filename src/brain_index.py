@@ -17,8 +17,10 @@ import hashlib
 import json
 import os
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import structlog
@@ -34,7 +36,16 @@ MAX_PARTS_PER_NOTE = 250
 #: Parts embedded per run: the CPU model needs ~2 s a part (20.11.2026), so 300 fit the 15-minute slot;
 #: the first full index (~9000 parts) takes about 8 hours of runs, then only changed notes are read.
 RUN_BUDGET = 300
+#: Andrii, 20.11.2026: the heavy work runs at night (21:00–07:00 Kyiv). By day a run takes only a few
+#: changed notes, so the agents keep the CPU; a note bigger than that waits for the night.
+DAY_BUDGET = 30
+NIGHT = (21, 7)
 BATCH = 16
+
+
+def budget_now(now: Optional[datetime] = None) -> int:
+    hour = (now or datetime.now(timezone.utc)).astimezone(ZoneInfo("Europe/Kyiv")).hour
+    return RUN_BUDGET if hour >= NIGHT[0] or hour < NIGHT[1] else DAY_BUDGET
 SKIP_DIRS = frozenset({".obsidian", ".trash", ".stfolder", ".git", "_Кошик_агентів"})
 _WORD = re.compile(r"[\w'’-]{3,}", re.UNICODE)
 
@@ -141,7 +152,7 @@ async def update(root: Path, embedder: Any, index: Optional[Index] = None, budge
             index.files[path]["mtime"] = current[path]
             continue
         pieces = parts(text)
-        if spent + len(pieces) > budget and spent:
+        if spent + len(pieces) > budget:
             left += 1
             continue
         vectors: List[List[float]] = []
@@ -229,7 +240,7 @@ async def run_job() -> Dict[str, Any]:
     if embedder is None:
         return {"status": "unavailable", "reason": "embeddings_disabled"}
     try:
-        return await update(root, embedder)
+        return {**await update(root, embedder, budget=budget_now()), "budget": budget_now()}
     except EmbeddingUnavailable as exc:
         return {"status": "unavailable", "reason": "embeddings_unavailable", "detail": str(exc)[:160]}
     finally:

@@ -120,3 +120,21 @@ def test_evas_audit_moves_only_safe_rubbish_to_the_bin_and_asks_for_the_rest(tmp
     rows = [json.loads(line) for line in (tmp_path / "data" / "brain" / "eva").glob("*.jsonl").__next__().read_text(
         encoding="utf-8").splitlines()]
     assert rows[-1]["kind"] == "job" and "аудит" in rows[-1]["summary"]
+
+
+def test_the_heavy_indexing_waits_for_the_night():
+    from datetime import datetime, timezone
+
+    assert brain_index.budget_now(datetime(2026, 11, 20, 19, 30, tzinfo=timezone.utc)) == brain_index.RUN_BUDGET  # 21:30 Kyiv
+    assert brain_index.budget_now(datetime(2026, 11, 20, 4, 59, tzinfo=timezone.utc)) == brain_index.RUN_BUDGET  # 06:59
+    assert brain_index.budget_now(datetime(2026, 11, 20, 10, 0, tzinfo=timezone.utc)) == brain_index.DAY_BUDGET  # 12:00
+
+
+def test_a_note_bigger_than_the_day_budget_waits_for_the_night(tmp_path, monkeypatch):
+    vault = _env(tmp_path, monkeypatch)
+    (vault / "Книга.md").write_text("\n\n".join(f"абзац {i} " + "слово " * 200 for i in range(40)), encoding="utf-8")
+    (vault / "Мала.md").write_text("коротка нотатка", encoding="utf-8")
+    day = asyncio.run(brain_index.update(vault, _Embedder(), budget=brain_index.DAY_BUDGET))
+    assert day["indexed"] == 1 and day["waiting"] == 1
+    night = asyncio.run(brain_index.update(vault, _Embedder(), budget=brain_index.RUN_BUDGET))
+    assert night["indexed"] == 1 and night["waiting"] == 0
