@@ -83,6 +83,7 @@ return {"runway_months": 999}                                # безкінеч�
 | PII маскується до відправки в зовнішній LLM | `src/pii.py` |
 | Пошта ніколи не надсилається автоматично — тільки чернетки | `src/integrations/google_workspace.py` |
 | Мережеві виклики (Edge-TTS, Pexels, LLM) не повинні «ронити» весь поверх — завжди `try/except` + чесний статус | `content_factory/*` |
+| Кожна дія агента зберігається в Second Brain; нічого не видаляється, лише кошик (аудит Єви раз на місяць) | `src/brain.py`, `src/brain_index.py`, `src/brain_audit.py`, `docs/OPERATOR_RULES.md` |
 | `datetime.utcnow()` заборонено — лише `datetime.now(timezone.utc)` | весь код |
 
 ---
