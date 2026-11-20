@@ -148,7 +148,7 @@ async def _telegram(client: httpx.AsyncClient, ctx: Context) -> Dict[str, Any]:
         page = (await _get(client, f"https://t.me/s/{quote_plus(channel)}")).decode("utf-8", "replace")
         texts = re.findall(r'tgme_widget_message_text[^>]*>(.*?)</div>', page, flags=re.S)
         times = re.findall(r'<time datetime="([^"]+)"', page)
-        for raw, when in list(zip(texts, times))[-5:]:
+        for raw, when in list(zip(texts, times, strict=False))[-5:]  # a service post may have a time and no text:
             text = html.unescape(re.sub(r"<[^>]+>", " ", raw)).strip()
             text = re.sub(r"\s+", " ", text)[:280]
             if text:
