@@ -82,7 +82,9 @@ def test_a_new_idea_is_tested_at_once_and_only_a_passing_one_reaches_paper(tmp_p
     assert "crypto:binance:ETH/USDT" in made["missing"]  # a dead source is named, never guessed
     if made["now"] == "rejected":
         assert made["reasons"]
-    noise = {**spec, "id": "sam_noise", "parent": "sam_trend_follow", "long": "close > 0", "stop_long": "close * 0.999"}
+    # Always short against a rising market: no fee floor can save it (20.11.2026: stops are widened, not refused).
+    noise = {**spec, "id": "sam_noise", "parent": "sam_trend_follow", "long": None, "stop_long": None,
+             "short": "close > 0", "stop_short": "close * 1.001"}
     worse = sam_catalog.tool({"action": "propose", "spec": noise}, fetch)
     assert worse["now"] == "rejected" and any("очікування" in r for r in worse["reasons"])
     assert sam_catalog.tool({"action": "propose", "spec": spec}, fetch)["problems"]  # an id is never reused
