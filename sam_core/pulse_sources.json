@@ -1,0 +1,50 @@
+{
+  "_about": "Що Сем відстежує (Андрій, 20.11.2026). Редагується тут; код лише читає. Акаунти X, сабреддіти й канали без @ і без r/.",
+  "cot_markets": {
+    "088691": "золото",
+    "084691": "срібло",
+    "067651": "нафта WTI",
+    "023651": "природний газ",
+    "099741": "євро",
+    "096742": "фунт",
+    "097741": "єна",
+    "13874A": "S&P 500 E-mini",
+    "133741": "біткоїн CME"
+  },
+  "crypto_symbols": ["BTCUSDT", "ETHUSDT", "SOLUSDT"],
+  "fred_series": {
+    "DGS10": "дохідність 10-річних облігацій США, %",
+    "DFII10": "реальна дохідність 10 років, %",
+    "T10Y2Y": "спред 10 і 2 роки, п.п.",
+    "DTWEXBGS": "широкий індекс долара",
+    "VIXCLS": "VIX, індекс страху акцій",
+    "FEDFUNDS": "ставка ФРС, %",
+    "CPIAUCSL": "індекс споживчих цін США",
+    "UNRATE": "безробіття США, %"
+  },
+  "news_queries": {
+    "fx": "Fed OR ECB OR \"Bank of Japan\" OR dollar forex",
+    "metals": "\"gold price\" OR \"silver price\"",
+    "commodities": "\"oil price\" OR OPEC OR \"natural gas price\"",
+    "stocks": "\"stock market\" OR \"S&P 500\" OR Nasdaq earnings",
+    "crypto": "bitcoin OR ethereum OR crypto market",
+    "sports": "\"Premier League\" OR \"Champions League\" OR NBA injury"
+  },
+  "central_banks": {
+    "fed": "https://www.federalreserve.gov/feeds/press_all.xml",
+    "ecb": "https://www.ecb.europa.eu/rss/press.html",
+    "boe": "https://www.bankofengland.co.uk/rss/news",
+    "boj": "https://www.boj.or.jp/en/rss/whatsnew.xml"
+  },
+  "calendar_currencies": ["USD", "EUR", "GBP", "JPY", "CNY"],
+  "polymarket_keywords": ["fed", "rate", "inflation", "cpi", "recession", "bitcoin", "ethereum", "gold", "oil",
+                          "tariff", "s&p", "nasdaq", "election", "nba", "premier league", "champions league"],
+  "odds_sports": ["soccer_epl", "soccer_uefa_champs_league", "basketball_nba"],
+  "subreddits": ["CryptoCurrency", "Bitcoin", "wallstreetbets", "stocks", "Forex", "Gold", "Commodities",
+                 "sportsbook", "algotrading"],
+  "telegram_channels": ["binance_announcements"],
+  "x_handles": ["whale_alert", "lookonchain", "spotonchain", "glassnode", "cryptoquant_com", "tier10k",
+                "WatcherGuru", "DeItaone", "FirstSquawk", "LiveSquawk", "federalreserve", "ecb",
+                "NickTimiraos", "JavierBlas", "KobeissiLetter", "zerohedge", "unusual_whales", "saylor",
+                "elonmusk", "Pinnacle"]
+}
