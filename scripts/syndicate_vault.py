@@ -102,6 +102,10 @@ PROVIDER_KEYS = {
     "fred": ("fred_api_key",),
     "eia": ("eia_api_key",),
     "edgar": ("sec_user_agent",),
+    # Sam's pulse (src/sam_pulse.py, 20.11.2026): Reddit's app id and secret are two separate entries.
+    "reddit_id": ("reddit_client_id",),
+    "reddit_secret": ("reddit_client_secret",),
+    "cryptopanic": ("cryptopanic_api_key",),
 }
 
 
