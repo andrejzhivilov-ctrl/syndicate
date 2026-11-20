@@ -29,10 +29,12 @@ logger = structlog.get_logger(__name__)
 
 PART_CHARS = 1_200
 EXCERPT_CHARS = 700
-MAX_PARTS_PER_NOTE = 400
-#: Parts embedded per run; a big first index is finished over the next runs.
-RUN_BUDGET = 1_500
-BATCH = 32
+#: A whole book is one card: its first 250 parts (~300 000 characters) fit one run of the job.
+MAX_PARTS_PER_NOTE = 250
+#: Parts embedded per run: the CPU model needs ~2 s a part (20.11.2026), so 300 fit the 15-minute slot;
+#: the first full index (~9000 parts) takes about 8 hours of runs, then only changed notes are read.
+RUN_BUDGET = 300
+BATCH = 16
 SKIP_DIRS = frozenset({".obsidian", ".trash", ".stfolder", ".git", "_Кошик_агентів"})
 _WORD = re.compile(r"[\w'’-]{3,}", re.UNICODE)
 
@@ -150,6 +152,7 @@ async def update(root: Path, embedder: Any, index: Optional[Index] = None, budge
         index.files[path] = {"mtime": current[path], "hash": digest, "parts": len(pieces)}
         spent += len(pieces)
         done += 1
+        index.save()  # a run cut short by its timeout keeps every note it finished
     index.save()
     return {"status": "ok", "notes": len(current), "indexed": done, "removed": len(removed), "parts": len(index.rows),
             "waiting": left}
