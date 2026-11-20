@@ -39,7 +39,7 @@ def test_the_rule_language_runs_only_what_it_lists():
 
 def test_every_strategy_in_the_repository_is_valid_and_obeys_andriis_rules():
     seeds = sam_catalog.seeds()
-    assert {"levels_15m", "breakout_1h", "trend_ema_1h", "mean_reversion_15m", "scalp_1m", "ema_20_55_rsi_4h"} <= set(seeds)
+    assert {"levels_15m", "breakout_1h", "trend_ema_1h", "mean_reversion_15m", "scalp_1m", "scalp_5m", "ema_20_55_rsi_4h"} <= set(seeds)
     for sid, spec in seeds.items():
         assert spec["id"] == sid and sam_catalog.validate(spec) == [], sid
         assert spec["risk"] <= 0.01 and spec["rr"] >= 2.5
@@ -52,9 +52,9 @@ def test_the_backtest_enters_on_the_next_open_and_counts_the_stop_first():
     frame.iloc[2, frame.columns.get_loc("open")] = 100.5
     frame.iloc[2, frame.columns.get_loc("high")] = 110.0  # target and stop both inside bar 2
     frame.iloc[2, frame.columns.get_loc("low")] = 90.0
-    first = sam_backtest.simulate(spec, frame, "crypto")[0]
+    first = sam_backtest.simulate(spec, frame, "trading")[0]  # 3 bps: the timing, not the cost gate, is tested
     assert first["entry_bar"] == 1 and first["entry"] == frame["open"].iloc[1]  # bar 0's signal, bar 1's open
-    second = sam_backtest.simulate(spec, frame.iloc[1:], "crypto")[0]
+    second = sam_backtest.simulate(spec, frame.iloc[1:], "trading")[0]
     assert second["entry"] == 100.5 and second["why"] == "stop" and second["r"] < -1  # worse case and costs
 
 
@@ -82,7 +82,9 @@ def test_a_new_idea_is_tested_at_once_and_only_a_passing_one_reaches_paper(tmp_p
     assert "crypto:binance:ETH/USDT" in made["missing"]  # a dead source is named, never guessed
     if made["now"] == "rejected":
         assert made["reasons"]
-    noise = {**spec, "id": "sam_noise", "parent": "sam_trend_follow", "long": "close > 0", "stop_long": "close * 0.999"}
+    # Always short against a rising market: no fee floor can save it (20.11.2026: stops are widened, not refused).
+    noise = {**spec, "id": "sam_noise", "parent": "sam_trend_follow", "long": None, "stop_long": None,
+             "short": "close > 0", "stop_short": "close * 1.001"}
     worse = sam_catalog.tool({"action": "propose", "spec": noise}, fetch)
     assert worse["now"] == "rejected" and any("очікування" in r for r in worse["reasons"])
     assert sam_catalog.tool({"action": "propose", "spec": spec}, fetch)["problems"]  # an id is never reused
@@ -109,6 +111,7 @@ def test_a_broken_rule_never_stops_the_tournament_and_sam_has_the_tool(tmp_path,
     assert hermes_tools.STRATEGY in hermes_tools.granted("sam")
     assert agent_schedule.JOBS["sam_backtest_ideas"].cron == "30 5 * * *"
     assert agent_schedule.JOBS["sam_rebacktest"].cron == "0 6 1 * *"
-    assert "scalp_1m" not in sam_catalog.active(exclude=("1m",)) and "scalp_1m" in sam_catalog.active("1m")
+    # 20.11.2026: the 1m scalp stays on paper with the fee floor; the 5m variant waits as an idea for its test
+    assert "scalp_1m" in sam_catalog.active("1m") and "scalp_5m" not in sam_catalog.active()
     with pytest.raises(sam_rules.RuleError):
         sam_rules.evaluate("nonsense(close)", _trend(50))

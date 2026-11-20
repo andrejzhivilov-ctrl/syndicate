@@ -36,6 +36,15 @@ class Signal:
         return self.entry + reward if self.side == "long" else self.entry - reward
 
 
+def with_cost_floor(signal: Signal, account: str, strategy: str) -> Signal:
+    """A stop closer than the fees allow is moved out to the floor (Andrii, 20.11.2026: widen, never refuse).
+    The size follows the stop in sam_paper, so the money at risk stays the same; the target keeps its R."""
+    stop = sam_paper.widen_stop(account, signal.side, signal.entry, signal.stop, strategy)
+    if stop == signal.stop:
+        return signal
+    return Signal(signal.side, signal.entry, stop, f"{signal.reason}; стоп розширено через комісії", signal.rr)
+
+
 def signal_now(spec: Dict[str, Any], frame: pd.DataFrame) -> Optional[Signal]:
     """The catalog rule on the last closed bar (the last row is still forming)."""
     if len(frame) < max(int(spec.get("min_bars") or 0), 3):
@@ -95,6 +104,7 @@ def run(ledger: Dict[str, Any], fetch: Fetch, names: Optional[List[str]] = None,
                 signal = None
             if signal is None or not signal.entry > 0 or signal.stop <= 0:
                 continue
+            signal = with_cost_floor(signal, account, name)
             made = sam_paper.open_trade(ledger, account=account, strategy=name, source=source, symbol=symbol,
                                         side=signal.side, entry=signal.entry, stop=signal.stop, target=signal.target(),
                                         risk=float(spec["risk"]), timeframe=timeframe, reason=signal.reason, now=now)

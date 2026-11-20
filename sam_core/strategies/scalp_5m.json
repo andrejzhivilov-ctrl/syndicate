@@ -1,0 +1,22 @@
+{
+  "id": "scalp_5m",
+  "title": "Скальп EMA 9/21 на 5m",
+  "author": "claude",
+  "status": "idea",
+  "timeframe": "5m",
+  "style": "scalp",
+  "risk": 0.005,
+  "markets": [
+    "crypto"
+  ],
+  "min_bars": 40,
+  "hypothesis": "П'ятихвилинний перетин EMA 9/21 на ліквідній крипті дає імпульс; стоп 1.5 ATR лежить поза комісіями ф'ючерсів (лімітний вхід, ринковий стоп).",
+  "long": "cross_up(ema(close, 9), ema(close, 21))",
+  "short": "cross_down(ema(close, 9), ema(close, 21))",
+  "stop_long": "close - 1.5 * atr(14)",
+  "stop_short": "close + 1.5 * atr(14)",
+  "source": "Claude, 20.11.2026: перевірка, чи скальп на 5m кращий за 1m (живий бектест 20.11: 63 угоди, PF 0.64 — ранковий бектест вирішить)",
+  "rr": 2.5,
+  "parent": "scalp_1m",
+  "created": "2026-11-20"
+}

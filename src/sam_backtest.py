@@ -57,7 +57,7 @@ def simulate(spec: Mapping[str, Any], frame: pd.DataFrame, account: str) -> List
     marks = signals(spec, frame)
     opens, highs, lows = (frame[c].to_numpy(float) for c in ("open", "high", "low"))
     closes = frame["close"].to_numpy(float)
-    cost = sam_paper.ACCOUNTS[account]["cost_bps"] / 10_000
+    sid = str(spec.get("id", ""))
     lev = sam_paper.ACCOUNTS[account]["max_leverage"]
     risk_frac, rr = float(spec["risk"]), float(spec.get("rr") or 2.5)
     trades: List[Dict[str, Any]] = []
@@ -70,18 +70,20 @@ def simulate(spec: Mapping[str, Any], frame: pd.DataFrame, account: str) -> List
             continue
         entry, stop = opens[i + 1], float(marks[f"stop_{side}"].iat[i])
         sign = 1 if side == "long" else -1
-        distance = (entry - stop) * sign
-        if not (math.isfinite(entry) and math.isfinite(stop) and entry > 0 and distance > 0):
+        if not (math.isfinite(entry) and math.isfinite(stop) and entry > 0 and (entry - stop) * sign > 0):
             i += 1  # a gap through the stop or a missing value: no honest entry
             continue
+        stop = sam_paper.widen_stop(account, side, entry, stop, sid)  # the same cost floor as on paper
+        distance = (entry - stop) * sign
         target = entry + sign * rr * distance
         found = _exit(side, highs, lows, i + 1, stop, target)
         j, price, why = found if found else (n - 1, closes[-1], "end_of_data")
         fraction = min(risk_frac / distance, lev / entry)  # units per unit of equity
         move = (price - entry) * sign
-        pnl = fraction * move - fraction * (entry + price) * cost
-        trades.append({"entry_bar": i + 1, "exit_bar": j, "side": side, "entry": entry, "exit": price,
-                       "why": why, "r": move / distance - (entry + price) * cost / distance, "pnl_frac": pnl})
+        paid = entry * sam_paper.fee(account, sid, "entry") + price * sam_paper.fee(
+            account, sid, why if why in ("target", "stop") else "manual")
+        trades.append({"entry_bar": i + 1, "exit_bar": j, "side": side, "entry": entry, "exit": price, "stop": stop,
+                       "why": why, "r": (move - paid) / distance, "pnl_frac": fraction * (move - paid)})
         i = j + 1
     return trades
 
