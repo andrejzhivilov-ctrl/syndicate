@@ -1,0 +1,23 @@
+{
+  "id": "trend_ema_1h",
+  "title": "Перетин EMA 20/50",
+  "author": "claude",
+  "status": "paper",
+  "timeframe": "1h",
+  "style": "mid",
+  "risk": 0.01,
+  "markets": [
+    "crypto",
+    "trading"
+  ],
+  "min_bars": 60,
+  "hypothesis": "Перетин швидкої й повільної середньої ловить початок тренду.",
+  "long": "cross_up(ema(close, 20), ema(close, 50))",
+  "short": "cross_down(ema(close, 20), ema(close, 50))",
+  "stop_long": "close - 1.5 * atr(14)",
+  "stop_short": "close + 1.5 * atr(14)",
+  "source": "класика: трендові середні",
+  "rr": 2.5,
+  "parent": null,
+  "created": "2026-11-20"
+}

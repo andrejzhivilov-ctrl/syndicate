@@ -1,0 +1,23 @@
+{
+  "id": "breakout_1h",
+  "title": "Пробій 20-барного діапазону",
+  "author": "claude",
+  "status": "paper",
+  "timeframe": "1h",
+  "style": "mid",
+  "risk": 0.01,
+  "markets": [
+    "crypto",
+    "trading"
+  ],
+  "min_bars": 30,
+  "hypothesis": "Пробій діапазону 20 годин відкриває тренд (канал Дончіана).",
+  "long": "close > highest(high, 20)",
+  "short": "close < lowest(low, 20)",
+  "stop_long": "close - 1.5 * atr(14)",
+  "stop_short": "close + 1.5 * atr(14)",
+  "source": "класика: канал Дончіана",
+  "rr": 2.5,
+  "parent": null,
+  "created": "2026-11-20"
+}

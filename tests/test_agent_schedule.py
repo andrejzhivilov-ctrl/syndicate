@@ -221,6 +221,8 @@ def test_alex_keeps_the_times_and_feeds_he_had_in_n8n():
         "sam_evening": ("0 21 * * *", "report"), "sam_bets": ("0 11 * * *", "report"),
         "sam_crypto_projects": ("0 13 * * *", "report"), "sam_reflection": ("30 4 * * *", "report"),
         "sam_weekly": ("0 18 * * 0", "report"), "sam_monthly": ("0 10 1 * *", "report"),
+        # 20.11.2026, Andrii: Sam learns daily, weekly, monthly — the catalog's gate is code, not a model turn.
+        "sam_backtest_ideas": ("30 5 * * *", "sam_backtest_ideas"), "sam_rebacktest": ("0 6 1 * *", "sam_rebacktest"),
     }
     assert all(job.text for job in sched.JOBS.values() if job.kind in ("checkin", "reminder", "owner_reminder"))
     urls = feeds.feeds_for("trainer")

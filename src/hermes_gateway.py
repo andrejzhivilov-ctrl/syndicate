@@ -280,6 +280,16 @@ def _gateway_tools(agent: str) -> List[Dict[str, Any]]:
                                 selection=text, odds={"type": "number"}, probability={"type": "number"}, bookmaker=text,
                                 fair_odds={"type": "number"}, id=text, won={"type": ["boolean", "null"]},
                                 closing_odds={"type": "number"})},
+        {"name": hermes_tools.STRATEGY, "description": "Your strategy catalog (repository + server + Second Brain "
+                                                       "Сем/Стратегії). action=list [status]; get (id); propose (spec: "
+                                                       "id, title, hypothesis, timeframe, style, markets, risk, rr, "
+                                                       "long/short and stop_long/stop_short as rules like "
+                                                       "\"cross_up(ema(close,20), ema(close,55)) and rsi(close,14) > 50\", "
+                                                       "parent for a changed copy, source) — it is backtested at once "
+                                                       "and goes to paper only if the out-of-sample gate passes; "
+                                                       "backtest (id); archive (id, why). Nothing is deleted.",
+         "inputSchema": _schema(["action"], action=text, id=text, status=text, why=text,
+                                spec={"type": "object"}, backtest={"type": "boolean"})},
         {"name": hermes_tools.ASK_AGENT, "description": "Ask another agent of the holding one question; it answers as "
                                                         "a colleague, without tools.",
          "inputSchema": _schema(["agent", "question"], agent={"type": "string", "enum": hermes_tools.ask_targets(agent)},
@@ -312,6 +322,12 @@ def _sam_paper() -> Any:
     from src import sam_paper
 
     return sam_paper
+
+
+async def _strategy(args: Mapping[str, Any]) -> Dict[str, Any]:
+    from src import market_data, sam_catalog
+
+    return await asyncio.to_thread(sam_catalog.tool, dict(args), market_data.history)
 
 
 async def _market_data(args: Mapping[str, Any]) -> Dict[str, Any]:
@@ -358,6 +374,7 @@ async def _gateway_call(agent: str, name: str, args: Mapping[str, Any], orchestr
         hermes_tools.MARKET_DATA: lambda: _market_data(args),
         hermes_tools.PAPER_TRADE: lambda: asyncio.to_thread(_sam_paper().trade_tool, dict(args)),
         hermes_tools.PAPER_BET: lambda: asyncio.to_thread(_sam_paper().bet_tool, dict(args)),
+        hermes_tools.STRATEGY: lambda: _strategy(args),
         hermes_tools.ASK_AGENT: lambda: hermes_tools.ask_agent(agent, str(args.get("agent", "")),
                                                                str(args.get("question", "")), orchestrator),
     }
