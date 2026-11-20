@@ -101,9 +101,8 @@ def frozen(ledger: Dict[str, Any], account: str, now: Optional[datetime] = None)
 # ── trades ────────────────────────────────────────────────────────────────────────────────
 
 
-def open_trade(ledger: Dict[str, Any], *, account: str, strategy: str, source: str, symbol: str, side: str,
-               entry: float, stop: float, target: float, risk: float, timeframe: str = "", reason: str = "",
-               leverage: Optional[float] = None, now: Optional[datetime] = None) -> Dict[str, Any]:
+def _plan_problem(account: str, side: str, entry: float, stop: float, target: float, risk: float) -> Optional[Dict[str, Any]]:
+    """Why this trade plan cannot be opened at all, or None."""
     if account not in ACCOUNTS or account == "bets":
         return {"status": "error", "error": "unknown_account", "available": [a for a in ACCOUNTS if a != "bets"]}
     if side not in ("long", "short"):
@@ -112,13 +111,22 @@ def open_trade(ledger: Dict[str, Any], *, account: str, strategy: str, source: s
         return {"status": "error", "error": "prices_must_be_positive_numbers"}
     if (side == "long" and not stop < entry < target) or (side == "short" and not target < entry < stop):
         return {"status": "error", "error": "stop_and_target_on_wrong_sides"}
-    risk = min(float(risk), MAX_RISK[account])
-    if risk <= 0:
+    if min(float(risk), MAX_RISK[account]) <= 0:
         return {"status": "error", "error": "risk_must_be_positive"}
     cost_r = cost_in_r(account, entry, stop, target)
     if cost_r > MAX_COST_R:
         return {"status": "refused", "reason": "costs_eat_the_edge", "cost_r": round(cost_r, 3), "max_cost_r": MAX_COST_R,
                 "hint": "стоп надто близько для цих комісій: ширший стоп або старший таймфрейм"}
+    return None
+
+
+def open_trade(ledger: Dict[str, Any], *, account: str, strategy: str, source: str, symbol: str, side: str,
+               entry: float, stop: float, target: float, risk: float, timeframe: str = "", reason: str = "",
+               leverage: Optional[float] = None, now: Optional[datetime] = None) -> Dict[str, Any]:
+    problem = _plan_problem(account, side, entry, stop, target, risk)
+    if problem:
+        return problem
+    risk = min(float(risk), MAX_RISK[account])
     limit = frozen(ledger, account, now)
     if limit:
         return {"status": "refused", "reason": f"loss_limit_{limit}", "account": account}
