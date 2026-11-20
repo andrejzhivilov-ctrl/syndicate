@@ -1,0 +1,23 @@
+{
+  "id": "mean_reversion_15m",
+  "title": "Відкат RSI за трендом EMA 200",
+  "author": "claude",
+  "status": "paper",
+  "timeframe": "15m",
+  "style": "day",
+  "risk": 0.0075,
+  "markets": [
+    "crypto",
+    "trading"
+  ],
+  "min_bars": 210,
+  "hypothesis": "Перепроданість у висхідному тренді (і навпаки) повертається до середнього.",
+  "long": "rsi(close, 14) < 30 and close > ema(close, 200)",
+  "short": "rsi(close, 14) > 70 and close < ema(close, 200)",
+  "stop_long": "close - atr(14)",
+  "stop_short": "close + atr(14)",
+  "source": "класика: повернення до середнього",
+  "rr": 2.5,
+  "parent": null,
+  "created": "2026-11-20"
+}

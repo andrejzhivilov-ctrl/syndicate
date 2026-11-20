@@ -6,7 +6,8 @@ decides where real money goes. This module is that ledger. It never touches a br
 - Accounts (Andrii's amounts): trading $100, crypto $100 (a "new projects" basket inside it), bets
   1000 UAH, investing 3000 UAH.
 - A trade has a strategy tag, entry, stop and target; its size comes from the risk per trade and the
-  stop distance, capped by leverage (x10 on paper, as Andrii asked); costs are charged on both sides.
+  stop distance, capped by leverage (x10 on paper, as Andrii asked); fees are charged on both sides by how
+  each side fills (FEES_BPS), and a stop is never closer than the fees allow (widen_stop).
 - Open trades are marked against candles: a stop or target hit closes them (if both in one candle, the
   stop counts: the worse case). Losses past Andrii's limits freeze new trades on that account.
 - A bet is sized by a quarter Kelly capped at 2% of the bank; when it settles, CLV is kept.
@@ -25,15 +26,61 @@ from typing import Any, Dict, List, Optional
 
 from src.data_paths import ensure_dir
 
+#: Fees in basis points per side, by how the order fills (20.11.2026, Andrii: real fees, not a blanket 0.1%).
+#: - crypto trades as USDT perpetual futures at the base tier: a limit entry and a limit target pay the maker
+#:   fee (Binance and Bybit: 0.02%), a stop fills at market as taker (Binance 0.05%, Bybit 0.055%) plus 1 bp of
+#:   slippage; the new-projects basket buys the coin itself on spot (0.1% either way);
+#: - forex, metals and indices: about 3 bp of spread and commission a side; investing: 5 bp.
+FEES_BPS: Dict[str, Dict[str, float]] = {
+    "trading": {"entry": 3, "target": 3, "stop": 3, "manual": 3},
+    "crypto": {"entry": 2, "target": 2, "stop": 6, "manual": 5.5},
+    "crypto_spot": {"entry": 10, "target": 10, "stop": 10, "manual": 10},
+    "invest": {"entry": 5, "target": 5, "stop": 5, "manual": 5},
+}
 ACCOUNTS: Dict[str, Dict[str, Any]] = {
-    "trading": {"start": 100.0, "currency": "USD", "max_leverage": 10, "cost_bps": 3},
-    "crypto": {"start": 100.0, "currency": "USD", "max_leverage": 10, "cost_bps": 10},
-    "invest": {"start": 3000.0, "currency": "UAH", "max_leverage": 1, "cost_bps": 5},
+    "trading": {"start": 100.0, "currency": "USD", "max_leverage": 10},
+    "crypto": {"start": 100.0, "currency": "USD", "max_leverage": 10},
+    "invest": {"start": 3000.0, "currency": "UAH", "max_leverage": 1},
     "bets": {"start": 1000.0, "currency": "UAH"},
 }
 #: Andrii's limits (19.11.2026): day, week, month, total.
 LOSS_LIMITS = {"day": 0.03, "week": 0.06, "month": 0.10, "total": 0.20}
 MAX_RISK = {"trading": 0.01, "crypto": 0.01, "invest": 0.10}
+#: 20.11.2026: the first night of one-minute scalps lost 2-3.4R a stop and even a hit target closed below zero,
+#: because the costs were larger than the stop distance. A stop is never closer than the distance at which the
+#: costs of a stopped trade take this share of its risk: the engine widens it (and the size shrinks, so the money
+#: at risk stays the same); with costs at 0.2R the 2.5R target still pays.
+MAX_COST_R = 0.20
+
+
+def fees(account: str, strategy: str = "") -> Dict[str, float]:
+    return FEES_BPS["crypto_spot" if account == "crypto" and strategy == "new_project" else account]
+
+
+def fee(account: str, strategy: str, how: str) -> float:
+    """The fee of one side as a fraction: how = entry | target | stop | manual (any other exit)."""
+    table = fees(account, strategy)
+    return table.get(how, table["manual"]) / 10_000
+
+
+def cost_in_r(account: str, entry: float, stop: float, strategy: str = "") -> float:
+    """What a stopped trade pays in fees, in units of its risk (the worse of its two exits)."""
+    return (entry * fee(account, strategy, "entry") + stop * fee(account, strategy, "stop")) / abs(entry - stop)
+
+
+def min_stop_distance(account: str, entry: float, strategy: str = "") -> float:
+    """The closest stop at which a stopped trade's fees stay within MAX_COST_R (a little margin over the bound)."""
+    on_stop = fee(account, strategy, "stop")
+    rate = fee(account, strategy, "entry") + on_stop
+    return entry * rate / (MAX_COST_R - on_stop) * 1.001  # the short side's bound, the stricter of the two
+
+
+def widen_stop(account: str, side: str, entry: float, stop: float, strategy: str = "") -> float:
+    """The rule's stop, or the cost floor when the rule's stop is closer than that."""
+    floor = min_stop_distance(account, entry, strategy)
+    if abs(entry - stop) >= floor:
+        return stop
+    return entry - floor if side == "long" else entry + floor
 #: New, unproven crypto projects: allowed on paper in their own small basket (Andrii, 19.11.2026).
 NEW_PROJECT_STRATEGY = "new_project"
 NEW_PROJECT_SHARE = 0.10
@@ -91,9 +138,9 @@ def frozen(ledger: Dict[str, Any], account: str, now: Optional[datetime] = None)
 # ── trades ────────────────────────────────────────────────────────────────────────────────
 
 
-def open_trade(ledger: Dict[str, Any], *, account: str, strategy: str, source: str, symbol: str, side: str,
-               entry: float, stop: float, target: float, risk: float, timeframe: str = "", reason: str = "",
-               leverage: Optional[float] = None, now: Optional[datetime] = None) -> Dict[str, Any]:
+def _plan_problem(account: str, side: str, entry: float, stop: float, target: float, risk: float,
+                  strategy: str = "") -> Optional[Dict[str, Any]]:
+    """Why this trade plan cannot be opened at all, or None."""
     if account not in ACCOUNTS or account == "bets":
         return {"status": "error", "error": "unknown_account", "available": [a for a in ACCOUNTS if a != "bets"]}
     if side not in ("long", "short"):
@@ -102,9 +149,24 @@ def open_trade(ledger: Dict[str, Any], *, account: str, strategy: str, source: s
         return {"status": "error", "error": "prices_must_be_positive_numbers"}
     if (side == "long" and not stop < entry < target) or (side == "short" and not target < entry < stop):
         return {"status": "error", "error": "stop_and_target_on_wrong_sides"}
-    risk = min(float(risk), MAX_RISK[account])
-    if risk <= 0:
+    if min(float(risk), MAX_RISK[account]) <= 0:
         return {"status": "error", "error": "risk_must_be_positive"}
+    cost_r = cost_in_r(account, entry, stop, strategy)
+    if cost_r > MAX_COST_R:
+        closest = widen_stop(account, side, entry, stop, strategy)
+        return {"status": "refused", "reason": "costs_eat_the_edge", "cost_r": round(cost_r, 3), "max_cost_r": MAX_COST_R,
+                "min_stop": round(closest, 8),
+                "hint": f"стоп надто близько для комісій: найближчий стоп {closest:.6g} (обсяг сам зменшиться, ризик у $ той самий)"}
+    return None
+
+
+def open_trade(ledger: Dict[str, Any], *, account: str, strategy: str, source: str, symbol: str, side: str,
+               entry: float, stop: float, target: float, risk: float, timeframe: str = "", reason: str = "",
+               leverage: Optional[float] = None, now: Optional[datetime] = None) -> Dict[str, Any]:
+    problem = _plan_problem(account, side, entry, stop, target, risk, strategy)
+    if problem:
+        return problem
+    risk = min(float(risk), MAX_RISK[account])
     limit = frozen(ledger, account, now)
     if limit:
         return {"status": "refused", "reason": f"loss_limit_{limit}", "account": account}
@@ -129,7 +191,9 @@ def open_trade(ledger: Dict[str, Any], *, account: str, strategy: str, source: s
 def _close(ledger: Dict[str, Any], trade: Dict[str, Any], price: float, why: str, now: Optional[datetime]) -> Dict[str, Any]:
     direction = 1 if trade["side"] == "long" else -1
     gross = direction * (price - trade["entry"]) * trade["size"]
-    cost = (trade["entry"] + price) * trade["size"] * ACCOUNTS[trade["account"]]["cost_bps"] / 10_000
+    how = why if why in ("target", "stop") else "manual"
+    cost = (trade["entry"] * fee(trade["account"], trade["strategy"], "entry")
+            + price * fee(trade["account"], trade["strategy"], how)) * trade["size"]
     pnl = gross - cost
     closed = {**trade, "exit": price, "exit_reason": why, "pnl": round(pnl, 6), "cost": round(cost, 6),
               "r": round(pnl / trade["risk_money"], 3) if trade["risk_money"] else 0.0,

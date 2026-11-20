@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 import numpy as np
+import pytest
 
 from src import agent_jobs, agent_schedule, hermes_tools, sam_paper, sam_strategies
 
@@ -18,10 +19,10 @@ def _empty():
 def test_a_trade_is_sized_by_risk_capped_by_leverage_and_closed_by_its_stop_first():
     ledger = _empty()
     made = sam_paper.open_trade(ledger, account="crypto", strategy="levels_15m", source="binance", symbol="BTC/USDT",
-                                side="long", entry=100.0, stop=99.0, target=102.5, risk=0.01, now=T0)
+                                side="long", entry=100.0, stop=98.0, target=105.0, risk=0.01, now=T0)
     trade = made["trade"]
     assert trade["risk_money"] <= 1.0 and trade["size"] * trade["entry"] <= 100 * 10 + 1e-9  # 1% of $100, x10 cap
-    both = [{"time": T0 + timedelta(minutes=1), "high": 103.0, "low": 98.0}]  # stop and target in one candle
+    both = [{"time": T0 + timedelta(minutes=1), "high": 106.0, "low": 97.0}]  # stop and target in one candle
     closed = sam_paper.mark(ledger, "binance", "BTC/USDT", both, T0 + timedelta(minutes=2))
     assert closed[0]["exit_reason"] == "stop" and closed[0]["r"] < -0.9 and ledger["open"] == []
     wrong = sam_paper.open_trade(ledger, account="crypto", strategy="x", source="binance", symbol="BTC/USDT",
@@ -98,3 +99,30 @@ def test_the_paper_tool_answers_status_and_refuses_unknown_actions(tmp_path, mon
     made = sam_paper.trade_tool({"action": "open", "account": "trading", "strategy": "news", "source": "yahoo",
                                  "symbol": "GC=F", "side": "short", "entry": 2000, "stop": 2010, "target": 1975})
     assert made["status"] == "ok" and sam_paper.trade_tool({"action": "status"})["open_trades"] == 1
+
+
+def test_a_stop_inside_the_fees_is_widened_by_the_engine_and_the_money_at_risk_stays_the_same():
+    """20.11.2026: one-minute scalps with a stop inside the costs lost 2-3.4R a stop. Andrii: widen, never refuse;
+    crypto pays futures fees (maker in, maker at target, taker plus slippage at the stop)."""
+    ledger = _empty()
+    # Sam's own trade with such a stop gets the closest honest stop back instead of a silent loss.
+    tight = sam_paper.open_trade(ledger, account="crypto", strategy="combo", source="binance", symbol="BTC/USDT",
+                                 side="long", entry=100.0, stop=99.9, target=100.25, risk=0.005, now=T0)
+    assert tight["reason"] == "costs_eat_the_edge" and 99.55 < tight["min_stop"] < 99.65 and ledger["open"] == []
+    # The tournament moves the stop out to the floor and opens the trade.
+    signal = sam_strategies.with_cost_floor(sam_strategies.Signal("long", 100.0, 99.9, "EMA"), "crypto", "scalp_5m")
+    assert signal.stop == pytest.approx(tight["min_stop"]) and "комісії" in signal.reason
+    made = sam_paper.open_trade(ledger, account="crypto", strategy="scalp_5m", source="binance", symbol="BTC/USDT",
+                                side="long", entry=signal.entry, stop=signal.stop, target=signal.target(), risk=0.005, now=T0)
+    trade = made["trade"]
+    assert made["status"] == "ok" and trade["risk_money"] == pytest.approx(0.5, rel=1e-6)  # 0.5% of $100 either way
+    stopped = sam_paper.mark(ledger, "binance", "BTC/USDT", [{"time": T0 + timedelta(minutes=5), "high": 100.1,
+                                                              "low": 99.0}], T0 + timedelta(minutes=6))[0]
+    assert -1.25 < stopped["r"] < -1.0  # the fees cost at most 0.2R now, not 1-2R
+    hit = sam_paper.open_trade(_empty(), account="crypto", strategy="scalp_5m", source="binance", symbol="ETH/USDT",
+                               side="long", entry=100.0, stop=signal.stop, target=signal.target(), risk=0.005, now=T0)
+    won = sam_paper.mark({"open": [hit["trade"]], "closed": []}, "binance", "ETH/USDT",
+                         [{"time": T0 + timedelta(minutes=5), "high": 102.0, "low": 99.95}], T0 + timedelta(minutes=6))[0]
+    assert won["exit_reason"] == "target" and won["r"] > 2.3  # a hit target is a real win after fees
+    # The new-projects basket buys the coin on spot: 0.1% a side, so its floor is wider.
+    assert sam_paper.min_stop_distance("crypto", 100.0, "new_project") > 2 * sam_paper.min_stop_distance("crypto", 100.0)

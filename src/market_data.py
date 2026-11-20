@@ -42,6 +42,35 @@ def _crypto(source: str, symbol: str, timeframe: str, limit: int) -> List[List[A
     return [[row[0], row[1], row[2], row[3], row[4], row[5]] for row in exchange.fetch_ohlcv(symbol, timeframe, limit=limit)]
 
 
+HISTORY_MAX = 5_000
+
+
+def history(source: str, symbol: str, timeframe: str, bars: int = 3_000) -> List[List[Any]]:
+    """A longer series for backtests (20.11.2026): Binance spot is paged backwards a thousand bars at a time;
+    other sources give what one request holds (Yahoo's own period limits apply)."""
+    bars = max(1, min(int(bars), HISTORY_MAX))
+    if source == YAHOO:
+        return _yahoo(symbol, timeframe, bars)
+    if not (source == "binance" and re.fullmatch(r"[A-Z0-9]+/USDT", symbol)):
+        return _crypto(source, symbol, timeframe, min(bars, 1000))
+    rows: List[List[Any]] = []
+    end = None
+    while len(rows) < bars:
+        params = {"symbol": symbol.replace("/", ""), "interval": timeframe, "limit": min(1000, bars - len(rows))}
+        if end is not None:
+            params["endTime"] = end
+        response = httpx.get("https://data-api.binance.vision/api/v3/klines", params=params, timeout=20)
+        response.raise_for_status()
+        page = [[int(r[0]), *(float(n) for n in r[1:6])] for r in response.json()]
+        if not page:
+            break
+        rows = page + rows
+        end = page[0][0] - 1
+        if len(page) < params["limit"]:
+            break
+    return rows[-bars:]
+
+
 def _yahoo(symbol: str, timeframe: str, limit: int) -> List[List[Any]]:
     import yfinance
 

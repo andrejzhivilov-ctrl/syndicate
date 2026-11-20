@@ -1634,13 +1634,18 @@ class EvaOrchestrator:
 
         from src.agent_owners import owner_of
 
-        return {
+        answer = {
             "task_id": task_id,
             "status": final_state["status"],
             "result": final_state.get("result"),
             # Which of the seven agents did this work (old agents report their new owner).
             "owner": owner_of(final_state.get("current_agent")),
         }
+        # 20.11.2026, Andrii: every move is kept in the Second Brain (src/brain.py); it never blocks the answer.
+        from src import brain
+
+        await asyncio.to_thread(brain.task, answer["owner"], task_type, task_payload, answer["status"], answer["result"])
+        return answer
 
     async def _fallback_execute(self, state: AgentState) -> AgentState:
         """Deterministic fallback dispatcher when LangGraph compile is bypassed."""
@@ -1754,6 +1759,9 @@ class EvaOrchestrator:
             lessons = lessons_note(await self._operator_lessons(agent_id))
             result = await self._hermes_turn(agent_id, text, owner, lessons) or await chat_reply(
                 agent_id, text, self._llm_for(agent_id), self._chat_buffer(), owner, reference, notes, lessons)
+        from src import brain
+
+        await asyncio.to_thread(brain.chat, agent_id, text if text is not None else " ".join(command or ()), result)
         return {"task_id": str(uuid.uuid4()), "status": "completed", "result": result}
 
     async def _public_command(self, name: str, argument: str) -> Dict[str, Any]:

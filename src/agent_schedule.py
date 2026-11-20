@@ -98,6 +98,13 @@ JOBS: Dict[str, Job] = {job.name: job for job in (
     Job("sam_reflection", "30 4 * * *", "sam", "report", "Сем: нічна рефлексія", sam_prompts.REFLECTION, timeout_s=1500),
     Job("sam_weekly", "0 18 * * 0", "sam", "report", "Сем: тижневий огляд", sam_prompts.WEEKLY, timeout_s=1500),
     Job("sam_monthly", "0 10 1 * *", "sam", "report", "Сем: місячний огляд", sam_prompts.MONTHLY, timeout_s=1500),
+    # 20.11.2026: the catalog's gate is code, not a model turn. Ideas from the night are tested every morning;
+    # on the 1st every paper strategy is tested again on fresh data before the monthly review.
+    Job("sam_backtest_ideas", "30 5 * * *", "sam", "sam_backtest_ideas", "Сем: бектест нових ідей", timeout_s=1500),
+    Job("sam_rebacktest", "0 6 1 * *", "sam", "sam_rebacktest", "Сем: повторний бектест каталогу", timeout_s=3000),
+    # 20.11.2026, Andrii: the Second Brain keeps everything, is searchable by meaning, and Eva clears it monthly.
+    Job("brain_index", "*/15 * * * *", "eva", "brain_index", "Second Brain: індекс пошуку за змістом", timeout_s=840),
+    Job("eva_brain_audit", "0 7 1 * *", "eva", "brain_audit", "Єва: місячний аудит Second Brain", timeout_s=1500),
 )}
 
 
@@ -146,16 +153,48 @@ def _fetch_rows(source: str, symbol: str, timeframe: str, limit: int) -> List[An
 
 async def _sam_engine(job: Job, gateway: Any) -> Dict[str, Any]:
     """Marking, scalping and the tournament: deterministic code over public candles, one ledger lock."""
-    from src import sam_paper, sam_strategies
+    from src import sam_catalog, sam_paper, sam_strategies
 
     def work(ledger: Dict[str, Any]) -> Dict[str, Any]:
         if job.kind == "sam_mark":
             return {"closed": len(sam_strategies.mark_open(ledger, _fetch_rows))}
-        names = ["scalp_1m"] if job.kind == "sam_scalp" else [n for n in sam_strategies.STRATEGIES if n != "scalp_1m"]
-        return {"opened": len(sam_strategies.run(ledger, _fetch_rows, names))}
+        if job.kind == "sam_scalp":
+            names = list(sam_catalog.active(timeframe="1m"))
+            return {"opened": len(sam_strategies.run(ledger, _fetch_rows, names)) if names else 0}
+        return {"opened": len(sam_strategies.run(ledger, _fetch_rows))}
 
     result = await asyncio.to_thread(sam_paper.transact, work)
     return {"status": "ok", **result}
+
+
+def _fetch_history(source: str, symbol: str, timeframe: str, bars: int) -> List[Any]:
+    from src import market_data
+
+    return market_data.history(source, symbol, timeframe, bars)
+
+
+async def _sam_backtests(job: Job, gateway: Any) -> Dict[str, Any]:
+    """Deterministic: the gate decides idea -> paper | rejected, and paper -> archived when it stops working."""
+    from src import sam_catalog
+
+    wanted = ("idea",) if job.kind == "sam_backtest_ideas" else ("paper",)
+    saved = sam_catalog.state()
+    ids = [k for k, s in sam_catalog.specs().items() if sam_catalog.status_of(k, s, saved) in wanted]
+    moved: Dict[str, str] = {}
+    for sid in ids:
+        result = await asyncio.to_thread(sam_catalog.backtest, sid, _fetch_history, "schedule")
+        moved[sid] = result.get("now") or result.get("reason", "unavailable")
+    return {"status": "ok", "tested": len(ids), "result": moved}
+async def _brain_index(job: Job, gateway: Any) -> Dict[str, Any]:
+    from src import brain_index
+
+    return await brain_index.run_job()
+
+
+async def _brain_audit(job: Job, gateway: Any) -> Dict[str, Any]:
+    from src import brain_audit
+
+    return await brain_audit.run_job(gateway)
 
 
 async def _to_markdown(job: Job, gateway: Any) -> Dict[str, Any]:
@@ -166,7 +205,9 @@ async def _to_markdown(job: Job, gateway: Any) -> Dict[str, Any]:
 
 LOCAL_JOBS = {"drive_mirror": _drive_mirror, "transcribe": _transcribe, "owner_reminder": _owner_reminder,
               "sort_materials": _sort_materials, "to_markdown": _to_markdown,
-              "sam_mark": _sam_engine, "sam_scalp": _sam_engine, "sam_tournament": _sam_engine}
+              "sam_mark": _sam_engine, "sam_scalp": _sam_engine, "sam_tournament": _sam_engine,
+              "sam_backtest_ideas": _sam_backtests, "sam_rebacktest": _sam_backtests,
+              "brain_index": _brain_index, "brain_audit": _brain_audit}
 
 
 def enabled_from_env(raw: Optional[str] = None) -> Tuple[List[str], List[str]]:
@@ -197,6 +238,9 @@ def _journal(job: Job, result: Dict[str, Any], started: datetime) -> None:
     entry = {"at": started.isoformat(timespec="seconds"), **result}
     with path.open("a", encoding="utf-8") as stream:
         stream.write(json.dumps(entry, ensure_ascii=False, default=str) + "\n")
+    from src import brain
+
+    brain.job(job.agent, job.name, result)
 
 
 def _reason(result: Dict[str, Any]) -> str:

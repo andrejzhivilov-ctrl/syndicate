@@ -51,6 +51,12 @@ DIRS = {
     "market_data": "market_data",
     # Sam's paper ledger: trades, bets, the strategy tournament (src/sam_paper.py, 19.11.2026).
     "sam_paper": "sam_paper",
+    # Sam's own strategies, their statuses, backtests and history (src/sam_catalog.py, 20.11.2026).
+    "sam_strategies": "sam_strategies",
+    # Every move of every agent, the same as the Second Brain's journals, in full (src/brain.py, 20.11.2026).
+    "brain": "brain",
+    # The rebuildable meaning index of the whole vault (src/brain_index.py, 20.11.2026).
+    "brain_index": "brain_index",
     # Skill proposals and Andrii's decisions for Eva's report (src/skill_approval.py, 16.11.2026).
     "skills": "skill_approval",
 }

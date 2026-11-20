@@ -1,0 +1,22 @@
+{
+  "id": "scalp_1m",
+  "title": "Скальп EMA 9/21",
+  "author": "claude",
+  "status": "paper",
+  "timeframe": "1m",
+  "style": "scalp",
+  "risk": 0.005,
+  "markets": [
+    "crypto"
+  ],
+  "min_bars": 40,
+  "hypothesis": "Хвилинний перетин EMA 9/21 на ліквідній крипті дає короткий імпульс.",
+  "long": "cross_up(ema(close, 9), ema(close, 21))",
+  "short": "cross_down(ema(close, 9), ema(close, 21))",
+  "stop_long": "close - atr(14)",
+  "stop_short": "close + atr(14)",
+  "source": "Андрій, 19.11.2026: скальпінг на папері; 20.11.2026: стоп не ближче межі комісій ф'ючерсів — бектест поза вибіркою 33 угоди, PF 1.48 (лише ~2 доби історії 1m)",
+  "rr": 2.5,
+  "parent": null,
+  "created": "2026-11-20"
+}

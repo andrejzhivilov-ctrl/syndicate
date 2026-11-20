@@ -1,0 +1,23 @@
+{
+  "id": "ema_20_55_rsi_4h",
+  "title": "EMA 20/55 + RSI 50 + фільтр EMA 200",
+  "author": "external",
+  "status": "idea",
+  "timeframe": "4h",
+  "style": "mid",
+  "risk": 0.01,
+  "markets": [
+    "crypto",
+    "trading"
+  ],
+  "min_bars": 210,
+  "hypothesis": "Перетин EMA 20/55 за напрямом EMA 200 і з RSI на боці тренду відсіює пилу.",
+  "long": "cross_up(ema(close, 20), ema(close, 55)) and rsi(close, 14) > 50 and close > ema(close, 200)",
+  "short": "cross_down(ema(close, 20), ema(close, 55)) and rsi(close, 14) < 50 and close < ema(close, 200)",
+  "stop_long": "close - 2 * atr(14)",
+  "stop_short": "close + 2 * atr(14)",
+  "source": "YouTube Ef5QqWKj_YA, 06:40 (Second Brain: Сем/Конспекти/Відео/2026-11-20 AI-трейдинг і боти)",
+  "rr": 2.5,
+  "parent": null,
+  "created": "2026-11-20"
+}

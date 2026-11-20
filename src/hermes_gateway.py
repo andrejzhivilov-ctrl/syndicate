@@ -189,7 +189,7 @@ def _tools(agent: str) -> List[Dict[str, Any]]:
          "inputSchema": _schema(["query"], query=text)},
         {"name": "hub_read", "description": "Read one hub entry by the id hub_search gave.",
          "inputSchema": _schema(["id"], id=text)},
-        {"name": "obsidian_search", "description": "Search the whole Obsidian vault by words, own folder first; "
+        {"name": "obsidian_search", "description": "Search the whole Second Brain by meaning (words when that is down), own folder first; "
                                                    "each hit comes with its summary. Read-only.",
          "inputSchema": _schema(["query"], query=text)},
         {"name": "obsidian_read", "description": "Read one Markdown note by its path inside the vault.",
@@ -280,6 +280,25 @@ def _gateway_tools(agent: str) -> List[Dict[str, Any]]:
                                 selection=text, odds={"type": "number"}, probability={"type": "number"}, bookmaker=text,
                                 fair_odds={"type": "number"}, id=text, won={"type": ["boolean", "null"]},
                                 closing_odds={"type": "number"})},
+        {"name": hermes_tools.STRATEGY, "description": "Your strategy catalog (repository + server + Second Brain "
+                                                       "Сем/Стратегії). action=list [status]; get (id); propose (spec: "
+                                                       "id, title, hypothesis, timeframe, style, markets, risk, rr, "
+                                                       "long/short and stop_long/stop_short as rules like "
+                                                       "\"cross_up(ema(close,20), ema(close,55)) and rsi(close,14) > 50\", "
+                                                       "parent for a changed copy, source) — it is backtested at once "
+                                                       "and goes to paper only if the out-of-sample gate passes; "
+                                                       "backtest (id); archive (id, why). Nothing is deleted.",
+         "inputSchema": _schema(["action"], action=text, id=text, status=text, why=text,
+                                spec={"type": "object"}, backtest={"type": "boolean"})},
+        {"name": hermes_tools.TRADE_ODDS, "description": "Before a trade: 10 000 replays of the planned trade from the "
+                                                         "instrument's own recent bars (blocks of real bars, 24h markets "
+                                                         "included). Gives the odds of target first, stop first or "
+                                                         "neither within horizon bars, expected R and a verdict "
+                                                         "(coin flip or edge). A simulation, not a forecast.",
+         "inputSchema": _schema(["source", "symbol", "side", "entry", "stop", "target"], source=text, symbol=text,
+                                timeframe=text, side=text, entry={"type": "number"}, stop={"type": "number"},
+                                target={"type": "number"}, horizon={"type": "integer", "minimum": 1, "maximum": 500},
+                                replays={"type": "integer", "minimum": 100, "maximum": 20000})},
         {"name": hermes_tools.ASK_AGENT, "description": "Ask another agent of the holding one question; it answers as "
                                                         "a colleague, without tools.",
          "inputSchema": _schema(["agent", "question"], agent={"type": "string", "enum": hermes_tools.ask_targets(agent)},
@@ -312,6 +331,18 @@ def _sam_paper() -> Any:
     from src import sam_paper
 
     return sam_paper
+
+
+async def _trade_odds(args: Mapping[str, Any]) -> Dict[str, Any]:
+    from src import sam_montecarlo
+
+    return await sam_montecarlo.tool(dict(args))
+
+
+async def _strategy(args: Mapping[str, Any]) -> Dict[str, Any]:
+    from src import market_data, sam_catalog
+
+    return await asyncio.to_thread(sam_catalog.tool, dict(args), market_data.history)
 
 
 async def _market_data(args: Mapping[str, Any]) -> Dict[str, Any]:
@@ -358,10 +389,16 @@ async def _gateway_call(agent: str, name: str, args: Mapping[str, Any], orchestr
         hermes_tools.MARKET_DATA: lambda: _market_data(args),
         hermes_tools.PAPER_TRADE: lambda: asyncio.to_thread(_sam_paper().trade_tool, dict(args)),
         hermes_tools.PAPER_BET: lambda: asyncio.to_thread(_sam_paper().bet_tool, dict(args)),
+        hermes_tools.STRATEGY: lambda: _strategy(args),
+        hermes_tools.TRADE_ODDS: lambda: _trade_odds(args),
         hermes_tools.ASK_AGENT: lambda: hermes_tools.ask_agent(agent, str(args.get("agent", "")),
                                                                str(args.get("question", "")), orchestrator),
     }
-    return await calls[name]()
+    result = await calls[name]()
+    from src import brain
+
+    await asyncio.to_thread(brain.tool, agent, name, dict(args), result)
+    return result
 
 
 def _read_note(path: str) -> str:
@@ -404,12 +441,10 @@ async def _run_tool(agent: str, name: str, args: Mapping[str, Any], orchestrator
     if name == "hub_read":
         return await _hub_read(agent, str(args.get("id", "")))
     if name == "obsidian_search":
-        # 19.11.2026: a real search, not the chat reference that waited for the word «нотатки».
-        from src.hermes_tools import NOTE_DIRS
-        from src.obsidian_notes import search_notes
+        # 20.11.2026: by meaning over the whole Second Brain (src/brain_index.py), words when that is down.
+        from src import brain_index
 
-        return await asyncio.to_thread(search_notes, str(args.get("query", "")), vault_dir_from_env(),
-                                       NOTE_DIRS.get(agent, ""))
+        return await brain_index.search_or_words(str(args.get("query", "")), agent)
     if name == "obsidian_read":
         return await asyncio.to_thread(_read_note, str(args.get("path", "")))
     if name == "learning_inbox" and agent in AGENT_KINDS:
