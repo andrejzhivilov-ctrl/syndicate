@@ -75,6 +75,9 @@ def simulate(spec: Mapping[str, Any], frame: pd.DataFrame, account: str) -> List
             i += 1  # a gap through the stop or a missing value: no honest entry
             continue
         target = entry + sign * rr * distance
+        if sam_paper.cost_in_r(account, entry, stop, target) > sam_paper.MAX_COST_R:
+            i += 1  # paper refuses a trade whose costs eat the edge; the history must not count it either
+            continue
         found = _exit(side, highs, lows, i + 1, stop, target)
         j, price, why = found if found else (n - 1, closes[-1], "end_of_data")
         fraction = min(risk_frac / distance, lev / entry)  # units per unit of equity

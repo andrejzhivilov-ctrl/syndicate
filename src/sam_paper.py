@@ -34,6 +34,16 @@ ACCOUNTS: Dict[str, Dict[str, Any]] = {
 #: Andrii's limits (19.11.2026): day, week, month, total.
 LOSS_LIMITS = {"day": 0.03, "week": 0.06, "month": 0.10, "total": 0.20}
 MAX_RISK = {"trading": 0.01, "crypto": 0.01, "invest": 0.10}
+#: 20.11.2026: the first night of one-minute scalps lost 2-3.4R a stop and even a hit target closed below zero,
+#: because the round-trip costs were larger than the stop distance. A trade whose costs take more than this
+#: share of its risk is refused: with costs at 0.2R the 2.5R target still pays, below that nothing can.
+MAX_COST_R = 0.20
+
+
+def cost_in_r(account: str, entry: float, stop: float, target: float) -> float:
+    """Entry and exit costs of the paper account, in units of the trade's risk."""
+    cost = ACCOUNTS[account]["cost_bps"] / 10_000
+    return (entry + target) * cost / abs(entry - stop)
 #: New, unproven crypto projects: allowed on paper in their own small basket (Andrii, 19.11.2026).
 NEW_PROJECT_STRATEGY = "new_project"
 NEW_PROJECT_SHARE = 0.10
@@ -105,6 +115,10 @@ def open_trade(ledger: Dict[str, Any], *, account: str, strategy: str, source: s
     risk = min(float(risk), MAX_RISK[account])
     if risk <= 0:
         return {"status": "error", "error": "risk_must_be_positive"}
+    cost_r = cost_in_r(account, entry, stop, target)
+    if cost_r > MAX_COST_R:
+        return {"status": "refused", "reason": "costs_eat_the_edge", "cost_r": round(cost_r, 3), "max_cost_r": MAX_COST_R,
+                "hint": "стоп надто близько для цих комісій: ширший стоп або старший таймфрейм"}
     limit = frozen(ledger, account, now)
     if limit:
         return {"status": "refused", "reason": f"loss_limit_{limit}", "account": account}

@@ -18,10 +18,10 @@ def _empty():
 def test_a_trade_is_sized_by_risk_capped_by_leverage_and_closed_by_its_stop_first():
     ledger = _empty()
     made = sam_paper.open_trade(ledger, account="crypto", strategy="levels_15m", source="binance", symbol="BTC/USDT",
-                                side="long", entry=100.0, stop=99.0, target=102.5, risk=0.01, now=T0)
+                                side="long", entry=100.0, stop=98.0, target=105.0, risk=0.01, now=T0)
     trade = made["trade"]
     assert trade["risk_money"] <= 1.0 and trade["size"] * trade["entry"] <= 100 * 10 + 1e-9  # 1% of $100, x10 cap
-    both = [{"time": T0 + timedelta(minutes=1), "high": 103.0, "low": 98.0}]  # stop and target in one candle
+    both = [{"time": T0 + timedelta(minutes=1), "high": 106.0, "low": 97.0}]  # stop and target in one candle
     closed = sam_paper.mark(ledger, "binance", "BTC/USDT", both, T0 + timedelta(minutes=2))
     assert closed[0]["exit_reason"] == "stop" and closed[0]["r"] < -0.9 and ledger["open"] == []
     wrong = sam_paper.open_trade(ledger, account="crypto", strategy="x", source="binance", symbol="BTC/USDT",
@@ -98,3 +98,14 @@ def test_the_paper_tool_answers_status_and_refuses_unknown_actions(tmp_path, mon
     made = sam_paper.trade_tool({"action": "open", "account": "trading", "strategy": "news", "source": "yahoo",
                                  "symbol": "GC=F", "side": "short", "entry": 2000, "stop": 2010, "target": 1975})
     assert made["status"] == "ok" and sam_paper.trade_tool({"action": "status"})["open_trades"] == 1
+
+
+def test_a_trade_whose_costs_eat_the_edge_is_refused():
+    """20.11.2026: one-minute scalps with a stop inside the costs lost 2-3.4R a stop (requirement added)."""
+    ledger = _empty()
+    tight = sam_paper.open_trade(ledger, account="crypto", strategy="scalp_1m", source="binance", symbol="BTC/USDT",
+                                 side="long", entry=100.0, stop=99.9, target=100.25, risk=0.005, now=T0)
+    assert tight["reason"] == "costs_eat_the_edge" and tight["cost_r"] > 1 and ledger["open"] == []
+    wide = sam_paper.open_trade(ledger, account="crypto", strategy="scalp_1m", source="binance", symbol="BTC/USDT",
+                                side="long", entry=100.0, stop=98.0, target=105.0, risk=0.005, now=T0)
+    assert wide["status"] == "ok"
