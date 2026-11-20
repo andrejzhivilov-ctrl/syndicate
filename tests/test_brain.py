@@ -94,7 +94,7 @@ def test_without_the_embeddings_service_the_search_says_so_and_uses_words(tmp_pa
     (vault / "Сем" / "Рівні.md").write_text("# Рівні\n\nвчорашній максимум", encoding="utf-8")
     monkeypatch.delenv("EMBEDDINGS_URL", raising=False)
     found = asyncio.run(brain_index.search_or_words("максимум", "sam"))
-    assert found["mode"] == "words" and found["warning"] and "Рівні" in found["text"]
+    assert found.startswith("Пошук за змістом зараз недоступний") and "Сем/Рівні.md" in found
     assert asyncio.run(brain_index.run_job())["reason"] == "embeddings_disabled"
 
 
