@@ -98,6 +98,9 @@ JOBS: Dict[str, Job] = {job.name: job for job in (
     Job("sam_reflection", "30 4 * * *", "sam", "report", "Сем: нічна рефлексія", sam_prompts.REFLECTION, timeout_s=1500),
     Job("sam_weekly", "0 18 * * 0", "sam", "report", "Сем: тижневий огляд", sam_prompts.WEEKLY, timeout_s=1500),
     Job("sam_monthly", "0 10 1 * *", "sam", "report", "Сем: місячний огляд", sam_prompts.MONTHLY, timeout_s=1500),
+    # 20.11.2026, Andrii: the Second Brain keeps everything, is searchable by meaning, and Eva clears it monthly.
+    Job("brain_index", "*/15 * * * *", "eva", "brain_index", "Second Brain: індекс пошуку за змістом", timeout_s=840),
+    Job("eva_brain_audit", "0 7 1 * *", "eva", "brain_audit", "Єва: місячний аудит Second Brain", timeout_s=1500),
 )}
 
 
@@ -158,6 +161,18 @@ async def _sam_engine(job: Job, gateway: Any) -> Dict[str, Any]:
     return {"status": "ok", **result}
 
 
+async def _brain_index(job: Job, gateway: Any) -> Dict[str, Any]:
+    from src import brain_index
+
+    return await brain_index.run_job()
+
+
+async def _brain_audit(job: Job, gateway: Any) -> Dict[str, Any]:
+    from src import brain_audit
+
+    return await brain_audit.run_job(gateway)
+
+
 async def _to_markdown(job: Job, gateway: Any) -> Dict[str, Any]:
     from src import material_markdown
 
@@ -166,7 +181,8 @@ async def _to_markdown(job: Job, gateway: Any) -> Dict[str, Any]:
 
 LOCAL_JOBS = {"drive_mirror": _drive_mirror, "transcribe": _transcribe, "owner_reminder": _owner_reminder,
               "sort_materials": _sort_materials, "to_markdown": _to_markdown,
-              "sam_mark": _sam_engine, "sam_scalp": _sam_engine, "sam_tournament": _sam_engine}
+              "sam_mark": _sam_engine, "sam_scalp": _sam_engine, "sam_tournament": _sam_engine,
+              "brain_index": _brain_index, "brain_audit": _brain_audit}
 
 
 def enabled_from_env(raw: Optional[str] = None) -> Tuple[List[str], List[str]]:
@@ -197,6 +213,9 @@ def _journal(job: Job, result: Dict[str, Any], started: datetime) -> None:
     entry = {"at": started.isoformat(timespec="seconds"), **result}
     with path.open("a", encoding="utf-8") as stream:
         stream.write(json.dumps(entry, ensure_ascii=False, default=str) + "\n")
+    from src import brain
+
+    brain.job(job.agent, job.name, result)
 
 
 def _reason(result: Dict[str, Any]) -> str:

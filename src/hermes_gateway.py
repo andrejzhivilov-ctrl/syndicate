@@ -189,7 +189,7 @@ def _tools(agent: str) -> List[Dict[str, Any]]:
          "inputSchema": _schema(["query"], query=text)},
         {"name": "hub_read", "description": "Read one hub entry by the id hub_search gave.",
          "inputSchema": _schema(["id"], id=text)},
-        {"name": "obsidian_search", "description": "Search the whole Obsidian vault by words, own folder first; "
+        {"name": "obsidian_search", "description": "Search the whole Second Brain by meaning (words when that is down), own folder first; "
                                                    "each hit comes with its summary. Read-only.",
          "inputSchema": _schema(["query"], query=text)},
         {"name": "obsidian_read", "description": "Read one Markdown note by its path inside the vault.",
@@ -361,7 +361,11 @@ async def _gateway_call(agent: str, name: str, args: Mapping[str, Any], orchestr
         hermes_tools.ASK_AGENT: lambda: hermes_tools.ask_agent(agent, str(args.get("agent", "")),
                                                                str(args.get("question", "")), orchestrator),
     }
-    return await calls[name]()
+    result = await calls[name]()
+    from src import brain
+
+    await asyncio.to_thread(brain.tool, agent, name, dict(args), result)
+    return result
 
 
 def _read_note(path: str) -> str:
@@ -404,12 +408,10 @@ async def _run_tool(agent: str, name: str, args: Mapping[str, Any], orchestrator
     if name == "hub_read":
         return await _hub_read(agent, str(args.get("id", "")))
     if name == "obsidian_search":
-        # 19.11.2026: a real search, not the chat reference that waited for the word «нотатки».
-        from src.hermes_tools import NOTE_DIRS
-        from src.obsidian_notes import search_notes
+        # 20.11.2026: by meaning over the whole Second Brain (src/brain_index.py), words when that is down.
+        from src import brain_index
 
-        return await asyncio.to_thread(search_notes, str(args.get("query", "")), vault_dir_from_env(),
-                                       NOTE_DIRS.get(agent, ""))
+        return await brain_index.search_or_words(str(args.get("query", "")), agent)
     if name == "obsidian_read":
         return await asyncio.to_thread(_read_note, str(args.get("path", "")))
     if name == "learning_inbox" and agent in AGENT_KINDS:
