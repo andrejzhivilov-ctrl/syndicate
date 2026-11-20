@@ -39,7 +39,7 @@ def test_the_rule_language_runs_only_what_it_lists():
 
 def test_every_strategy_in_the_repository_is_valid_and_obeys_andriis_rules():
     seeds = sam_catalog.seeds()
-    assert {"levels_15m", "breakout_1h", "trend_ema_1h", "mean_reversion_15m", "scalp_1m", "ema_20_55_rsi_4h"} <= set(seeds)
+    assert {"levels_15m", "breakout_1h", "trend_ema_1h", "mean_reversion_15m", "scalp_1m", "scalp_5m", "ema_20_55_rsi_4h"} <= set(seeds)
     for sid, spec in seeds.items():
         assert spec["id"] == sid and sam_catalog.validate(spec) == [], sid
         assert spec["risk"] <= 0.01 and spec["rr"] >= 2.5
@@ -109,6 +109,7 @@ def test_a_broken_rule_never_stops_the_tournament_and_sam_has_the_tool(tmp_path,
     assert hermes_tools.STRATEGY in hermes_tools.granted("sam")
     assert agent_schedule.JOBS["sam_backtest_ideas"].cron == "30 5 * * *"
     assert agent_schedule.JOBS["sam_rebacktest"].cron == "0 6 1 * *"
-    assert "scalp_1m" not in sam_catalog.active(exclude=("1m",)) and "scalp_1m" in sam_catalog.active("1m")
+    # 20.11.2026: the 1m scalp is archived (fees above its stop); the 5m scalp runs in the tournament
+    assert "scalp_1m" not in sam_catalog.active() and "scalp_5m" in sam_catalog.active(exclude=("1m",))
     with pytest.raises(sam_rules.RuleError):
         sam_rules.evaluate("nonsense(close)", _trend(50))

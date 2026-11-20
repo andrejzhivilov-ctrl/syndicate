@@ -1,0 +1,22 @@
+{
+  "id": "scalp_5m",
+  "title": "Скальп EMA 9/21 на 5m",
+  "author": "claude",
+  "status": "paper",
+  "timeframe": "5m",
+  "style": "scalp",
+  "risk": 0.005,
+  "markets": [
+    "crypto"
+  ],
+  "min_bars": 40,
+  "hypothesis": "П'ятихвилинний перетин EMA 9/21 на ліквідній крипті дає імпульс; стоп 1.5 ATR лежить поза комісіями ф'ючерсів (лімітний вхід, ринковий стоп).",
+  "long": "cross_up(ema(close, 9), ema(close, 21))",
+  "short": "cross_down(ema(close, 9), ema(close, 21))",
+  "stop_long": "close - 1.5 * atr(14)",
+  "stop_short": "close + 1.5 * atr(14)",
+  "source": "Андрій, 20.11.2026: скальп переїжджає з 1m на 5m, комісії ф'ючерсів, стоп не ближче межі комісій",
+  "rr": 2.5,
+  "parent": "scalp_1m",
+  "created": "2026-11-20"
+}
